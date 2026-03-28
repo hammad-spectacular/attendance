@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,7 +9,9 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-    * { font-family: 'Inter', sans-serif; }
+    * {
+      font-family: 'Inter', sans-serif;
+    }
 
     /* Smooth button transitions */
     .att-btn {
@@ -39,17 +42,26 @@
     }
 
     @keyframes pulse-warn {
-      0%, 100% { background-color: transparent; }
-      50% { background-color: #fef3c7; }
+
+      0%,
+      100% {
+        background-color: transparent;
+      }
+
+      50% {
+        background-color: #fef3c7;
+      }
     }
 
     /* Row marked indicator */
     .row-marked-present {
       border-left: 4px solid #059669;
     }
+
     .row-marked-absent {
       border-left: 4px solid #dc2626;
     }
+
     .row-default {
       border-left: 4px solid transparent;
     }
@@ -58,13 +70,27 @@
     .toast {
       animation: slideUp 0.4s ease-out, fadeOut 0.4s ease-in 2.6s forwards;
     }
+
     @keyframes slideUp {
-      from { transform: translateY(100%); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
+      from {
+        transform: translateY(100%);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
     }
+
     @keyframes fadeOut {
-      from { opacity: 1; }
-      to { opacity: 0; }
+      from {
+        opacity: 1;
+      }
+
+      to {
+        opacity: 0;
+      }
     }
 
     /* Progress bar fill */
@@ -83,21 +109,38 @@
     .summary-card {
       animation: popIn 0.3s ease-out;
     }
+
     @keyframes popIn {
-      from { transform: scale(0.9); opacity: 0; }
-      to { transform: scale(1); opacity: 1; }
+      from {
+        transform: scale(0.9);
+        opacity: 0;
+      }
+
+      to {
+        transform: scale(1);
+        opacity: 1;
+      }
     }
 
     /* Floating submit button pulse when all marked */
     .submit-ready {
       animation: submitPulse 2s ease-in-out infinite;
     }
+
     @keyframes submitPulse {
-      0%, 100% { box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.3); }
-      50% { box-shadow: 0 10px 35px -5px rgba(59, 130, 246, 0.5); }
+
+      0%,
+      100% {
+        box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.3);
+      }
+
+      50% {
+        box-shadow: 0 10px 35px -5px rgba(59, 130, 246, 0.5);
+      }
     }
   </style>
 </head>
+
 <body class="bg-gray-50 min-h-screen">
 
   <!-- ======================== HEADER ======================== -->
@@ -118,7 +161,8 @@
       </div>
       <!-- Progress Bar -->
       <div class="mt-3 h-2 bg-gray-100 rounded-full overflow-hidden">
-        <div id="progressBar" class="progress-fill h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full" style="width: 0%"></div>
+        <div id="progressBar" class="progress-fill h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full"
+          style="width: 0%"></div>
       </div>
     </div>
   </header>
@@ -144,47 +188,48 @@
 
     <!-- Quick Actions -->
     <div class="flex gap-2 mb-5">
-      <button onclick="markAllPresent()" class="flex-1 text-xs sm:text-sm font-600 py-2.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer">
+      <button onclick="markAllPresent()"
+        class="flex-1 text-xs sm:text-sm font-600 py-2.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer">
         ✅ Mark All Present
       </button>
-      <button onclick="markAllAbsent()" class="flex-1 text-xs sm:text-sm font-600 py-2.5 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors cursor-pointer">
+      <button onclick="markAllAbsent()"
+        class="flex-1 text-xs sm:text-sm font-600 py-2.5 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors cursor-pointer">
         ❌ Mark All Absent
       </button>
-      <button onclick="resetAll()" class="text-xs sm:text-sm font-600 py-2.5 px-4 rounded-lg bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer">
+      <button onclick="resetAll()"
+        class="text-xs sm:text-sm font-600 py-2.5 px-4 rounded-lg bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer">
         ↺ Reset
       </button>
     </div>
 
     <!-- Student List -->
     <section aria-label="Student attendance list">
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100" id="studentList">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100"
+        id="studentList">
         <!-- Student rows rendered by JS -->
       </div>
     </section>
 
     <!-- ======================== SAVED RECORDS VIEWER ======================== -->
     <section class="mt-6 mb-8" aria-label="Saved attendance records">
-      <button
-        onclick="toggleSavedRecords()"
+      <button onclick="toggleSavedRecords()"
         class="w-full py-3 px-4 rounded-xl border-2 border-dashed border-gray-300 text-gray-500 font-600 text-sm
                hover:border-blue-400 hover:text-blue-600 transition-all cursor-pointer flex items-center justify-center gap-2 bg-white/50"
-        id="toggleSavedBtn"
-      >
+        id="toggleSavedBtn">
         <span>📋</span>
         <span>View Saved Records</span>
         <span id="savedToggleArrow" class="text-xs transition-transform duration-300">▼</span>
       </button>
 
-      <div id="savedRecordsPanel" class="hidden mt-3 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div id="savedRecordsPanel"
+        class="hidden mt-3 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="p-4 border-b border-gray-100 flex items-center justify-between">
           <h3 class="font-700 text-gray-800 text-sm flex items-center gap-2">
             <span>💾</span> Stored on this device
           </h3>
-           <button
-            onclick="clearSavedRecords()"
-            class="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-600 hover:bg-red-100 transition-colors cursor-pointer"
-          >
-            🗑️ Clear All History
+          <button onclick="clearSavedRecords()"
+            class="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-600 hover:bg-red-100 transition-colors cursor-pointer">
+            🗑️ Clear Data
           </button>
         </div>
         <div id="savedRecordsContent" class="p-4">
@@ -192,7 +237,8 @@
         </div>
         <div class="px-4 pb-3">
           <p class="text-[11px] text-gray-400 flex items-center gap-1">
-            <span>ℹ️</span> Data is stored in your browser's localStorage. It stays on this device only, in this browser.
+            <span>ℹ️</span> Data is stored in your browser's localStorage. It stays on this device only, in this
+            browser.
           </p>
         </div>
       </div>
@@ -201,23 +247,20 @@
   </main>
 
   <!-- ======================== FLOATING SUBMIT BUTTON (bottom-right) ======================== -->
-  <button
-    id="submitBtn"
-    onclick="submitAttendance()"
-    class="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-30
+  <button id="submitBtn" onclick="submitAttendance()" class="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-30
            py-3.5 px-6 sm:px-8 rounded-2xl font-700 text-sm sm:text-base transition-all cursor-pointer
            bg-gradient-to-r from-blue-600 to-indigo-600 text-white
            hover:from-blue-700 hover:to-indigo-700
            active:scale-[0.95] shadow-xl shadow-blue-500/30
-           flex items-center gap-2"
-    aria-label="Submit Attendance"
-  >
+           flex items-center gap-2" aria-label="Submit Attendance">
     <span>Submit</span>
     <span class="text-lg">→</span>
   </button>
 
   <!-- Toast container -->
-  <div id="toastContainer" class="fixed bottom-20 right-6 sm:bottom-22 sm:right-8 z-50 flex flex-col gap-2 items-end pointer-events-none"></div>
+  <div id="toastContainer"
+    class="fixed bottom-20 right-6 sm:bottom-22 sm:right-8 z-50 flex flex-col gap-2 items-end pointer-events-none">
+  </div>
 
   <!-- ======================== JAVASCRIPT ======================== -->
   <script>
@@ -226,16 +269,17 @@
     // Store student data in an array of objects.
     // TODO: In future, replace this static array with an API call
     //       e.g., fetch('/api/students').then(res => res.json())
+    
     // =============================================================
     const students = [
-      { id: 1,  name: "Ali Hassan",      rollNo: "CS-101", phone: "+92" },
-      { id: 2,  name: "Sara Ahmed",      rollNo: "CS-102", phone: "+92" },
-      { id: 3,  name: "Omar Farooq",     rollNo: "CS-103", phone: "+92" },
-      { id: 4,  name: "Fatima Zahra",    rollNo: "CS-104", phone: "+923411234567" },
-      { id: 5,  name: "Hassan Raza",     rollNo: "CS-105", phone: "+923511234567" },
-      { id: 6,  name: "Ayesha Khan",     rollNo: "CS-106", phone: "+923611234567" },
-      { id: 7,  name: "Bilal Mahmood",   rollNo: "CS-107", phone: "+923711234567" },
-      { id: 8,  name: "Zainab Tariq",    rollNo: "CS-108", phone: "+923811234567" }
+      { id: 1, name: "Ali Hassan", rollNo: "CS-101", phone: "+92", status: null },
+      { id: 2, name: "Sara Ahmed", rollNo: "CS-102", phone: "+92", status: null },
+      { id: 3, name: "Omar Farooq", rollNo: "CS-103", phone: "+923211234567", status: null },
+      { id: 4, name: "Fatima Zahra", rollNo: "CS-104", phone: "+923411234567", status: null },
+      { id: 5, name: "Hassan Raza", rollNo: "CS-105", phone: "+923511234567", status: null },
+      { id: 6, name: "Ayesha Khan", rollNo: "CS-106", phone: "+923611234567", status: null },
+      { id: 7, name: "Bilal Mahmood", rollNo: "CS-107", phone: "+923711234567", status: null },
+      { id: 8, name: "Zainab Tariq", rollNo: "CS-108", phone: "+923811234567", status: null },
     ];
 
     // Attendance state map: { studentId: "Present" | "Absent" | null }
@@ -247,22 +291,6 @@
 
     // =============================================================
     // STORAGE LAYER (localStorage — swap for API calls later)
-    // Stores MULTIPLE days in a single key as an array of records.
-    //
-    // Format:
-    // [
-    //   {
-    //     "date": "2026-03-21",
-    //     "students": [
-    //       { "id": 1, "name": "Ali Hassan", "status": "Present" },
-    //       { "id": 2, "name": "Sara Ahmed", "status": "Absent" }
-    //     ]
-    //   },
-    //   { "date": "2026-03-22", "students": [...] }
-    // ]
-    //
-    // Same-day submissions REPLACE (not duplicate).
-    // Old days are never deleted unless user explicitly clears.
     // =============================================================
 
     /** Get today's date as YYYY-MM-DD string */
@@ -270,128 +298,48 @@
       return new Date().toISOString().split('T')[0];
     }
 
-    // Single storage key — change only this for future backend swap
+    // Storage key — keep consistent for future backend swap
     const STORAGE_KEY = 'attendance';
 
     /**
-     * getAllRecords()
-     * Returns the full attendance history array from localStorage.
-     *
-     * TODO: Replace with API call:
-     *       fetch('/api/attendance').then(res => res.json())
-     */
-    function getAllRecords() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return [];
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch (e) {
-        return [];
-      }
-    }
-
-    /**
-     * saveAllRecords(records)
-     * Writes the full attendance history array to localStorage.
+     * saveAttendance(data)
+     * Persists attendance data to localStorage.
      *
      * TODO: Replace with API call:
      *       fetch('/api/attendance/save', {
      *         method: 'POST',
      *         headers: { 'Content-Type': 'application/json' },
-     *         body: JSON.stringify(records)
+     *         body: JSON.stringify(todayData)
      *       })
      */
-    function saveAllRecords(records) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-    }
-
-    /**
-     * Get all stored dates (sorted newest first).
-     */
-    function getStoredDates() {
-      const records = getAllRecords();
-      return records
-        .map(r => r.date)
-        .sort((a, b) => b.localeCompare(a)); // newest first
-    }
-
-    /**
-     * saveAttendance(studentsData)
-     * Saves today's attendance into the history array.
-     * If today already exists → replaces it (no duplicates).
-     * If today is new → pushes it to the array.
-     *
-     * TODO: Replace internals with API call when backend is ready.
-     */
-    function saveAttendance(studentsData) {
-      const today = getTodayDate();
-      const existing = getAllRecords();
-
-      // Build today's record in the clean format
-      const todayRecord = {
-        date: today,
-        students: studentsData.map(s => ({
-          id: s.id,
-          name: s.name,
-          status: s.status
-        }))
-      };
-
-      // Check if today already has an entry → replace it
-      const index = existing.findIndex(r => r.date === today);
-      if (index !== -1) {
-        existing[index] = todayRecord; // replace, don't duplicate
-      } else {
-        existing.push(todayRecord); // new day
+    function saveAttendance(todayData) {
+      let existing = [];
+      try {
+        existing = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        if (!Array.isArray(existing)) {
+          existing = [];
+        }
+      } catch (e) {
+        existing = [];
       }
 
-      saveAllRecords(existing);
-    }
+      const existingDateIndex = existing.findIndex(entry => entry.date === todayData.date);
 
-    /**
-     * getAttendanceForDate(date)
-     * Returns the students array for a specific date, or null.
-     *
-     * TODO: Replace with API call:
-     *       fetch(`/api/attendance?date=${date}`)
-     */
-    function getAttendanceForDate(date) {
-      const records = getAllRecords();
-      const entry = records.find(r => r.date === date);
-      return entry && Array.isArray(entry.students) && entry.students.length > 0
-        ? entry.students
-        : null;
-    }
+      if (existingDateIndex >= 0) {
+        // Replace today's data to avoid duplicates
+        existing[existingDateIndex] = todayData;
+      } else {
+        // Add new day
+        existing.push(todayData);
+      }
 
-    /**
-     * deleteSingleDateRecord(date)
-     * Removes a specific date's record from the history array.
-     *
-     * TODO: Replace with API call:
-     *       fetch(`/api/attendance?date=${date}`, { method: 'DELETE' })
-     */
-    function deleteSingleDateRecord(date) {
-      const existing = getAllRecords();
-      const filtered = existing.filter(r => r.date !== date);
-      saveAllRecords(filtered);
-    }
-
-    /**
-     * clearAllRecords()
-     * Wipes the entire attendance history from localStorage.
-     *
-     * TODO: Replace with API call:
-     *       fetch('/api/attendance/all', { method: 'DELETE' })
-     */
-    function clearAllRecords() {
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
     }
 
     /**
      * loadAttendance()
-     * Checks localStorage for today's saved attendance data.
-     * If data exists, restores button states. Old days are NOT deleted.
+     * Checks localStorage for saved attendance data.
+     * If data exists and matches today's date, restores button states.
      * Called once on page load inside init().
      *
      * TODO: Replace with API call:
@@ -400,22 +348,34 @@
      *         .then(data => { ... restore state ... })
      */
     function loadAttendance() {
-      const today = getTodayDate();
-      const data = getAttendanceForDate(today);
-      if (!data) return;
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return;
 
-      // Restore each student's status into attendanceState
-      data.forEach(record => {
-        if (attendanceState.hasOwnProperty(record.id) && (record.status === 'Present' || record.status === 'Absent')) {
-          attendanceState[record.id] = record.status;
-        }
-      });
+      try {
+        const data = JSON.parse(saved);
 
-      // Update all row UIs to reflect restored state
-      students.forEach(s => updateRowUI(s.id));
-      updateCounts();
+        if (!Array.isArray(data) || data.length === 0) return;
 
-      showToast('📂 Restored today\'s saved attendance', 'info');
+        const todayStr = getTodayDate();
+        const todayRecord = data.find(entry => entry.date === todayStr);
+
+        if (!todayRecord || !Array.isArray(todayRecord.students)) return;
+
+        // Restore each student's status into attendanceState
+        todayRecord.students.forEach(record => {
+          if (attendanceState.hasOwnProperty(record.id) && (record.status === 'Present' || record.status === 'Absent')) {
+            attendanceState[record.id] = record.status;
+          }
+        });
+
+        // Update all row UIs to reflect restored state
+        students.forEach(s => updateRowUI(s.id));
+        updateCounts();
+
+        showToast('📂 Restored today\'s saved attendance', 'info');
+      } catch (e) {
+        console.error('Failed to load attendance:', e);
+      }
     }
 
 
@@ -444,44 +404,13 @@
     }
 
     /**
-     * Format a date string to readable format (e.g., "Fri, Mar 21, 2026")
-     */
-    function formatDate(dateStr) {
-      try {
-        const d = new Date(dateStr + 'T00:00:00');
-        return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-      } catch (e) {
-        return dateStr;
-      }
-    }
-
-    /**
-     * Check if a date string is today.
-     */
-    function isToday(dateStr) {
-      return dateStr === getTodayDate();
-    }
-
-    // Track which date cards are expanded in the viewer
-    const expandedDates = {};
-
-    /**
-     * Toggle expand/collapse of a specific date's detail in the viewer.
-     */
-    function toggleDateDetail(date) {
-      expandedDates[date] = !expandedDates[date];
-      renderSavedRecords();
-    }
-
-    /**
      * Render saved records from localStorage into the viewer panel.
-     * Shows ALL stored dates, newest first, with expandable detail.
      */
     function renderSavedRecords() {
       const container = document.getElementById('savedRecordsContent');
-      const dates = getStoredDates(); // newest first
+      const saved = localStorage.getItem(STORAGE_KEY);
 
-      if (dates.length === 0) {
+      if (!saved) {
         container.innerHTML = `
           <div class="text-center py-6 text-gray-400">
             <p class="text-3xl mb-2">📭</p>
@@ -491,105 +420,107 @@
         return;
       }
 
-      let html = `<p class="text-xs text-gray-400 mb-3 font-500">📅 ${dates.length} day${dates.length > 1 ? 's' : ''} of records stored</p>`;
+      try {
+        const data = JSON.parse(saved);
+        if (!Array.isArray(data) || data.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-6 text-gray-400">
+              <p class="text-3xl mb-2">📭</p>
+              <p class="text-sm font-500">No saved records yet</p>
+            </div>`;
+          return;
+        }
 
-      dates.forEach(date => {
-        const data = getAttendanceForDate(date);
-        if (!data) return;
+        let html = '';
 
-        const presentCount = data.filter(r => r.status === 'Present').length;
-        const absentCount = data.filter(r => r.status === 'Absent').length;
-        const isExpanded = expandedDates[date] || false;
-        const todayBadge = isToday(date) ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-700 ml-2">TODAY</span>' : '';
+        // Loop backwards to show newest first
+        for (let i = data.length - 1; i >= 0; i--) {
+          const dayRecord = data[i];
+          const date = dayRecord.date || 'Unknown';
+          const studentsRecord = dayRecord.students || [];
 
-        html += `
-          <div class="mb-3 rounded-xl border ${isToday(date) ? 'border-blue-200 bg-blue-50/30' : 'border-gray-100 bg-white'} overflow-hidden">
-            <!-- Date Header (clickable to expand) -->
-            <button onclick="toggleDateDetail('${date}')"
-              class="w-full px-3.5 py-3 flex items-center justify-between cursor-pointer hover:bg-gray-50/50 transition-colors">
-              <div class="flex items-center gap-2 text-left">
-                <span class="text-sm">📅</span>
-                <span class="text-sm font-700 text-gray-800">${formatDate(date)}</span>
-                ${todayBadge}
+          const presentCount = studentsRecord.filter(r => r.status === 'Present').length;
+          const absentCount = studentsRecord.filter(r => r.status === 'Absent').length;
+
+          html += `
+            <div class="mb-6 last:mb-0">
+              <div class="mb-3 flex items-center justify-between">
+                <span class="text-xs font-600 text-gray-500">📅 Date: ${date}</span>
+                <span class="text-xs text-gray-400">${studentsRecord.length} students</span>
               </div>
-              <div class="flex items-center gap-2">
-                <span class="text-[11px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-600">✅${presentCount}</span>
-                <span class="text-[11px] px-2 py-0.5 rounded-md bg-red-50 text-red-600 font-600">❌${absentCount}</span>
-                <span class="text-xs text-gray-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}">▼</span>
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex gap-3">
+                  <span class="text-xs px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-600">✅ Present: ${presentCount}</span>
+                  <span class="text-xs px-2.5 py-1 rounded-lg bg-red-50 text-red-600 font-600">❌ Absent: ${absentCount}</span>
+                </div>
+                <button onclick="toggleDayDetails('${date}')" class="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-600 rounded-lg transition-colors cursor-pointer flex items-center gap-1">
+                  <span id="view-text-${date}">View Details</span><span id="arrow-${date}">▼</span>
+                </button>
               </div>
-            </button>`;
+              <div id="details-${date}" class="hidden divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden shadow-sm mt-3">`;
 
-        // Expanded student detail
-        if (isExpanded) {
-          html += `<div class="border-t ${isToday(date) ? 'border-blue-100' : 'border-gray-100'}">
-            <div class="divide-y divide-gray-50">`;
-          data.forEach(record => {
+          studentsRecord.forEach(record => {
             const isPresent = record.status === 'Present';
-            const statusBg = isPresent ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600';
-            const statusIcon = isPresent ? '✅' : '❌';
+            const isAbsent = record.status === 'Absent';
+            const statusBg = isPresent ? 'bg-emerald-50 text-emerald-700' : (isAbsent ? 'bg-red-50 text-red-600' : 'bg-gray-50 text-gray-500');
+            const statusIcon = isPresent ? '✅' : (isAbsent ? '❌' : '➖');
+
             html += `
-              <div class="flex items-center justify-between px-3.5 py-2 text-sm">
+              <div class="flex items-center justify-between px-3 py-2.5 text-sm bg-white hover:bg-gray-50 transition-colors">
                 <div class="flex items-center gap-2">
                   <span class="text-xs text-gray-400 font-500 w-6">#${record.id}</span>
                   <span class="font-600 text-gray-800">${record.name}</span>
                 </div>
-                <span class="text-xs px-2 py-0.5 rounded-md font-600 ${statusBg}">${statusIcon} ${record.status}</span>
+                <span class="text-xs px-2 py-1 rounded-md font-600 ${statusBg}">${statusIcon} ${record.status || 'Unmarked'}</span>
               </div>`;
           });
-          html += `</div>
-            <div class="px-3.5 py-2 border-t ${isToday(date) ? 'border-blue-100' : 'border-gray-100'} flex justify-end">
-              <button onclick="deleteSingleDate('${date}')"
-                class="text-[11px] px-2.5 py-1 rounded-lg text-red-500 hover:bg-red-50 transition-colors cursor-pointer font-500">
-                🗑️ Delete this day
-              </button>
-            </div>
-          </div>`;
+
+          html += `
+              </div>
+            </div>`;
         }
 
-        html += '</div>';
-      });
-
-      container.innerHTML = html;
-    }
-
-    /**
-     * Delete attendance record for a specific date.
-     */
-    function deleteSingleDate(date) {
-      const label = isToday(date) ? "today's" : formatDate(date);
-      if (!confirm(`Delete ${label} attendance record?`)) return;
-
-      deleteSingleDateRecord(date);
-      delete expandedDates[date];
-
-      // If deleting today's record, also reset the UI state
-      if (isToday(date)) {
-        students.forEach(s => {
-          attendanceState[s.id] = null;
-          updateRowUI(s.id);
-        });
-        updateCounts();
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = `
+          <div class="text-center py-6 text-red-400">
+            <p class="text-sm font-500">⚠️ Stored data is corrupted</p>
+            <p class="text-xs mt-1">Click "Clear Data" to reset</p>
+          </div>`;
       }
-
-      renderSavedRecords();
-      showToast('🗑️ Record for ' + formatDate(date) + ' deleted', 'info');
     }
 
     /**
-     * Clear ALL saved attendance data from localStorage.
+     * Toggles the visibility of student details for a specific saved day.
+     */
+    function toggleDayDetails(date) {
+      const detailsDiv = document.getElementById(`details-${date}`);
+      const arrow = document.getElementById(`arrow-${date}`);
+      const text = document.getElementById(`view-text-${date}`);
+      
+      if (!detailsDiv) return;
+      
+      if (detailsDiv.classList.contains('hidden')) {
+        detailsDiv.classList.remove('hidden');
+        arrow.textContent = '▲';
+        text.textContent = 'Hide Details';
+      } else {
+        detailsDiv.classList.add('hidden');
+        arrow.textContent = '▼';
+        text.textContent = 'View Details';
+      }
+    }
+
+    /**
+     * Clear all saved attendance data from localStorage.
      */
     function clearSavedRecords() {
-      const dates = getStoredDates();
-      if (dates.length === 0) {
-        showToast('📭 No records to clear', 'info');
-        return;
-      }
-      if (!confirm(`Are you sure you want to delete ALL ${dates.length} day(s) of attendance records? This cannot be undone.`)) return;
+      if (!confirm('Are you sure you want to clear all saved attendance data?')) return;
 
-      // Wipe entire history in one call
-      clearAllRecords();
+      localStorage.removeItem(STORAGE_KEY);
+      // TODO: Replace with API call — DELETE /api/attendance?date=${getTodayDate()}
 
-      // Reset today's UI state
+      // Reset UI state
       students.forEach(s => {
         attendanceState[s.id] = null;
         updateRowUI(s.id);
@@ -598,7 +529,7 @@
 
       // Re-render the panel
       renderSavedRecords();
-      showToast('🗑️ All attendance records cleared', 'info');
+      showToast('🗑️ Saved data cleared', 'info');
     }
 
 
@@ -712,11 +643,11 @@
 
       const status = attendanceState[id];
       const presentBtn = row.querySelector('[data-action="Present"]');
-      const absentBtn  = row.querySelector('[data-action="Absent"]');
+      const absentBtn = row.querySelector('[data-action="Absent"]');
 
       // Reset both buttons
       presentBtn.className = 'att-btn flex-1 sm:flex-none px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 cursor-pointer';
-      absentBtn.className  = 'att-btn flex-1 sm:flex-none px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 cursor-pointer';
+      absentBtn.className = 'att-btn flex-1 sm:flex-none px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 cursor-pointer';
 
       // Reset row border
       row.classList.remove('row-marked-present', 'row-marked-absent', 'row-default', 'row-unmarked');
@@ -740,15 +671,15 @@
      * Update the summary counts and progress bar.
      */
     function updateCounts() {
-      const total   = students.length;
+      const total = students.length;
       const present = Object.values(attendanceState).filter(s => s === 'Present').length;
-      const absent  = Object.values(attendanceState).filter(s => s === 'Absent').length;
-      const marked  = present + absent;
+      const absent = Object.values(attendanceState).filter(s => s === 'Absent').length;
+      const marked = present + absent;
 
-      document.getElementById('countTotal').textContent   = total;
-      document.getElementById('countPresent').textContent  = present;
-      document.getElementById('countAbsent').textContent   = absent;
-      document.getElementById('progressText').textContent  = `${marked} / ${total}`;
+      document.getElementById('countTotal').textContent = total;
+      document.getElementById('countPresent').textContent = present;
+      document.getElementById('countAbsent').textContent = absent;
+      document.getElementById('progressText').textContent = `${marked} / ${total}`;
 
       const pct = total > 0 ? (marked / total) * 100 : 0;
       document.getElementById('progressBar').style.width = `${pct}%`;
@@ -773,88 +704,74 @@
     }
 
 
-    /**
-     * submitAttendance()
-     * Validates all students are marked, then outputs structured JSON.
-     * Implements Phase 3 SMS Logic and Validation.
-     *
-     * TODO: Replace console.log with API call:
-     *       fetch('/api/attendance/submit', {
-     *         method: 'POST',
-     *         headers: { 'Content-Type': 'application/json' },
-     *         body: JSON.stringify(result)
-     *       })
-     */
     function submitAttendance() {
-      // Find unmarked students
-      const unmarked = students.filter(s => attendanceState[s.id] === null);
+      // Sync UI state into student object (since UI uses attendanceState)
+      students.forEach(s => s.status = attendanceState[s.id]);
 
+      // 1. VALIDATION - No unmarked students
+      const unmarked = students.filter(s => s.status === null);
       if (unmarked.length > 0) {
-        // Highlight unmarked rows
-        unmarked.forEach(s => {
-          const row = document.getElementById(`row-${s.id}`);
-          if (row) {
-            row.classList.remove('row-unmarked');
-            // Force reflow to restart animation
-            void row.offsetWidth;
-            row.classList.add('row-unmarked');
-          }
-        });
-
-        // Scroll to first unmarked
-        const firstUnmarked = document.getElementById(`row-${unmarked[0].id}`);
-        if (firstUnmarked) {
-          firstUnmarked.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-
-        alert(`⚠️ Please mark attendance for ${unmarked.length} student(s) before submitting.`);
+        alert(`⚠️ Please mark attendance for ${unmarked.length} student(s)`);
         return;
       }
 
-      // 2. FIXED DATE FORMAT (YYYY-MM-DD)
-      const today = new Date().toISOString().split('T')[0];
+      // 2. FIXED DATE FORMAT
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
-      // 3. BUILD DATA & SAVE
-      const result = students.map(s => ({
-        id: s.id,
-        name: s.name,
-        status: attendanceState[s.id],
-        date: today
-      }));
+      // 3. EXISTING: Save to localStorage
+      localStorage.setItem(`attendance_${today}`, JSON.stringify(students));
 
-      // Save to localStorage (Maintains existing array-based system)
-      saveAttendance(result);
+      // Maintain compatibility with existing UI records panel
+      saveAttendance({
+        date: today,
+        students: students.map(s => ({ id: s.id, name: s.name, status: s.status }))
+      });
 
-      // 4. DETECT ABSENTEES & FAKE SMS LOGS
-      // Validation ensures no nulls, so we strictly check for "Absent"
-      const absentees = students.filter(s => attendanceState[s.id] === "Absent");
+      // 4. DETECT ABSENTEES
+      const absentees = students.filter(s => s.status === "Absent" || s.status === null);
 
       console.log(`🔍 ${today} - ABSENTEES DETECTED: ${absentees.length}`);
       
-      absentees.forEach(student => {
-        if (!student.phone || student.phone.length < 10) {
-          console.warn(`❌ Missing/invalid phone for ${student.name}`);
-          return;
-        }
-        
-        const message = `Your child ${student.name} was absent today.`;
-        console.log(`📱 FAKE SMS → ${student.phone}`);
-        console.log(`   👤 ${student.name}`);
-        console.log(`   📝 ${message}`);
-        console.log(`   📅 ${today}`);
-        console.log("---");
+      const totalStudents = students.length;
+      const presentCount = students.filter(s => s.status === "Present").length;
+      const absentCount = absentees.length;
+
+      // 5. Send to Express server
+      fetch('http://localhost:3000/submit-attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          date: today,
+          totalStudents,
+          presentCount,
+          absentCount,
+          absentees: absentees.map(s => ({...s, phoneValid: !!s.phone})) 
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log('✅ Server response:', data);
+        alert(`✅ Attendance submitted! Server received ${absentees.length} absentees.`);
+      })
+      .catch(error => {
+        console.error('❌ Server error:', error);
+        alert('⚠️ Server connection failed - attendance still saved locally');
       });
 
-      // 6. UX Feedback
-      alert(`✅ Saved ${students.length} students.\nFAKE SMS logged for ${absentees.length} parents (Check Console).`);
-
-      // 7. Reset for next day (Using existing reset helper)
-      resetAll();
-
-      // Refresh saved records panel if it's open
-      if (savedPanelOpen) {
+      // Update UI panels if applicable
+      if (typeof savedPanelOpen !== 'undefined' && savedPanelOpen && typeof renderSavedRecords === 'function') {
         renderSavedRecords();
       }
+
+      // 7. Reset for next day (optional)
+      students.forEach(s => {
+        attendanceState[s.id] = null;
+        s.status = null;
+        if (typeof updateRowUI === 'function') updateRowUI(s.id);
+      });
+      if (typeof updateCounts === 'function') updateCounts();
+
+      // TODO Phase 4: Replace console.logs → fetch("/send-sms")
     }
 
 
@@ -904,8 +821,8 @@
       const bgMap = {
         success: 'bg-emerald-600',
         warning: 'bg-amber-500',
-        info:    'bg-gray-700',
-        error:   'bg-red-600',
+        info: 'bg-gray-700',
+        error: 'bg-red-600',
       };
 
       toast.className = `toast ${bgMap[type] || bgMap.info} text-white px-5 py-3 rounded-xl shadow-lg text-sm font-600 whitespace-nowrap`;
@@ -943,4 +860,5 @@
   </script>
 
 </body>
+
 </html>
