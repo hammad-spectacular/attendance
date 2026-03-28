@@ -5,10 +5,42 @@
 // Start: node server.js
 // Open: http://localhost:3000
 // ============================================
-
+require('dotenv').config({ path: './g.env' }); // Load custom .env file
 const express = require('express');
+const twilio = require('twilio'); // npm install twilio
 const app = express();
 const PORT = 3000;
+
+// 🔑 TWILIO CONFIG (from environment variables)
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
+
+// ============================================
+// ENTERPRISE SMS FUNCTION (modular - Twilio/WhatsApp ready)
+// ============================================
+async function sendSMS(phone, message, studentName) {
+    try {
+        const client = twilio(accountSid, authToken);
+        const result = await client.messages.create({
+            body: message,
+            from: twilioPhone,
+            to: phone
+        });
+
+        console.log(`✅ SMS SID: ${result.sid} → ${phone} (${studentName})`);
+        return { success: true, sid: result.sid };
+    } catch (error) {
+        console.error(`❌ SMS failed → ${phone}:`, error.message);
+        return { success: false, error: error.message };
+    }
+}
+
+// Phase 6: Easy provider swap
+async function sendViaProvider(provider, phone, message, studentName) {
+    if (provider === 'twilio') return sendSMS(phone, message, studentName);
+    // if (provider === 'whatsapp') return sendWhatsApp(phone, message);
+}
 
 // ============================================
 // MIDDLEWARE
@@ -16,28 +48,15 @@ const PORT = 3000;
 app.use(express.json());
 app.use(express.static('.')); // Serves index.html from same folder
 
-// ============================================
-// WELCOME ENDPOINT (ROOT)
-// ============================================
-app.get('/', (req, res) => {
-    res.json({
-        success: true,
-        name: 'Attendance Management System',
-        version: '1.0.0',
-        status: 'online',
-        endpoints: {
-            health: 'GET /health',
-            submit: 'POST /submit-attendance'
-        },
-        students: [
-            'Ali Khan (+923001234567)',
-            'Sara Ahmed (+923111234567)',
-            'Usman Malik (+923211234567)',
-            'Fatima Noor (+923331234567)',
-            'Hassan Raza (+923451234567)'
-        ],
-        nextPhase: 'CallMeBot WhatsApp Integration'
-    });
+// Enable CORS for frontend requests
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    next();
 });
 
 // ============================================
@@ -54,7 +73,7 @@ app.get('/health', (req, res) => {
 // ============================================
 // SUBMIT ATTENDANCE ENDPOINT
 // ============================================
-app.post('/submit-attendance', (req, res) => {
+app.post('/submit-attendance', async (req, res) => {
     const { date, totalStudents, presentCount, absentCount, absentees } = req.body;
 
     // Validation
@@ -78,21 +97,26 @@ app.post('/submit-attendance', (req, res) => {
     console.log(`❌ Absent:     ${absentCount}`);
     console.log('-'.repeat(50));
 
+    let results = [];
     if (absentees.length === 0) {
         console.log('🎉 All students present! No SMS needed.');
     } else {
-        console.log('📱 ABSENTEES (will receive WhatsApp SMS):');
+        console.log(`📱 Twilio processing ${absentees.length} absentees...`);
         console.log('-'.repeat(50));
-        absentees.forEach((student, index) => {
-            const phoneStatus = student.phoneValid ? '✅' : '⚠️ INVALID';
-            console.log(`  ${index + 1}. ${student.name}`);
-            console.log(`     Phone: ${student.phone} ${phoneStatus}`);
-        });
+
+        // Process each absentee
+        for (const student of absentees) {
+            const message = `Your child ${student.name} was absent today.`;
+            // Call our enterprise SMS function provider
+            const result = await sendViaProvider('twilio', student.phone, message, student.name);
+            results.push({ name: student.name, phone: student.phone, ...result });
+        }
     }
 
     console.log('-'.repeat(50));
+    const successCount = results.filter(r => r && r.success).length;
+    console.log(`📊 Twilio: ${successCount}/${absentees.length} SMS sent`);
     console.log(`⏰ Received at: ${new Date().toLocaleTimeString()}`);
-    console.log('🔮 Next: Phase 4.5 — CallMeBot WhatsApp API');
     console.log('='.repeat(50) + '\n');
 
     // ============================================
@@ -105,7 +129,8 @@ app.post('/submit-attendance', (req, res) => {
         presentCount: presentCount,
         totalStudents: totalStudents,
         serverTime: new Date().toISOString(),
-        whatsappStatus: 'pending — Phase 4.5'
+        sent: successCount,
+        results: results.slice(0, 3) // First 3 for frontend
     });
 });
 
