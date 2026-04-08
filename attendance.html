@@ -269,11 +269,10 @@
     // Store student data in an array of objects.
     // TODO: In future, replace this static array with an API call
     //       e.g., fetch('/api/students').then(res => res.json())
-    
     // =============================================================
     const students = [
-      { id: 1, name: "Ali Hassan", rollNo: "CS-101", phone: "+92", status: null },
-      { id: 2, name: "Sara Ahmed", rollNo: "CS-102", phone: "+92", status: null },
+      { id: 1, name: "Ali Hassan", rollNo: "CS-101", phone: "+923209789348", status: null },
+      { id: 2, name: "Sara Ahmed", rollNo: "CS-102", phone: "+923215788075", status: null },
       { id: 3, name: "Omar Farooq", rollNo: "CS-103", phone: "+923211234567", status: null },
       { id: 4, name: "Fatima Zahra", rollNo: "CS-104", phone: "+923411234567", status: null },
       { id: 5, name: "Hassan Raza", rollNo: "CS-105", phone: "+923511234567", status: null },
@@ -497,9 +496,9 @@
       const detailsDiv = document.getElementById(`details-${date}`);
       const arrow = document.getElementById(`arrow-${date}`);
       const text = document.getElementById(`view-text-${date}`);
-      
+
       if (!detailsDiv) return;
-      
+
       if (detailsDiv.classList.contains('hidden')) {
         detailsDiv.classList.remove('hidden');
         arrow.textContent = '▲';
@@ -731,7 +730,7 @@
       const absentees = students.filter(s => s.status === "Absent" || s.status === null);
 
       console.log(`🔍 ${today} - ABSENTEES DETECTED: ${absentees.length}`);
-      
+
       const totalStudents = students.length;
       const presentCount = students.filter(s => s.status === "Present").length;
       const absentCount = absentees.length;
@@ -740,23 +739,23 @@
       fetch('http://localhost:3000/submit-attendance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           date: today,
           totalStudents,
           presentCount,
           absentCount,
-          absentees: absentees.map(s => ({...s, phoneValid: !!s.phone})) 
+          absentees: absentees.map(s => ({ ...s, phoneValid: !!s.phone }))
         })
       })
-      .then(response => response.json())
-      .then(data => {
-        console.log('✅ Server response:', data);
-        alert(`✅ Attendance submitted! Server received ${absentees.length} absentees.`);
-      })
-      .catch(error => {
-        console.error('❌ Server error:', error);
-        alert('⚠️ Server connection failed - attendance still saved locally');
-      });
+        .then(response => response.json())
+        .then(data => {
+          console.log('✅ Server response:', data);
+          alert(`✅ Attendance submitted! Server received ${absentees.length} absentees.`);
+        })
+        .catch(error => {
+          console.error('❌ Server error:', error);
+          alert('⚠️ Server connection failed - attendance still saved locally');
+        });
 
       // Update UI panels if applicable
       if (typeof savedPanelOpen !== 'undefined' && savedPanelOpen && typeof renderSavedRecords === 'function') {
