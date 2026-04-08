@@ -5,9 +5,11 @@
 // Start: node server.js
 // Open: http://localhost:3000
 // ============================================
-require('dotenv').config({ path: './g.env' }); // Load custom .env file
+require('dotenv').config(); // Load default .env file
 const express = require('express');
-const twilio = require('twilio'); // npm install twilio
+const http = require('http');
+//const twilio = require('twilio'); // npm install twilio
+const { sendVeevoSMS } = require('./veevotech-sms');
 const app = express();
 const PORT = 3000;
 
@@ -21,6 +23,7 @@ const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
 // ============================================
 async function sendSMS(phone, message, studentName) {
     try {
+        const twilio = require('twilio');
         const client = twilio(accountSid, authToken);
         const result = await client.messages.create({
             body: message,
@@ -38,6 +41,7 @@ async function sendSMS(phone, message, studentName) {
 
 // Phase 6: Easy provider swap
 async function sendViaProvider(provider, phone, message, studentName) {
+    if (provider === 'veevotech') return sendVeevoSMS(phone, message, studentName);
     if (provider === 'twilio') return sendSMS(phone, message, studentName);
     // if (provider === 'whatsapp') return sendWhatsApp(phone, message);
 }
@@ -108,14 +112,14 @@ app.post('/submit-attendance', async (req, res) => {
         for (const student of absentees) {
             const message = `Your child ${student.name} was absent today.`;
             // Call our enterprise SMS function provider
-            const result = await sendViaProvider('twilio', student.phone, message, student.name);
+            const result = await sendViaProvider('veevotech', student.phone, message, student.name);
             results.push({ name: student.name, phone: student.phone, ...result });
         }
     }
 
     console.log('-'.repeat(50));
     const successCount = results.filter(r => r && r.success).length;
-    console.log(`📊 Twilio: ${successCount}/${absentees.length} SMS sent`);
+    console.log(`📊 SMS sent: ${successCount}/${absentees.length}`);
     console.log(`⏰ Received at: ${new Date().toLocaleTimeString()}`);
     console.log('='.repeat(50) + '\n');
 
@@ -147,20 +151,14 @@ app.use((req, res) => {
 // ============================================
 // START SERVER
 // ============================================
-app.listen(PORT, () => {
+const server = http.createServer(app);
+server.listen(PORT, () => {
     console.log('\n' + '='.repeat(50));
     console.log('🚀 ATTENDANCE SERVER STARTED');
     console.log('='.repeat(50));
     console.log(`🌐 URL:    http://localhost:${PORT}`);
     console.log(`📡 API:    http://localhost:${PORT}/submit-attendance`);
     console.log(`💚 Health: http://localhost:${PORT}/health`);
-    console.log('='.repeat(50));
-    console.log('📋 Hardcoded Students:');
-    console.log('   1. Ali Khan      +923001234567');
-    console.log('   2. Sara Ahmed    +923111234567');
-    console.log('   3. Usman Malik   +923211234567');
-    console.log('   4. Fatima Noor   +923331234567');
-    console.log('   5. Hassan Raza   +923451234567');
     console.log('='.repeat(50));
     console.log('⏳ Waiting for attendance submissions...\n');
 });
