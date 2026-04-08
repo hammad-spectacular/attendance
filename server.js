@@ -11,7 +11,7 @@ const http = require('http');
 //const twilio = require('twilio'); // npm install twilio
 const { sendVeevoSMS } = require('./veevotech-sms');
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // 🔑 TWILIO CONFIG (from environment variables)
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
