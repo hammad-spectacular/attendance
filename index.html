@@ -736,7 +736,7 @@
       const absentCount = absentees.length;
 
       // 5. Send to Express server
-      fetch('http://localhost:3000/submit-attendance', {
+      fetch('https://the-eye-aoyu.onrender.com/submit-attendance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
