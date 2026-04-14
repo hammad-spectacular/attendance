@@ -36,6 +36,15 @@
       transform: scale(1.03);
     }
 
+    /* Leave button active state */
+    .att-btn.leave-active {
+      background-color: #d97706 !important;
+      color: white !important;
+      border-color: #d97706 !important;
+      box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.25);
+      transform: scale(1.03);
+    }
+
     /* Unmarked row highlight (validation) */
     .row-unmarked {
       animation: pulse-warn 0.6s ease-in-out 3;
@@ -60,6 +69,10 @@
 
     .row-marked-absent {
       border-left: 4px solid #dc2626;
+    }
+
+    .row-marked-leave {
+      border-left: 4px solid #d97706;
     }
 
     .row-default {
@@ -138,6 +151,36 @@
         box-shadow: 0 10px 35px -5px rgba(59, 130, 246, 0.5);
       }
     }
+
+    /* SMS Overlay */
+    #smsOverlay {
+      animation: overlayFadeIn 0.3s ease-out;
+    }
+
+    @keyframes overlayFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .sms-spinner {
+      font-size: 3rem;
+      animation: spinPulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes spinPulse {
+      0%, 100% { transform: scale(1); opacity: 0.7; }
+      50% { transform: scale(1.15); opacity: 1; }
+    }
+
+    .sms-success-icon {
+      animation: successPop 0.5s ease-out;
+    }
+
+    @keyframes successPop {
+      0% { transform: scale(0.3); opacity: 0; }
+      50% { transform: scale(1.15); }
+      100% { transform: scale(1); opacity: 1; }
+    }
   </style>
 </head>
 
@@ -171,7 +214,7 @@
   <main class="max-w-2xl mx-auto px-4 py-5 sm:py-8 pb-24">
 
     <!-- Summary Cards -->
-    <div class="grid grid-cols-3 gap-3 mb-6" id="summaryCards">
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6" id="summaryCards">
       <div class="summary-card bg-white rounded-xl p-3 sm:p-4 text-center border border-gray-100 shadow-sm">
         <div class="text-2xl sm:text-3xl font-800 text-gray-800" id="countTotal">0</div>
         <div class="text-xs text-gray-400 font-600 uppercase tracking-wider mt-1">Total</div>
@@ -183,6 +226,10 @@
       <div class="summary-card bg-red-50 rounded-xl p-3 sm:p-4 text-center border border-red-100 shadow-sm">
         <div class="text-2xl sm:text-3xl font-800 text-red-500" id="countAbsent">0</div>
         <div class="text-xs text-red-400 font-600 uppercase tracking-wider mt-1">Absent</div>
+      </div>
+      <div class="summary-card bg-amber-50 rounded-xl p-3 sm:p-4 text-center border border-amber-100 shadow-sm">
+        <div class="text-2xl sm:text-3xl font-800 text-amber-600" id="countLeave">0</div>
+        <div class="text-xs text-amber-500 font-600 uppercase tracking-wider mt-1">Leave</div>
       </div>
     </div>
 
@@ -262,6 +309,13 @@
     class="fixed bottom-20 right-6 sm:bottom-22 sm:right-8 z-50 flex flex-col gap-2 items-end pointer-events-none">
   </div>
 
+  <!-- SMS Status Overlay -->
+  <div id="smsOverlay" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl p-8 sm:p-10 shadow-2xl max-w-sm w-full mx-4 text-center">
+      <div id="smsOverlayContent"></div>
+    </div>
+  </div>
+
   <!-- ======================== JAVASCRIPT ======================== -->
   <script>
     // =============================================================
@@ -271,14 +325,14 @@
     //       e.g., fetch('/api/students').then(res => res.json())
     // =============================================================
     const students = [
-      { id: 1, name: "Ali Hassan", rollNo: "CS-101", phone: "+923344313436", status: null },
-      { id: 2, name: "Sara Ahmed", rollNo: "CS-102", phone: "+923344313436", status: null },
-      { id: 3, name: "Omar Farooq", rollNo: "CS-103", phone: "+923344313436", status: null },
-      { id: 4, name: "Fatima Zahra", rollNo: "CS-104", phone: "+923344313436", status: null },
-      { id: 5, name: "Hassan Raza", rollNo: "CS-105", phone: "+923344313436", status: null },
-      { id: 6, name: "Ayesha Khan", rollNo: "CS-106", phone: "+923344313436", status: null },
-      { id: 7, name: "Bilal Mahmood", rollNo: "CS-107", phone: "+923344313436", status: null },
-      { id: 8, name: "Zainab Tariq", rollNo: "CS-108", phone: "+923344313436", status: null },
+      { id: 1, name: "Ali Hassan", rollNo: "CS-101", phone: "+923209789348", status: null },
+      { id: 2, name: "Sara Ahmed", rollNo: "CS-102", phone: "+923215788075", status: null },
+      { id: 3, name: "Omar Farooq", rollNo: "CS-103", phone: "+923209789348", status: null },
+      { id: 4, name: "Fatima Zahra", rollNo: "CS-104", phone: "+923209789348", status: null },
+      { id: 5, name: "Hassan Raza", rollNo: "CS-105", phone: "+923209789348", status: null },
+      { id: 6, name: "Ayesha Khan", rollNo: "CS-106", phone: "+923209789348", status: null },
+      { id: 7, name: "Bilal Mahmood", rollNo: "CS-107", phone: "+923209789348", status: null },
+      { id: 8, name: "Zainab Tariq", rollNo: "CS-108", phone: "+923209789348", status: null },
     ];
 
     // Attendance state map: { studentId: "Present" | "Absent" | null }
@@ -362,7 +416,7 @@
 
         // Restore each student's status into attendanceState
         todayRecord.students.forEach(record => {
-          if (attendanceState.hasOwnProperty(record.id) && (record.status === 'Present' || record.status === 'Absent')) {
+          if (attendanceState.hasOwnProperty(record.id) && (record.status === 'Present' || record.status === 'Absent' || record.status === 'Leave')) {
             attendanceState[record.id] = record.status;
           }
         });
@@ -440,6 +494,7 @@
 
           const presentCount = studentsRecord.filter(r => r.status === 'Present').length;
           const absentCount = studentsRecord.filter(r => r.status === 'Absent').length;
+          const leaveCount = studentsRecord.filter(r => r.status === 'Leave').length;
 
           html += `
             <div class="mb-6 last:mb-0">
@@ -448,9 +503,10 @@
                 <span class="text-xs text-gray-400">${studentsRecord.length} students</span>
               </div>
               <div class="flex items-center justify-between mb-3">
-                <div class="flex gap-3">
+                <div class="flex gap-2 flex-wrap">
                   <span class="text-xs px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-600">✅ Present: ${presentCount}</span>
                   <span class="text-xs px-2.5 py-1 rounded-lg bg-red-50 text-red-600 font-600">❌ Absent: ${absentCount}</span>
+                  <span class="text-xs px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 font-600">📝 Leave: ${leaveCount}</span>
                 </div>
                 <button onclick="toggleDayDetails('${date}')" class="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-600 rounded-lg transition-colors cursor-pointer flex items-center gap-1">
                   <span id="view-text-${date}">View Details</span><span id="arrow-${date}">▼</span>
@@ -461,8 +517,9 @@
           studentsRecord.forEach(record => {
             const isPresent = record.status === 'Present';
             const isAbsent = record.status === 'Absent';
-            const statusBg = isPresent ? 'bg-emerald-50 text-emerald-700' : (isAbsent ? 'bg-red-50 text-red-600' : 'bg-gray-50 text-gray-500');
-            const statusIcon = isPresent ? '✅' : (isAbsent ? '❌' : '➖');
+            const isLeave = record.status === 'Leave';
+            const statusBg = isPresent ? 'bg-emerald-50 text-emerald-700' : (isAbsent ? 'bg-red-50 text-red-600' : (isLeave ? 'bg-amber-50 text-amber-700' : 'bg-gray-50 text-gray-500'));
+            const statusIcon = isPresent ? '✅' : (isAbsent ? '❌' : (isLeave ? '📝' : '➖'));
 
             html += `
               <div class="flex items-center justify-between px-3 py-2.5 text-sm bg-white hover:bg-gray-50 transition-colors">
@@ -578,7 +635,7 @@
           <div class="flex gap-2 sm:gap-3 ml-13 sm:ml-0">
             <button
               type="button"
-              class="att-btn flex-1 sm:flex-none px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 border-emerald-200 text-emerald-700 bg-emerald-50 cursor-pointer"
+              class="att-btn flex-1 sm:flex-none px-3 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 border-emerald-200 text-emerald-700 bg-emerald-50 cursor-pointer"
               data-student-id="${student.id}"
               data-action="Present"
               onclick="markAttendance(${student.id}, 'Present')"
@@ -588,13 +645,23 @@
             </button>
             <button
               type="button"
-              class="att-btn flex-1 sm:flex-none px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 border-red-200 text-red-600 bg-red-50 cursor-pointer"
+              class="att-btn flex-1 sm:flex-none px-3 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 border-red-200 text-red-600 bg-red-50 cursor-pointer"
               data-student-id="${student.id}"
               data-action="Absent"
               onclick="markAttendance(${student.id}, 'Absent')"
               aria-label="Mark ${student.name} as absent"
             >
               Absent ❌
+            </button>
+            <button
+              type="button"
+              class="att-btn flex-1 sm:flex-none px-3 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 border-amber-200 text-amber-700 bg-amber-50 cursor-pointer"
+              data-student-id="${student.id}"
+              data-action="Leave"
+              onclick="markAttendance(${student.id}, 'Leave')"
+              aria-label="Mark ${student.name} as on leave"
+            >
+              Leave 📝
             </button>
           </div>
         `;
@@ -643,25 +710,37 @@
       const status = attendanceState[id];
       const presentBtn = row.querySelector('[data-action="Present"]');
       const absentBtn = row.querySelector('[data-action="Absent"]');
+      const leaveBtn = row.querySelector('[data-action="Leave"]');
 
-      // Reset both buttons
-      presentBtn.className = 'att-btn flex-1 sm:flex-none px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 cursor-pointer';
-      absentBtn.className = 'att-btn flex-1 sm:flex-none px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 cursor-pointer';
+      const baseClass = 'att-btn flex-1 sm:flex-none px-3 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 cursor-pointer';
+
+      // Reset all buttons
+      presentBtn.className = baseClass;
+      absentBtn.className = baseClass;
+      leaveBtn.className = baseClass;
 
       // Reset row border
-      row.classList.remove('row-marked-present', 'row-marked-absent', 'row-default', 'row-unmarked');
+      row.classList.remove('row-marked-present', 'row-marked-absent', 'row-marked-leave', 'row-default', 'row-unmarked');
 
       if (status === 'Present') {
         presentBtn.classList.add('present-active');
         absentBtn.classList.add('border-gray-200', 'text-gray-400', 'bg-gray-50');
+        leaveBtn.classList.add('border-gray-200', 'text-gray-400', 'bg-gray-50');
         row.classList.add('row-marked-present');
       } else if (status === 'Absent') {
         absentBtn.classList.add('absent-active');
         presentBtn.classList.add('border-gray-200', 'text-gray-400', 'bg-gray-50');
+        leaveBtn.classList.add('border-gray-200', 'text-gray-400', 'bg-gray-50');
         row.classList.add('row-marked-absent');
+      } else if (status === 'Leave') {
+        leaveBtn.classList.add('leave-active');
+        presentBtn.classList.add('border-gray-200', 'text-gray-400', 'bg-gray-50');
+        absentBtn.classList.add('border-gray-200', 'text-gray-400', 'bg-gray-50');
+        row.classList.add('row-marked-leave');
       } else {
         presentBtn.classList.add('border-emerald-200', 'text-emerald-700', 'bg-emerald-50');
         absentBtn.classList.add('border-red-200', 'text-red-600', 'bg-red-50');
+        leaveBtn.classList.add('border-amber-200', 'text-amber-700', 'bg-amber-50');
         row.classList.add('row-default');
       }
     }
@@ -673,11 +752,13 @@
       const total = students.length;
       const present = Object.values(attendanceState).filter(s => s === 'Present').length;
       const absent = Object.values(attendanceState).filter(s => s === 'Absent').length;
-      const marked = present + absent;
+      const leave = Object.values(attendanceState).filter(s => s === 'Leave').length;
+      const marked = present + absent + leave;
 
       document.getElementById('countTotal').textContent = total;
       document.getElementById('countPresent').textContent = present;
       document.getElementById('countAbsent').textContent = absent;
+      document.getElementById('countLeave').textContent = leave;
       document.getElementById('progressText').textContent = `${marked} / ${total}`;
 
       const pct = total > 0 ? (marked / total) * 100 : 0;
@@ -710,14 +791,18 @@
       // 1. VALIDATION - No unmarked students
       const unmarked = students.filter(s => s.status === null);
       if (unmarked.length > 0) {
-        alert(`⚠️ Please mark attendance for ${unmarked.length} student(s)`);
+        unmarked.forEach(s => {
+          const row = document.getElementById(`row-${s.id}`);
+          if (row) row.classList.add('row-unmarked');
+        });
+        showToast(`⚠️ Please mark attendance for ${unmarked.length} student(s)`, 'warning');
         return;
       }
 
-      // 2. FIXED DATE FORMAT
+      // 2. Date
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
-      // 3. EXISTING: Save to localStorage
+      // 3. Save to localStorage
       localStorage.setItem(`attendance_${today}`, JSON.stringify(students));
 
       // Maintain compatibility with existing UI records panel
@@ -726,16 +811,21 @@
         students: students.map(s => ({ id: s.id, name: s.name, status: s.status }))
       });
 
-      // 4. DETECT ABSENTEES
-      const absentees = students.filter(s => s.status === "Absent" || s.status === null);
+      // 4. Detect absentees and leave students
+      const absentees = students.filter(s => s.status === "Absent");
+      const leaveStudents = students.filter(s => s.status === "Leave");
 
-      console.log(`🔍 ${today} - ABSENTEES DETECTED: ${absentees.length}`);
+      console.log(`🔍 ${today} - ABSENTEES: ${absentees.length}, LEAVE: ${leaveStudents.length}`);
 
       const totalStudents = students.length;
       const presentCount = students.filter(s => s.status === "Present").length;
       const absentCount = absentees.length;
+      const leaveCount = leaveStudents.length;
 
-      // 5. Send to Express server
+      // 5. Show pending overlay — "⏳ Sending messages…"
+      showSmsOverlay('pending');
+
+      // 6. Send to Express server
       fetch('https://the-eye-aoyu.onrender.com/submit-attendance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -744,17 +834,20 @@
           totalStudents,
           presentCount,
           absentCount,
-          absentees: absentees.map(s => ({ ...s, phoneValid: !!s.phone }))
+          leaveCount,
+          absentees: absentees.map(s => ({ ...s, phoneValid: !!s.phone })),
+          leaveStudents: leaveStudents.map(s => ({ id: s.id, name: s.name, rollNo: s.rollNo }))
         })
       })
         .then(response => response.json())
         .then(data => {
           console.log('✅ Server response:', data);
-          alert(`✅ Attendance submitted! Server received ${absentees.length} absentees.`);
+          // Stage 2: Show success — "✅ SMS sent to X parents"
+          showSmsOverlay('success', absentCount);
         })
         .catch(error => {
           console.error('❌ Server error:', error);
-          alert('⚠️ Server connection failed - attendance still saved locally');
+          showSmsOverlay('error');
         });
 
       // Update UI panels if applicable
@@ -762,15 +855,13 @@
         renderSavedRecords();
       }
 
-      // 7. Reset for next day (optional)
+      // Reset for next day
       students.forEach(s => {
         attendanceState[s.id] = null;
         s.status = null;
-        if (typeof updateRowUI === 'function') updateRowUI(s.id);
+        updateRowUI(s.id);
       });
-      if (typeof updateCounts === 'function') updateCounts();
-
-      // TODO Phase 4: Replace console.logs → fetch("/send-sms")
+      updateCounts();
     }
 
 
@@ -835,6 +926,61 @@
 
 
     // =============================================================
+    // SMS OVERLAY FEEDBACK
+    // =============================================================
+
+    let smsOverlayTimeout = null;
+
+    function showSmsOverlay(stage, count) {
+      const overlay = document.getElementById('smsOverlay');
+      const content = document.getElementById('smsOverlayContent');
+      overlay.classList.remove('hidden');
+
+      if (smsOverlayTimeout) {
+        clearTimeout(smsOverlayTimeout);
+        smsOverlayTimeout = null;
+      }
+
+      if (stage === 'pending') {
+        content.innerHTML = `
+          <div class="sms-spinner mb-5">⏳</div>
+          <h3 class="text-lg font-700 text-gray-800 mb-2">Sending Messages…</h3>
+          <p class="text-sm text-gray-500">Please wait while SMS notifications are being sent to parents.</p>
+        `;
+      } else if (stage === 'success') {
+        content.innerHTML = `
+          <div class="text-5xl mb-4 sms-success-icon">✅</div>
+          <h3 class="text-xl font-800 text-gray-900 mb-2">SMS Sent Successfully!</h3>
+          <p class="text-sm text-gray-500 mb-6">Notifications sent to <strong class="text-gray-800">${count}</strong> parent(s).</p>
+          <button onclick="hideSmsOverlay()" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-600 text-sm hover:from-blue-700 hover:to-indigo-700 transition-all cursor-pointer shadow-lg">
+            Dismiss
+          </button>
+        `;
+        smsOverlayTimeout = setTimeout(() => { hideSmsOverlay(); }, 6000);
+      } else if (stage === 'error') {
+        content.innerHTML = `
+          <div class="text-5xl mb-4">⚠️</div>
+          <h3 class="text-xl font-800 text-gray-900 mb-2">Connection Failed</h3>
+          <p class="text-sm text-gray-500 mb-2">Could not reach the server. Attendance was saved locally.</p>
+          <p class="text-xs text-gray-400 mb-6">SMS notifications were not sent. Try again later.</p>
+          <button onclick="hideSmsOverlay()" class="px-6 py-2.5 rounded-xl bg-gray-700 text-white font-600 text-sm hover:bg-gray-800 transition-all cursor-pointer shadow-lg">
+            Close
+          </button>
+        `;
+      }
+    }
+
+    function hideSmsOverlay() {
+      const overlay = document.getElementById('smsOverlay');
+      overlay.classList.add('hidden');
+      if (smsOverlayTimeout) {
+        clearTimeout(smsOverlayTimeout);
+        smsOverlayTimeout = null;
+      }
+    }
+
+
+    // =============================================================
     // INITIALIZATION
     // =============================================================
 
@@ -857,6 +1003,9 @@
     // Boot up
     document.addEventListener('DOMContentLoaded', init);
   </script>
+
+  <!-- Anti-inspect protection -->
+  <script src="anti-inspect.js"></script>
 
 </body>
 
