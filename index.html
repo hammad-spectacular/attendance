@@ -1,1012 +1,478 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="en" data-theme="dark">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Student Attendance Tracker</title>
-  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The EyeC — School Management System</title>
+<meta name="description" content="The EyeC — Attendance management, announcements, and homework tracking for schools.">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+/* ================================
+   THEME VARIABLES
+   ================================ */
+[data-theme="dark"] {
+  --bg: #0f172a;
+  --bg-card: #1e293b;
+  --bg-card-hover: #263348;
+  --border: #334155;
+  --text: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --primary: #4f46e5;
+  --primary-light: #818cf8;
+  --shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+  --shadow-lg: 0 20px 40px -8px rgba(0,0,0,0.5);
+  --gradient: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  --card-glow-admin: rgba(79,70,229,0.15);
+  --card-glow-teacher: rgba(20,184,166,0.15);
+}
+[data-theme="light"] {
+  --bg: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8fafc;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --primary: #4f46e5;
+  --primary-light: #6366f1;
+  --shadow: 0 4px 6px -1px rgba(0,0,0,0.07);
+  --shadow-lg: 0 20px 40px -8px rgba(0,0,0,0.12);
+  --gradient: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  --card-glow-admin: rgba(79,70,229,0.08);
+  --card-glow-teacher: rgba(20,184,166,0.08);
+}
 
-    * {
-      font-family: 'Inter', sans-serif;
-    }
+* { margin:0; padding:0; box-sizing:border-box; }
 
-    /* Smooth button transitions */
-    .att-btn {
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    }
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  transition: background 0.4s ease, color 0.4s ease;
+  overflow-x: hidden;
+}
 
-    /* Present button active state */
-    .att-btn.present-active {
-      background-color: #059669 !important;
-      color: white !important;
-      border-color: #059669 !important;
-      box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.25);
-      transform: scale(1.03);
-    }
+/* ================================
+   HEADER
+   ================================ */
+.header {
+  background: var(--gradient);
+  padding: 28px 24px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(79,70,229,0.3);
+  animation: headerSlideDown 0.5s ease-out;
+}
+.header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 30% 50%, rgba(255,255,255,0.08) 0%, transparent 60%),
+              radial-gradient(ellipse at 70% 50%, rgba(255,255,255,0.05) 0%, transparent 60%);
+  pointer-events: none;
+}
+.header-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.brand-badge {
+  width: 44px;
+  height: 44px;
+  background: rgba(255,255,255,0.2);
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: white;
+  margin-right: 14px;
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
+}
+.brand-text strong {
+  display: block;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: white;
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+.brand-text span {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.7);
+  font-weight: 400;
+  letter-spacing: 0.5px;
+}
 
-    /* Absent button active state */
-    .att-btn.absent-active {
-      background-color: #dc2626 !important;
-      color: white !important;
-      border-color: #dc2626 !important;
-      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.25);
-      transform: scale(1.03);
-    }
+/* Theme Toggle */
+.theme-toggle {
+  position: absolute;
+  top: 50%;
+  right: 20px;
+  transform: translateY(-50%);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.1);
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  z-index: 10;
+}
+.theme-toggle:hover {
+  background: rgba(255,255,255,0.2);
+  border-color: rgba(255,255,255,0.5);
+  transform: translateY(-50%) scale(1.08);
+}
 
-    /* Leave button active state */
-    .att-btn.leave-active {
-      background-color: #d97706 !important;
-      color: white !important;
-      border-color: #d97706 !important;
-      box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.25);
-      transform: scale(1.03);
-    }
+/* ================================
+   MAIN CONTENT
+   ================================ */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 50px 20px;
+}
 
-    /* Unmarked row highlight (validation) */
-    .row-unmarked {
-      animation: pulse-warn 0.6s ease-in-out 3;
-    }
+.page-title {
+  text-align: center;
+  margin-bottom: 48px;
+  animation: fadeInUp 0.6s ease-out 0.05s both;
+}
+.page-title h2 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+  letter-spacing: -0.5px;
+}
+.page-title p {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
 
-    @keyframes pulse-warn {
+/* ================================
+   ROLE CARDS
+   ================================ */
+.cards {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 680px;
+  width: 100%;
+}
 
-      0%,
-      100% {
-        background-color: transparent;
-      }
+.role-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 40px 36px;
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  animation: cardSlideUp 0.6s ease-out both;
+}
+.role-card:nth-child(1) { animation-delay: 0.15s; }
+.role-card:nth-child(2) { animation-delay: 0.3s; }
 
-      50% {
-        background-color: #fef3c7;
-      }
-    }
+/* Glow effect on hover */
+.role-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+.role-card.admin::before {
+  background: radial-gradient(ellipse at 50% 0%, var(--card-glow-admin) 0%, transparent 70%);
+}
+.role-card.teacher::before {
+  background: radial-gradient(ellipse at 50% 0%, var(--card-glow-teacher) 0%, transparent 70%);
+}
 
-    /* Row marked indicator */
-    .row-marked-present {
-      border-left: 4px solid #059669;
-    }
+/* Shimmer line on hover */
+.role-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 2px;
+  transition: left 0.5s ease;
+  pointer-events: none;
+}
+.role-card.admin::after {
+  background: linear-gradient(90deg, transparent, #818cf8, transparent);
+}
+.role-card.teacher::after {
+  background: linear-gradient(90deg, transparent, #5eead4, transparent);
+}
+.role-card:hover::after { left: 100%; }
 
-    .row-marked-absent {
-      border-left: 4px solid #dc2626;
-    }
+.role-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-lg);
+}
+.role-card:hover::before { opacity: 1; }
+.role-card.admin:hover { border-color: rgba(79,70,229,0.4); }
+.role-card.teacher:hover { border-color: rgba(20,184,166,0.4); }
 
-    .row-marked-leave {
-      border-left: 4px solid #d97706;
-    }
+.role-card:active {
+  transform: translateY(-2px);
+  transition-duration: 0.1s;
+}
 
-    .row-default {
-      border-left: 4px solid transparent;
-    }
+/* Card Icon */
+.card-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  margin-bottom: 22px;
+  position: relative;
+  z-index: 1;
+  transition: transform 0.3s ease;
+}
+.role-card:hover .card-icon { transform: scale(1.08); }
 
-    /* Toast notification */
-    .toast {
-      animation: slideUp 0.4s ease-out, fadeOut 0.4s ease-in 2.6s forwards;
-    }
+.admin .card-icon {
+  background: linear-gradient(135deg, #4f46e5, #4338ca);
+  box-shadow: 0 8px 20px rgba(79,70,229,0.35);
+  color: white;
+}
+.teacher .card-icon {
+  background: linear-gradient(135deg, #14b8a6, #0d9488);
+  box-shadow: 0 8px 20px rgba(20,184,166,0.35);
+  color: white;
+}
 
-    @keyframes slideUp {
-      from {
-        transform: translateY(100%);
-        opacity: 0;
-      }
+.card-label {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+  position: relative;
+  z-index: 1;
+}
+.card-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 28px;
+  position: relative;
+  z-index: 1;
+}
 
-      to {
-        transform: translateY(0);
-        opacity: 1;
-      }
-    }
+/* Card Button */
+.card-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 28px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.3px;
+  position: relative;
+  z-index: 1;
+}
+.admin .card-btn {
+  background: linear-gradient(135deg, #4f46e5, #4338ca);
+  color: white;
+  box-shadow: 0 4px 12px rgba(79,70,229,0.3);
+}
+.admin .card-btn:hover {
+  box-shadow: 0 6px 18px rgba(79,70,229,0.45);
+  transform: translateY(-1px);
+}
+.teacher .card-btn {
+  background: linear-gradient(135deg, #14b8a6, #0d9488);
+  color: white;
+  box-shadow: 0 4px 12px rgba(20,184,166,0.3);
+}
+.teacher .card-btn:hover {
+  box-shadow: 0 6px 18px rgba(20,184,166,0.45);
+  transform: translateY(-1px);
+}
 
-    @keyframes fadeOut {
-      from {
-        opacity: 1;
-      }
+/* ================================
+   DIVIDER & FOOTER
+   ================================ */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 40px 0 0;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  animation: fadeInUp 0.6s ease-out 0.45s both;
+}
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+  max-width: 80px;
+}
 
-      to {
-        opacity: 0;
-      }
-    }
+.footer {
+  text-align: center;
+  padding: 20px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  animation: fadeInUp 0.6s ease-out 0.5s both;
+}
 
-    /* Progress bar fill */
-    .progress-fill {
-      transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    }
+/* ================================
+   ANIMATIONS
+   ================================ */
+@keyframes headerSlideDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
-    /* Hover effects for desktop */
-    @media (hover: hover) {
-      .att-btn:not(.present-active):not(.absent-active):hover {
-        transform: scale(1.05);
-      }
-    }
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
-    /* Summary cards entrance */
-    .summary-card {
-      animation: popIn 0.3s ease-out;
-    }
+@keyframes cardSlideUp {
+  from { opacity: 0; transform: translateY(30px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
 
-    @keyframes popIn {
-      from {
-        transform: scale(0.9);
-        opacity: 0;
-      }
-
-      to {
-        transform: scale(1);
-        opacity: 1;
-      }
-    }
-
-    /* Floating submit button pulse when all marked */
-    .submit-ready {
-      animation: submitPulse 2s ease-in-out infinite;
-    }
-
-    @keyframes submitPulse {
-
-      0%,
-      100% {
-        box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.3);
-      }
-
-      50% {
-        box-shadow: 0 10px 35px -5px rgba(59, 130, 246, 0.5);
-      }
-    }
-
-    /* SMS Overlay */
-    #smsOverlay {
-      animation: overlayFadeIn 0.3s ease-out;
-    }
-
-    @keyframes overlayFadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-
-    .sms-spinner {
-      font-size: 3rem;
-      animation: spinPulse 1.5s ease-in-out infinite;
-    }
-
-    @keyframes spinPulse {
-      0%, 100% { transform: scale(1); opacity: 0.7; }
-      50% { transform: scale(1.15); opacity: 1; }
-    }
-
-    .sms-success-icon {
-      animation: successPop 0.5s ease-out;
-    }
-
-    @keyframes successPop {
-      0% { transform: scale(0.3); opacity: 0; }
-      50% { transform: scale(1.15); }
-      100% { transform: scale(1); opacity: 1; }
-    }
-  </style>
+/* ================================
+   RESPONSIVE
+   ================================ */
+@media (max-width: 620px) {
+  .role-card { width: 100%; max-width: 340px; padding: 32px 28px; }
+  .cards { gap: 16px; }
+  .page-title h2 { font-size: 1.3rem; }
+  .header { padding: 22px 16px; }
+  .brand-text strong { font-size: 1.2rem; }
+}
+</style>
 </head>
+<body>
 
-<body class="bg-gray-50 min-h-screen">
-
-  <!-- ======================== HEADER ======================== -->
-  <header class="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
-    <div class="max-w-2xl mx-auto px-4 py-4 sm:py-5">
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 class="text-xl sm:text-2xl font-800 text-gray-900 tracking-tight flex items-center gap-2">
-            <span class="text-2xl sm:text-3xl">📋</span>
-            Attendance
-          </h1>
-          <p class="text-xs sm:text-sm text-gray-500 mt-0.5" id="dateDisplay"></p>
-        </div>
-        <div class="text-right">
-          <div class="text-xs text-gray-400 uppercase tracking-wider font-600 mb-1">Progress</div>
-          <div id="progressText" class="text-sm font-700 text-gray-700">0 / 0</div>
-        </div>
-      </div>
-      <!-- Progress Bar -->
-      <div class="mt-3 h-2 bg-gray-100 rounded-full overflow-hidden">
-        <div id="progressBar" class="progress-fill h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full"
-          style="width: 0%"></div>
-      </div>
+<!-- ======================== HEADER ======================== -->
+<div class="header">
+  <div class="header-inner">
+    <div class="brand-badge">E</div>
+    <div class="brand-text">
+      <strong>The EyeC</strong>
+      <span>School Management System</span>
     </div>
-  </header>
-
-  <!-- ======================== MAIN ======================== -->
-  <main class="max-w-2xl mx-auto px-4 py-5 sm:py-8 pb-24">
-
-    <!-- Summary Cards -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6" id="summaryCards">
-      <div class="summary-card bg-white rounded-xl p-3 sm:p-4 text-center border border-gray-100 shadow-sm">
-        <div class="text-2xl sm:text-3xl font-800 text-gray-800" id="countTotal">0</div>
-        <div class="text-xs text-gray-400 font-600 uppercase tracking-wider mt-1">Total</div>
-      </div>
-      <div class="summary-card bg-emerald-50 rounded-xl p-3 sm:p-4 text-center border border-emerald-100 shadow-sm">
-        <div class="text-2xl sm:text-3xl font-800 text-emerald-600" id="countPresent">0</div>
-        <div class="text-xs text-emerald-500 font-600 uppercase tracking-wider mt-1">Present</div>
-      </div>
-      <div class="summary-card bg-red-50 rounded-xl p-3 sm:p-4 text-center border border-red-100 shadow-sm">
-        <div class="text-2xl sm:text-3xl font-800 text-red-500" id="countAbsent">0</div>
-        <div class="text-xs text-red-400 font-600 uppercase tracking-wider mt-1">Absent</div>
-      </div>
-      <div class="summary-card bg-amber-50 rounded-xl p-3 sm:p-4 text-center border border-amber-100 shadow-sm">
-        <div class="text-2xl sm:text-3xl font-800 text-amber-600" id="countLeave">0</div>
-        <div class="text-xs text-amber-500 font-600 uppercase tracking-wider mt-1">Leave</div>
-      </div>
-    </div>
-
-    <!-- Quick Actions -->
-    <div class="flex gap-2 mb-5">
-      <button onclick="markAllPresent()"
-        class="flex-1 text-xs sm:text-sm font-600 py-2.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer">
-        ✅ Mark All Present
-      </button>
-      <button onclick="markAllAbsent()"
-        class="flex-1 text-xs sm:text-sm font-600 py-2.5 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors cursor-pointer">
-        ❌ Mark All Absent
-      </button>
-      <button onclick="resetAll()"
-        class="text-xs sm:text-sm font-600 py-2.5 px-4 rounded-lg bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer">
-        ↺ Reset
-      </button>
-    </div>
-
-    <!-- Student List -->
-    <section aria-label="Student attendance list">
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100"
-        id="studentList">
-        <!-- Student rows rendered by JS -->
-      </div>
-    </section>
-
-    <!-- ======================== SAVED RECORDS VIEWER ======================== -->
-    <section class="mt-6 mb-8" aria-label="Saved attendance records">
-      <button onclick="toggleSavedRecords()"
-        class="w-full py-3 px-4 rounded-xl border-2 border-dashed border-gray-300 text-gray-500 font-600 text-sm
-               hover:border-blue-400 hover:text-blue-600 transition-all cursor-pointer flex items-center justify-center gap-2 bg-white/50"
-        id="toggleSavedBtn">
-        <span>📋</span>
-        <span>View Saved Records</span>
-        <span id="savedToggleArrow" class="text-xs transition-transform duration-300">▼</span>
-      </button>
-
-      <div id="savedRecordsPanel"
-        class="hidden mt-3 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="p-4 border-b border-gray-100 flex items-center justify-between">
-          <h3 class="font-700 text-gray-800 text-sm flex items-center gap-2">
-            <span>💾</span> Stored on this device
-          </h3>
-          <button onclick="clearSavedRecords()"
-            class="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-600 hover:bg-red-100 transition-colors cursor-pointer">
-            🗑️ Clear Data
-          </button>
-        </div>
-        <div id="savedRecordsContent" class="p-4">
-          <!-- Records rendered by JS -->
-        </div>
-        <div class="px-4 pb-3">
-          <p class="text-[11px] text-gray-400 flex items-center gap-1">
-            <span>ℹ️</span> Data is stored in your browser's localStorage. It stays on this device only, in this
-            browser.
-          </p>
-        </div>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- ======================== FLOATING SUBMIT BUTTON (bottom-right) ======================== -->
-  <button id="submitBtn" onclick="submitAttendance()" class="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-30
-           py-3.5 px-6 sm:px-8 rounded-2xl font-700 text-sm sm:text-base transition-all cursor-pointer
-           bg-gradient-to-r from-blue-600 to-indigo-600 text-white
-           hover:from-blue-700 hover:to-indigo-700
-           active:scale-[0.95] shadow-xl shadow-blue-500/30
-           flex items-center gap-2" aria-label="Submit Attendance">
-    <span>Submit</span>
-    <span class="text-lg">→</span>
+  </div>
+  <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+    <i class="fas fa-moon" id="themeIcon"></i>
   </button>
+</div>
 
-  <!-- Toast container -->
-  <div id="toastContainer"
-    class="fixed bottom-20 right-6 sm:bottom-22 sm:right-8 z-50 flex flex-col gap-2 items-end pointer-events-none">
+<!-- ======================== MAIN ======================== -->
+<div class="main">
+  <div class="page-title">
+    <h2>Choose your role</h2>
+    <p>Select how you want to access the system</p>
   </div>
 
-  <!-- SMS Status Overlay -->
-  <div id="smsOverlay" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-    <div class="bg-white rounded-2xl p-8 sm:p-10 shadow-2xl max-w-sm w-full mx-4 text-center">
-      <div id="smsOverlayContent"></div>
-    </div>
+  <div class="cards">
+    <!-- Admin Card -->
+    <a class="role-card admin" href="./admin.html" id="adminCard">
+      <div class="card-icon">
+        <i class="fas fa-shield-halved"></i>
+      </div>
+      <div class="card-label">Admin</div>
+      <div class="card-desc">Manage students, post announcements, and oversee all attendance records.</div>
+      <button class="card-btn">
+        <i class="fas fa-arrow-right"></i> Enter as Admin
+      </button>
+    </a>
+
+    <!-- Teacher Card -->
+    <a class="role-card teacher" href="./teacher.html" id="teacherCard">
+      <div class="card-icon">
+        <i class="fas fa-chalkboard-user"></i>
+      </div>
+      <div class="card-label">Teacher</div>
+      <div class="card-desc">Mark daily attendance, assign homework, and submit records to the system.</div>
+      <button class="card-btn">
+        <i class="fas fa-arrow-right"></i> Enter as Teacher
+      </button>
+    </a>
   </div>
 
-  <!-- ======================== JAVASCRIPT ======================== -->
-  <script>
-    // =============================================================
-    // DATA LAYER
-    // Store student data in an array of objects.
-    // TODO: In future, replace this static array with an API call
-    //       e.g., fetch('/api/students').then(res => res.json())
-    // =============================================================
-    const students = [
-      { id: 1, name: "Ali Hassan", rollNo: "CS-101", phone: "+923209789348", status: null },
-      { id: 2, name: "Sara Ahmed", rollNo: "CS-102", phone: "+923215788075", status: null },
-      { id: 3, name: "Omar Farooq", rollNo: "CS-103", phone: "+923209789348", status: null },
-      { id: 4, name: "Fatima Zahra", rollNo: "CS-104", phone: "+923209789348", status: null },
-      { id: 5, name: "Hassan Raza", rollNo: "CS-105", phone: "+923209789348", status: null },
-      { id: 6, name: "Ayesha Khan", rollNo: "CS-106", phone: "+923209789348", status: null },
-      { id: 7, name: "Bilal Mahmood", rollNo: "CS-107", phone: "+923209789348", status: null },
-      { id: 8, name: "Zainab Tariq", rollNo: "CS-108", phone: "+923209789348", status: null },
-    ];
-
-    // Attendance state map: { studentId: "Present" | "Absent" | null }
-    const attendanceState = {};
-
-    // Initialize state — all unmarked
-    students.forEach(s => { attendanceState[s.id] = null; });
-
-
-    // =============================================================
-    // STORAGE LAYER (localStorage — swap for API calls later)
-    // =============================================================
-
-    /** Get today's date as YYYY-MM-DD string */
-    function getTodayDate() {
-      return new Date().toISOString().split('T')[0];
-    }
-
-    // Storage key — keep consistent for future backend swap
-    const STORAGE_KEY = 'attendance';
-
-    /**
-     * saveAttendance(data)
-     * Persists attendance data to localStorage.
-     *
-     * TODO: Replace with API call:
-     *       fetch('/api/attendance/save', {
-     *         method: 'POST',
-     *         headers: { 'Content-Type': 'application/json' },
-     *         body: JSON.stringify(todayData)
-     *       })
-     */
-    function saveAttendance(todayData) {
-      let existing = [];
-      try {
-        existing = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-        if (!Array.isArray(existing)) {
-          existing = [];
-        }
-      } catch (e) {
-        existing = [];
-      }
-
-      const existingDateIndex = existing.findIndex(entry => entry.date === todayData.date);
-
-      if (existingDateIndex >= 0) {
-        // Replace today's data to avoid duplicates
-        existing[existingDateIndex] = todayData;
-      } else {
-        // Add new day
-        existing.push(todayData);
-      }
-
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
-    }
-
-    /**
-     * loadAttendance()
-     * Checks localStorage for saved attendance data.
-     * If data exists and matches today's date, restores button states.
-     * Called once on page load inside init().
-     *
-     * TODO: Replace with API call:
-     *       fetch(`/api/attendance?date=${getTodayDate()}`)
-     *         .then(res => res.json())
-     *         .then(data => { ... restore state ... })
-     */
-    function loadAttendance() {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (!saved) return;
-
-      try {
-        const data = JSON.parse(saved);
-
-        if (!Array.isArray(data) || data.length === 0) return;
-
-        const todayStr = getTodayDate();
-        const todayRecord = data.find(entry => entry.date === todayStr);
-
-        if (!todayRecord || !Array.isArray(todayRecord.students)) return;
-
-        // Restore each student's status into attendanceState
-        todayRecord.students.forEach(record => {
-          if (attendanceState.hasOwnProperty(record.id) && (record.status === 'Present' || record.status === 'Absent' || record.status === 'Leave')) {
-            attendanceState[record.id] = record.status;
-          }
-        });
-
-        // Update all row UIs to reflect restored state
-        students.forEach(s => updateRowUI(s.id));
-        updateCounts();
-
-        showToast('📂 Restored today\'s saved attendance', 'info');
-      } catch (e) {
-        console.error('Failed to load attendance:', e);
-      }
-    }
-
-
-    // =============================================================
-    // SAVED RECORDS VIEWER
-    // =============================================================
-
-    let savedPanelOpen = false;
-
-    /**
-     * Toggle the saved records panel visibility.
-     */
-    function toggleSavedRecords() {
-      savedPanelOpen = !savedPanelOpen;
-      const panel = document.getElementById('savedRecordsPanel');
-      const arrow = document.getElementById('savedToggleArrow');
-
-      if (savedPanelOpen) {
-        panel.classList.remove('hidden');
-        arrow.style.transform = 'rotate(180deg)';
-        renderSavedRecords();
-      } else {
-        panel.classList.add('hidden');
-        arrow.style.transform = 'rotate(0deg)';
-      }
-    }
-
-    /**
-     * Render saved records from localStorage into the viewer panel.
-     */
-    function renderSavedRecords() {
-      const container = document.getElementById('savedRecordsContent');
-      const saved = localStorage.getItem(STORAGE_KEY);
-
-      if (!saved) {
-        container.innerHTML = `
-          <div class="text-center py-6 text-gray-400">
-            <p class="text-3xl mb-2">📭</p>
-            <p class="text-sm font-500">No saved records yet</p>
-            <p class="text-xs mt-1">Mark attendance and submit to save</p>
-          </div>`;
-        return;
-      }
-
-      try {
-        const data = JSON.parse(saved);
-        if (!Array.isArray(data) || data.length === 0) {
-          container.innerHTML = `
-            <div class="text-center py-6 text-gray-400">
-              <p class="text-3xl mb-2">📭</p>
-              <p class="text-sm font-500">No saved records yet</p>
-            </div>`;
-          return;
-        }
-
-        let html = '';
-
-        // Loop backwards to show newest first
-        for (let i = data.length - 1; i >= 0; i--) {
-          const dayRecord = data[i];
-          const date = dayRecord.date || 'Unknown';
-          const studentsRecord = dayRecord.students || [];
-
-          const presentCount = studentsRecord.filter(r => r.status === 'Present').length;
-          const absentCount = studentsRecord.filter(r => r.status === 'Absent').length;
-          const leaveCount = studentsRecord.filter(r => r.status === 'Leave').length;
-
-          html += `
-            <div class="mb-6 last:mb-0">
-              <div class="mb-3 flex items-center justify-between">
-                <span class="text-xs font-600 text-gray-500">📅 Date: ${date}</span>
-                <span class="text-xs text-gray-400">${studentsRecord.length} students</span>
-              </div>
-              <div class="flex items-center justify-between mb-3">
-                <div class="flex gap-2 flex-wrap">
-                  <span class="text-xs px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-600">✅ Present: ${presentCount}</span>
-                  <span class="text-xs px-2.5 py-1 rounded-lg bg-red-50 text-red-600 font-600">❌ Absent: ${absentCount}</span>
-                  <span class="text-xs px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 font-600">📝 Leave: ${leaveCount}</span>
-                </div>
-                <button onclick="toggleDayDetails('${date}')" class="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-600 rounded-lg transition-colors cursor-pointer flex items-center gap-1">
-                  <span id="view-text-${date}">View Details</span><span id="arrow-${date}">▼</span>
-                </button>
-              </div>
-              <div id="details-${date}" class="hidden divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden shadow-sm mt-3">`;
-
-          studentsRecord.forEach(record => {
-            const isPresent = record.status === 'Present';
-            const isAbsent = record.status === 'Absent';
-            const isLeave = record.status === 'Leave';
-            const statusBg = isPresent ? 'bg-emerald-50 text-emerald-700' : (isAbsent ? 'bg-red-50 text-red-600' : (isLeave ? 'bg-amber-50 text-amber-700' : 'bg-gray-50 text-gray-500'));
-            const statusIcon = isPresent ? '✅' : (isAbsent ? '❌' : (isLeave ? '📝' : '➖'));
-
-            html += `
-              <div class="flex items-center justify-between px-3 py-2.5 text-sm bg-white hover:bg-gray-50 transition-colors">
-                <div class="flex items-center gap-2">
-                  <span class="text-xs text-gray-400 font-500 w-6">#${record.id}</span>
-                  <span class="font-600 text-gray-800">${record.name}</span>
-                </div>
-                <span class="text-xs px-2 py-1 rounded-md font-600 ${statusBg}">${statusIcon} ${record.status || 'Unmarked'}</span>
-              </div>`;
-          });
-
-          html += `
-              </div>
-            </div>`;
-        }
-
-        container.innerHTML = html;
-      } catch (e) {
-        container.innerHTML = `
-          <div class="text-center py-6 text-red-400">
-            <p class="text-sm font-500">⚠️ Stored data is corrupted</p>
-            <p class="text-xs mt-1">Click "Clear Data" to reset</p>
-          </div>`;
-      }
-    }
-
-    /**
-     * Toggles the visibility of student details for a specific saved day.
-     */
-    function toggleDayDetails(date) {
-      const detailsDiv = document.getElementById(`details-${date}`);
-      const arrow = document.getElementById(`arrow-${date}`);
-      const text = document.getElementById(`view-text-${date}`);
-
-      if (!detailsDiv) return;
-
-      if (detailsDiv.classList.contains('hidden')) {
-        detailsDiv.classList.remove('hidden');
-        arrow.textContent = '▲';
-        text.textContent = 'Hide Details';
-      } else {
-        detailsDiv.classList.add('hidden');
-        arrow.textContent = '▼';
-        text.textContent = 'View Details';
-      }
-    }
-
-    /**
-     * Clear all saved attendance data from localStorage.
-     */
-    function clearSavedRecords() {
-      if (!confirm('Are you sure you want to clear all saved attendance data?')) return;
-
-      localStorage.removeItem(STORAGE_KEY);
-      // TODO: Replace with API call — DELETE /api/attendance?date=${getTodayDate()}
-
-      // Reset UI state
-      students.forEach(s => {
-        attendanceState[s.id] = null;
-        updateRowUI(s.id);
-      });
-      updateCounts();
-
-      // Re-render the panel
-      renderSavedRecords();
-      showToast('🗑️ Saved data cleared', 'info');
-    }
-
-
-    // =============================================================
-    // RENDERING
-    // =============================================================
-
-    /**
-     * Render the full student list into the DOM.
-     * Each row uses data-student-id for linking UI → data.
-     */
-    function renderStudentList() {
-      const container = document.getElementById('studentList');
-      container.innerHTML = '';
-
-      students.forEach((student, index) => {
-        const row = document.createElement('div');
-        row.setAttribute('data-student-id', student.id);
-        row.id = `row-${student.id}`;
-        row.className = 'row-default flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-4 sm:p-5 transition-all';
-
-        // Generate initials for avatar
-        const initials = student.name.split(' ').map(n => n[0]).join('');
-        // Deterministic color from ID
-        const colors = [
-          'bg-blue-100 text-blue-700',
-          'bg-emerald-100 text-emerald-700',
-          'bg-purple-100 text-purple-700',
-          'bg-amber-100 text-amber-700',
-          'bg-rose-100 text-rose-700',
-          'bg-cyan-100 text-cyan-700',
-          'bg-indigo-100 text-indigo-700',
-          'bg-teal-100 text-teal-700',
-        ];
-        const colorClass = colors[index % colors.length];
-
-        row.innerHTML = `
-          <div class="flex items-center gap-3 sm:gap-4">
-            <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full ${colorClass} flex items-center justify-center font-700 text-sm sm:text-base shrink-0">
-              ${initials}
-            </div>
-            <div>
-              <div class="font-600 text-gray-900 text-sm sm:text-base">${student.name}</div>
-              <div class="text-xs text-gray-400 font-500">${student.rollNo} · ID #${student.id}</div>
-            </div>
-          </div>
-          <div class="flex gap-2 sm:gap-3 ml-13 sm:ml-0">
-            <button
-              type="button"
-              class="att-btn flex-1 sm:flex-none px-3 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 border-emerald-200 text-emerald-700 bg-emerald-50 cursor-pointer"
-              data-student-id="${student.id}"
-              data-action="Present"
-              onclick="markAttendance(${student.id}, 'Present')"
-              aria-label="Mark ${student.name} as present"
-            >
-              Present ✅
-            </button>
-            <button
-              type="button"
-              class="att-btn flex-1 sm:flex-none px-3 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 border-red-200 text-red-600 bg-red-50 cursor-pointer"
-              data-student-id="${student.id}"
-              data-action="Absent"
-              onclick="markAttendance(${student.id}, 'Absent')"
-              aria-label="Mark ${student.name} as absent"
-            >
-              Absent ❌
-            </button>
-            <button
-              type="button"
-              class="att-btn flex-1 sm:flex-none px-3 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 border-amber-200 text-amber-700 bg-amber-50 cursor-pointer"
-              data-student-id="${student.id}"
-              data-action="Leave"
-              onclick="markAttendance(${student.id}, 'Leave')"
-              aria-label="Mark ${student.name} as on leave"
-            >
-              Leave 📝
-            </button>
-          </div>
-        `;
-
-        container.appendChild(row);
-      });
-
-      updateCounts();
-    }
-
-
-    // =============================================================
-    // CORE FUNCTIONS
-    // =============================================================
-
-    /**
-     * markAttendance(id, status)
-     * Updates the student's attendance state and refreshes their UI row.
-     * 
-     * @param {number} id     - The unique student ID
-     * @param {string} status - "Present" or "Absent"
-     *
-     * TODO: In future, this function can also push the change
-     *       to a backend via API call:
-     *       fetch('/api/attendance', { method: 'POST', body: ... })
-     */
-    function markAttendance(id, status) {
-      // Toggle: if same status clicked again, unmark
-      if (attendanceState[id] === status) {
-        attendanceState[id] = null;
-      } else {
-        attendanceState[id] = status;
-      }
-
-      updateRowUI(id);
-      updateCounts();
-    }
-
-    /**
-     * Update a single row's button styles based on current state.
-     */
-    function updateRowUI(id) {
-      const row = document.getElementById(`row-${id}`);
-      if (!row) return;
-
-      const status = attendanceState[id];
-      const presentBtn = row.querySelector('[data-action="Present"]');
-      const absentBtn = row.querySelector('[data-action="Absent"]');
-      const leaveBtn = row.querySelector('[data-action="Leave"]');
-
-      const baseClass = 'att-btn flex-1 sm:flex-none px-3 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 cursor-pointer';
-
-      // Reset all buttons
-      presentBtn.className = baseClass;
-      absentBtn.className = baseClass;
-      leaveBtn.className = baseClass;
-
-      // Reset row border
-      row.classList.remove('row-marked-present', 'row-marked-absent', 'row-marked-leave', 'row-default', 'row-unmarked');
-
-      if (status === 'Present') {
-        presentBtn.classList.add('present-active');
-        absentBtn.classList.add('border-gray-200', 'text-gray-400', 'bg-gray-50');
-        leaveBtn.classList.add('border-gray-200', 'text-gray-400', 'bg-gray-50');
-        row.classList.add('row-marked-present');
-      } else if (status === 'Absent') {
-        absentBtn.classList.add('absent-active');
-        presentBtn.classList.add('border-gray-200', 'text-gray-400', 'bg-gray-50');
-        leaveBtn.classList.add('border-gray-200', 'text-gray-400', 'bg-gray-50');
-        row.classList.add('row-marked-absent');
-      } else if (status === 'Leave') {
-        leaveBtn.classList.add('leave-active');
-        presentBtn.classList.add('border-gray-200', 'text-gray-400', 'bg-gray-50');
-        absentBtn.classList.add('border-gray-200', 'text-gray-400', 'bg-gray-50');
-        row.classList.add('row-marked-leave');
-      } else {
-        presentBtn.classList.add('border-emerald-200', 'text-emerald-700', 'bg-emerald-50');
-        absentBtn.classList.add('border-red-200', 'text-red-600', 'bg-red-50');
-        leaveBtn.classList.add('border-amber-200', 'text-amber-700', 'bg-amber-50');
-        row.classList.add('row-default');
-      }
-    }
-
-    /**
-     * Update the summary counts and progress bar.
-     */
-    function updateCounts() {
-      const total = students.length;
-      const present = Object.values(attendanceState).filter(s => s === 'Present').length;
-      const absent = Object.values(attendanceState).filter(s => s === 'Absent').length;
-      const leave = Object.values(attendanceState).filter(s => s === 'Leave').length;
-      const marked = present + absent + leave;
-
-      document.getElementById('countTotal').textContent = total;
-      document.getElementById('countPresent').textContent = present;
-      document.getElementById('countAbsent').textContent = absent;
-      document.getElementById('countLeave').textContent = leave;
-      document.getElementById('progressText').textContent = `${marked} / ${total}`;
-
-      const pct = total > 0 ? (marked / total) * 100 : 0;
-      document.getElementById('progressBar').style.width = `${pct}%`;
-
-      // Update progress bar color
-      const bar = document.getElementById('progressBar');
-      if (pct === 100) {
-        bar.className = 'progress-fill h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full';
-      } else if (pct >= 50) {
-        bar.className = 'progress-fill h-full bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full';
-      } else {
-        bar.className = 'progress-fill h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full';
-      }
-
-      // Pulse the submit button when all are marked
-      const submitBtn = document.getElementById('submitBtn');
-      if (pct === 100) {
-        submitBtn.classList.add('submit-ready');
-      } else {
-        submitBtn.classList.remove('submit-ready');
-      }
-    }
-
-
-    function submitAttendance() {
-      // Sync UI state into student object (since UI uses attendanceState)
-      students.forEach(s => s.status = attendanceState[s.id]);
-
-      // 1. VALIDATION - No unmarked students
-      const unmarked = students.filter(s => s.status === null);
-      if (unmarked.length > 0) {
-        unmarked.forEach(s => {
-          const row = document.getElementById(`row-${s.id}`);
-          if (row) row.classList.add('row-unmarked');
-        });
-        showToast(`⚠️ Please mark attendance for ${unmarked.length} student(s)`, 'warning');
-        return;
-      }
-
-      // 2. Date
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
-      // 3. Save to localStorage
-      localStorage.setItem(`attendance_${today}`, JSON.stringify(students));
-
-      // Maintain compatibility with existing UI records panel
-      saveAttendance({
-        date: today,
-        students: students.map(s => ({ id: s.id, name: s.name, status: s.status }))
-      });
-
-      // 4. Detect absentees and leave students
-      const absentees = students.filter(s => s.status === "Absent");
-      const leaveStudents = students.filter(s => s.status === "Leave");
-
-      console.log(`🔍 ${today} - ABSENTEES: ${absentees.length}, LEAVE: ${leaveStudents.length}`);
-
-      const totalStudents = students.length;
-      const presentCount = students.filter(s => s.status === "Present").length;
-      const absentCount = absentees.length;
-      const leaveCount = leaveStudents.length;
-
-      // 5. Show pending overlay — "⏳ Sending messages…"
-      showSmsOverlay('pending');
-
-      // 6. Send to Express server
-      fetch('https://the-eye-aoyu.onrender.com/submit-attendance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          date: today,
-          totalStudents,
-          presentCount,
-          absentCount,
-          leaveCount,
-          absentees: absentees.map(s => ({ ...s, phoneValid: !!s.phone })),
-          leaveStudents: leaveStudents.map(s => ({ id: s.id, name: s.name, rollNo: s.rollNo }))
-        })
-      })
-        .then(response => response.json())
-        .then(data => {
-          console.log('✅ Server response:', data);
-          // Stage 2: Show success — "✅ SMS sent to X parents"
-          showSmsOverlay('success', absentCount);
-        })
-        .catch(error => {
-          console.error('❌ Server error:', error);
-          showSmsOverlay('error');
-        });
-
-      // Update UI panels if applicable
-      if (typeof savedPanelOpen !== 'undefined' && savedPanelOpen && typeof renderSavedRecords === 'function') {
-        renderSavedRecords();
-      }
-
-      // Reset for next day
-      students.forEach(s => {
-        attendanceState[s.id] = null;
-        s.status = null;
-        updateRowUI(s.id);
-      });
-      updateCounts();
-    }
-
-
-
-
-
-    // =============================================================
-    // BULK ACTIONS
-    // =============================================================
-
-    function markAllPresent() {
-      students.forEach(s => {
-        attendanceState[s.id] = 'Present';
-        updateRowUI(s.id);
-      });
-      updateCounts();
-      showToast('✅ All marked present', 'success');
-    }
-
-    function markAllAbsent() {
-      students.forEach(s => {
-        attendanceState[s.id] = 'Absent';
-        updateRowUI(s.id);
-      });
-      updateCounts();
-      showToast('❌ All marked absent', 'info');
-    }
-
-    function resetAll() {
-      students.forEach(s => {
-        attendanceState[s.id] = null;
-        updateRowUI(s.id);
-      });
-      updateCounts();
-      showToast('↺ All marks cleared', 'info');
-    }
-
-
-    // =============================================================
-    // TOAST NOTIFICATIONS
-    // =============================================================
-
-    function showToast(message, type = 'info') {
-      const container = document.getElementById('toastContainer');
-      const toast = document.createElement('div');
-
-      const bgMap = {
-        success: 'bg-emerald-600',
-        warning: 'bg-amber-500',
-        info: 'bg-gray-700',
-        error: 'bg-red-600',
-      };
-
-      toast.className = `toast ${bgMap[type] || bgMap.info} text-white px-5 py-3 rounded-xl shadow-lg text-sm font-600 whitespace-nowrap`;
-      toast.textContent = message;
-      container.appendChild(toast);
-
-      setTimeout(() => {
-        if (toast.parentNode) toast.parentNode.removeChild(toast);
-      }, 3000);
-    }
-
-
-    // =============================================================
-    // SMS OVERLAY FEEDBACK
-    // =============================================================
-
-    let smsOverlayTimeout = null;
-
-    function showSmsOverlay(stage, count) {
-      const overlay = document.getElementById('smsOverlay');
-      const content = document.getElementById('smsOverlayContent');
-      overlay.classList.remove('hidden');
-
-      if (smsOverlayTimeout) {
-        clearTimeout(smsOverlayTimeout);
-        smsOverlayTimeout = null;
-      }
-
-      if (stage === 'pending') {
-        content.innerHTML = `
-          <div class="sms-spinner mb-5">⏳</div>
-          <h3 class="text-lg font-700 text-gray-800 mb-2">Sending Messages…</h3>
-          <p class="text-sm text-gray-500">Please wait while SMS notifications are being sent to parents.</p>
-        `;
-      } else if (stage === 'success') {
-        content.innerHTML = `
-          <div class="text-5xl mb-4 sms-success-icon">✅</div>
-          <h3 class="text-xl font-800 text-gray-900 mb-2">SMS Sent Successfully!</h3>
-          <p class="text-sm text-gray-500 mb-6">Notifications sent to <strong class="text-gray-800">${count}</strong> parent(s).</p>
-          <button onclick="hideSmsOverlay()" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-600 text-sm hover:from-blue-700 hover:to-indigo-700 transition-all cursor-pointer shadow-lg">
-            Dismiss
-          </button>
-        `;
-        smsOverlayTimeout = setTimeout(() => { hideSmsOverlay(); }, 6000);
-      } else if (stage === 'error') {
-        content.innerHTML = `
-          <div class="text-5xl mb-4">⚠️</div>
-          <h3 class="text-xl font-800 text-gray-900 mb-2">Connection Failed</h3>
-          <p class="text-sm text-gray-500 mb-2">Could not reach the server. Attendance was saved locally.</p>
-          <p class="text-xs text-gray-400 mb-6">SMS notifications were not sent. Try again later.</p>
-          <button onclick="hideSmsOverlay()" class="px-6 py-2.5 rounded-xl bg-gray-700 text-white font-600 text-sm hover:bg-gray-800 transition-all cursor-pointer shadow-lg">
-            Close
-          </button>
-        `;
-      }
-    }
-
-    function hideSmsOverlay() {
-      const overlay = document.getElementById('smsOverlay');
-      overlay.classList.add('hidden');
-      if (smsOverlayTimeout) {
-        clearTimeout(smsOverlayTimeout);
-        smsOverlayTimeout = null;
-      }
-    }
-
-
-    // =============================================================
-    // INITIALIZATION
-    // =============================================================
-
-    function init() {
-      // Display today's date
-      const today = new Date();
-      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-      document.getElementById('dateDisplay').textContent = today.toLocaleDateString('en-US', options);
-
-      // Render student list
-      renderStudentList();
-
-      // Restore saved attendance from localStorage (if exists for today)
-      loadAttendance();
-    }
-
-    // TODO: Future — Load class/section from URL params or user selection
-    // TODO: Future — Check if attendance already submitted for today
-
-    // Boot up
-    document.addEventListener('DOMContentLoaded', init);
-  </script>
-
-  <!-- Anti-inspect protection -->
-  <script src="anti-inspect.js"></script>
+  <div class="divider">The EyeC System</div>
+</div>
+
+<!-- ======================== FOOTER ======================== -->
+<div class="footer">&copy; 2026 The EyeC &middot; All rights reserved</div>
+
+<!-- ======================== JAVASCRIPT ======================== -->
+<script>
+  // =============================================================
+  // THEME TOGGLE
+  // =============================================================
+  function toggleTheme() {
+    const html = document.documentElement;
+    const icon = document.getElementById('themeIcon');
+    const isDark = html.getAttribute('data-theme') === 'dark';
+    html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+    localStorage.setItem('attendance-theme', isDark ? 'light' : 'dark');
+  }
+
+  // Load saved theme on startup
+  (function () {
+    const saved = localStorage.getItem('attendance-theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', saved);
+    document.getElementById('themeIcon').className = saved === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+  })();
+</script>
+
+<!-- Anti-inspect protection -->
+<script src="anti-inspect.js"></script>
 
 </body>
-
 </html>
