@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Teacher Dashboard — The EyeC</title>
+  <title>Teacher Dashboard — The Eye</title>
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -351,10 +351,43 @@
       50% { transform: scale(1.15); }
       100% { transform: scale(1); opacity: 1; }
     }
+
+    /* Additional dark mode styles */
+    .class-card.bg-white { background-color: var(--bg-card) !important; border-color: var(--border) !important; }
+    .class-card h3, .class-card h4 { color: var(--text) !important; }
+    .class-card input, .class-card textarea { background-color: var(--bg) !important; border-color: var(--border) !important; color: var(--text) !important; }
+    .class-card-item { background-color: var(--bg) !important; border-color: var(--border) !important; }
+    .class-card-item .item-text { color: var(--text) !important; }
+    
+    [data-theme="dark"] #teacherSelectionModal > div { background-color: var(--bg-card) !important; color: var(--text) !important; }
+    [data-theme="dark"] #teacherSelectionModal h2 { color: var(--text) !important; }
+    [data-theme="dark"] #teacherSelectionModal select { background-color: var(--bg) !important; border-color: var(--border) !important; color: var(--text) !important; }
   </style>
 </head>
 
 <body class="bg-gray-50 min-h-screen">
+
+  <!-- ======================== TEACHER SELECTION MODAL ======================== -->
+  <div id="teacherSelectionModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/80 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl p-6 sm:p-8 shadow-2xl max-w-sm w-full mx-4" style="transition: background-color 0.3s ease;">
+      <div class="text-center mb-6">
+        <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto text-3xl mb-4">👨‍🏫</div>
+        <h2 class="text-xl font-800 text-gray-900" style="color: inherit;">Welcome, Teacher</h2>
+        <p class="text-sm text-gray-500 mt-1">Please select your profile to continue</p>
+      </div>
+      <div class="space-y-4">
+        <select id="teacherSelectDropdown" class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-0 outline-none text-gray-700 font-500 transition-colors">
+          <option value="">-- Select Teacher --</option>
+        </select>
+        <button onclick="confirmTeacherSelection()" class="w-full py-3 rounded-xl font-700 text-white bg-blue-600 hover:bg-blue-700 active:scale-95 transition-all outline-none">Continue</button>
+      </div>
+      <div id="noTeachersMsg" class="hidden text-center mt-4">
+        <p class="text-sm text-red-500 font-500">No teachers found.</p>
+        <p class="text-xs text-gray-500 mt-1">Please add teachers in the Admin dashboard first.</p>
+        <a href="./admin.html" class="inline-block mt-2 text-sm text-blue-600 hover:underline font-600">Go to Admin Dashboard</a>
+      </div>
+    </div>
+  </div>
 
   <!-- ======================== HEADER ======================== -->
   <header class="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
@@ -367,7 +400,7 @@
           <div>
             <h1 class="text-xl sm:text-2xl font-800 text-gray-900 tracking-tight flex items-center gap-2">
               <span class="text-2xl sm:text-3xl">📋</span>
-              Teacher — Attendance
+              <span id="headerTeacherName">Teacher</span> — <span id="headerClassName">Attendance</span>
             </h1>
             <p class="text-xs sm:text-sm text-gray-500 mt-0.5" id="dateDisplay"></p>
           </div>
@@ -392,6 +425,19 @@
 
   <!-- ======================== MAIN ======================== -->
   <main class="max-w-2xl mx-auto px-4 py-5 sm:py-8 pb-24">
+    
+    <!-- School Announcements Viewer (Top) -->
+    <section aria-label="School Announcements" class="class-card bg-indigo-600 rounded-2xl shadow-lg overflow-hidden flex flex-col p-4 sm:p-5 mb-8 text-white relative">
+      <div class="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+        <i class="fas fa-bullhorn" style="font-size: 8rem; transform: rotate(15deg);"></i>
+      </div>
+      <h3 class="font-800 text-white text-lg mb-4 flex items-center gap-2 relative z-10"><i class="fas fa-bullhorn"></i> Important School Notices</h3>
+      <div class="flex-1 overflow-y-auto max-h-[250px] pr-1 relative z-10">
+        <div id="schoolAnnouncementsList" class="space-y-3">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </section>
 
     <!-- Summary Cards -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6" id="summaryCards">
@@ -430,12 +476,54 @@
     </div>
 
     <!-- Student List -->
-    <section aria-label="Student attendance list">
+    <section aria-label="Student attendance list" class="mb-8">
       <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100"
         id="studentList">
         <!-- Student rows rendered by JS -->
       </div>
     </section>
+
+    <!-- ======================== CLASS ANNOUNCEMENTS & HOMEWORK ======================== -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-8 mt-2">
+      
+      <!-- Class Announcements -->
+      <section aria-label="Class Announcements" class="class-card bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-full flex flex-col p-4 sm:p-5" style="transition: background-color 0.3s ease, border-color 0.3s ease;">
+        <h3 class="font-700 text-gray-800 text-base mb-3 flex items-center gap-2"><span>📢</span> Class Announcements</h3>
+        <div class="mb-3">
+          <textarea id="classAnnouncementText" class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 focus:border-blue-500 outline-none text-sm text-gray-700 resize-y min-h-[70px]" placeholder="Type class announcement..."></textarea>
+        </div>
+        <button onclick="saveClassAnnouncement()" class="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 font-600 text-sm rounded-xl transition-colors mb-4 border border-blue-100 cursor-pointer">
+          Save Announcement
+        </button>
+        
+        <div class="flex-1 overflow-y-auto max-h-[150px] pr-1">
+          <h4 class="text-xs font-600 text-gray-400 uppercase tracking-wider mb-2">Saved Class Announcements</h4>
+          <div id="classAnnouncementsList" class="space-y-2">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Homework -->
+      <section aria-label="Homework" class="class-card bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-full flex flex-col p-4 sm:p-5" style="transition: background-color 0.3s ease, border-color 0.3s ease;">
+        <h3 class="font-700 text-gray-800 text-base mb-3 flex items-center gap-2"><span>📚</span> Homework</h3>
+        <div class="mb-3 flex flex-col gap-2">
+          <input type="text" id="homeworkSubject" class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 focus:border-blue-500 outline-none text-sm text-gray-700" placeholder="Subject (e.g. Math)">
+          <textarea id="homeworkTask" class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 focus:border-blue-500 outline-none text-sm text-gray-700 resize-y min-h-[60px]" placeholder="Task (e.g. Ch 3 exercises)"></textarea>
+        </div>
+        <button onclick="saveHomework()" class="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-600 text-sm rounded-xl transition-colors mb-4 border border-indigo-100 cursor-pointer">
+          Save Homework
+        </button>
+        
+        <div class="flex-1 overflow-y-auto max-h-[150px] pr-1">
+          <h4 class="text-xs font-600 text-gray-400 uppercase tracking-wider mb-2">Saved Homework</h4>
+          <div id="homeworkList" class="space-y-2">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </section>
+
+    </div>
 
     <!-- ======================== SAVED RECORDS VIEWER ======================== -->
     <section class="mt-6 mb-8" aria-label="Saved attendance records">
@@ -496,6 +584,28 @@
     </div>
   </div>
 
+  <!-- Edit Student Modal -->
+  <div id="editStudentModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl p-6 sm:p-8 shadow-2xl max-w-sm w-full mx-4">
+      <h3 class="text-xl font-800 text-gray-900 mb-4">Edit Student</h3>
+      <input type="hidden" id="editStudentId">
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-600 text-gray-500 uppercase mb-1">Name</label>
+          <input type="text" id="editStudentName" class="w-full px-4 py-2 xl border border-gray-200 rounded-xl focus:border-blue-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-600 text-gray-500 uppercase mb-1">Phone</label>
+          <input type="text" id="editStudentPhone" class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:border-blue-500 outline-none text-sm font-mono">
+        </div>
+      </div>
+      <div class="mt-6 flex gap-3">
+        <button onclick="saveStudentEdit()" class="flex-1 py-2.5 bg-blue-600 text-white font-600 rounded-xl hover:bg-blue-700 transition-colors">Save</button>
+        <button onclick="closeStudentEdit()" class="flex-1 py-2.5 bg-gray-100 text-gray-600 font-600 rounded-xl hover:bg-gray-200 transition-colors">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ======================== JAVASCRIPT ======================== -->
   <script>
     // =============================================================
@@ -504,16 +614,25 @@
     // TODO: In future, replace this static array with an API call
     //       e.g., fetch('/api/students').then(res => res.json())
     // =============================================================
-    const students = [
-      { id: 1, name: "Ali Hassan", rollNo: "CS-101", phone: "+923209789348", status: null },
-      { id: 2, name: "Sara Ahmed", rollNo: "CS-102", phone: "+923215788075", status: null },
-      { id: 3, name: "Omar Farooq", rollNo: "CS-103", phone: "+923209789348", status: null },
-      { id: 4, name: "Fatima Zahra", rollNo: "CS-104", phone: "+923209789348", status: null },
-      { id: 5, name: "Hassan Raza", rollNo: "CS-105", phone: "+923209789348", status: null },
-      { id: 6, name: "Ayesha Khan", rollNo: "CS-106", phone: "+923209789348", status: null },
-      { id: 7, name: "Bilal Mahmood", rollNo: "CS-107", phone: "+923209789348", status: null },
-      { id: 8, name: "Zainab Tariq", rollNo: "CS-108", phone: "+923209789348", status: null },
-    ];
+    let students = [];
+    try {
+      const stored = localStorage.getItem('students');
+      if (stored) {
+        students = JSON.parse(stored);
+      } else {
+        students = [
+          { id: 1, name: "Ali Hassan", rollNo: "CS-101", phone: "+923209789348" },
+          { id: 2, name: "Sara Ahmed", rollNo: "CS-102", phone: "+923215788075" },
+          { id: 3, name: "Omar Farooq", rollNo: "CS-103", phone: "+923209789348" },
+          { id: 4, name: "Fatima Zahra", rollNo: "CS-104", phone: "+923209789348" },
+          { id: 5, name: "Hassan Raza", rollNo: "CS-105", phone: "+923209789348" },
+          { id: 6, name: "Ayesha Khan", rollNo: "CS-106", phone: "+923209789348" },
+          { id: 7, name: "Bilal Mahmood", rollNo: "CS-107", phone: "+923209789348" },
+          { id: 8, name: "Zainab Tariq", rollNo: "CS-108", phone: "+923209789348" },
+        ];
+        localStorage.setItem('students', JSON.stringify(students));
+      }
+    } catch(e) { console.error('Error loading students', e); }
 
     // Attendance state map: { studentId: "Present" | "Absent" | null }
     const attendanceState = {};
@@ -808,8 +927,13 @@
               ${initials}
             </div>
             <div>
-              <div class="font-600 text-gray-900 text-sm sm:text-base">${student.name}</div>
-              <div class="text-xs text-gray-400 font-500">${student.rollNo} · ID #${student.id}</div>
+              <div class="font-600 text-gray-900 text-sm sm:text-base flex items-center gap-2">
+                ${student.name}
+                <button type="button" onclick="openStudentEdit(${student.id})" class="text-xs text-blue-500/50 hover:text-blue-600 transition-colors cursor-pointer" title="Edit Contact Info">
+                  <i class="fas fa-edit"></i>
+                </button>
+              </div>
+              <div class="text-xs text-gray-400 font-500">${student.rollNo} · <span class="font-mono">${student.phone}</span></div>
             </div>
           </div>
           <div class="flex gap-2 sm:gap-3 ml-13 sm:ml-0">
@@ -988,6 +1112,8 @@
       // Maintain compatibility with existing UI records panel
       saveAttendance({
         date: today,
+        teacher: currentTeacher ? currentTeacher.name : 'Unknown',
+        class: currentTeacher ? currentTeacher.class : 'Unknown',
         students: students.map(s => ({ id: s.id, name: s.name, status: s.status }))
       });
 
@@ -1189,6 +1315,234 @@
     }
 
 
+    // =============================================================
+    // TEACHER SELECTION & ANNOUNCEMENTS
+    // =============================================================
+    
+    let currentTeacher = null;
+
+    function initTeacherSelection() {
+      const modal = document.getElementById('teacherSelectionModal');
+      const dropdown = document.getElementById('teacherSelectDropdown');
+      const noMsg = document.getElementById('noTeachersMsg');
+      const btn = modal.querySelector('button');
+      
+      let teachers = [];
+      try {
+        const tRaw = localStorage.getItem('teachers');
+        if (tRaw) teachers = JSON.parse(tRaw);
+      } catch(e) {}
+
+      if (!Array.isArray(teachers) || teachers.length === 0) {
+        dropdown.style.display = 'none';
+        btn.style.display = 'none';
+        noMsg.classList.remove('hidden');
+      } else {
+        dropdown.innerHTML = '<option value="">-- Select Teacher --</option>';
+        teachers.forEach((t, i) => {
+          const opt = document.createElement('option');
+          opt.value = i;
+          opt.textContent = `${t.name} (Class: ${t.class})`;
+          dropdown.appendChild(opt);
+        });
+      }
+    }
+
+    function confirmTeacherSelection() {
+      const dropdown = document.getElementById('teacherSelectDropdown');
+      if (!dropdown.value) {
+        showToast('⚠️ Please select a teacher', 'warning');
+        return;
+      }
+      
+      const teachers = JSON.parse(localStorage.getItem('teachers') || '[]');
+      currentTeacher = teachers[dropdown.value];
+      
+      document.getElementById('teacherSelectionModal').classList.add('hidden');
+      document.getElementById('headerTeacherName').textContent = currentTeacher.name;
+      document.getElementById('headerClassName').textContent = `Class ${currentTeacher.class}`;
+      
+      showToast(`👋 Welcome, ${currentTeacher.name}`, 'success');
+      
+      renderSchoolAnnouncements();
+      renderClassAnnouncements();
+      renderHomework();
+    }
+
+    function renderSchoolAnnouncements() {
+      const container = document.getElementById('schoolAnnouncementsList');
+      let items = [];
+      try { items = JSON.parse(localStorage.getItem('schoolAnnouncements')) || []; } catch(e){}
+      
+      if (items.length === 0) {
+        container.innerHTML = '<div class="text-xs text-[rgba(255,255,255,0.6)] italic py-2 mt-2">No school announcements</div>';
+        return;
+      }
+      
+      let html = '';
+      items.forEach((item, idx) => {
+        html += `
+          <div class="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20 hover:bg-white/20 transition-colors text-white">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-[10px] font-800 px-2.5 py-0.5 bg-indigo-500 rounded-md text-white uppercase tracking-wider">${item.date}</span>
+            </div>
+            <div class="item-text text-indigo-50 text-[13px] font-500 whitespace-pre-wrap leading-relaxed">${item.message}</div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    function saveClassAnnouncement() {
+      if (!currentTeacher) return;
+      const text = document.getElementById('classAnnouncementText').value.trim();
+      if (!text) {
+        showToast('⚠️ Enter an announcement', 'warning');
+        return;
+      }
+      
+      let items = [];
+      try { items = JSON.parse(localStorage.getItem('classAnnouncements')) || []; } catch(e){}
+      
+      items.unshift({
+        teacher: currentTeacher.name,
+        class: currentTeacher.class,
+        date: new Date().toLocaleDateString('en-CA'),
+        message: text
+      });
+      localStorage.setItem('classAnnouncements', JSON.stringify(items));
+      
+      document.getElementById('classAnnouncementText').value = '';
+      showToast('📢 Class Announcement saved', 'success');
+      renderClassAnnouncements();
+    }
+
+    function renderClassAnnouncements() {
+      if (!currentTeacher) return;
+      const container = document.getElementById('classAnnouncementsList');
+      let items = [];
+      try { items = JSON.parse(localStorage.getItem('classAnnouncements')) || []; } catch(e){}
+      
+      const myItems = items.filter(i => i.teacher === currentTeacher.name && i.class === currentTeacher.class);
+      
+      if (myItems.length === 0) {
+        container.innerHTML = '<div class="text-xs text-gray-400 italic py-2">No announcements yet</div>';
+        return;
+      }
+      
+      let html = '';
+      myItems.forEach((item, idx) => {
+        html += `
+          <div class="class-card-item bg-gray-50 border border-gray-100 rounded-lg p-2.5 text-sm">
+            <div class="text-xs font-600 text-blue-500 mb-1">${item.date}</div>
+            <div class="item-text text-gray-700">${item.message}</div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    function saveHomework() {
+      if (!currentTeacher) return;
+      const subject = document.getElementById('homeworkSubject').value.trim();
+      const task = document.getElementById('homeworkTask').value.trim();
+      
+      if (!subject || !task) {
+        showToast('⚠️ Please enter subject and task', 'warning');
+        return;
+      }
+      
+      let items = [];
+      try { items = JSON.parse(localStorage.getItem('homework')) || []; } catch(e){}
+      
+      items.unshift({
+        teacher: currentTeacher.name,
+        class: currentTeacher.class,
+        date: new Date().toLocaleDateString('en-CA'),
+        subject: subject,
+        task: task
+      });
+      localStorage.setItem('homework', JSON.stringify(items));
+      
+      document.getElementById('homeworkSubject').value = '';
+      document.getElementById('homeworkTask').value = '';
+      showToast('📚 Homework saved', 'success');
+      renderHomework();
+    }
+
+    function clearSavedRecords() {
+      if(confirm('Are you sure you want to clear all locally saved attendance records? This cannot be undone.')) {
+        localStorage.removeItem(STORAGE_KEY);
+        document.getElementById('savedRecordsContent').innerHTML = '<div class="text-xs text-gray-400 italic p-4 text-center">No records found.</div>';
+        showToast('Data cleared from your device.', 'success');
+        toggleSavedRecords();
+      }
+    }
+
+    // =============================================================
+    // EDIT STUDENT
+    // =============================================================
+    function openStudentEdit(id) {
+      const st = students.find(s => s.id === id);
+      if (!st) return;
+      document.getElementById('editStudentId').value = st.id;
+      document.getElementById('editStudentName').value = st.name;
+      document.getElementById('editStudentPhone').value = st.phone || '';
+      document.getElementById('editStudentModal').classList.remove('hidden');
+    }
+    
+    function closeStudentEdit() {
+      document.getElementById('editStudentModal').classList.add('hidden');
+    }
+    
+    function saveStudentEdit() {
+      const id = parseInt(document.getElementById('editStudentId').value);
+      const name = document.getElementById('editStudentName').value.trim();
+      const phone = document.getElementById('editStudentPhone').value.trim();
+      if(!name || !phone) {
+        showToast('⚠️ Enter both name and phone', 'warning');
+        return;
+      }
+      
+      const stIdx = students.findIndex(s => s.id === id);
+      if (stIdx !== -1) {
+        students[stIdx].name = name;
+        students[stIdx].phone = phone;
+        localStorage.setItem('students', JSON.stringify(students));
+        renderStudents();
+        closeStudentEdit();
+        showToast(`Updated ${name} successfully!`, 'success');
+      }
+    }
+
+    function renderHomework() {
+      if (!currentTeacher) return;
+      const container = document.getElementById('homeworkList');
+      let items = [];
+      try { items = JSON.parse(localStorage.getItem('homework')) || []; } catch(e){}
+      
+      const myItems = items.filter(i => i.teacher === currentTeacher.name && i.class === currentTeacher.class);
+      
+      if (myItems.length === 0) {
+        container.innerHTML = '<div class="text-xs text-gray-400 italic py-2">No homework saved yet</div>';
+        return;
+      }
+      
+      let html = '';
+      myItems.forEach((item, idx) => {
+        html += `
+          <div class="class-card-item bg-gray-50 border border-gray-100 rounded-lg p-2.5 text-sm">
+            <div class="flex justify-between items-start mb-1">
+              <span class="text-xs font-700 text-indigo-600 uppercase bg-indigo-50 px-2 py-0.5 rounded">${item.subject}</span>
+              <span class="text-[10px] text-gray-400 font-600">${item.date}</span>
+            </div>
+            <div class="item-text text-gray-700 mt-1.5">${item.task}</div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
     function init() {
       // Load theme preference
       loadTheme();
@@ -1200,6 +1554,9 @@
 
       // Render student list
       renderStudentList();
+
+      // Trigger Teacher Selection Modal
+      initTeacherSelection();
 
       // Restore saved attendance from localStorage (if exists for today)
       loadAttendance();
