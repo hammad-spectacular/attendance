@@ -1509,7 +1509,11 @@
         students[stIdx].name = name;
         students[stIdx].phone = phone;
         localStorage.setItem('students', JSON.stringify(students));
-        renderStudents();
+        
+        // Dynamically update the list and preserve the attendance UI state
+        renderStudentList();
+        students.forEach(s => updateRowUI(s.id));
+        
         closeStudentEdit();
         showToast(`Updated ${name} successfully!`, 'success');
       }
