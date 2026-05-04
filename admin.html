@@ -574,6 +574,161 @@
       from { opacity: 1; transform: translateY(0); }
       to { opacity: 0; transform: translateY(-10px); }
     }
+
+    /* ================================
+       TAB NAVIGATION
+       ================================ */
+    .tab-nav {
+      background: var(--bg);
+      border-bottom: 2px solid var(--border);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      transition: background 0.3s ease, border-color 0.3s ease;
+      margin-top: 2px;
+    }
+    [data-theme="dark"] .tab-nav { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3); }
+    .tab-nav-inner {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      gap: 0.5rem;
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
+    }
+    .tab-btn {
+      padding: 0.65rem 1.5rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      border-radius: 12px;
+      border: 2px solid transparent;
+      background: var(--bg-card);
+      transition: all 0.25s ease;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: 'Inter', sans-serif;
+    }
+    .tab-btn:hover {
+      color: var(--primary);
+      background: var(--bg-card-hover);
+      border-color: var(--border);
+    }
+    .tab-btn.active {
+      color: #fff;
+      background: var(--gradient);
+      border-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+
+    /* ================================
+       EDIT MODAL
+       ================================ */
+    .edit-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      animation: fadeIn 0.2s ease-out;
+    }
+    .edit-modal.open {
+      display: flex;
+    }
+    .edit-modal-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      width: 90%;
+      max-width: 420px;
+      box-shadow: var(--shadow-lg);
+      animation: modalSlideIn 0.3s ease-out;
+    }
+    .edit-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .edit-modal-header h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .edit-modal-close {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    .edit-modal-close:hover {
+      background: var(--danger-bg);
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+    .edit-modal-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .edit-modal-actions .btn {
+      flex: 1;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes modalSlideIn {
+      from { opacity: 0; transform: scale(0.95) translateY(-10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    /* Edit button in table */
+    .btn-edit {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      border: none;
+      background: var(--badge-bg);
+      color: var(--badge-text);
+      cursor: pointer;
+      font-size: 0.72rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    .btn-edit:hover {
+      background: rgba(79, 70, 229, 0.2);
+      transform: scale(1.1);
+    }
+
+    @media (max-width: 640px) {
+      .tab-nav-inner { padding-left: 14px; padding-right: 14px; gap: 0.35rem; }
+      .tab-btn { padding: 0.55rem 1rem; font-size: 0.82rem; }
+      .edit-modal-card { padding: 20px; }
+    }
   </style>
 </head>
 <body>
@@ -598,10 +753,26 @@
     </div>
   </div>
 
+  <!-- ======================== TAB NAVIGATION ======================== -->
+  <nav class="tab-nav">
+    <div class="tab-nav-inner">
+      <button class="tab-btn active" data-tab="teachers" onclick="switchTab('teachers')">
+        <i class="fas fa-chalkboard-user"></i>Teachers
+      </button>
+      <button class="tab-btn" data-tab="students" onclick="switchTab('students')">
+        <i class="fas fa-user-graduate"></i>Students
+      </button>
+      <button class="tab-btn" data-tab="announcements" onclick="switchTab('announcements')">
+        <i class="fas fa-bullhorn"></i>Announcements
+      </button>
+    </div>
+  </nav>
+
   <!-- ======================== MAIN ======================== -->
   <div class="main">
 
-    <!-- ==================== SECTION 1: TEACHERS LIST ==================== -->
+    <!-- ==================== TEACHERS TAB ==================== -->
+    <div id="tab-teachers" class="tab-content active">
     <div class="section-card" id="teachersSection">
       <div class="section-header">
         <div class="section-header-left">
@@ -647,8 +818,10 @@
         </div>
       </div>
     </div>
+    </div>
 
-    <!-- ==================== SECTION 1.5: STUDENTS LIST ==================== -->
+    <!-- ==================== STUDENTS TAB ==================== -->
+    <div id="tab-students" class="tab-content">
     <div class="section-card" id="studentsSection">
       <div class="section-header">
         <div class="section-header-left">
@@ -694,29 +867,10 @@
         </div>
       </div>
     </div>
-
-    <!-- ==================== SECTION 2: ATTENDANCE OVERVIEW ==================== -->
-    <div class="section-card" id="attendanceSection">
-      <div class="section-header">
-        <div class="section-header-left">
-          <div class="section-icon green"><i class="fas fa-clipboard-list"></i></div>
-          <div>
-            <div class="section-title">Attendance Overview</div>
-            <div class="section-subtitle">View submitted attendance records</div>
-          </div>
-        </div>
-        <button class="btn btn-danger" onclick="clearAttendanceHistory()" title="Clear all attendance data" style="font-size:0.75rem; padding:8px 14px;">
-          <i class="fas fa-trash-alt"></i> Clear
-        </button>
-      </div>
-      <div class="section-body" style="padding:0;">
-        <div id="attendanceTableWrap">
-          <!-- Rendered by JS -->
-        </div>
-      </div>
     </div>
 
-    <!-- ==================== SECTION 3: SCHOOL ANNOUNCEMENTS ==================== -->
+    <!-- ==================== ANNOUNCEMENTS TAB ==================== -->
+    <div id="tab-announcements" class="tab-content">
     <div class="section-card" id="announcementsSection">
       <div class="section-header">
         <div class="section-header-left">
@@ -742,11 +896,66 @@
         </div>
       </div>
     </div>
+    </div>
 
   </div>
 
   <!-- Toast container -->
   <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ======================== EDIT TEACHER MODAL ======================== -->
+  <div class="edit-modal" id="editTeacherModal">
+    <div class="edit-modal-card">
+      <div class="edit-modal-header">
+        <h3><i class="fas fa-pen" style="margin-right:8px; color:var(--primary);"></i>Edit Teacher</h3>
+        <button class="edit-modal-close" onclick="closeEditTeacherModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <input type="hidden" id="editTeacherIndex">
+      <div class="form-group">
+        <label class="form-label" for="editTeacherName">Teacher Name</label>
+        <input class="form-input" type="text" id="editTeacherName" placeholder="e.g. Mr Khan">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="editTeacherClass">Class</label>
+        <input class="form-input" type="text" id="editTeacherClass" placeholder="e.g. 5A">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="editTeacherPhone">Contact</label>
+        <input class="form-input" type="text" id="editTeacherPhone" placeholder="e.g. 92300...">
+      </div>
+      <div class="edit-modal-actions">
+        <button class="btn btn-primary" onclick="saveEditTeacher()"><i class="fas fa-check"></i> Save</button>
+        <button class="btn btn-ghost" onclick="closeEditTeacherModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== EDIT STUDENT MODAL ======================== -->
+  <div class="edit-modal" id="editStudentModal">
+    <div class="edit-modal-card">
+      <div class="edit-modal-header">
+        <h3><i class="fas fa-pen" style="margin-right:8px; color:var(--primary);"></i>Edit Student</h3>
+        <button class="edit-modal-close" onclick="closeEditStudentModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <input type="hidden" id="editStudentId">
+      <div class="form-group">
+        <label class="form-label" for="editStudentName">Student Name</label>
+        <input class="form-input" type="text" id="editStudentName" placeholder="e.g. Ali Hassan">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="editStudentRoll">Roll Number</label>
+        <input class="form-input" type="text" id="editStudentRoll" placeholder="e.g. CS-109">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="editStudentPhone">Contact</label>
+        <input class="form-input" type="text" id="editStudentPhone" placeholder="e.g. +92300...">
+      </div>
+      <div class="edit-modal-actions">
+        <button class="btn btn-primary" onclick="saveEditStudent()" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);"><i class="fas fa-check"></i> Save</button>
+        <button class="btn btn-ghost" onclick="closeEditStudentModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ======================== JAVASCRIPT ======================== -->
   <script>
@@ -974,7 +1183,7 @@
               <th>Name</th>
               <th>Roll No</th>
               <th>Contact</th>
-              <th style="width:50px;"></th>
+              <th style="width:90px;"></th>
             </tr>
           </thead>
           <tbody>`;
@@ -987,6 +1196,9 @@
             <td><span class="badge" style="background:var(--bg); border:1px solid var(--border); color:var(--text-secondary);">${s.rollNo}</span></td>
             <td>${s.phone}</td>
             <td style="text-align:right;">
+              <button onclick="openEditStudentModal(${s.id})" class="btn-edit" title="Edit student" style="margin-right:4px;">
+                <i class="fas fa-pen"></i>
+              </button>
               <button class="announcement-delete" style="opacity:1;" onclick="deleteStudent(${s.id})" title="Remove Student">
                 <i class="fas fa-trash"></i>
               </button>
@@ -1020,7 +1232,7 @@
               <th>Name</th>
               <th>Class</th>
               <th>Contact</th>
-              <th style="width:50px;"></th>
+              <th style="width:90px;"></th>
             </tr>
           </thead>
           <tbody>`;
@@ -1033,6 +1245,9 @@
               <td><span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(t.class)}</span></td>
               <td>${escapeHtml(t.phone)}</td>
               <td>
+                <button onclick="openEditTeacherModal(${i})" class="btn-edit" title="Edit teacher" style="margin-right:4px;">
+                  <i class="fas fa-pen"></i>
+                </button>
                 <button onclick="deleteTeacher(${i})" class="announcement-delete" style="opacity:1;" title="Remove teacher">
                   <i class="fas fa-trash-alt"></i>
                 </button>
@@ -1196,6 +1411,121 @@
       const div = document.createElement('div');
       div.textContent = str;
       return div.innerHTML;
+    }
+
+
+    // =============================================================
+    // TAB NAVIGATION
+    // =============================================================
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      
+      const tabContent = document.getElementById(`tab-${tabName}`);
+      if (tabContent) tabContent.classList.add('active');
+      
+      const tabBtn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+      if (tabBtn) tabBtn.classList.add('active');
+    }
+
+
+    // =============================================================
+    // EDIT TEACHER MODAL
+    // =============================================================
+    function openEditTeacherModal(index) {
+      const teachers = loadFromStorage(KEYS.teachers);
+      const teacher = teachers[index];
+      if (!teacher) return;
+
+      document.getElementById('editTeacherIndex').value = index;
+      document.getElementById('editTeacherName').value = teacher.name;
+      document.getElementById('editTeacherClass').value = teacher.class;
+      document.getElementById('editTeacherPhone').value = teacher.phone || '';
+      document.getElementById('editTeacherModal').classList.add('open');
+    }
+
+    function closeEditTeacherModal() {
+      document.getElementById('editTeacherModal').classList.remove('open');
+    }
+
+    function saveEditTeacher() {
+      const index = parseInt(document.getElementById('editTeacherIndex').value);
+      const name = document.getElementById('editTeacherName').value.trim();
+      const cls = document.getElementById('editTeacherClass').value.trim();
+      const phone = document.getElementById('editTeacherPhone').value.trim();
+
+      if (!name) {
+        showToast('⚠️ Please enter teacher name', 'warning');
+        return;
+      }
+      if (!cls) {
+        showToast('⚠️ Please enter class', 'warning');
+        return;
+      }
+
+      const teachers = loadFromStorage(KEYS.teachers);
+      teachers[index] = { name, class: cls, phone: phone || '—' };
+      saveToStorage(KEYS.teachers, teachers);
+
+      closeEditTeacherModal();
+      renderTeachers();
+      showToast('✅ Teacher updated successfully', 'success');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      document.getElementById('editTeacherModal').addEventListener('click', function(e) {
+        if (e.target === this) closeEditTeacherModal();
+      });
+      document.getElementById('editStudentModal').addEventListener('click', function(e) {
+        if (e.target === this) closeEditStudentModal();
+      });
+    });
+
+
+    // =============================================================
+    // EDIT STUDENT MODAL
+    // =============================================================
+    function openEditStudentModal(id) {
+      const students = loadFromStorage(KEYS.students);
+      const student = students.find(s => s.id === id);
+      if (!student) return;
+
+      document.getElementById('editStudentId').value = student.id;
+      document.getElementById('editStudentName').value = student.name;
+      document.getElementById('editStudentRoll').value = student.rollNo;
+      document.getElementById('editStudentPhone').value = student.phone || '';
+      document.getElementById('editStudentModal').classList.add('open');
+    }
+
+    function closeEditStudentModal() {
+      document.getElementById('editStudentModal').classList.remove('open');
+    }
+
+    function saveEditStudent() {
+      const id = parseInt(document.getElementById('editStudentId').value);
+      const name = document.getElementById('editStudentName').value.trim();
+      const rollNo = document.getElementById('editStudentRoll').value.trim();
+      const phone = document.getElementById('editStudentPhone').value.trim();
+
+      if (!name) {
+        showToast('⚠️ Please enter student name', 'warning');
+        return;
+      }
+      if (!rollNo) {
+        showToast('⚠️ Please enter roll number', 'warning');
+        return;
+      }
+
+      const students = loadFromStorage(KEYS.students);
+      const idx = students.findIndex(s => s.id === id);
+      if (idx !== -1) {
+        students[idx] = { id, name, rollNo, phone: phone || '—' };
+        saveToStorage(KEYS.students, students);
+      }
+
+      closeEditStudentModal();
+      renderStudents();
+      showToast('✅ Student updated successfully', 'success');
     }
 
 
