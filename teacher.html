@@ -183,6 +183,82 @@
       transform: rotate(20deg);
     }
 
+    /* Tab navigation */
+    .tab-nav {
+      background-color: var(--bg);
+      border-bottom: 2px solid var(--border);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      transition: background-color 0.3s ease, border-color 0.3s ease;
+      margin-top: 2px;
+    }
+    .tab-nav-inner {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.5rem 0;
+    }
+    .tab-btn {
+      padding: 0.65rem 1.5rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      border-radius: 12px;
+      border: 2px solid transparent;
+      background-color: var(--bg-card);
+      transition: all 0.25s ease;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .tab-btn:hover {
+      color: var(--primary);
+      background-color: var(--bg-card-hover);
+      border-color: var(--border);
+    }
+    .tab-btn.active {
+      color: #fff;
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      border-color: #4f46e5;
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Settings button */
+    .settings-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      border: 2px solid var(--border);
+      background-color: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: all 0.3s ease;
+    }
+    .settings-btn:hover {
+      background-color: var(--bg-card-hover);
+      color: var(--primary-light);
+      border-color: var(--primary);
+      transform: rotate(60deg);
+    }
+    /* Settings modal */
+    #settingsModal > div {
+      background-color: var(--bg-card);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    #settingsModal h3 { color: var(--text); }
+    #settingsModal label { color: var(--text-secondary); }
+
     /* Smooth button transitions */
     .att-btn {
       transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -322,6 +398,11 @@
       }
     }
 
+    /* Hide submit button on non-attendance tabs */
+    #submitBtn.hidden-tab {
+      display: none;
+    }
+
     /* SMS Overlay */
     #smsOverlay {
       animation: overlayFadeIn 0.3s ease-out;
@@ -362,6 +443,10 @@
     [data-theme="dark"] #teacherSelectionModal > div { background-color: var(--bg-card) !important; color: var(--text) !important; }
     [data-theme="dark"] #teacherSelectionModal h2 { color: var(--text) !important; }
     [data-theme="dark"] #teacherSelectionModal select { background-color: var(--bg) !important; border-color: var(--border) !important; color: var(--text) !important; }
+
+    /* Dark mode tab nav */
+    [data-theme="dark"] .tab-nav { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3); }
+    [data-theme="dark"] .tab-btn { border-color: var(--border); }
   </style>
 </head>
 
@@ -391,7 +476,7 @@
 
   <!-- ======================== HEADER ======================== -->
   <header class="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
-    <div class="max-w-2xl mx-auto px-4 py-4 sm:py-5">
+    <div class="max-w-5xl mx-auto px-4 py-4 sm:py-5">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
           <a href="./index.html" class="theme-toggle" aria-label="Back to Home" title="Back to Home" style="text-decoration:none;">
@@ -410,6 +495,9 @@
             <div class="text-xs text-gray-400 uppercase tracking-wider font-600 mb-1">Progress</div>
             <div id="progressText" class="text-sm font-700 text-gray-700">0 / 0</div>
           </div>
+          <button onclick="openSettings()" class="settings-btn" aria-label="Settings" id="settingsBtn" title="Settings">
+            <i class="fas fa-gear"></i>
+          </button>
           <button onclick="toggleTheme()" class="theme-toggle" aria-label="Toggle theme" id="themeToggleBtn">
             <i id="themeIcon" class="fas fa-sun"></i>
           </button>
@@ -423,71 +511,126 @@
     </div>
   </header>
 
-  <!-- ======================== MAIN ======================== -->
-  <main class="max-w-2xl mx-auto px-4 py-5 sm:py-8 pb-24">
-    
-    <!-- School Announcements Viewer (Top) -->
-    <section aria-label="School Announcements" class="class-card bg-indigo-600 rounded-2xl shadow-lg overflow-hidden flex flex-col p-4 sm:p-5 mb-8 text-white relative">
-      <div class="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-        <i class="fas fa-bullhorn" style="font-size: 8rem; transform: rotate(15deg);"></i>
+  <!-- ======================== TAB NAVIGATION ======================== -->
+  <nav class="tab-nav sticky top-0 z-20">
+    <div class="max-w-5xl mx-auto px-4">
+      <div class="tab-nav-inner">
+        <button class="tab-btn active" data-tab="attendance" onclick="switchTab('attendance')">
+          <i class="fas fa-clipboard-check"></i>Attendance
+        </button>
+        <button class="tab-btn" data-tab="announcements" onclick="switchTab('announcements')">
+          <i class="fas fa-bullhorn"></i>Announcements
+        </button>
+        <button class="tab-btn" data-tab="homework" onclick="switchTab('homework')">
+          <i class="fas fa-book"></i>Homework
+        </button>
       </div>
-      <h3 class="font-800 text-white text-lg mb-4 flex items-center gap-2 relative z-10"><i class="fas fa-bullhorn"></i> Important School Notices</h3>
-      <div class="flex-1 overflow-y-auto max-h-[250px] pr-1 relative z-10">
-        <div id="schoolAnnouncementsList" class="space-y-3">
-          <!-- Rendered by JS -->
+    </div>
+  </nav>
+
+  <!-- ======================== MAIN ======================== -->
+  <main class="max-w-5xl mx-auto px-4 py-5 sm:py-8 pb-24">
+    
+    <!-- ======================== ATTENDANCE TAB ======================== -->
+    <div id="tab-attendance" class="tab-content active">
+      
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6" id="summaryCards">
+        <div class="summary-card bg-white rounded-xl p-3 sm:p-4 text-center border border-gray-100 shadow-sm">
+          <div class="text-2xl sm:text-3xl font-800 text-gray-800" id="countTotal">0</div>
+          <div class="text-xs text-gray-400 font-600 uppercase tracking-wider mt-1">Total</div>
+        </div>
+        <div class="summary-card bg-emerald-50 rounded-xl p-3 sm:p-4 text-center border border-emerald-100 shadow-sm">
+          <div class="text-2xl sm:text-3xl font-800 text-emerald-600" id="countPresent">0</div>
+          <div class="text-xs text-emerald-500 font-600 uppercase tracking-wider mt-1">Present</div>
+        </div>
+        <div class="summary-card bg-red-50 rounded-xl p-3 sm:p-4 text-center border border-red-100 shadow-sm">
+          <div class="text-2xl sm:text-3xl font-800 text-red-500" id="countAbsent">0</div>
+          <div class="text-xs text-red-400 font-600 uppercase tracking-wider mt-1">Absent</div>
+        </div>
+        <div class="summary-card bg-amber-50 rounded-xl p-3 sm:p-4 text-center border border-amber-100 shadow-sm">
+          <div class="text-2xl sm:text-3xl font-800 text-amber-600" id="countLeave">0</div>
+          <div class="text-xs text-amber-500 font-600 uppercase tracking-wider mt-1">Leave</div>
         </div>
       </div>
-    </section>
 
-    <!-- Summary Cards -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6" id="summaryCards">
-      <div class="summary-card bg-white rounded-xl p-3 sm:p-4 text-center border border-gray-100 shadow-sm">
-        <div class="text-2xl sm:text-3xl font-800 text-gray-800" id="countTotal">0</div>
-        <div class="text-xs text-gray-400 font-600 uppercase tracking-wider mt-1">Total</div>
+      <!-- Quick Actions -->
+      <div class="flex gap-2 mb-5">
+        <button onclick="markAllPresent()"
+          class="flex-1 text-xs sm:text-sm font-600 py-2.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer">
+          ✅ Mark All Present
+        </button>
+        <button onclick="markAllAbsent()"
+          class="flex-1 text-xs sm:text-sm font-600 py-2.5 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors cursor-pointer">
+          ❌ Mark All Absent
+        </button>
+        <button onclick="resetAll()"
+          class="text-xs sm:text-sm font-600 py-2.5 px-4 rounded-lg bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer">
+          ↺ Reset
+        </button>
       </div>
-      <div class="summary-card bg-emerald-50 rounded-xl p-3 sm:p-4 text-center border border-emerald-100 shadow-sm">
-        <div class="text-2xl sm:text-3xl font-800 text-emerald-600" id="countPresent">0</div>
-        <div class="text-xs text-emerald-500 font-600 uppercase tracking-wider mt-1">Present</div>
-      </div>
-      <div class="summary-card bg-red-50 rounded-xl p-3 sm:p-4 text-center border border-red-100 shadow-sm">
-        <div class="text-2xl sm:text-3xl font-800 text-red-500" id="countAbsent">0</div>
-        <div class="text-xs text-red-400 font-600 uppercase tracking-wider mt-1">Absent</div>
-      </div>
-      <div class="summary-card bg-amber-50 rounded-xl p-3 sm:p-4 text-center border border-amber-100 shadow-sm">
-        <div class="text-2xl sm:text-3xl font-800 text-amber-600" id="countLeave">0</div>
-        <div class="text-xs text-amber-500 font-600 uppercase tracking-wider mt-1">Leave</div>
-      </div>
+
+      <!-- Student List -->
+      <section aria-label="Student attendance list" class="mb-8">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100"
+          id="studentList">
+          <!-- Student rows rendered by JS -->
+        </div>
+      </section>
+
+      <!-- Saved Records Viewer (subsection of Attendance) -->
+      <section class="mt-6 mb-8" aria-label="Saved attendance records">
+        <button onclick="toggleSavedRecords()"
+          class="w-full py-3 px-4 rounded-xl border-2 border-dashed border-gray-300 text-gray-500 font-600 text-sm
+                 hover:border-blue-400 hover:text-blue-600 transition-all cursor-pointer flex items-center justify-center gap-2 bg-white/50"
+          id="toggleSavedBtn">
+          <span>📋</span>
+          <span>View Saved Records</span>
+          <span id="savedToggleArrow" class="text-xs transition-transform duration-300">▼</span>
+        </button>
+
+        <div id="savedRecordsPanel"
+          class="hidden mt-3 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="p-4 border-b border-gray-100 flex items-center justify-between">
+            <h3 class="font-700 text-gray-800 text-sm flex items-center gap-2">
+              <span>💾</span> Stored on this device
+            </h3>
+            <button onclick="clearSavedRecords()"
+              class="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-600 hover:bg-red-100 transition-colors cursor-pointer">
+              🗑️ Clear Data
+            </button>
+          </div>
+          <div id="savedRecordsContent" class="p-4">
+            <!-- Records rendered by JS -->
+          </div>
+          <div class="px-4 pb-3">
+            <p class="text-[11px] text-gray-400 flex items-center gap-1">
+              <span>ℹ️</span> Data is stored in your browser's localStorage. It stays on this device only, in this
+              browser.
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
 
-    <!-- Quick Actions -->
-    <div class="flex gap-2 mb-5">
-      <button onclick="markAllPresent()"
-        class="flex-1 text-xs sm:text-sm font-600 py-2.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer">
-        ✅ Mark All Present
-      </button>
-      <button onclick="markAllAbsent()"
-        class="flex-1 text-xs sm:text-sm font-600 py-2.5 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors cursor-pointer">
-        ❌ Mark All Absent
-      </button>
-      <button onclick="resetAll()"
-        class="text-xs sm:text-sm font-600 py-2.5 px-4 rounded-lg bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer">
-        ↺ Reset
-      </button>
-    </div>
-
-    <!-- Student List -->
-    <section aria-label="Student attendance list" class="mb-8">
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100"
-        id="studentList">
-        <!-- Student rows rendered by JS -->
-      </div>
-    </section>
-
-    <!-- ======================== CLASS ANNOUNCEMENTS & HOMEWORK ======================== -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-8 mt-2">
+    <!-- ======================== ANNOUNCEMENTS TAB ======================== -->
+    <div id="tab-announcements" class="tab-content">
       
+      <!-- School Announcements Viewer -->
+      <section aria-label="School Announcements" class="class-card bg-indigo-600 rounded-2xl shadow-lg overflow-hidden flex flex-col p-4 sm:p-5 mb-8 text-white relative">
+        <div class="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+          <i class="fas fa-bullhorn" style="font-size: 8rem; transform: rotate(15deg);"></i>
+        </div>
+        <h3 class="font-800 text-white text-lg mb-4 flex items-center gap-2 relative z-10"><i class="fas fa-bullhorn"></i> Important School Notices</h3>
+        <div class="flex-1 overflow-y-auto max-h-[300px] pr-1 relative z-10">
+          <div id="schoolAnnouncementsList2" class="space-y-3">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </section>
+
       <!-- Class Announcements -->
-      <section aria-label="Class Announcements" class="class-card bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-full flex flex-col p-4 sm:p-5" style="transition: background-color 0.3s ease, border-color 0.3s ease;">
+      <section aria-label="Class Announcements" class="class-card bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col p-4 sm:p-5 mb-8" style="transition: background-color 0.3s ease, border-color 0.3s ease;">
         <h3 class="font-700 text-gray-800 text-base mb-3 flex items-center gap-2"><span>📢</span> Class Announcements</h3>
         <div class="mb-3">
           <textarea id="classAnnouncementText" class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 focus:border-blue-500 outline-none text-sm text-gray-700 resize-y min-h-[70px]" placeholder="Type class announcement..."></textarea>
@@ -496,7 +639,7 @@
           Save Announcement
         </button>
         
-        <div class="flex-1 overflow-y-auto max-h-[150px] pr-1">
+        <div class="flex-1 overflow-y-auto max-h-[300px] pr-1">
           <h4 class="text-xs font-600 text-gray-400 uppercase tracking-wider mb-2">Saved Class Announcements</h4>
           <div id="classAnnouncementsList" class="space-y-2">
             <!-- Rendered by JS -->
@@ -504,9 +647,14 @@
         </div>
       </section>
 
-      <!-- Homework -->
-      <section aria-label="Homework" class="class-card bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-full flex flex-col p-4 sm:p-5" style="transition: background-color 0.3s ease, border-color 0.3s ease;">
-        <h3 class="font-700 text-gray-800 text-base mb-3 flex items-center gap-2"><span>📚</span> Homework</h3>
+    </div>
+
+    <!-- ======================== HOMEWORK TAB ======================== -->
+    <div id="tab-homework" class="tab-content">
+      
+      <!-- Homework Section -->
+      <section aria-label="Homework" class="class-card bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col p-4 sm:p-5 mb-8" style="transition: background-color 0.3s ease, border-color 0.3s ease;">
+        <h3 class="font-700 text-gray-800 text-base mb-3 flex items-center gap-2"><span>📚</span> Add Homework</h3>
         <div class="mb-3 flex flex-col gap-2">
           <input type="text" id="homeworkSubject" class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 focus:border-blue-500 outline-none text-sm text-gray-700" placeholder="Subject (e.g. Math)">
           <textarea id="homeworkTask" class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 focus:border-blue-500 outline-none text-sm text-gray-700 resize-y min-h-[60px]" placeholder="Task (e.g. Ch 3 exercises)"></textarea>
@@ -515,7 +663,7 @@
           Save Homework
         </button>
         
-        <div class="flex-1 overflow-y-auto max-h-[150px] pr-1">
+        <div class="flex-1 overflow-y-auto max-h-[400px] pr-1">
           <h4 class="text-xs font-600 text-gray-400 uppercase tracking-wider mb-2">Saved Homework</h4>
           <div id="homeworkList" class="space-y-2">
             <!-- Rendered by JS -->
@@ -524,40 +672,6 @@
       </section>
 
     </div>
-
-    <!-- ======================== SAVED RECORDS VIEWER ======================== -->
-    <section class="mt-6 mb-8" aria-label="Saved attendance records">
-      <button onclick="toggleSavedRecords()"
-        class="w-full py-3 px-4 rounded-xl border-2 border-dashed border-gray-300 text-gray-500 font-600 text-sm
-               hover:border-blue-400 hover:text-blue-600 transition-all cursor-pointer flex items-center justify-center gap-2 bg-white/50"
-        id="toggleSavedBtn">
-        <span>📋</span>
-        <span>View Saved Records</span>
-        <span id="savedToggleArrow" class="text-xs transition-transform duration-300">▼</span>
-      </button>
-
-      <div id="savedRecordsPanel"
-        class="hidden mt-3 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="p-4 border-b border-gray-100 flex items-center justify-between">
-          <h3 class="font-700 text-gray-800 text-sm flex items-center gap-2">
-            <span>💾</span> Stored on this device
-          </h3>
-          <button onclick="clearSavedRecords()"
-            class="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-600 hover:bg-red-100 transition-colors cursor-pointer">
-            🗑️ Clear Data
-          </button>
-        </div>
-        <div id="savedRecordsContent" class="p-4">
-          <!-- Records rendered by JS -->
-        </div>
-        <div class="px-4 pb-3">
-          <p class="text-[11px] text-gray-400 flex items-center gap-1">
-            <span>ℹ️</span> Data is stored in your browser's localStorage. It stays on this device only, in this
-            browser.
-          </p>
-        </div>
-      </div>
-    </section>
 
   </main>
 
@@ -581,6 +695,37 @@
   <div id="smsOverlay" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm">
     <div class="bg-white rounded-2xl p-8 sm:p-10 shadow-2xl max-w-sm w-full mx-4 text-center">
       <div id="smsOverlayContent"></div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settingsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div class="rounded-2xl p-6 sm:p-8 shadow-2xl max-w-sm w-full mx-4">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-xl font-800 flex items-center gap-2"><i class="fas fa-gear"></i> Settings</h3>
+        <button onclick="closeSettings()" class="theme-toggle" aria-label="Close settings"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="space-y-4">
+        <!-- Theme -->
+        <div class="flex items-center justify-between p-3 rounded-xl" style="background:var(--bg);border:1px solid var(--border);">
+          <div>
+            <div class="text-sm font-600" style="color:var(--text);">Appearance</div>
+            <div class="text-xs" style="color:var(--text-muted);">Toggle light / dark mode</div>
+          </div>
+          <button onclick="toggleTheme()" class="theme-toggle" style="flex-shrink:0;">
+            <i id="settingsThemeIcon" class="fas fa-sun"></i>
+          </button>
+        </div>
+        <!-- Edit students note -->
+        <div class="p-3 rounded-xl" style="background:var(--bg);border:1px solid var(--border);">
+          <div class="text-sm font-600 mb-1" style="color:var(--text);">Edit Student Info</div>
+          <div class="text-xs" style="color:var(--text-muted);">Tap the <i class="fas fa-pen"></i> icon next to any student's name to edit their name or phone number.</div>
+        </div>
+        <!-- Clear data -->
+        <button onclick="closeSettings(); if(confirm('Clear all saved attendance data?')){ localStorage.removeItem(STORAGE_KEY); showToast('🗑️ Data cleared','info'); }" class="w-full py-2.5 rounded-xl text-sm font-600 transition-colors cursor-pointer" style="background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger);">
+          🗑️ Clear All Saved Attendance
+        </button>
+      </div>
     </div>
   </div>
 
@@ -929,8 +1074,8 @@
             <div>
               <div class="font-600 text-gray-900 text-sm sm:text-base flex items-center gap-2">
                 ${student.name}
-                <button type="button" onclick="openStudentEdit(${student.id})" class="text-xs text-blue-500/50 hover:text-blue-600 transition-colors cursor-pointer" title="Edit Contact Info">
-                  <i class="fas fa-edit"></i>
+                <button type="button" onclick="openStudentEdit(${student.id})" title="Edit name & phone" style="width:28px;height:28px;border-radius:8px;border:1.5px solid var(--border);background:var(--bg);color:var(--text-secondary);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:12px;transition:all 0.2s ease;flex-shrink:0;" onmouseover="this.style.borderColor='#4f46e5';this.style.color='#4f46e5';this.style.background='rgba(79,70,229,0.08)';" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)';this.style.background='var(--bg)';">
+                  <i class="fas fa-gear"></i>
                 </button>
               </div>
               <div class="text-xs text-gray-400 font-500">${student.rollNo} · <span class="font-mono">${student.phone}</span></div>
@@ -1207,6 +1352,34 @@
 
 
     // =============================================================
+    // TAB NAVIGATION
+    // =============================================================
+
+    function switchTab(tabName) {
+      // Hide all tab content
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      // Deactivate all tab buttons
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      
+      // Show selected tab content
+      const tabContent = document.getElementById(`tab-${tabName}`);
+      if (tabContent) tabContent.classList.add('active');
+      
+      // Activate selected tab button
+      const tabBtn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+      if (tabBtn) tabBtn.classList.add('active');
+      
+      // Show/hide submit button based on tab
+      const submitBtn = document.getElementById('submitBtn');
+      if (tabName === 'attendance') {
+        submitBtn.classList.remove('hidden-tab');
+      } else {
+        submitBtn.classList.add('hidden-tab');
+      }
+    }
+
+
+    // =============================================================
     // TOAST NOTIFICATIONS
     // =============================================================
 
@@ -1287,6 +1460,27 @@
 
 
     // =============================================================
+    // SETTINGS MODAL
+    // =============================================================
+
+    function openSettings() {
+      document.getElementById('settingsModal').classList.remove('hidden');
+    }
+
+    function closeSettings() {
+      document.getElementById('settingsModal').classList.add('hidden');
+    }
+
+    // Close settings if clicking outside the card
+    document.addEventListener('click', function(e) {
+      const modal = document.getElementById('settingsModal');
+      if (!modal.classList.contains('hidden') && e.target === modal) {
+        closeSettings();
+      }
+    });
+
+
+    // =============================================================
     // INITIALIZATION
     // =============================================================
 
@@ -1305,7 +1499,9 @@
 
     function updateThemeIcon(theme) {
       const icon = document.getElementById('themeIcon');
-      icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+      if (icon) icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+      const sIcon = document.getElementById('settingsThemeIcon');
+      if (sIcon) sIcon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
     }
 
     function loadTheme() {
@@ -1371,11 +1567,14 @@
 
     function renderSchoolAnnouncements() {
       const container = document.getElementById('schoolAnnouncementsList');
+      const container2 = document.getElementById('schoolAnnouncementsList2');
       let items = [];
       try { items = JSON.parse(localStorage.getItem('schoolAnnouncements')) || []; } catch(e){}
       
       if (items.length === 0) {
-        container.innerHTML = '<div class="text-xs text-[rgba(255,255,255,0.6)] italic py-2 mt-2">No school announcements</div>';
+        const emptyHtml = '<div class="text-xs text-[rgba(255,255,255,0.6)] italic py-2 mt-2">No school announcements</div>';
+        if (container) container.innerHTML = emptyHtml;
+        if (container2) container2.innerHTML = emptyHtml;
         return;
       }
       
@@ -1390,7 +1589,8 @@
           </div>
         `;
       });
-      container.innerHTML = html;
+      if (container) container.innerHTML = html;
+      if (container2) container2.innerHTML = html;
     }
 
     function saveClassAnnouncement() {
