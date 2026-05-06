@@ -777,6 +777,9 @@
       <button class="tab-btn" data-tab="students" onclick="switchTab('students')">
         <i class="fas fa-user-graduate"></i>Students
       </button>
+      <a href="./classes.html" class="tab-btn" style="text-decoration:none; cursor:pointer;">
+        <i class="fas fa-book"></i>Classes
+      </a>
       <button class="tab-btn" data-tab="attendance" onclick="switchTab('attendance')">
         <i class="fas fa-clipboard-list"></i>Attendance
       </button>
@@ -794,6 +797,27 @@
 
     <!-- ==================== TEACHERS TAB ==================== -->
     <div id="tab-teachers" class="tab-content active">
+    <!-- Classes Section -->
+    <div class="section-card" id="classesSection">
+      <div class="section-header">
+        <div class="section-header-left">
+          <div class="section-icon purple" style="background: rgba(34, 197, 94, 0.12); color: #22c55e;"><i class="fas fa-book"></i></div>
+          <div>
+            <div class="section-title">Classes & Teachers</div>
+            <div class="section-subtitle">View assigned teachers and share links</div>
+          </div>
+        </div>
+        <a href="./classes.html" class="btn btn-primary" style="text-decoration:none;">
+          <i class="fas fa-cog"></i> Manage Classes
+        </a>
+      </div>
+      <div class="section-body">
+        <div id="classesTableWrap">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </div>
+
     <div class="section-card" id="teachersSection">
       <div class="section-header">
         <div class="section-header-left">
@@ -1134,12 +1158,19 @@
       }
 
       const teachers = loadFromStorage(KEYS.teachers);
-      teachers.push({ name, class: cls, phone: phone || '—' });
+      const newTeacher = {
+        id: Date.now(),
+        name,
+        class: cls,
+        phone: phone || '—'
+      };
+      teachers.push(newTeacher);
       saveToStorage(KEYS.teachers, teachers);
 
       clearTeacherForm();
       toggleAddTeacher();
       renderTeachers();
+      renderClasses();
       showToast('✅ Teacher added successfully', 'success');
     }
 
@@ -1605,6 +1636,80 @@
       container.innerHTML = html;
     }
 
+    // =============================================================
+    // RENDER CLASSES WITH TEACHERS (from classes.html)
+    // =============================================================
+    function renderClasses() {
+      const wrap = document.getElementById('classesTableWrap');
+      
+      try {
+        const classes = loadFromStorage('classes');
+        const teachers = loadFromStorage(KEYS.teachers);
+
+        if (!classes || classes.length === 0) {
+          wrap.innerHTML = `
+            <div class="empty-state">
+              <div class="icon">📚</div>
+              <div class="msg">No classes created yet</div>
+              <div class="sub">Go to Classes page to create classes and assign teachers</div>
+            </div>`;
+          return;
+        }
+
+        let html = `
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Class</th>
+                <th>Students</th>
+                <th>Teacher</th>
+                <th style="width:120px;"></th>
+              </tr>
+            </thead>
+            <tbody>`;
+
+        classes.forEach((cls, i) => {
+          const teacher = cls.teacherId ? teachers.find(t => t.id === cls.teacherId) : null;
+          const studentCount = cls.students ? cls.students.length : 0;
+
+          html += `
+            <tr>
+              <td style="color:var(--text-muted); font-weight:500;">${i + 1}</td>
+              <td>
+                <strong>${escapeHtml(cls.name)}</strong>
+                ${cls.section ? ` <span class="badge">${escapeHtml(cls.section)}</span>` : ''}
+              </td>
+              <td style="text-align:center; font-weight:600;">${studentCount}</td>
+              <td>${teacher ? escapeHtml(teacher.name) : '–'}</td>
+              <td style="text-align:right;">
+                ${teacher ? `
+                  <button onclick="copyTeacherLink('${teacher.id}')" class="btn-edit" title="Copy teacher link" style="margin-right:4px; background:var(--success-bg); color:var(--success);">
+                    <i class="fas fa-link"></i>
+                  </button>
+                ` : ''}
+                <a href="./classes.html" class="btn-edit" title="Edit class" style="text-decoration:none;">
+                  <i class="fas fa-pen"></i>
+                </a>
+              </td>
+            </tr>`;
+        });
+
+        html += `</tbody></table>`;
+        wrap.innerHTML = html;
+      } catch (e) {
+        wrap.innerHTML = `<div class="empty-state"><div class="msg">Error loading classes</div></div>`;
+      }
+    }
+
+    function copyTeacherLink(teacherId) {
+      const link = `${window.location.origin}/teacher.html?id=t_${teacherId}`;
+      navigator.clipboard.writeText(link).then(() => {
+        showToast('📋 Link copied to clipboard', 'success');
+      }).catch(() => {
+        showToast('❌ Failed to copy link', 'error');
+      });
+    }
 
     // =============================================================
     // TOAST NOTIFICATIONS
@@ -1756,6 +1861,7 @@
     // =============================================================
     function init() {
       loadTheme();
+      renderClasses();
       renderTeachers();
       renderStudents();
       renderAttendance();
@@ -1771,3 +1877,4 @@
 
 </body>
 </html>
+
