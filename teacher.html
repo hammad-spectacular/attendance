@@ -447,6 +447,12 @@
     /* Dark mode tab nav */
     [data-theme="dark"] .tab-nav { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3); }
     [data-theme="dark"] .tab-btn { border-color: var(--border); }
+
+    /* Stats card in dark mode */
+    [data-theme="dark"] #statsContent > .space-y-3 > div {
+      background-color: var(--bg-card) !important;
+      border-color: var(--border) !important;
+    }
   </style>
 </head>
 
@@ -523,6 +529,9 @@
         </button>
         <button class="tab-btn" data-tab="homework" onclick="switchTab('homework')">
           <i class="fas fa-book"></i>Homework
+        </button>
+        <button class="tab-btn" data-tab="stats" onclick="switchTab('stats')">
+          <i class="fas fa-chart-bar"></i>Stats
         </button>
       </div>
     </div>
@@ -668,6 +677,20 @@
           <div id="homeworkList" class="space-y-2">
             <!-- Rendered by JS -->
           </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ======================== STATS TAB ======================== -->
+    <div id="tab-stats" class="tab-content">
+      
+      <!-- Student Stats Section -->
+      <section aria-label="Student Attendance Stats" class="class-card bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col p-4 sm:p-5 mb-8" style="transition: background-color 0.3s ease, border-color 0.3s ease;">
+        <h3 class="font-700 text-gray-800 text-base mb-3 flex items-center gap-2"><span>📊</span> Student Attendance Percentages</h3>
+        <p class="text-xs text-gray-500 mb-4">How often each student has been present across all recorded days</p>
+        <div id="statsContent" class="overflow-x-auto">
+          <!-- Rendered by JS -->
         </div>
       </section>
 
@@ -1305,6 +1328,7 @@
       if (typeof savedPanelOpen !== 'undefined' && savedPanelOpen && typeof renderSavedRecords === 'function') {
         renderSavedRecords();
       }
+      renderStats();
 
       // Reset for next day
       students.forEach(s => {
@@ -1375,6 +1399,93 @@
         submitBtn.classList.remove('hidden-tab');
       } else {
         submitBtn.classList.add('hidden-tab');
+      }
+
+      // Render stats when stats tab is opened
+      if (tabName === 'stats') renderStats();
+    }
+
+
+    // =============================================================
+    // ATTENDANCE STATS / PERCENTAGES
+    // =============================================================
+    function renderStats() {
+      const container = document.getElementById('statsContent');
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) {
+        container.innerHTML = `<div class="text-center py-8 text-gray-400"><p class="text-3xl mb-2">📊</p><p class="text-sm font-500">No attendance data yet</p><p class="text-xs mt-1">Submit attendance to see stats</p></div>`;
+        return;
+      }
+
+      try {
+        const data = JSON.parse(saved);
+        if (!Array.isArray(data) || data.length === 0) {
+          container.innerHTML = `<div class="text-center py-8 text-gray-400"><p class="text-3xl mb-2">📊</p><p class="text-sm font-500">No attendance data yet</p></div>`;
+          return;
+        }
+
+        const studentMap = {};
+
+        data.forEach(record => {
+          (record.students || []).forEach(s => {
+            if (!studentMap[s.id]) {
+              studentMap[s.id] = { id: s.id, name: s.name, present: 0, absent: 0, leave: 0, total: 0 };
+            }
+            studentMap[s.id].total++;
+            if (s.status === 'Present') studentMap[s.id].present++;
+            else if (s.status === 'Absent') studentMap[s.id].absent++;
+            else if (s.status === 'Leave') studentMap[s.id].leave++;
+          });
+        });
+
+        const studentList = Object.values(studentMap).map(s => ({
+          ...s,
+          percentage: s.total > 0 ? Math.round((s.present / s.total) * 100) : 0
+        }));
+
+        studentList.sort((a, b) => b.percentage - a.percentage);
+
+        const totalDays = data.length;
+
+        let html = `<div class="mb-4"><p class="text-xs text-gray-500"><span class="font-600">${totalDays}</span> day(s) recorded</p></div>`;
+        html += '<div class="space-y-3">';
+
+        studentList.forEach((s, i) => {
+          const pct = s.percentage;
+          let barColor = '#ef4444';
+          let textColor = 'text-red-500';
+          if (pct >= 80) { barColor = '#22c55e'; textColor = 'text-emerald-500'; }
+          else if (pct >= 60) { barColor = '#f59e0b'; textColor = 'text-amber-500'; }
+          else if (pct >= 40) { barColor = '#f97316'; textColor = 'text-orange-500'; }
+
+          let rankBadge = '';
+          if (i === 0) rankBadge = '🥇';
+          else if (i === 1) rankBadge = '🥈';
+          else if (i === 2) rankBadge = '🥉';
+
+          const initials = s.name.split(' ').map(n => n[0]).join('');
+          const colors = ['bg-blue-100 text-blue-700','bg-emerald-100 text-emerald-700','bg-purple-100 text-purple-700','bg-amber-100 text-amber-700','bg-rose-100 text-rose-700','bg-cyan-100 text-cyan-700'];
+          const colorClass = colors[i % colors.length];
+
+          html += `
+            <div class="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors" style="background:var(--bg-card);">
+              <div class="w-10 h-10 rounded-full ${colorClass} flex items-center justify-center font-700 text-sm shrink-0">${initials}</div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-600" style="color:var(--text);">${rankBadge || `#${i+1}`} ${s.name}</span>
+                  <span class="text-base font-800 ${textColor}">${pct}%</span>
+                </div>
+                <div class="flex gap-3 text-xs" style="color:var(--text-muted);">
+                  <span>✅ ${s.present}</span><span>❌ ${s.absent}</span><span>📝 ${s.leave}</span><span>📅 ${s.total} days</span>
+                </div>
+              </div>
+            </div>`;
+        });
+
+        html += '</div>';
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = `<div class="text-center py-8 text-red-400"><p class="text-sm font-500">⚠️ Data error</p></div>`;
       }
     }
 
@@ -1563,6 +1674,7 @@
       renderSchoolAnnouncements();
       renderClassAnnouncements();
       renderHomework();
+      renderStats();
     }
 
     function renderSchoolAnnouncements() {
