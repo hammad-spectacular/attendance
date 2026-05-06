@@ -444,6 +444,11 @@
     [data-theme="dark"] #teacherSelectionModal h2 { color: var(--text) !important; }
     [data-theme="dark"] #teacherSelectionModal select { background-color: var(--bg) !important; border-color: var(--border) !important; color: var(--text) !important; }
 
+    /* Hide teacher modal on direct link */
+    #teacherSelectionModal.hidden {
+      display: none !important;
+    }
+
     /* Dark mode tab nav */
     [data-theme="dark"] .tab-nav { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3); }
     [data-theme="dark"] .tab-btn { border-color: var(--border); }
@@ -1627,8 +1632,75 @@
     // =============================================================
     
     let currentTeacher = null;
+    let currentClass = null;
+
+    function getUrlParameter(param) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(param);
+    }
 
     function initTeacherSelection() {
+      const teacherId = getUrlParameter('id');
+      
+      if (teacherId && teacherId.startsWith('t_')) {
+        // Direct teacher link — auto-load
+        const id = parseInt(teacherId.substring(2));
+        autoLoadTeacherClass(id);
+      } else {
+        // No parameter — show selection modal (legacy support)
+        showTeacherSelectionModal();
+      }
+    }
+
+    function autoLoadTeacherClass(teacherId) {
+      try {
+        const teachers = JSON.parse(localStorage.getItem('teachers') || '[]');
+        const classes = JSON.parse(localStorage.getItem('classes') || '[]');
+
+        const teacher = teachers.find(t => t.id === teacherId);
+        if (!teacher) {
+          showToast('❌ Teacher not found', 'error');
+          showTeacherSelectionModal();
+          return;
+        }
+
+        const assignedClass = classes.find(c => c.teacherId === teacherId);
+        if (!assignedClass) {
+          showToast('❌ No class assigned to this teacher', 'error');
+          showTeacherSelectionModal();
+          return;
+        }
+
+        // Load teacher and class
+        currentTeacher = teacher;
+        currentClass = assignedClass;
+        students = assignedClass.students || [];
+        
+        // Hide modal and update UI
+        document.getElementById('teacherSelectionModal').classList.add('hidden');
+        document.getElementById('headerTeacherName').textContent = teacher.name;
+        document.getElementById('headerClassName').textContent = `Class ${assignedClass.name}`;
+
+        // Re-initialize with the loaded class students
+        attendanceState = {};
+        students.forEach(s => { attendanceState[s.id] = null; });
+
+        renderStudentList();
+        updateCounts();
+        loadAttendance();
+        renderSchoolAnnouncements();
+        renderClassAnnouncements();
+        renderHomework();
+
+        showToast(`👋 Welcome, ${teacher.name}`, 'success');
+      } catch (e) {
+        console.error('Auto-load error:', e);
+        showToast('❌ Error loading class', 'error');
+        showTeacherSelectionModal();
+      }
+    }
+
+    function showTeacherSelectionModal() {
       const modal = document.getElementById('teacherSelectionModal');
       const dropdown = document.getElementById('teacherSelectDropdown');
       const noMsg = document.getElementById('noTeachersMsg');
@@ -1652,6 +1724,7 @@
           opt.textContent = `${t.name} (Class: ${t.class})`;
           dropdown.appendChild(opt);
         });
+        modal.classList.remove('hidden');
       }
     }
 
