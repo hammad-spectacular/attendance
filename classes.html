@@ -343,6 +343,20 @@
     }
 
     /* ================================
+       ACTION BUTTONS
+       ================================ */
+    .action-buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      align-items: center;
+    }
+    .action-buttons button {
+      padding: 8px 12px;
+      font-size: 1rem;
+    }
+
+    /* ================================
        EMPTY STATE
        ================================ */
     .empty-state {
@@ -629,6 +643,61 @@
     }
 
     /* ================================
+       TAB NAVIGATION
+       ================================ */
+    .tab-nav {
+      background: var(--bg);
+      border-bottom: 2px solid var(--border);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      transition: background 0.3s ease, border-color 0.3s ease;
+      margin-top: 2px;
+      display: flex;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      white-space: nowrap;
+    }
+    [data-theme="dark"] .tab-nav { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3); }
+    .tab-nav-inner {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      gap: 0.5rem;
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
+      width: 100%;
+    }
+    .tab-btn {
+      padding: 0.65rem 1.5rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      border-radius: 12px;
+      border: 2px solid transparent;
+      background: var(--bg-card);
+      transition: all 0.25s ease;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: 'Inter', sans-serif;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .tab-btn:hover {
+      color: var(--primary);
+      background: var(--bg-card-hover);
+      border-color: var(--border);
+    }
+    .tab-btn.active {
+      color: #fff;
+      background: var(--gradient);
+      border-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+    }
+
+    /* ================================
        RESPONSIVE
        ================================ */
     @media (max-width: 640px) {
@@ -639,6 +708,8 @@
       .section-body { padding: 14px; }
       .section-title { font-size: 0.85rem; }
       .class-info { grid-template-columns: 1fr; }
+      .tab-nav-inner { padding-left: 14px; padding-right: 14px; gap: 0.35rem; }
+      .tab-btn { padding: 0.55rem 1.2rem; font-size: 0.8rem; }
     }
 
     .badge {
@@ -675,6 +746,30 @@
       </div>
     </div>
   </div>
+
+  <!-- ======================== TAB NAVIGATION ======================== -->
+  <nav class="tab-nav">
+    <div class="tab-nav-inner">
+      <a href="./admin.html" class="tab-btn" style="text-decoration:none;">
+        <i class="fas fa-chalkboard-user"></i>Teachers
+      </a>
+      <a href="./admin.html" class="tab-btn" style="text-decoration:none;">
+        <i class="fas fa-user-graduate"></i>Students
+      </a>
+      <button class="tab-btn active" style="cursor:default;">
+        <i class="fas fa-book"></i>Classes
+      </button>
+      <a href="./admin.html" class="tab-btn" style="text-decoration:none;">
+        <i class="fas fa-clipboard-list"></i>Attendance
+      </a>
+      <a href="./admin.html" class="tab-btn" style="text-decoration:none;">
+        <i class="fas fa-chart-bar"></i>Stats
+      </a>
+      <a href="./admin.html" class="tab-btn" style="text-decoration:none;">
+        <i class="fas fa-bullhorn"></i>Announcements
+      </a>
+    </div>
+  </nav>
 
   <!-- ======================== MAIN ======================== -->
   <div class="main">
@@ -777,7 +872,7 @@
       </div>
       <div class="form-group">
         <label class="form-label" for="editStudentPhone">Contact</label>
-        <input class="form-input" type="text" id="editStudentPhone" placeholder="e.g. +92300...">
+        <input class="form-input" type="tel" id="editStudentPhone" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits (e.g., 03001234567)" required>
       </div>
       <div class="modal-footer">
         <button class="btn btn-ghost" onclick="closeEditStudentModal()">Cancel</button>
@@ -980,7 +1075,7 @@
                 </div>
                 <div class="form-group" style="margin-bottom:10px;">
                   <label class="form-label">Contact</label>
-                  <input class="form-input" type="text" id="studentPhone${idx}" placeholder="e.g. +92300...">
+                  <input class="form-input" type="tel" id="studentPhone${idx}" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits (e.g., 03001234567)" required>
                 </div>
                 <div style="display:flex; gap:8px;">
                   <button class="btn btn-primary btn-sm" onclick="addStudent(${idx})" style="flex:1;">
@@ -1178,6 +1273,21 @@
     window.addEventListener('DOMContentLoaded', () => {
       loadTheme();
       renderClasses();
+      
+      // Universal phone validation for all tel inputs
+      document.querySelectorAll('.form-input[type="tel"]').forEach(input => {
+        input.addEventListener('input', function() {
+          if (this.value.length === 0) {
+            this.style.borderColor = 'var(--border)';
+          } else if (this.validity.patternMismatch) {
+            this.style.borderColor = 'var(--danger)';
+          } else if (this.value.length === 11) {
+            this.style.borderColor = 'var(--success)';
+          } else {
+            this.style.borderColor = 'var(--border)';
+          }
+        });
+      });
     });
   </script>
 
