@@ -495,6 +495,20 @@
     }
 
     /* ================================
+       ACTION BUTTONS
+       ================================ */
+    .action-buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      align-items: center;
+    }
+    .action-buttons button {
+      padding: 8px 12px;
+      font-size: 1rem;
+    }
+
+    /* ================================
        ADD TEACHER TOGGLE
        ================================ */
     .add-teacher-form {
@@ -895,7 +909,7 @@
             </div>
             <div class="form-group">
               <label class="form-label" for="studentPhone">Contact</label>
-              <input class="form-input" type="text" id="studentPhone" placeholder="e.g. +92300...">
+              <input class="form-input" type="tel" id="studentPhone" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits (e.g., 03001234567)" required>
             </div>
           </div>
           <div style="display:flex; gap:8px; margin-top:4px;">
@@ -1036,7 +1050,7 @@
       </div>
       <div class="form-group">
         <label class="form-label" for="editStudentPhone">Contact</label>
-        <input class="form-input" type="text" id="editStudentPhone" placeholder="e.g. +92300...">
+        <input class="form-input" type="tel" id="editStudentPhone" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits (e.g., 03001234567)" required>
       </div>
       <div class="edit-modal-actions">
         <button class="btn btn-primary" onclick="saveEditStudent()" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);"><i class="fas fa-check"></i> Save</button>
@@ -1302,12 +1316,14 @@
             <td><span class="badge" style="background:var(--bg); border:1px solid var(--border); color:var(--text-secondary);">${s.rollNo}</span></td>
             <td>${s.phone}</td>
             <td style="text-align:right;">
-              <button onclick="openEditStudentModal(${s.id})" class="btn-edit" title="Edit student" style="margin-right:4px;">
-                <i class="fas fa-pen"></i>
-              </button>
-              <button class="announcement-delete" style="opacity:1;" onclick="deleteStudent(${s.id})" title="Remove Student">
-                <i class="fas fa-trash"></i>
-              </button>
+              <div class="action-buttons">
+                <button onclick="openEditStudentModal(${s.id})" class="btn-edit" title="Edit student">
+                  <i class="fas fa-pen"></i>
+                </button>
+                <button class="announcement-delete" style="opacity:1;" onclick="deleteStudent(${s.id})" title="Remove Student">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
             </td>
           </tr>`;
       });
@@ -1351,12 +1367,14 @@
               <td><span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(t.class)}</span></td>
               <td>${escapeHtml(t.phone)}</td>
               <td>
-                <button onclick="openEditTeacherModal(${i})" class="btn-edit" title="Edit teacher" style="margin-right:4px;">
-                  <i class="fas fa-pen"></i>
-                </button>
-                <button onclick="deleteTeacher(${i})" class="announcement-delete" style="opacity:1;" title="Remove teacher">
-                  <i class="fas fa-trash-alt"></i>
-                </button>
+                <div class="action-buttons">
+                  <button onclick="openEditTeacherModal(${i})" class="btn-edit" title="Edit teacher">
+                    <i class="fas fa-pen"></i>
+                  </button>
+                  <button onclick="deleteTeacher(${i})" class="announcement-delete" style="opacity:1;" title="Remove teacher">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </div>
               </td>
             </tr>`;
       });
@@ -1869,7 +1887,27 @@
       renderAnnouncements();
     }
 
-    document.addEventListener('DOMContentLoaded', init);
+    // =============================================================
+    // PHONE VALIDATION
+    // =============================================================
+    document.addEventListener('DOMContentLoaded', function() {
+      init();
+      
+      // Universal phone validation for all tel inputs
+      document.querySelectorAll('.form-input[type="tel"]').forEach(input => {
+        input.addEventListener('input', function() {
+          if (this.value.length === 0) {
+            this.style.borderColor = 'var(--border)';
+          } else if (this.validity.patternMismatch) {
+            this.style.borderColor = 'var(--danger)';
+          } else if (this.value.length === 11) {
+            this.style.borderColor = 'var(--success)';
+          } else {
+            this.style.borderColor = 'var(--border)';
+          }
+        });
+      });
+    });
   </script>
 
   <!-- Anti-inspect protection -->
@@ -1877,4 +1915,3 @@
 
 </body>
 </html>
-
