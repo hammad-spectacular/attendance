@@ -1,0 +1,1917 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard — The Eye</title>
+  <meta name="description" content="Admin dashboard for The Eye School Management System. Manage teachers, view attendance, and post announcements.">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* ================================
+       THEME VARIABLES
+       ================================ */
+    [data-theme="dark"] {
+      --bg: #0f172a;
+      --bg-card: #1e293b;
+      --bg-card-hover: #263348;
+      --bg-input: #0f172a;
+      --border: #334155;
+      --border-focus: #4f46e5;
+      --text: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --primary: #4f46e5;
+      --primary-light: #818cf8;
+      --primary-hover: #6366f1;
+      --success: #22c55e;
+      --success-bg: rgba(34, 197, 94, 0.1);
+      --danger: #ef4444;
+      --danger-bg: rgba(239, 68, 68, 0.08);
+      --warning: #f59e0b;
+      --warning-bg: rgba(245, 158, 11, 0.08);
+      --shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+      --shadow-lg: 0 10px 25px -5px rgba(0,0,0,0.4);
+      --gradient: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+      --table-row-hover: rgba(79, 70, 229, 0.06);
+      --table-stripe: rgba(255,255,255,0.02);
+      --badge-bg: rgba(79, 70, 229, 0.12);
+      --badge-text: #a5b4fc;
+    }
+    [data-theme="light"] {
+      --bg: #f1f5f9;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f8fafc;
+      --bg-input: #f8fafc;
+      --border: #e2e8f0;
+      --border-focus: #4f46e5;
+      --text: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      --primary: #4f46e5;
+      --primary-light: #6366f1;
+      --primary-hover: #4338ca;
+      --success: #16a34a;
+      --success-bg: rgba(34, 197, 94, 0.08);
+      --danger: #dc2626;
+      --danger-bg: rgba(239, 68, 68, 0.06);
+      --warning: #d97706;
+      --warning-bg: rgba(245, 158, 11, 0.06);
+      --shadow: 0 4px 6px -1px rgba(0,0,0,0.07);
+      --shadow-lg: 0 10px 25px -5px rgba(0,0,0,0.1);
+      --gradient: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+      --table-row-hover: rgba(79, 70, 229, 0.04);
+      --table-stripe: rgba(0,0,0,0.015);
+      --badge-bg: rgba(79, 70, 229, 0.08);
+      --badge-text: #4f46e5;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      transition: background 0.4s ease, color 0.4s ease;
+      overflow-x: hidden;
+    }
+
+    /* ================================
+       HEADER
+       ================================ */
+    .header {
+      background: var(--gradient);
+      padding: 20px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(79,70,229,0.3);
+      animation: headerSlideDown 0.5s ease-out;
+    }
+    .header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 30% 50%, rgba(255,255,255,0.08) 0%, transparent 60%),
+                  radial-gradient(ellipse at 70% 50%, rgba(255,255,255,0.05) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .header-inner {
+      position: relative;
+      z-index: 1;
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .back-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      border: 2px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.1);
+      color: white;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+    .back-btn:hover {
+      background: rgba(255,255,255,0.2);
+      border-color: rgba(255,255,255,0.5);
+      transform: scale(1.06);
+    }
+    .header-title strong {
+      display: block;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: white;
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+    }
+    .header-title span {
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.65);
+      font-weight: 400;
+      letter-spacing: 0.3px;
+    }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .theme-toggle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.1);
+      color: white;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+    }
+    .theme-toggle:hover {
+      background: rgba(255,255,255,0.2);
+      border-color: rgba(255,255,255,0.5);
+      transform: scale(1.06);
+    }
+
+    /* ================================
+       MAIN CONTAINER
+       ================================ */
+    .main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 28px 20px 60px;
+    }
+
+    /* ================================
+       SECTION CARD
+       ================================ */
+    .section-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      animation: fadeInUp 0.5s ease-out both;
+    }
+    .section-card:nth-child(1) { animation-delay: 0.05s; }
+    .section-card:nth-child(2) { animation-delay: 0.15s; }
+    .section-card:nth-child(3) { animation-delay: 0.25s; }
+
+    .section-header {
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .section-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .section-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+    .section-icon.purple {
+      background: var(--badge-bg);
+      color: var(--badge-text);
+    }
+    .section-icon.green {
+      background: var(--success-bg);
+      color: var(--success);
+    }
+    .section-icon.amber {
+      background: var(--warning-bg);
+      color: var(--warning);
+    }
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
+    }
+    .section-subtitle {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .section-body {
+      padding: 18px 22px;
+    }
+
+    /* ================================
+       TABLE STYLES
+       ================================ */
+    .data-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 0.82rem;
+    }
+    .data-table thead th {
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .data-table tbody tr {
+      transition: background 0.2s ease;
+    }
+    .data-table tbody tr:hover {
+      background: var(--table-row-hover);
+    }
+    .data-table tbody tr:nth-child(even) {
+      background: var(--table-stripe);
+    }
+    .data-table tbody tr:nth-child(even):hover {
+      background: var(--table-row-hover);
+    }
+    .data-table tbody td {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-secondary);
+      vertical-align: middle;
+    }
+    .data-table tbody td:first-child {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 30px 16px;
+      color: var(--text-muted);
+    }
+    .empty-state .icon {
+      font-size: 2rem;
+      margin-bottom: 8px;
+      opacity: 0.6;
+    }
+    .empty-state .msg {
+      font-size: 0.82rem;
+      font-weight: 500;
+    }
+    .empty-state .sub {
+      font-size: 0.72rem;
+      margin-top: 4px;
+      opacity: 0.7;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 8px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .badge.present {
+      background: var(--success-bg);
+      color: var(--success);
+    }
+    .badge.absent {
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+
+    /* ================================
+       FORM ELEMENTS
+       ================================ */
+    .form-group {
+      margin-bottom: 14px;
+    }
+    .form-label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .form-input,
+    .form-textarea {
+      width: 100%;
+      padding: 11px 14px;
+      border-radius: 10px;
+      border: 2px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.85rem;
+      transition: border-color 0.25s ease, box-shadow 0.25s ease;
+      outline: none;
+    }
+    .form-input:focus,
+    .form-textarea:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
+    .form-input::placeholder,
+    .form-textarea::placeholder {
+      color: var(--text-muted);
+    }
+    .form-textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 12px;
+    }
+    .form-row .form-group {
+      flex: 1;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 22px;
+      border-radius: 10px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      border: none;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      letter-spacing: 0.2px;
+    }
+    .btn-primary {
+      background: var(--gradient);
+      color: white;
+      box-shadow: 0 4px 12px rgba(79,70,229,0.3);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 6px 18px rgba(79,70,229,0.45);
+      transform: translateY(-1px);
+    }
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+    .btn-danger {
+      background: var(--danger-bg);
+      color: var(--danger);
+      border: 1px solid transparent;
+    }
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.15);
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-secondary);
+    }
+
+    /* ================================
+       ANNOUNCEMENT LIST
+       ================================ */
+    .announcement-list {
+      list-style: none;
+      margin-top: 16px;
+    }
+    .announcement-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      margin-bottom: 10px;
+      background: var(--bg);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      animation: fadeInUp 0.3s ease-out both;
+    }
+    .announcement-item:hover {
+      transform: translateX(3px);
+      box-shadow: var(--shadow);
+    }
+    .announcement-date {
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--primary-light);
+      background: var(--badge-bg);
+      padding: 4px 10px;
+      border-radius: 6px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .announcement-msg {
+      font-size: 0.85rem;
+      color: var(--text);
+      line-height: 1.45;
+      flex: 1;
+    }
+    .announcement-delete {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      border: none;
+      background: var(--danger-bg);
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 0.72rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+      opacity: 0;
+    }
+    .announcement-item:hover .announcement-delete {
+      opacity: 1;
+    }
+    .announcement-delete:hover {
+      background: rgba(239, 68, 68, 0.2);
+      transform: scale(1.1);
+    }
+
+    /* ================================
+       ACTION BUTTONS
+       ================================ */
+    .action-buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      align-items: center;
+    }
+    .action-buttons button {
+      padding: 8px 12px;
+      font-size: 1rem;
+    }
+
+    /* ================================
+       ADD TEACHER TOGGLE
+       ================================ */
+    .add-teacher-form {
+      margin-bottom: 16px;
+      padding: 16px;
+      border-radius: 12px;
+      border: 1px dashed var(--border);
+      background: var(--bg);
+      display: none;
+      animation: fadeInUp 0.3s ease-out;
+    }
+    .add-teacher-form.open {
+      display: block;
+    }
+
+    /* ================================
+       TOAST
+       ================================ */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-end;
+      pointer-events: none;
+    }
+    .toast {
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: white;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      animation: toastIn 0.35s ease-out, toastOut 0.35s ease-in 2.5s forwards;
+      pointer-events: auto;
+    }
+    .toast.success { background: #059669; }
+    .toast.info { background: #475569; }
+    .toast.error { background: #dc2626; }
+    .toast.warning { background: #d97706; }
+
+    /* ================================
+       RESPONSIVE
+       ================================ */
+    @media (max-width: 640px) {
+      .header { padding: 16px; }
+      .header-title strong { font-size: 1.1rem; }
+      .main { padding: 16px 14px 50px; }
+      .section-header { padding: 14px 16px; }
+      .section-body { padding: 14px 16px; }
+      .form-row { flex-direction: column; gap: 0; }
+      .data-table { font-size: 0.75rem; }
+      .data-table thead th { padding: 8px 10px; font-size: 0.62rem; }
+      .data-table tbody td { padding: 9px 10px; }
+      .section-title { font-size: 0.9rem; }
+    }
+
+    /* ================================
+       ANIMATIONS
+       ================================ */
+    @keyframes headerSlideDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(20px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes toastOut {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(-10px); }
+    }
+
+    /* ================================
+       TAB NAVIGATION
+       ================================ */
+    .tab-nav {
+      background: var(--bg);
+      border-bottom: 2px solid var(--border);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      transition: background 0.3s ease, border-color 0.3s ease;
+      margin-top: 2px;
+    }
+    [data-theme="dark"] .tab-nav { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3); }
+    .tab-nav-inner {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      gap: 0.5rem;
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
+    }
+    .tab-btn {
+      padding: 0.65rem 1.5rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      border-radius: 12px;
+      border: 2px solid transparent;
+      background: var(--bg-card);
+      transition: all 0.25s ease;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: 'Inter', sans-serif;
+    }
+    .tab-btn:hover {
+      color: var(--primary);
+      background: var(--bg-card-hover);
+      border-color: var(--border);
+    }
+    .tab-btn.active {
+      color: #fff;
+      background: var(--gradient);
+      border-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+
+    /* ================================
+       EDIT MODAL
+       ================================ */
+    .edit-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      animation: fadeIn 0.2s ease-out;
+    }
+    .edit-modal.open {
+      display: flex;
+    }
+    .edit-modal-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      width: 90%;
+      max-width: 420px;
+      box-shadow: var(--shadow-lg);
+      animation: modalSlideIn 0.3s ease-out;
+    }
+    .edit-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .edit-modal-header h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .edit-modal-close {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    .edit-modal-close:hover {
+      background: var(--danger-bg);
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+    .edit-modal-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .edit-modal-actions .btn {
+      flex: 1;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes modalSlideIn {
+      from { opacity: 0; transform: scale(0.95) translateY(-10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    /* Edit button in table */
+    .btn-edit {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      border: none;
+      background: var(--badge-bg);
+      color: var(--badge-text);
+      cursor: pointer;
+      font-size: 0.72rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    .btn-edit:hover {
+      background: rgba(79, 70, 229, 0.2);
+      transform: scale(1.1);
+    }
+
+    /* Absentee card row */
+    .absentee-row {
+      display: flex;
+      align-items: center;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    .absentee-row.absent {
+      background: var(--danger-bg);
+    }
+    .absentee-row.leave {
+      background: var(--warning-bg);
+    }
+
+    @media (max-width: 640px) {
+      .tab-nav-inner { padding-left: 14px; padding-right: 14px; gap: 0.35rem; }
+      .tab-btn { padding: 0.55rem 1rem; font-size: 0.82rem; }
+      .edit-modal-card { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ======================== HEADER ======================== -->
+  <div class="header">
+    <div class="header-inner">
+      <div class="header-left">
+        <a href="./index.html" class="back-btn" title="Back to Home" aria-label="Back to Home">
+          <i class="fas fa-arrow-left"></i>
+        </a>
+        <div class="header-title">
+          <strong><i class="fas fa-shield-halved" style="margin-right:6px; font-size:1rem;"></i>Admin Dashboard</strong>
+          <span>The Eye — School Management System</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+          <i class="fas fa-moon" id="themeIcon"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== TAB NAVIGATION ======================== -->
+  <nav class="tab-nav">
+    <div class="tab-nav-inner">
+      <button class="tab-btn" data-tab="teachers" onclick="switchTab('teachers')">
+        <i class="fas fa-chalkboard-user"></i>Teachers
+      </button>
+      <button class="tab-btn" data-tab="students" onclick="switchTab('students')">
+        <i class="fas fa-user-graduate"></i>Students
+      </button>
+      <a href="./classes.html" class="tab-btn" style="text-decoration:none; cursor:pointer;">
+        <i class="fas fa-book"></i>Classes
+      </a>
+      <button class="tab-btn" data-tab="attendance" onclick="switchTab('attendance')">
+        <i class="fas fa-clipboard-list"></i>Attendance
+      </button>
+      <button class="tab-btn" data-tab="stats" onclick="switchTab('stats')">
+        <i class="fas fa-chart-bar"></i>Stats
+      </button>
+      <button class="tab-btn" data-tab="announcements" onclick="switchTab('announcements')">
+        <i class="fas fa-bullhorn"></i>Announcements
+      </button>
+    </div>
+  </nav>
+
+  <!-- ======================== MAIN ======================== -->
+  <div class="main">
+
+    <!-- ==================== TEACHERS TAB ==================== -->
+    <div id="tab-teachers" class="tab-content active">
+    <!-- Classes Section -->
+    <div class="section-card" id="classesSection">
+      <div class="section-header">
+        <div class="section-header-left">
+          <div class="section-icon purple" style="background: rgba(34, 197, 94, 0.12); color: #22c55e;"><i class="fas fa-book"></i></div>
+          <div>
+            <div class="section-title">Classes & Teachers</div>
+            <div class="section-subtitle">View assigned teachers and share links</div>
+          </div>
+        </div>
+        <a href="./classes.html" class="btn btn-primary" style="text-decoration:none;">
+          <i class="fas fa-cog"></i> Manage Classes
+        </a>
+      </div>
+      <div class="section-body">
+        <div id="classesTableWrap">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card" id="teachersSection">
+      <div class="section-header">
+        <div class="section-header-left">
+          <div class="section-icon purple"><i class="fas fa-chalkboard-user"></i></div>
+          <div>
+            <div class="section-title">Teachers</div>
+            <div class="section-subtitle">Manage registered teachers</div>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="toggleAddTeacher()" id="addTeacherToggleBtn">
+          <i class="fas fa-plus"></i> Add Teacher
+        </button>
+      </div>
+
+      <div class="section-body">
+        <!-- Add Teacher Form (hidden initially) -->
+        <div class="add-teacher-form" id="addTeacherForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="teacherName">Teacher Name</label>
+              <input class="form-input" type="text" id="teacherName" placeholder="e.g. Mr Khan">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="teacherClass">Class</label>
+              <input class="form-input" type="text" id="teacherClass" placeholder="e.g. 5A">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="teacherPhone">Contact</label>
+              <input class="form-input" type="text" id="teacherPhone" placeholder="e.g. 92300...">
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; margin-top:4px;">
+            <button class="btn btn-primary" onclick="saveTeacher()">
+              <i class="fas fa-check"></i> Save Teacher
+            </button>
+            <button class="btn btn-ghost" onclick="toggleAddTeacher()">Cancel</button>
+          </div>
+        </div>
+
+        <!-- Teachers Table -->
+        <div id="teachersTableWrap">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <!-- ==================== STUDENTS TAB ==================== -->
+    <div id="tab-students" class="tab-content">
+    <div class="section-card" id="studentsSection">
+      <div class="section-header">
+        <div class="section-header-left">
+          <div class="section-icon purple" style="background: rgba(14, 165, 233, 0.12); color: #0ea5e9;"><i class="fas fa-user-graduate"></i></div>
+          <div>
+            <div class="section-title">Students</div>
+            <div class="section-subtitle">Manage enrolled students</div>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="toggleAddStudent()" id="addStudentToggleBtn" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
+          <i class="fas fa-plus"></i> Add Student
+        </button>
+      </div>
+
+      <div class="section-body">
+        <!-- Add Student Form (hidden initially) -->
+        <div class="add-teacher-form" id="addStudentForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="studentName">Student Name</label>
+              <input class="form-input" type="text" id="studentName" placeholder="e.g. Ali Hassan">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="studentRoll">Roll Number</label>
+              <input class="form-input" type="text" id="studentRoll" placeholder="e.g. CS-109">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="studentPhone">Contact</label>
+              <input class="form-input" type="tel" id="studentPhone" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits (e.g., 03001234567)" required>
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; margin-top:4px;">
+            <button class="btn btn-primary" onclick="saveStudent()" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
+              <i class="fas fa-check"></i> Save Student
+            </button>
+            <button class="btn btn-ghost" onclick="toggleAddStudent()">Cancel</button>
+          </div>
+        </div>
+
+        <!-- Students Table -->
+        <div id="studentsTableWrap">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <!-- ==================== ATTENDANCE TAB ==================== -->
+    <div id="tab-attendance" class="tab-content">
+    <div class="section-card" id="attendanceSection">
+      <div class="section-header">
+        <div class="section-header-left">
+          <div class="section-icon green"><i class="fas fa-clipboard-list"></i></div>
+          <div>
+            <div class="section-title">Attendance Records</div>
+            <div class="section-subtitle">View submitted attendance and absent students</div>
+          </div>
+        </div>
+        <button class="btn btn-danger" onclick="clearAttendanceHistory()" title="Clear all attendance data" style="font-size:0.75rem; padding:8px 14px;">
+          <i class="fas fa-trash-alt"></i> Clear
+        </button>
+      </div>
+      <div class="section-body" style="padding:0;">
+        <div id="attendanceTableWrap">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <!-- ==================== STATS TAB ==================== -->
+    <div id="tab-stats" class="tab-content">
+    <div class="section-card" id="statsSection">
+      <div class="section-header">
+        <div class="section-header-left">
+          <div class="section-icon green" style="background: rgba(34, 197, 94, 0.12); color: #22c55e;"><i class="fas fa-chart-bar"></i></div>
+          <div>
+            <div class="section-title">Student Attendance Stats</div>
+            <div class="section-subtitle">Overall attendance percentage across all recorded days</div>
+          </div>
+        </div>
+      </div>
+      <div class="section-body" style="padding:0;">
+        <div id="statsTableWrap">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <!-- ==================== ANNOUNCEMENTS TAB ==================== -->
+    <div id="tab-announcements" class="tab-content">
+    <div class="section-card" id="announcementsSection">
+      <div class="section-header">
+        <div class="section-header-left">
+          <div class="section-icon amber"><i class="fas fa-bullhorn"></i></div>
+          <div>
+            <div class="section-title">School Announcements</div>
+            <div class="section-subtitle">Post announcements visible to everyone</div>
+          </div>
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="form-group">
+          <label class="form-label" for="announcementText">New Announcement</label>
+          <textarea class="form-textarea" id="announcementText" placeholder="Type your announcement here..." rows="3"></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="saveAnnouncement()" id="saveAnnouncementBtn">
+          <i class="fas fa-paper-plane"></i> Save Announcement
+        </button>
+
+        <!-- Saved Announcements List -->
+        <div id="announcementsList">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </div>
+    </div>
+
+  </div>
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ======================== EDIT TEACHER MODAL ======================== -->
+  <div class="edit-modal" id="editTeacherModal">
+    <div class="edit-modal-card">
+      <div class="edit-modal-header">
+        <h3><i class="fas fa-pen" style="margin-right:8px; color:var(--primary);"></i>Edit Teacher</h3>
+        <button class="edit-modal-close" onclick="closeEditTeacherModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <input type="hidden" id="editTeacherIndex">
+      <div class="form-group">
+        <label class="form-label" for="editTeacherName">Teacher Name</label>
+        <input class="form-input" type="text" id="editTeacherName" placeholder="e.g. Mr Khan">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="editTeacherClass">Class</label>
+        <input class="form-input" type="text" id="editTeacherClass" placeholder="e.g. 5A">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="editTeacherPhone">Contact</label>
+        <input class="form-input" type="text" id="editTeacherPhone" placeholder="e.g. 92300...">
+      </div>
+      <div class="edit-modal-actions">
+        <button class="btn btn-primary" onclick="saveEditTeacher()"><i class="fas fa-check"></i> Save</button>
+        <button class="btn btn-ghost" onclick="closeEditTeacherModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== EDIT STUDENT MODAL ======================== -->
+  <div class="edit-modal" id="editStudentModal">
+    <div class="edit-modal-card">
+      <div class="edit-modal-header">
+        <h3><i class="fas fa-pen" style="margin-right:8px; color:var(--primary);"></i>Edit Student</h3>
+        <button class="edit-modal-close" onclick="closeEditStudentModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <input type="hidden" id="editStudentId">
+      <div class="form-group">
+        <label class="form-label" for="editStudentName">Student Name</label>
+        <input class="form-input" type="text" id="editStudentName" placeholder="e.g. Ali Hassan">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="editStudentRoll">Roll Number</label>
+        <input class="form-input" type="text" id="editStudentRoll" placeholder="e.g. CS-109">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="editStudentPhone">Contact</label>
+        <input class="form-input" type="tel" id="editStudentPhone" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits (e.g., 03001234567)" required>
+      </div>
+      <div class="edit-modal-actions">
+        <button class="btn btn-primary" onclick="saveEditStudent()" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);"><i class="fas fa-check"></i> Save</button>
+        <button class="btn btn-ghost" onclick="closeEditStudentModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== VIEW ABSENTEE MODAL ======================== -->
+  <div class="edit-modal" id="absenteeModal">
+    <div class="edit-modal-card" style="max-width:480px;">
+      <div class="edit-modal-header">
+        <h3 id="absenteeModalTitle" style="font-size:0.95rem;"><i class="fas fa-clipboard-check" style="margin-right:8px; color:var(--primary);"></i>Absent Students</h3>
+        <button class="edit-modal-close" onclick="closeAbsenteeModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <div id="absenteeList" style="max-height:400px;overflow-y:auto;"></div>
+    </div>
+  </div>
+
+  <!-- ======================== JAVASCRIPT ======================== -->
+  <script>
+    // =============================================================
+    // LOCALSTORAGE KEYS
+    // =============================================================
+    const KEYS = {
+      teachers: 'teachers',
+      students: 'students',
+      attendance: 'attendance',            // matches teacher.html key
+      announcements: 'schoolAnnouncements',
+      theme: 'attendance-theme'
+    };
+
+    // =============================================================
+    // UTILITY: localStorage helpers
+    // =============================================================
+    function loadFromStorage(key) {
+      try {
+        const data = JSON.parse(localStorage.getItem(key));
+        return Array.isArray(data) ? data : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveToStorage(key, data) {
+      localStorage.setItem(key, JSON.stringify(data));
+    }
+
+    function getTodayDate() {
+      return new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+    }
+
+
+    // =============================================================
+    // THEME TOGGLE
+    // =============================================================
+    function toggleTheme() {
+      const html = document.documentElement;
+      const isDark = html.getAttribute('data-theme') === 'dark';
+      const next = isDark ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem(KEYS.theme, next);
+      updateThemeIcon(next);
+    }
+
+    function updateThemeIcon(theme) {
+      const icon = document.getElementById('themeIcon');
+      icon.className = theme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+    }
+
+    function loadTheme() {
+      const saved = localStorage.getItem(KEYS.theme) || 'dark';
+      document.documentElement.setAttribute('data-theme', saved);
+      updateThemeIcon(saved);
+    }
+
+
+    // =============================================================
+    // SECTION 1: TEACHERS
+    // =============================================================
+    let addTeacherOpen = false;
+
+    function toggleAddTeacher() {
+      addTeacherOpen = !addTeacherOpen;
+      const form = document.getElementById('addTeacherForm');
+      const btn = document.getElementById('addTeacherToggleBtn');
+
+      if (addTeacherOpen) {
+        form.classList.add('open');
+        btn.innerHTML = '<i class="fas fa-times"></i> Cancel';
+        document.getElementById('teacherName').focus();
+      } else {
+        form.classList.remove('open');
+        btn.innerHTML = '<i class="fas fa-plus"></i> Add Teacher';
+        clearTeacherForm();
+      }
+    }
+
+    function clearTeacherForm() {
+      document.getElementById('teacherName').value = '';
+      document.getElementById('teacherClass').value = '';
+      document.getElementById('teacherPhone').value = '';
+    }
+
+    function saveTeacher() {
+      const name = document.getElementById('teacherName').value.trim();
+      const cls = document.getElementById('teacherClass').value.trim();
+      const phone = document.getElementById('teacherPhone').value.trim();
+
+      if (!name) {
+        showToast('⚠️ Please enter teacher name', 'warning');
+        document.getElementById('teacherName').focus();
+        return;
+      }
+      if (!cls) {
+        showToast('⚠️ Please enter class', 'warning');
+        document.getElementById('teacherClass').focus();
+        return;
+      }
+
+      const teachers = loadFromStorage(KEYS.teachers);
+      const newTeacher = {
+        id: Date.now(),
+        name,
+        class: cls,
+        phone: phone || '—'
+      };
+      teachers.push(newTeacher);
+      saveToStorage(KEYS.teachers, teachers);
+
+      clearTeacherForm();
+      toggleAddTeacher();
+      renderTeachers();
+      renderClasses();
+      showToast('✅ Teacher added successfully', 'success');
+    }
+
+    function deleteTeacher(index) {
+      if (!confirm('Remove this teacher?')) return;
+      const teachers = loadFromStorage(KEYS.teachers);
+      teachers.splice(index, 1);
+      saveToStorage(KEYS.teachers, teachers);
+      renderTeachers();
+      showToast('🗑️ Teacher removed', 'info');
+    }
+
+    // =============================================================
+    // SECTION 1.5: STUDENTS
+    // =============================================================
+    let addStudentOpen = false;
+
+    function toggleAddStudent() {
+      addStudentOpen = !addStudentOpen;
+      const form = document.getElementById('addStudentForm');
+      const btn = document.getElementById('addStudentToggleBtn');
+
+      if (addStudentOpen) {
+        form.classList.add('open');
+        btn.innerHTML = '<i class="fas fa-times"></i> Cancel';
+        document.getElementById('studentName').focus();
+      } else {
+        form.classList.remove('open');
+        btn.innerHTML = '<i class="fas fa-plus"></i> Add Student';
+        document.getElementById('studentName').value = '';
+        document.getElementById('studentRoll').value = '';
+        document.getElementById('studentPhone').value = '';
+      }
+    }
+
+    function saveStudent() {
+      const name = document.getElementById('studentName').value.trim();
+      const rollNo = document.getElementById('studentRoll').value.trim();
+      const phone = document.getElementById('studentPhone').value.trim();
+
+      if (!name) {
+        showToast('⚠️ Please enter student name', 'warning');
+        return;
+      }
+      if (!rollNo) {
+        showToast('⚠️ Please enter roll number', 'warning');
+        return;
+      }
+
+      let students = loadFromStorage(KEYS.students);
+      // Initialize with default if completely empty
+      if (students.length === 0 && !localStorage.getItem(KEYS.students)) {
+         students = [
+          { id: 1, name: "Ali Hassan", rollNo: "CS-101", phone: "+923209789348" },
+          { id: 2, name: "Sara Ahmed", rollNo: "CS-102", phone: "+923215788075" },
+          { id: 3, name: "Omar Farooq", rollNo: "CS-103", phone: "+923209789348" },
+          { id: 4, name: "Fatima Zahra", rollNo: "CS-104", phone: "+923209789348" },
+          { id: 5, name: "Hassan Raza", rollNo: "CS-105", phone: "+923209789348" },
+          { id: 6, name: "Ayesha Khan", rollNo: "CS-106", phone: "+923209789348" },
+          { id: 7, name: "Bilal Mahmood", rollNo: "CS-107", phone: "+923209789348" },
+          { id: 8, name: "Zainab Tariq", rollNo: "CS-108", phone: "+923209789348" },
+        ];
+      }
+      
+      const newId = students.length > 0 ? Math.max(...students.map(s => s.id)) + 1 : 1;
+      students.push({ id: newId, name, rollNo, phone: phone || '—' });
+      saveToStorage(KEYS.students, students);
+
+      toggleAddStudent();
+      renderStudents();
+      showToast('✅ Student added successfully', 'success');
+    }
+
+    function deleteStudent(id) {
+      if (!confirm('Remove this student?')) return;
+      let students = loadFromStorage(KEYS.students);
+      students = students.filter(s => s.id !== id);
+      saveToStorage(KEYS.students, students);
+      renderStudents();
+      showToast('🗑️ Student removed', 'info');
+    }
+
+    function renderStudents() {
+      const wrap = document.getElementById('studentsTableWrap');
+      let students = loadFromStorage(KEYS.students);
+      
+      if (students.length === 0 && !localStorage.getItem(KEYS.students)) {
+        students = [
+          { id: 1, name: "Ali Hassan", rollNo: "CS-101", phone: "+923209789348" },
+          { id: 2, name: "Sara Ahmed", rollNo: "CS-102", phone: "+923215788075" },
+          { id: 3, name: "Omar Farooq", rollNo: "CS-103", phone: "+923209789348" },
+          { id: 4, name: "Fatima Zahra", rollNo: "CS-104", phone: "+923209789348" },
+          { id: 5, name: "Hassan Raza", rollNo: "CS-105", phone: "+923209789348" },
+          { id: 6, name: "Ayesha Khan", rollNo: "CS-106", phone: "+923209789348" },
+          { id: 7, name: "Bilal Mahmood", rollNo: "CS-107", phone: "+923209789348" },
+          { id: 8, name: "Zainab Tariq", rollNo: "CS-108", phone: "+923209789348" },
+        ];
+        saveToStorage(KEYS.students, students);
+      }
+
+      if (students.length === 0) {
+        wrap.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">🎓</div>
+            <div class="msg">No students added yet</div>
+            <div class="sub">Click "Add Student" to register one</div>
+          </div>`;
+        return;
+      }
+
+      let html = `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width:50px;">ID</th>
+              <th>Name</th>
+              <th>Roll No</th>
+              <th>Contact</th>
+              <th style="width:90px;"></th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+      students.forEach((s) => {
+        html += `
+          <tr>
+            <td style="color:var(--text-muted); font-size:0.75rem;">#${s.id}</td>
+            <td>${s.name}</td>
+            <td><span class="badge" style="background:var(--bg); border:1px solid var(--border); color:var(--text-secondary);">${s.rollNo}</span></td>
+            <td>${s.phone}</td>
+            <td style="text-align:right;">
+              <div class="action-buttons">
+                <button onclick="openEditStudentModal(${s.id})" class="btn-edit" title="Edit student">
+                  <i class="fas fa-pen"></i>
+                </button>
+                <button class="announcement-delete" style="opacity:1;" onclick="deleteStudent(${s.id})" title="Remove Student">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </td>
+          </tr>`;
+      });
+
+      html += `</tbody></table>`;
+      wrap.innerHTML = html;
+    }
+
+    function renderTeachers() {
+      const wrap = document.getElementById('teachersTableWrap');
+      const teachers = loadFromStorage(KEYS.teachers);
+
+      if (teachers.length === 0) {
+        wrap.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">👨‍🏫</div>
+            <div class="msg">No teachers added yet</div>
+            <div class="sub">Click "Add Teacher" to register one</div>
+          </div>`;
+        return;
+      }
+
+      let html = `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Class</th>
+              <th>Contact</th>
+              <th style="width:90px;"></th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+      teachers.forEach((t, i) => {
+        html += `
+            <tr>
+              <td style="color:var(--text-muted); font-weight:500;">${i + 1}</td>
+              <td>${escapeHtml(t.name)}</td>
+              <td><span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(t.class)}</span></td>
+              <td>${escapeHtml(t.phone)}</td>
+              <td>
+                <div class="action-buttons">
+                  <button onclick="openEditTeacherModal(${i})" class="btn-edit" title="Edit teacher">
+                    <i class="fas fa-pen"></i>
+                  </button>
+                  <button onclick="deleteTeacher(${i})" class="announcement-delete" style="opacity:1;" title="Remove teacher">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>`;
+      });
+
+      html += `</tbody></table>`;
+      wrap.innerHTML = html;
+    }
+
+
+    // =============================================================
+    // SECTION 2: ATTENDANCE OVERVIEW
+    // =============================================================
+    function renderAttendance() {
+      const wrap = document.getElementById('attendanceTableWrap');
+      const records = loadFromStorage(KEYS.attendance);
+
+      if (records.length === 0) {
+        wrap.innerHTML = `
+          <div class="empty-state" style="padding:36px 16px;">
+            <div class="icon">📊</div>
+            <div class="msg">No attendance records found</div>
+            <div class="sub">Records appear here after teachers submit attendance</div>
+          </div>`;
+        return;
+      }
+
+      const sorted = [...records].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+      let html = `
+        <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Teacher</th>
+              <th>Class</th>
+              <th>Present</th>
+              <th>Absent</th>
+              <th>Leave</th>
+              <th style="width:100px;"></th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+      sorted.forEach(record => {
+        const students = record.students || [];
+        const present = students.filter(s => s.status === 'Present').length;
+        const absent = students.filter(s => s.status === 'Absent').length;
+        const leave = students.filter(s => s.status === 'Leave').length;
+        const dateKey = record.date.replace(/-/g, '');
+
+        html += `
+            <tr>
+              <td>${escapeHtml(record.date || '—')}</td>
+              <td style="color:var(--text-secondary);">${escapeHtml(record.teacher || '—')}</td>
+              <td>${record.class ? '<span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">' + escapeHtml(record.class) + '</span>' : '—'}</td>
+              <td><span class="badge present">✅ ${present}</span></td>
+              <td><span class="badge absent">❌ ${absent}</span></td>
+              <td style="color:var(--text-secondary);">${leave > 0 ? '📝 ' + leave : '—'}</td>
+              <td>
+                ${absent > 0 ? `<button onclick="viewAbsentees('${record.date}', '${escapeHtml(record.teacher || '')}', '${escapeHtml(record.class || '')}')" class="btn-edit" title="View absent students" style="background:var(--danger-bg);color:var(--danger);">
+                  <i class="fas fa-eye"></i>
+                </button>` : '<span style="color:var(--text-muted);font-size:0.7rem;">—</span>'}
+              </td>
+            </tr>`;
+      });
+
+      html += `</tbody></table></div>`;
+      wrap.innerHTML = html;
+    }
+
+    function viewAbsentees(date, teacher, cls) {
+      const records = loadFromStorage(KEYS.attendance);
+      const record = records.find(r => r.date === date);
+      if (!record) return;
+
+      const absentees = (record.students || []).filter(s => s.status === 'Absent');
+      const leaveStudents = (record.students || []).filter(s => s.status === 'Leave');
+
+      const modal = document.getElementById('absenteeModal');
+      const body = document.getElementById('absenteeList');
+
+      document.getElementById('absenteeModalTitle').textContent = `Absent Students — ${date} (${cls})`;
+
+      let html = '';
+
+      if (absentees.length === 0) {
+        html = '<div class="empty-state" style="padding:20px;"><div class="msg">No absent students</div></div>';
+      } else {
+        html += `<div style="margin-bottom:16px;"><h4 style="font-size:0.82rem;font-weight:700;color:var(--danger);margin-bottom:8px;"><i class="fas fa-times-circle" style="margin-right:6px;"></i>Absent (${absentees.length})</h4>`;
+        html += '<div class="absentee-list" style="display:flex;flex-direction:column;gap:6px;">';
+        absentees.forEach(s => {
+          html += `
+            <div class="absentee-row absent">
+              <div style="flex:1;">
+                <div style="font-size:0.85rem;font-weight:600;color:var(--text);">${escapeHtml(s.name)}</div>
+                <div style="font-size:0.72rem;color:var(--text-muted);">Roll: ${s.rollNo || '—'} · Phone: ${s.phone || '—'}</div>
+              </div>
+            </div>`;
+        });
+        html += '</div></div>';
+      }
+
+      if (leaveStudents.length > 0) {
+        html += `<div><h4 style="font-size:0.82rem;font-weight:700;color:var(--warning);margin-bottom:8px;"><i class="fas fa-clock" style="margin-right:6px;"></i>On Leave (${leaveStudents.length})</h4>`;
+        html += '<div class="absentee-list" style="display:flex;flex-direction:column;gap:6px;">';
+        leaveStudents.forEach(s => {
+          html += `
+            <div class="absentee-row leave">
+              <div style="flex:1;">
+                <div style="font-size:0.85rem;font-weight:600;color:var(--text);">${escapeHtml(s.name)}</div>
+                <div style="font-size:0.72rem;color:var(--text-muted);">Roll: ${s.rollNo || '—'}</div>
+              </div>
+            </div>`;
+        });
+        html += '</div></div>';
+      }
+
+      body.innerHTML = html;
+      modal.classList.add('open');
+    }
+
+    function closeAbsenteeModal() {
+      document.getElementById('absenteeModal').classList.remove('open');
+    }
+
+    function clearAttendanceHistory() {
+      if (!confirm('Clear all attendance history? This cannot be undone.')) return;
+      localStorage.removeItem(KEYS.attendance);
+      renderAttendance();
+      renderStats();
+      showToast('🗑️ Attendance history cleared', 'info');
+    }
+
+
+    // =============================================================
+    // ATTENDANCE STATS / PERCENTAGES
+    // =============================================================
+    function renderStats() {
+      const wrap = document.getElementById('statsTableWrap');
+      const records = loadFromStorage(KEYS.attendance);
+
+      if (records.length === 0) {
+        wrap.innerHTML = `
+          <div class="empty-state" style="padding:36px 16px;">
+            <div class="icon">📊</div>
+            <div class="msg">No attendance data to calculate stats</div>
+            <div class="sub">Stats appear after teachers submit attendance</div>
+          </div>`;
+        return;
+      }
+
+      const studentMap = {};
+
+      records.forEach(record => {
+        (record.students || []).forEach(s => {
+          if (!studentMap[s.id]) {
+            studentMap[s.id] = { id: s.id, name: s.name, rollNo: s.rollNo || '—', phone: s.phone || '—', present: 0, absent: 0, leave: 0, total: 0 };
+          }
+          studentMap[s.id].total++;
+          if (s.status === 'Present') studentMap[s.id].present++;
+          else if (s.status === 'Absent') studentMap[s.id].absent++;
+          else if (s.status === 'Leave') studentMap[s.id].leave++;
+        });
+      });
+
+      const students = Object.values(studentMap).map(s => ({
+        ...s,
+        percentage: s.total > 0 ? Math.round((s.present / s.total) * 100) : 0
+      }));
+
+      students.sort((a, b) => b.percentage - a.percentage);
+
+      const totalDays = records.length;
+
+      let html = `<div style="padding:16px 22px;"><div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">📅 Total days recorded: <strong style="color:var(--text);">${totalDays}</strong></div></div>`;
+      html += `<div style="overflow-x:auto;"><table class="data-table">
+        <thead><tr>
+          <th style="width:40px;">#</th>
+          <th>Name</th>
+          <th>Roll No</th>
+          <th>Present</th>
+          <th>Absent</th>
+          <th>Leave</th>
+          <th style="width:90px;">Attendance %</th>
+        </tr></thead><tbody>`;
+
+      students.forEach((s, i) => {
+        const pct = s.percentage;
+        let barColor = '#dc2626';
+        if (pct >= 80) barColor = '#22c55e';
+        else if (pct >= 60) barColor = '#f59e0b';
+        else if (pct >= 40) barColor = '#f97316';
+
+        let rankIcon = '';
+        if (i === 0) rankIcon = '🥇';
+        else if (i === 1) rankIcon = '🥈';
+        else if (i === 2) rankIcon = '🥉';
+
+        html += `<tr>
+          <td style="color:var(--text-muted);font-size:0.75rem;">${rankIcon || (i + 1)}</td>
+          <td>${s.name}</td>
+          <td><span class="badge" style="background:var(--bg);border:1px solid var(--border);color:var(--text-secondary);">${s.rollNo}</span></td>
+          <td><span class="badge present">✅ ${s.present}</span></td>
+          <td><span class="badge absent">❌ ${s.absent}</span></td>
+          <td style="color:var(--text-secondary);">${s.leave > 0 ? '📝 ' + s.leave : '—'}</td>
+          <td>
+            <span style="font-size:0.85rem;font-weight:700;color:${barColor};">${pct}%</span>
+          </td>
+        </tr>`;
+      });
+
+      html += '</tbody></table></div>';
+      wrap.innerHTML = html;
+    }
+
+
+    // =============================================================
+    // SECTION 3: SCHOOL ANNOUNCEMENTS
+    // =============================================================
+    function saveAnnouncement() {
+      const textarea = document.getElementById('announcementText');
+      const message = textarea.value.trim();
+
+      if (!message) {
+        showToast('⚠️ Please type an announcement', 'warning');
+        textarea.focus();
+        return;
+      }
+
+      const announcements = loadFromStorage(KEYS.announcements);
+      announcements.unshift({
+        date: getTodayDate(),
+        message: message
+      });
+      saveToStorage(KEYS.announcements, announcements);
+
+      textarea.value = '';
+      renderAnnouncements();
+      showToast('📢 Announcement saved', 'success');
+    }
+
+    function deleteAnnouncement(index) {
+      const announcements = loadFromStorage(KEYS.announcements);
+      announcements.splice(index, 1);
+      saveToStorage(KEYS.announcements, announcements);
+      renderAnnouncements();
+      showToast('🗑️ Announcement removed', 'info');
+    }
+
+    function renderAnnouncements() {
+      const container = document.getElementById('announcementsList');
+      const announcements = loadFromStorage(KEYS.announcements);
+
+      if (announcements.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state" style="padding:24px 0;">
+            <div class="icon">📢</div>
+            <div class="msg">No announcements yet</div>
+            <div class="sub">Post your first announcement above</div>
+          </div>`;
+        return;
+      }
+
+      let html = '<ul class="announcement-list">';
+      announcements.forEach((a, i) => {
+        html += `
+          <li class="announcement-item" style="animation-delay:${i * 0.05}s;">
+            <span class="announcement-date">${escapeHtml(a.date)}</span>
+            <span class="announcement-msg">${escapeHtml(a.message)}</span>
+            <button class="announcement-delete" onclick="deleteAnnouncement(${i})" title="Delete announcement">
+              <i class="fas fa-times"></i>
+            </button>
+          </li>`;
+      });
+      html += '</ul>';
+      container.innerHTML = html;
+    }
+
+    // =============================================================
+    // RENDER CLASSES WITH TEACHERS (from classes.html)
+    // =============================================================
+    function renderClasses() {
+      const wrap = document.getElementById('classesTableWrap');
+      
+      try {
+        const classes = loadFromStorage('classes');
+        const teachers = loadFromStorage(KEYS.teachers);
+
+        if (!classes || classes.length === 0) {
+          wrap.innerHTML = `
+            <div class="empty-state">
+              <div class="icon">📚</div>
+              <div class="msg">No classes created yet</div>
+              <div class="sub">Go to Classes page to create classes and assign teachers</div>
+            </div>`;
+          return;
+        }
+
+        let html = `
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Class</th>
+                <th>Students</th>
+                <th>Teacher</th>
+                <th style="width:120px;"></th>
+              </tr>
+            </thead>
+            <tbody>`;
+
+        classes.forEach((cls, i) => {
+          const teacher = cls.teacherId ? teachers.find(t => t.id === cls.teacherId) : null;
+          const studentCount = cls.students ? cls.students.length : 0;
+
+          html += `
+            <tr>
+              <td style="color:var(--text-muted); font-weight:500;">${i + 1}</td>
+              <td>
+                <strong>${escapeHtml(cls.name)}</strong>
+                ${cls.section ? ` <span class="badge">${escapeHtml(cls.section)}</span>` : ''}
+              </td>
+              <td style="text-align:center; font-weight:600;">${studentCount}</td>
+              <td>${teacher ? escapeHtml(teacher.name) : '–'}</td>
+              <td style="text-align:right;">
+                ${teacher ? `
+                  <button onclick="copyTeacherLink('${teacher.id}')" class="btn-edit" title="Copy teacher link" style="margin-right:4px; background:var(--success-bg); color:var(--success);">
+                    <i class="fas fa-link"></i>
+                  </button>
+                ` : ''}
+                <a href="./classes.html" class="btn-edit" title="Edit class" style="text-decoration:none;">
+                  <i class="fas fa-pen"></i>
+                </a>
+              </td>
+            </tr>`;
+        });
+
+        html += `</tbody></table>`;
+        wrap.innerHTML = html;
+      } catch (e) {
+        wrap.innerHTML = `<div class="empty-state"><div class="msg">Error loading classes</div></div>`;
+      }
+    }
+
+    function copyTeacherLink(teacherId) {
+      const link = `${window.location.origin}/teacher.html?id=t_${teacherId}`;
+      navigator.clipboard.writeText(link).then(() => {
+        showToast('📋 Link copied to clipboard', 'success');
+      }).catch(() => {
+        showToast('❌ Failed to copy link', 'error');
+      });
+    }
+
+    // =============================================================
+    // TOAST NOTIFICATIONS
+    // =============================================================
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        if (toast.parentNode) toast.parentNode.removeChild(toast);
+      }, 3000);
+    }
+
+
+    // =============================================================
+    // UTILITY
+    // =============================================================
+    function escapeHtml(str) {
+      if (!str) return '';
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+
+    // =============================================================
+    // TAB NAVIGATION
+    // =============================================================
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      
+      const tabContent = document.getElementById(`tab-${tabName}`);
+      if (tabContent) tabContent.classList.add('active');
+      
+      const tabBtn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+      if (tabBtn) tabBtn.classList.add('active');
+    }
+
+
+    // =============================================================
+    // EDIT TEACHER MODAL
+    // =============================================================
+    function openEditTeacherModal(index) {
+      const teachers = loadFromStorage(KEYS.teachers);
+      const teacher = teachers[index];
+      if (!teacher) return;
+
+      document.getElementById('editTeacherIndex').value = index;
+      document.getElementById('editTeacherName').value = teacher.name;
+      document.getElementById('editTeacherClass').value = teacher.class;
+      document.getElementById('editTeacherPhone').value = teacher.phone || '';
+      document.getElementById('editTeacherModal').classList.add('open');
+    }
+
+    function closeEditTeacherModal() {
+      document.getElementById('editTeacherModal').classList.remove('open');
+    }
+
+    function saveEditTeacher() {
+      const index = parseInt(document.getElementById('editTeacherIndex').value);
+      const name = document.getElementById('editTeacherName').value.trim();
+      const cls = document.getElementById('editTeacherClass').value.trim();
+      const phone = document.getElementById('editTeacherPhone').value.trim();
+
+      if (!name) {
+        showToast('⚠️ Please enter teacher name', 'warning');
+        return;
+      }
+      if (!cls) {
+        showToast('⚠️ Please enter class', 'warning');
+        return;
+      }
+
+      const teachers = loadFromStorage(KEYS.teachers);
+      teachers[index] = { name, class: cls, phone: phone || '—' };
+      saveToStorage(KEYS.teachers, teachers);
+
+      closeEditTeacherModal();
+      renderTeachers();
+      showToast('✅ Teacher updated successfully', 'success');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      document.getElementById('editTeacherModal').addEventListener('click', function(e) {
+        if (e.target === this) closeEditTeacherModal();
+      });
+      document.getElementById('editStudentModal').addEventListener('click', function(e) {
+        if (e.target === this) closeEditStudentModal();
+      });
+      document.getElementById('absenteeModal').addEventListener('click', function(e) {
+        if (e.target === this) closeAbsenteeModal();
+      });
+    });
+
+
+    // =============================================================
+    // EDIT STUDENT MODAL
+    // =============================================================
+    function openEditStudentModal(id) {
+      const students = loadFromStorage(KEYS.students);
+      const student = students.find(s => s.id === id);
+      if (!student) return;
+
+      document.getElementById('editStudentId').value = student.id;
+      document.getElementById('editStudentName').value = student.name;
+      document.getElementById('editStudentRoll').value = student.rollNo;
+      document.getElementById('editStudentPhone').value = student.phone || '';
+      document.getElementById('editStudentModal').classList.add('open');
+    }
+
+    function closeEditStudentModal() {
+      document.getElementById('editStudentModal').classList.remove('open');
+    }
+
+    function saveEditStudent() {
+      const id = parseInt(document.getElementById('editStudentId').value);
+      const name = document.getElementById('editStudentName').value.trim();
+      const rollNo = document.getElementById('editStudentRoll').value.trim();
+      const phone = document.getElementById('editStudentPhone').value.trim();
+
+      if (!name) {
+        showToast('⚠️ Please enter student name', 'warning');
+        return;
+      }
+      if (!rollNo) {
+        showToast('⚠️ Please enter roll number', 'warning');
+        return;
+      }
+
+      const students = loadFromStorage(KEYS.students);
+      const idx = students.findIndex(s => s.id === id);
+      if (idx !== -1) {
+        students[idx] = { id, name, rollNo, phone: phone || '—' };
+        saveToStorage(KEYS.students, students);
+      }
+
+      closeEditStudentModal();
+      renderStudents();
+      showToast('✅ Student updated successfully', 'success');
+    }
+
+
+    // =============================================================
+    // INITIALIZATION
+    // =============================================================
+    function init() {
+      loadTheme();
+      renderClasses();
+      renderTeachers();
+      renderStudents();
+      renderAttendance();
+      renderStats();
+      renderAnnouncements();
+    }
+
+    // =============================================================
+    // PHONE VALIDATION
+    // =============================================================
+    document.addEventListener('DOMContentLoaded', function() {
+      init();
+      
+      // Universal phone validation for all tel inputs
+      document.querySelectorAll('.form-input[type="tel"]').forEach(input => {
+        input.addEventListener('input', function() {
+          if (this.value.length === 0) {
+            this.style.borderColor = 'var(--border)';
+          } else if (this.validity.patternMismatch) {
+            this.style.borderColor = 'var(--danger)';
+          } else if (this.value.length === 11) {
+            this.style.borderColor = 'var(--success)';
+          } else {
+            this.style.borderColor = 'var(--border)';
+          }
+        });
+      });
+    });
+  </script>
+
+  <!-- Anti-inspect protection -->
+  <script src="anti-inspect.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Eye — School Management System</title>
+<meta name="description" content="The Eye — Attendance management, announcements, and homework tracking for schools.">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+/* ================================
+   THEME VARIABLES
+   ================================ */
+[data-theme="dark"] {
+  --bg: #0f172a;
+  --bg-card: #1e293b;
+  --bg-card-hover: #263348;
+  --border: #334155;
+  --text: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --primary: #4f46e5;
+  --primary-light: #818cf8;
+  --shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+  --shadow-lg: 0 20px 40px -8px rgba(0,0,0,0.5);
+  --gradient: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  --card-glow-admin: rgba(79,70,229,0.15);
+  --card-glow-teacher: rgba(20,184,166,0.15);
+}
+[data-theme="light"] {
+  --bg: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8fafc;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --primary: #4f46e5;
+  --primary-light: #6366f1;
+  --shadow: 0 4px 6px -1px rgba(0,0,0,0.07);
+  --shadow-lg: 0 20px 40px -8px rgba(0,0,0,0.12);
+  --gradient: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  --card-glow-admin: rgba(79,70,229,0.08);
+  --card-glow-teacher: rgba(20,184,166,0.08);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  transition: background 0.4s ease, color 0.4s ease;
+  overflow-x: hidden;
+}
+
+/* ================================
+   HEADER
+   ================================ */
+.header {
+  background: var(--gradient);
+  padding: 28px 24px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(79,70,229,0.3);
+  animation: headerSlideDown 0.5s ease-out;
+}
+.header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 30% 50%, rgba(255,255,255,0.08) 0%, transparent 60%),
+              radial-gradient(ellipse at 70% 50%, rgba(255,255,255,0.05) 0%, transparent 60%);
+  pointer-events: none;
+}
+.header-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.brand-badge {
+  width: 44px;
+  height: 44px;
+  background: rgba(255,255,255,0.2);
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: white;
+  margin-right: 14px;
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
+}
+.brand-text strong {
+  display: block;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: white;
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+.brand-text span {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.7);
+  font-weight: 400;
+  letter-spacing: 0.5px;
+}
+
+/* Theme Toggle */
+.theme-toggle {
+  position: absolute;
+  top: 50%;
+  right: 20px;
+  transform: translateY(-50%);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.1);
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  z-index: 10;
+}
+.theme-toggle:hover {
+  background: rgba(255,255,255,0.2);
+  border-color: rgba(255,255,255,0.5);
+  transform: translateY(-50%) scale(1.08);
+}
+
+/* ================================
+   MAIN CONTENT
+   ================================ */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 50px 20px;
+}
+
+.page-title {
+  text-align: center;
+  margin-bottom: 48px;
+  animation: fadeInUp 0.6s ease-out 0.05s both;
+}
+.page-title h2 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+  letter-spacing: -0.5px;
+}
+.page-title p {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+/* ================================
+   ROLE CARDS
+   ================================ */
+.cards {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 680px;
+  width: 100%;
+}
+
+.role-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 40px 36px;
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  animation: cardSlideUp 0.6s ease-out both;
+}
+.role-card:nth-child(1) { animation-delay: 0.15s; }
+.role-card:nth-child(2) { animation-delay: 0.3s; }
+
+/* Glow effect on hover */
+.role-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+.role-card.admin::before {
+  background: radial-gradient(ellipse at 50% 0%, var(--card-glow-admin) 0%, transparent 70%);
+}
+.role-card.teacher::before {
+  background: radial-gradient(ellipse at 50% 0%, var(--card-glow-teacher) 0%, transparent 70%);
+}
+
+/* Shimmer line on hover */
+.role-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 2px;
+  transition: left 0.5s ease;
+  pointer-events: none;
+}
+.role-card.admin::after {
+  background: linear-gradient(90deg, transparent, #818cf8, transparent);
+}
+.role-card.teacher::after {
+  background: linear-gradient(90deg, transparent, #5eead4, transparent);
+}
+.role-card:hover::after { left: 100%; }
+
+.role-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-lg);
+}
+.role-card:hover::before { opacity: 1; }
+.role-card.admin:hover { border-color: rgba(79,70,229,0.4); }
+.role-card.teacher:hover { border-color: rgba(20,184,166,0.4); }
+
+.role-card:active {
+  transform: translateY(-2px);
+  transition-duration: 0.1s;
+}
+
+/* Card Icon */
+.card-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  margin-bottom: 22px;
+  position: relative;
+  z-index: 1;
+  transition: transform 0.3s ease;
+}
+.role-card:hover .card-icon { transform: scale(1.08); }
+
+.admin .card-icon {
+  background: linear-gradient(135deg, #4f46e5, #4338ca);
+  box-shadow: 0 8px 20px rgba(79,70,229,0.35);
+  color: white;
+}
+.teacher .card-icon {
+  background: linear-gradient(135deg, #14b8a6, #0d9488);
+  box-shadow: 0 8px 20px rgba(20,184,166,0.35);
+  color: white;
+}
+
+.card-label {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+  position: relative;
+  z-index: 1;
+}
+.card-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 28px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Card Button */
+.card-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 28px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.3px;
+  position: relative;
+  z-index: 1;
+}
+.admin .card-btn {
+  background: linear-gradient(135deg, #4f46e5, #4338ca);
+  color: white;
+  box-shadow: 0 4px 12px rgba(79,70,229,0.3);
+}
+.admin .card-btn:hover {
+  box-shadow: 0 6px 18px rgba(79,70,229,0.45);
+  transform: translateY(-1px);
+}
+.teacher .card-btn {
+  background: linear-gradient(135deg, #14b8a6, #0d9488);
+  color: white;
+  box-shadow: 0 4px 12px rgba(20,184,166,0.3);
+}
+.teacher .card-btn:hover {
+  box-shadow: 0 6px 18px rgba(20,184,166,0.45);
+  transform: translateY(-1px);
+}
+
+/* ================================
+   DIVIDER & FOOTER
+   ================================ */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 40px 0 0;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  animation: fadeInUp 0.6s ease-out 0.45s both;
+}
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+  max-width: 80px;
+}
+
+.footer {
+  text-align: center;
+  padding: 20px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  animation: fadeInUp 0.6s ease-out 0.5s both;
+}
+
+/* ================================
+   ANIMATIONS
+   ================================ */
+@keyframes headerSlideDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes cardSlideUp {
+  from { opacity: 0; transform: translateY(30px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ================================
+   RESPONSIVE
+   ================================ */
+@media (max-width: 620px) {
+  .role-card { width: 100%; max-width: 340px; padding: 32px 28px; }
+  .cards { gap: 16px; }
+  .page-title h2 { font-size: 1.3rem; }
+  .header { padding: 22px 16px; }
+  .brand-text strong { font-size: 1.2rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- ======================== HEADER ======================== -->
+<div class="header">
+  <div class="header-inner">
+    <div class="brand-badge">E</div>
+    <div class="brand-text">
+      <strong>The Eye</strong>
+      <span>School Management System</span>
+    </div>
+  </div>
+  <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+    <i class="fas fa-moon" id="themeIcon"></i>
+  </button>
+</div>
+
+<!-- ======================== MAIN ======================== -->
+<div class="main">
+  <div class="page-title">
+    <h2>Choose your role</h2>
+    <p>Select how you want to access the system</p>
+  </div>
+
+  <div class="cards">
+    <!-- Admin Card -->
+    <a class="role-card admin" href="./admin.html" id="adminCard">
+      <div class="card-icon">
+        <i class="fas fa-shield-halved"></i>
+      </div>
+      <div class="card-label">Admin</div>
+      <div class="card-desc">Manage students, post announcements, and oversee all attendance records.</div>
+      <button class="card-btn">
+        <i class="fas fa-arrow-right"></i> Enter as Admin
+      </button>
+    </a>
+
+    <!-- Teacher Card -->
+    <a class="role-card teacher" href="./teacher.html" id="teacherCard">
+      <div class="card-icon">
+        <i class="fas fa-chalkboard-user"></i>
+      </div>
+      <div class="card-label">Teacher</div>
+      <div class="card-desc">Mark daily attendance, assign homework, and submit records to the system.</div>
+      <button class="card-btn">
+        <i class="fas fa-arrow-right"></i> Enter as Teacher
+      </button>
+    </a>
+  </div>
+
+  <div class="divider">The Eye System</div>
+</div>
+
+<!-- ======================== FOOTER ======================== -->
+<div class="footer">&copy; 2026 The Eye &middot; All rights reserved</div>
+
+<!-- ======================== JAVASCRIPT ======================== -->
+<script>
+  // =============================================================
+  // THEME TOGGLE
+  // =============================================================
+  function toggleTheme() {
+    const html = document.documentElement;
+    const icon = document.getElementById('themeIcon');
+    const isDark = html.getAttribute('data-theme') === 'dark';
+    html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+    localStorage.setItem('attendance-theme', isDark ? 'light' : 'dark');
+  }
+
+  // Load saved theme on startup
+  (function () {
+    const saved = localStorage.getItem('attendance-theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', saved);
+    document.getElementById('themeIcon').className = saved === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+  })();
+</script>
+
+<!-- Anti-inspect protection -->
+<script src="anti-inspect.js"></script>
+
+</body>
+</html>
