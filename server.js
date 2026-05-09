@@ -88,6 +88,19 @@ app.delete('/api/classes/:id', async (req, res) => {
   }
 })
 
+app.put('/api/classes/:id', async (req, res) => {
+  try {
+    const { name } = req.body
+    const result = await pool.query(
+      'UPDATE classes SET name=$1 WHERE id=$2 RETURNING *',
+      [name, req.params.id]
+    )
+    res.json(result.rows[0])
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // ============================================
 // TEACHERS
 // ============================================
