@@ -1291,26 +1291,23 @@
     // TEACHER ASSIGNMENT & LINK GENERATION
     // =============================================================
     async function assignTeacher(classId) {
-      const teacherId = document.getElementById(`teacherSelect${classId}`).value || null;
-
-      if (!teacherId) {
-        showToast('⚠️ Please select a teacher', 'warning');
-        return;
-      }
+      const teacherId = document.getElementById(`teacherSelect${classId}`).value
+      if (!teacherId) return
 
       try {
-        const response = await fetch(`${API}/api/teachers/${parseInt(teacherId)}`, {
+        const teachers = await fetch(`${API}/api/teachers`).then(r => r.json())
+        const teacher = teachers.find(t => t.id === parseInt(teacherId))
+        
+        const response = await fetch(`${API}/api/teachers/${teacherId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ class_id: classId })
-        });
-
-        if (!response.ok) throw new Error('Failed to assign teacher');
-
-        renderClasses();
-        showToast('✅ Teacher assigned', 'success');
+          body: JSON.stringify({ name: teacher.name, phone: teacher.phone, class_id: classId })
+        })
+        if (!response.ok) throw new Error('Failed to assign teacher')
+        renderClasses()
+        showToast('✅ Teacher assigned', 'success')
       } catch (err) {
-        showToast(`❌ Error: ${err.message}`, 'error');
+        showToast(`❌ Error: ${err.message}`, 'error')
       }
     }
 
