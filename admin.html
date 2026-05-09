@@ -856,7 +856,9 @@
             </div>
             <div class="form-group">
               <label class="form-label" for="teacherClass">Class</label>
-              <input class="form-input" type="text" id="teacherClass" placeholder="e.g. 5A">
+              <select class="form-input" id="teacherClass" required>
+                <option value="">-- Select a class --</option>
+              </select>
             </div>
             <div class="form-group">
               <label class="form-label" for="teacherPhone">Contact</label>
@@ -1019,7 +1021,9 @@
       </div>
       <div class="form-group">
         <label class="form-label" for="editTeacherClass">Class</label>
-        <input class="form-input" type="text" id="editTeacherClass" placeholder="e.g. 5A">
+        <select class="form-input" id="editTeacherClass" required>
+          <option value="">-- Select a class --</option>
+        </select>
       </div>
       <div class="form-group">
         <label class="form-label" for="editTeacherPhone">Contact</label>
@@ -1134,7 +1138,7 @@
 
     async function saveTeacher() {
       const name = document.getElementById('teacherName').value.trim();
-      const cls = document.getElementById('teacherClass').value.trim();
+      const classId = parseInt(document.getElementById('teacherClass').value);
       const phone = document.getElementById('teacherPhone').value.trim();
 
       if (!name) {
@@ -1142,8 +1146,8 @@
         document.getElementById('teacherName').focus();
         return;
       }
-      if (!cls) {
-        showToast('⚠️ Please enter class', 'warning');
+      if (!classId) {
+        showToast('⚠️ Please select a class', 'warning');
         document.getElementById('teacherClass').focus();
         return;
       }
@@ -1152,7 +1156,7 @@
         const response = await fetch(`${API}/api/teachers`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, phone: phone || null })
+          body: JSON.stringify({ name, phone: phone || null, class_id: classId })
         });
 
         if (!response.ok) throw new Error('Failed to save teacher');
@@ -1772,8 +1776,21 @@
 
         document.getElementById('editTeacherIndex').value = id;
         document.getElementById('editTeacherName').value = teacher.name;
-        document.getElementById('editTeacherClass').value = '';
         document.getElementById('editTeacherPhone').value = teacher.phone || '';
+        
+        // Populate and set class dropdown
+        const select = document.getElementById('editTeacherClass');
+        select.innerHTML = '<option value="">-- Select a class --</option>';
+        
+        const classes = await fetch(`${API}/api/classes`).then(r => r.json());
+        classes.forEach(cls => {
+          const option = document.createElement('option');
+          option.value = cls.id;
+          option.textContent = cls.name;
+          if (cls.id === teacher.class_id) option.selected = true;
+          select.appendChild(option);
+        });
+        
         document.getElementById('editTeacherModal').classList.add('open');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -1787,10 +1804,15 @@
     async function saveEditTeacher() {
       const id = parseInt(document.getElementById('editTeacherIndex').value);
       const name = document.getElementById('editTeacherName').value.trim();
+      const classId = parseInt(document.getElementById('editTeacherClass').value);
       const phone = document.getElementById('editTeacherPhone').value.trim();
 
       if (!name) {
         showToast('⚠️ Please enter teacher name', 'warning');
+        return;
+      }
+      if (!classId) {
+        showToast('⚠️ Please select a class', 'warning');
         return;
       }
 
@@ -1798,7 +1820,7 @@
         const response = await fetch(`${API}/api/teachers/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, phone: phone || null })
+          body: JSON.stringify({ name, phone: phone || null, class_id: classId })
         });
 
         if (!response.ok) throw new Error('Failed to update teacher');
@@ -1881,10 +1903,30 @@
 
 
     // =============================================================
+    // POPULATE CLASS DROPDOWN
+    // =============================================================
+    async function populateClassDropdown() {
+      try {
+        const classes = await fetch(`${API}/api/classes`).then(r => r.json());
+        const select = document.getElementById('teacherClass');
+        
+        classes.forEach(cls => {
+          const option = document.createElement('option');
+          option.value = cls.id;
+          option.textContent = cls.name;
+          select.appendChild(option);
+        });
+      } catch (err) {
+        showToast(`❌ Error loading classes: ${err.message}`, 'error');
+      }
+    }
+
+    // =============================================================
     // INITIALIZATION
     // =============================================================
     async function init() {
       loadTheme();
+      await populateClassDropdown();
       await renderClasses();
       await renderTeachers();
       await renderStudents();
