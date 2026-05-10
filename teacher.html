@@ -1299,17 +1299,18 @@
       showSmsOverlay('pending');
 
       // 6. Send to Express server
-      fetch('https://the-eye-aoyu.onrender.com/submit-attendance', {
+      fetch(`${API}/api/attendance/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           date: today,
-          totalStudents,
-          presentCount,
-          absentCount,
-          leaveCount,
-          absentees: absentees.map(s => ({ ...s, phoneValid: !!s.phone })),
-          leaveStudents: leaveStudents.map(s => ({ id: s.id, name: s.name, rollNo: s.rollNo }))
+          class_id: currentClass ? currentClass.id : null,
+          records: students.map(s => ({
+            student_id: s.id,
+            name: s.name,
+            phone: s.phone,
+            status: attendanceState[s.id]
+          }))
         })
       })
         .then(response => response.json())
