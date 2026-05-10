@@ -1033,8 +1033,8 @@
                   <label class="form-label">Assign Teacher</label>
                   <div class="teacher-assignment-inner">
                     <div class="form-group" style="margin-bottom:0; flex:1;">
-                      <select class="form-select" id="teacherSelect${cls.id}" onchange="assignTeacher(${cls.id})">
-                        <option value="">-- Select Teacher --</option>
+                      <select class="form-select" id="teacherSelect${cls.id}" onchange="assignTeacher(${cls.id})" ${teachers.length === 0 ? 'disabled' : ''}>
+                        ${teachers.length === 0 ? '<option value="">-- Add a teacher first --</option>' : '<option value="">-- Select Teacher --</option>'}
                         ${teachers.map(t => `<option value="${t.id}" ${t.class_id === cls.id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('')}
                       </select>
                     </div>
