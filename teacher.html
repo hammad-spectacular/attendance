@@ -5,8 +5,13 @@
   <script>
     // Execute immediately to prevent theme flickering (FOUC)
     (function() {
-      const savedTheme = localStorage.getItem('attendance-theme') || 'dark';
-      document.documentElement.setAttribute('data-theme', savedTheme);
+      const savedTheme = localStorage.getItem('attendance-theme');
+      if (!savedTheme) {
+        localStorage.setItem('attendance-theme', 'dark');
+        document.documentElement.setAttribute('data-theme', 'dark');
+      } else {
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      }
     })();
   </script>
   <meta charset="UTF-8">
@@ -1612,7 +1617,11 @@
     }
 
     function loadTheme() {
-      const saved = localStorage.getItem('attendance-theme') || 'dark';
+      let saved = localStorage.getItem('attendance-theme');
+      if (!saved) {
+        saved = 'dark';
+        localStorage.setItem('attendance-theme', 'dark');
+      }
       document.documentElement.setAttribute('data-theme', saved);
       updateThemeIcon(saved);
     }
