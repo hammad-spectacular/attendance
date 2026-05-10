@@ -1876,6 +1876,11 @@
         showToast('⚠️ Enter both name and phone', 'warning');
         return;
       }
+      if (phone && !/^[0-9]{11}$/.test(phone)) {
+        showToast('⚠️ Phone number must be exactly 11 digits', 'warning');
+        document.getElementById('editStudentPhone').focus();
+        return;
+      }
       
       const stIdx = students.findIndex(s => s.id === id);
       if (stIdx !== -1) {
