@@ -1302,39 +1302,19 @@
     // TEACHER ASSIGNMENT & LINK GENERATION
     // =============================================================
     async function assignTeacher(classId) {
-      const teacherId = document.getElementById(`teacherSelect${classId}`).value;
-      
+      const teacherId = document.getElementById(`teacherSelect${classId}`).value
+
       try {
-        const teachers = await fetch(`${API}/api/teachers`).then(r => r.json());
-
-        // IMPORTANT: Unassign any teacher currently in this class first
-        const currentTeacherInClass = teachers.find(t => t.class_id === classId);
-        if (currentTeacherInClass && currentTeacherInClass.id !== parseInt(teacherId)) {
-          await fetch(`${API}/api/teachers/${currentTeacherInClass.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: currentTeacherInClass.name, phone: currentTeacherInClass.phone, class_id: null })
-          });
-        }
-
-        if (!teacherId) {
-          // Already unassigned above if there was one
-        } else {
-          // Assign new teacher
-          const teacher = teachers.find(t => t.id === parseInt(teacherId));
-          if (!teacher) return;
-          
-          await fetch(`${API}/api/teachers/${teacherId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: teacher.name, phone: teacher.phone, class_id: classId })
-          });
-        }
-        
-        showToast('✅ Assignment updated', 'success');
-        setTimeout(() => location.reload(), 1000);
+        const response = await fetch(`${API}/api/classes/${classId}/assign-teacher`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ teacher_id: teacherId ? parseInt(teacherId) : null })
+        })
+        if (!response.ok) throw new Error('Failed to assign teacher')
+        showToast('✅ Teacher assigned', 'success')
+        setTimeout(() => location.reload(), 1000)
       } catch (err) {
-        showToast(`❌ Error: ${err.message}`, 'error');
+        showToast(`❌ Error: ${err.message}`, 'error')
       }
     }
 
