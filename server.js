@@ -2,6 +2,7 @@ require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 const { Pool } = require('pg')
+const { sendVeevoSMS } = require('./veevotech-sms')
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -48,7 +49,8 @@ async function createTables() {
       student_id INTEGER REFERENCES students(id) ON DELETE CASCADE,
       date DATE NOT NULL,
       status VARCHAR(20) NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(student_id, date)
     );
   `)
   console.log('✅ Tables ready')
@@ -288,6 +290,49 @@ app.get('/api/attendance/all', async (req, res) => {
       ORDER BY attendance.date DESC
     `)
     res.json(result.rows)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.post('/api/attendance/submit', async (req, res) => {
+  try {
+    const { date, class_id, records } = req.body
+    // records = [{student_id, name, phone, status}]
+
+    // Save each record to database
+    for (const record of records) {
+      await pool.query(
+        `INSERT INTO attendance (student_id, date, status)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (student_id, date) DO UPDATE SET status = EXCLUDED.status`,
+        [record.student_id, date, record.status]
+      )
+    }
+
+    // Send SMS to absent students
+    const absentees = records.filter(r => r.status === 'Absent')
+    const smsResults = []
+
+    for (const student of absentees) {
+      if (student.phone) {
+        // Format phone for Pakistan numbers
+        let phone = student.phone.replace(/\s/g, '')
+        if (phone.startsWith('0')) {
+          phone = '+92' + phone.substring(1)
+        }
+        const message = `Dear Parent, your child ${student.name} was absent today ${date}. - The Eye School System`
+        const result = await sendVeevoSMS(phone, message, student.name)
+        smsResults.push({ name: student.name, ...result })
+      }
+    }
+
+    res.json({
+      success: true,
+      saved: records.length,
+      sms_sent: smsResults.filter(r => r.success).length,
+      results: smsResults
+    })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
