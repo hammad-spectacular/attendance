@@ -1146,18 +1146,24 @@
     // =============================================================
     let addTeacherOpen = false;
 
-    function toggleAddTeacher() {
-      const classSelect = document.getElementById('teacherClass');
-      if (!addTeacherOpen && classSelect.options.length <= 1) {
-        showToast('⚠️ Please create a class first', 'warning');
-        return;
-      }
-
+    async function toggleAddTeacher() {
       addTeacherOpen = !addTeacherOpen;
       const form = document.getElementById('addTeacherForm');
       const btn = document.getElementById('addTeacherToggleBtn');
 
       if (addTeacherOpen) {
+        // Populate class dropdown on open
+        try {
+          const classes = await fetch(`${API}/api/classes`).then(r => r.json());
+          const select = document.getElementById('teacherClass');
+          select.innerHTML = '<option value="">-- Select a class (optional) --</option>';
+          classes.forEach(c => {
+            select.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+          });
+        } catch (err) {
+          console.error('Error loading classes:', err);
+        }
+
         form.classList.add('open');
         btn.innerHTML = '<i class="fas fa-times"></i> Cancel';
         document.getElementById('teacherName').focus();
@@ -1174,9 +1180,9 @@
       document.getElementById('teacherPhone').value = '';
     }
 
-    function saveTeacher() {
+    async function saveTeacher() {
       const name = document.getElementById('teacherName').value.trim();
-      const cls = document.getElementById('teacherClass').value.trim();
+      const classId = parseInt(document.getElementById('teacherClass').value);
       const phone = document.getElementById('teacherPhone').value.trim();
 
       if (!name) {
@@ -1184,41 +1190,41 @@
         document.getElementById('teacherName').focus();
         return;
       }
-      if (!cls) {
-        showToast('⚠️ Please enter class', 'warning');
-        document.getElementById('teacherClass').focus();
-        return;
-      }
+      // Class is optional now
       if (phone && !/^[0-9]{11}$/.test(phone)) {
         showToast('⚠️ Phone number must be exactly 11 digits', 'warning');
         document.getElementById('teacherPhone').focus();
         return;
       }
 
-      const teachers = loadFromStorage(KEYS.teachers);
-      const newTeacher = {
-        id: Date.now(),
-        name,
-        class: cls,
-        phone: phone || '—'
-      };
-      teachers.push(newTeacher);
-      saveToStorage(KEYS.teachers, teachers);
+      try {
+        const response = await fetch(`${API}/api/teachers`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, phone: phone || null, class_id: classId })
+        });
 
-      clearTeacherForm();
-      toggleAddTeacher();
-      renderTeachers();
-      renderClasses();
-      showToast('✅ Teacher added successfully', 'success');
+        if (!response.ok) throw new Error('Failed to add teacher');
+
+        clearTeacherForm();
+        toggleAddTeacher();
+        renderTeachers();
+        showToast('✅ Teacher added successfully', 'success');
+      } catch (err) {
+        showToast(`❌ Error: ${err.message}`, 'error');
+      }
     }
 
-    function deleteTeacher(index) {
+    async function deleteTeacher(id) {
       if (!confirm('Remove this teacher?')) return;
-      const teachers = loadFromStorage(KEYS.teachers);
-      teachers.splice(index, 1);
-      saveToStorage(KEYS.teachers, teachers);
-      renderTeachers();
-      showToast('🗑️ Teacher removed', 'info');
+      try {
+        const response = await fetch(`${API}/api/teachers/${id}`, { method: 'DELETE' });
+        if (!response.ok) throw new Error('Failed to delete teacher');
+        renderTeachers();
+        showToast('🗑️ Teacher removed', 'info');
+      } catch (err) {
+        showToast(`❌ Error: ${err.message}`, 'error');
+      }
     }
 
     // =============================================================
@@ -1361,55 +1367,60 @@
       wrap.innerHTML = html;
     }
 
-    function renderTeachers() {
+    async function renderTeachers() {
       const wrap = document.getElementById('teachersTableWrap');
-      const teachers = loadFromStorage(KEYS.teachers);
+      
+      try {
+        const teachers = await fetch(`${API}/api/teachers`).then(r => r.json());
 
-      if (teachers.length === 0) {
-        wrap.innerHTML = `
-          <div class="empty-state">
-            <div class="icon">👨‍🏫</div>
-            <div class="msg">No teachers added yet</div>
-            <div class="sub">Click "Add Teacher" to register one</div>
-          </div>`;
-        return;
+        if (teachers.length === 0) {
+          wrap.innerHTML = `
+            <div class="empty-state">
+              <div class="icon">👨‍🏫</div>
+              <div class="msg">No teachers added yet</div>
+              <div class="sub">Click "Add Teacher" to register one</div>
+            </div>`;
+          return;
+        }
+
+        let html = `
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Class</th>
+                <th>Contact</th>
+                <th style="width:90px;"></th>
+              </tr>
+            </thead>
+            <tbody>`;
+
+        teachers.forEach((t, i) => {
+          html += `
+              <tr>
+                <td style="color:var(--text-muted); font-weight:500;">${i + 1}</td>
+                <td>${escapeHtml(t.name)}</td>
+                <td><span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(t.class_name || '—')}</span></td>
+                <td>${escapeHtml(t.phone || '—')}</td>
+                <td>
+                  <div class="action-buttons">
+                    <button onclick="openEditTeacherModal(${t.id})" class="btn-edit" title="Edit teacher">
+                      <i class="fas fa-pen"></i>
+                    </button>
+                    <button onclick="deleteTeacher(${t.id})" class="announcement-delete" style="opacity:1;" title="Remove teacher">
+                      <i class="fas fa-trash-alt"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>`;
+        });
+
+        html += `</tbody></table>`;
+        wrap.innerHTML = html;
+      } catch (err) {
+        wrap.innerHTML = `<div class="empty-state"><div class="msg">Error loading teachers: ${err.message}</div></div>`;
       }
-
-      let html = `
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Name</th>
-              <th>Class</th>
-              <th>Contact</th>
-              <th style="width:90px;"></th>
-            </tr>
-          </thead>
-          <tbody>`;
-
-      teachers.forEach((t, i) => {
-        html += `
-            <tr>
-              <td style="color:var(--text-muted); font-weight:500;">${i + 1}</td>
-              <td>${escapeHtml(t.name)}</td>
-              <td><span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(t.class)}</span></td>
-              <td>${escapeHtml(t.phone)}</td>
-              <td>
-                <div class="action-buttons">
-                  <button onclick="openEditTeacherModal(${i})" class="btn-edit" title="Edit teacher">
-                    <i class="fas fa-pen"></i>
-                  </button>
-                  <button onclick="deleteTeacher(${i})" class="announcement-delete" style="opacity:1;" title="Remove teacher">
-                    <i class="fas fa-trash-alt"></i>
-                  </button>
-                </div>
-              </td>
-            </tr>`;
-      });
-
-      html += `</tbody></table>`;
-      wrap.innerHTML = html;
     }
 
 
@@ -1803,61 +1814,70 @@
     // =============================================================
     // EDIT TEACHER MODAL
     // =============================================================
-    function openEditTeacherModal(index) {
-      const teachers = loadFromStorage(KEYS.teachers);
-      const teacher = teachers[index];
-      if (!teacher) return;
+    async function openEditTeacherModal(id) {
+      try {
+        const teachers = await fetch(`${API}/api/teachers`).then(r => r.json());
+        const teacher = teachers.find(t => t.id === id);
+        if (!teacher) return;
 
-      document.getElementById('editTeacherIndex').value = index;
-      document.getElementById('editTeacherName').value = teacher.name;
-      document.getElementById('editTeacherPhone').value = teacher.phone || '';
+        document.getElementById('editTeacherIndex').value = id;
+        document.getElementById('editTeacherName').value = teacher.name;
+        document.getElementById('editTeacherPhone').value = teacher.phone || '';
 
-      // Populate class dropdown
-      const classes = loadFromStorage('classes');
-      const select = document.getElementById('editTeacherClass');
-      select.innerHTML = '<option value="">-- Select a class --</option>';
-      classes.forEach(cls => {
-        const option = document.createElement('option');
-        option.value = cls.name;
-        option.textContent = cls.name;
-        if (cls.name === teacher.class) option.selected = true;
-        select.appendChild(option);
-      });
+        // Populate class dropdown
+        const classes = await fetch(`${API}/api/classes`).then(r => r.json());
+        const select = document.getElementById('editTeacherClass');
+        select.innerHTML = '<option value="">-- Select a class --</option>';
+        classes.forEach(cls => {
+          const option = document.createElement('option');
+          option.value = cls.id;
+          option.textContent = cls.name;
+          if (cls.id === teacher.class_id) option.selected = true;
+          select.appendChild(option);
+        });
 
-      document.getElementById('editTeacherModal').classList.add('open');
+        document.getElementById('editTeacherModal').classList.add('open');
+      } catch (err) {
+        showToast(`❌ Error: ${err.message}`, 'error');
+      }
     }
 
     function closeEditTeacherModal() {
       document.getElementById('editTeacherModal').classList.remove('open');
     }
 
-    function saveEditTeacher() {
-      const index = parseInt(document.getElementById('editTeacherIndex').value);
+    async function saveEditTeacher() {
+      const id = parseInt(document.getElementById('editTeacherIndex').value);
       const name = document.getElementById('editTeacherName').value.trim();
-      const cls = document.getElementById('editTeacherClass').value.trim();
+      const classId = parseInt(document.getElementById('editTeacherClass').value);
       const phone = document.getElementById('editTeacherPhone').value.trim();
 
       if (!name) {
         showToast('⚠️ Please enter teacher name', 'warning');
         return;
       }
-      if (!cls) {
-        showToast('⚠️ Please enter class', 'warning');
-        return;
-      }
+      // Class is optional now
       if (phone && !/^[0-9]{11}$/.test(phone)) {
         showToast('⚠️ Phone number must be exactly 11 digits', 'warning');
         document.getElementById('editTeacherPhone').focus();
         return;
       }
 
-      const teachers = loadFromStorage(KEYS.teachers);
-      teachers[index] = { name, class: cls, phone: phone || '—' };
-      saveToStorage(KEYS.teachers, teachers);
+      try {
+        const response = await fetch(`${API}/api/teachers/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, phone: phone || null, class_id: classId })
+        });
 
-      closeEditTeacherModal();
-      renderTeachers();
-      showToast('✅ Teacher updated successfully', 'success');
+        if (!response.ok) throw new Error('Failed to update teacher');
+
+        closeEditTeacherModal();
+        renderTeachers();
+        showToast('✅ Teacher updated successfully', 'success');
+      } catch (err) {
+        showToast(`❌ Error: ${err.message}`, 'error');
+      }
     }
 
     document.addEventListener('DOMContentLoaded', function() {
