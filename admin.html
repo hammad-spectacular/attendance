@@ -1087,6 +1087,8 @@
       theme: 'attendance-theme'
     };
 
+    const API = 'https://attendance-production-fb0b.up.railway.app';
+
     // =============================================================
     // UTILITY: localStorage helpers
     // =============================================================
@@ -1138,8 +1140,8 @@
     let addTeacherOpen = false;
 
     function toggleAddTeacher() {
-      const classes = loadFromStorage('classes');
-      if (!addTeacherOpen && classes.length === 0) {
+      const classSelect = document.getElementById('teacherClass');
+      if (!addTeacherOpen && classSelect.options.length <= 1) {
         showToast('⚠️ Please create a class first', 'warning');
         return;
       }
@@ -1149,16 +1151,6 @@
       const btn = document.getElementById('addTeacherToggleBtn');
 
       if (addTeacherOpen) {
-        // Populate class dropdown
-        const select = document.getElementById('teacherClass');
-        select.innerHTML = '<option value="">-- Select a class --</option>';
-        classes.forEach(cls => {
-          const option = document.createElement('option');
-          option.value = cls.name;
-          option.textContent = cls.name;
-          select.appendChild(option);
-        });
-
         form.classList.add('open');
         btn.innerHTML = '<i class="fas fa-times"></i> Cancel';
         document.getElementById('teacherName').focus();
@@ -1927,10 +1919,31 @@
 
 
     // =============================================================
+    // =============================================================
+    // POPULATE CLASS DROPDOWN
+    // =============================================================
+    async function populateClassDropdown() {
+      try {
+        const classes = await fetch(`${API}/api/classes`).then(r => r.json());
+        const select = document.getElementById('teacherClass');
+        select.innerHTML = '<option value="">-- Select a class --</option>';
+        
+        classes.forEach(cls => {
+          const option = document.createElement('option');
+          option.value = cls.id;
+          option.textContent = cls.name;
+          select.appendChild(option);
+        });
+      } catch (err) {
+        console.error('Error loading classes:', err);
+      }
+    }
+
     // INITIALIZATION
     // =============================================================
-    function init() {
+    async function init() {
       loadTheme();
+      await populateClassDropdown();
       renderClasses();
       renderTeachers();
       renderStudents();
