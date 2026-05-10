@@ -1331,8 +1331,8 @@
           });
         }
         
-        renderClasses();
         showToast('✅ Assignment updated', 'success');
+        setTimeout(() => location.reload(), 1000);
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       }
