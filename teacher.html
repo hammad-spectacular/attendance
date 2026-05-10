@@ -795,12 +795,6 @@
     //       e.g., fetch('/api/students').then(res => res.json())
     // =============================================================
     let students = [];
-    try {
-      const stored = localStorage.getItem('students');
-      if (stored) {
-        students = JSON.parse(stored);
-      }
-    } catch(e) { console.error('Error loading students', e); }
 
     // Attendance state map: { studentId: "Present" | "Absent" | null }
     const attendanceState = {};
