@@ -1200,6 +1200,10 @@
         showToast('⚠️ Enter roll number', 'warning');
         return;
       }
+      if (phone && !/^[0-9]{11}$/.test(phone)) {
+        showToast('⚠️ Phone number must be 11 digits', 'warning');
+        return;
+      }
 
       try {
         const response = await fetch(`${API}/api/students`, {
@@ -1270,6 +1274,10 @@
       }
       if (!rollNo) {
         showToast('⚠️ Enter roll number', 'warning');
+        return;
+      }
+      if (phone && !/^[0-9]{11}$/.test(phone)) {
+        showToast('⚠️ Phone number must be 11 digits', 'warning');
         return;
       }
 
