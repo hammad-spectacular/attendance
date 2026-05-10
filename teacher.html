@@ -2,6 +2,13 @@
 <html lang="en" data-theme="dark">
 
 <head>
+  <script>
+    // Execute immediately to prevent theme flickering (FOUC)
+    (function() {
+      const savedTheme = localStorage.getItem('attendance-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Teacher Dashboard — The Eye</title>
@@ -543,7 +550,7 @@
   </nav>
 
   <!-- ======================== MAIN ======================== -->
-  <main class="max-w-5xl mx-auto px-4 py-5 sm:py-8 pb-24">
+  <main class="max-w-5xl mx-auto px-4 py-5 sm:py-8 pb-32">
     
     <!-- ======================== ATTENDANCE TAB ======================== -->
     <div id="tab-attendance" class="tab-content active">
@@ -1713,6 +1720,7 @@
           dropdown.appendChild(opt);
         });
         modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling
       }
     }
 
@@ -1727,6 +1735,7 @@
       currentTeacher = teachers[dropdown.value];
       
       document.getElementById('teacherSelectionModal').classList.add('hidden');
+      document.body.style.overflow = 'auto'; // Restore scrolling
       document.getElementById('headerTeacherName').textContent = currentTeacher.name;
       document.getElementById('headerClassName').textContent = `Class ${currentTeacher.class}`;
       
