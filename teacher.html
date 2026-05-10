@@ -1608,6 +1608,8 @@
       updateThemeIcon(next);
     }
 
+    const API = 'https://attendance-production-fb0b.up.railway.app';
+
     function updateThemeIcon(theme) {
       const icon = document.getElementById('themeIcon');
       if (icon) icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
@@ -1647,29 +1649,34 @@
       }
     }
 
-    function autoLoadTeacherClass(teacherId) {
+    async function autoLoadTeacherClass(teacherId) {
       try {
-        const teachers = JSON.parse(localStorage.getItem('teachers') || '[]');
-        const classes = JSON.parse(localStorage.getItem('classes') || '[]');
-
+        const teachers = await fetch(`${API}/api/teachers`).then(r => r.json());
         const teacher = teachers.find(t => t.id === teacherId);
+
         if (!teacher) {
           showToast('❌ Teacher not found', 'error');
           showTeacherSelectionModal();
           return;
         }
 
-        const assignedClass = classes.find(c => c.teacherId === teacherId);
+        const classes = await fetch(`${API}/api/classes`).then(r => r.json());
+        const assignedClass = classes.find(c => c.id === teacher.class_id);
+
         if (!assignedClass) {
           showToast('❌ No class assigned to this teacher', 'error');
           showTeacherSelectionModal();
           return;
         }
 
+        // Fetch students for this class
+        const allStudents = await fetch(`${API}/api/students`).then(r => r.json());
+        const classStudents = allStudents.filter(s => s.class_id === assignedClass.id);
+
         // Load teacher and class
         currentTeacher = teacher;
         currentClass = assignedClass;
-        students = assignedClass.students || [];
+        students = classStudents;
         
         // Hide modal and update UI
         document.getElementById('teacherSelectionModal').classList.add('hidden');
@@ -1686,6 +1693,7 @@
         renderSchoolAnnouncements();
         renderClassAnnouncements();
         renderHomework();
+        renderStats();
 
         showToast(`👋 Welcome, ${teacher.name}`, 'success');
       } catch (e) {
@@ -1695,56 +1703,45 @@
       }
     }
 
-    function showTeacherSelectionModal() {
+    async function showTeacherSelectionModal() {
       const modal = document.getElementById('teacherSelectionModal');
       const dropdown = document.getElementById('teacherSelectDropdown');
       const noMsg = document.getElementById('noTeachersMsg');
       const btn = modal.querySelector('button');
       
-      let teachers = [];
       try {
-        const tRaw = localStorage.getItem('teachers');
-        if (tRaw) teachers = JSON.parse(tRaw);
-      } catch(e) {}
+        const teachers = await fetch(`${API}/api/teachers`).then(r => r.json());
 
-      if (!Array.isArray(teachers) || teachers.length === 0) {
-        dropdown.style.display = 'none';
-        btn.style.display = 'none';
-        noMsg.classList.remove('hidden');
-      } else {
-        dropdown.innerHTML = '<option value="">-- Select Teacher --</option>';
-        teachers.forEach((t, i) => {
-          const opt = document.createElement('option');
-          opt.value = i;
-          opt.textContent = `${t.name} (Class: ${t.class})`;
-          dropdown.appendChild(opt);
-        });
-        modal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        if (!Array.isArray(teachers) || teachers.length === 0) {
+          dropdown.style.display = 'none';
+          btn.style.display = 'none';
+          noMsg.classList.remove('hidden');
+        } else {
+          dropdown.innerHTML = '<option value="">-- Select Teacher --</option>';
+          teachers.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.id;
+            opt.textContent = `${t.name} (Class: ${t.class_name || 'N/A'})`;
+            dropdown.appendChild(opt);
+          });
+          modal.classList.remove('hidden');
+          document.body.style.overflow = 'hidden';
+        }
+      } catch (err) {
+        console.error('Error loading teachers:', err);
+        showToast('❌ Failed to load teachers', 'error');
       }
     }
 
-    function confirmTeacherSelection() {
+    async function confirmTeacherSelection() {
       const dropdown = document.getElementById('teacherSelectDropdown');
-      if (!dropdown.value) {
+      const teacherId = parseInt(dropdown.value);
+      if (!teacherId) {
         showToast('⚠️ Please select a teacher', 'warning');
         return;
       }
       
-      const teachers = JSON.parse(localStorage.getItem('teachers') || '[]');
-      currentTeacher = teachers[dropdown.value];
-      
-      document.getElementById('teacherSelectionModal').classList.add('hidden');
-      document.body.style.overflow = 'auto'; // Restore scrolling
-      document.getElementById('headerTeacherName').textContent = currentTeacher.name;
-      document.getElementById('headerClassName').textContent = `Class ${currentTeacher.class}`;
-      
-      showToast(`👋 Welcome, ${currentTeacher.name}`, 'success');
-      
-      renderSchoolAnnouncements();
-      renderClassAnnouncements();
-      renderHomework();
-      renderStats();
+      await autoLoadTeacherClass(teacherId);
     }
 
     function renderSchoolAnnouncements() {
