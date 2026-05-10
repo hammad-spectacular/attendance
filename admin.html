@@ -856,9 +856,7 @@
             </div>
             <div class="form-group">
               <label class="form-label" for="teacherClass">Class</label>
-              <select class="form-input" id="teacherClass" required>
-                <option value="">-- Select a class --</option>
-              </select>
+              <input class="form-input" type="text" id="teacherClass" placeholder="e.g. 5A">
             </div>
             <div class="form-group">
               <label class="form-label" for="teacherPhone">Contact</label>
@@ -1021,9 +1019,7 @@
       </div>
       <div class="form-group">
         <label class="form-label" for="editTeacherClass">Class</label>
-        <select class="form-input" id="editTeacherClass" required>
-          <option value="">-- Select a class --</option>
-        </select>
+        <input class="form-input" type="text" id="editTeacherClass" placeholder="e.g. 5A">
       </div>
       <div class="form-group">
         <label class="form-label" for="editTeacherPhone">Contact</label>
@@ -1077,19 +1073,46 @@
   <!-- ======================== JAVASCRIPT ======================== -->
   <script>
     // =============================================================
-    // API CONFIGURATION
+    // LOCALSTORAGE KEYS
     // =============================================================
-    const API = 'https://attendance-production-fb0b.up.railway.app';
+    const KEYS = {
+      teachers: 'teachers',
+      students: 'students',
+      attendance: 'attendance',            // matches teacher.html key
+      announcements: 'schoolAnnouncements',
+      theme: 'attendance-theme'
+    };
 
     // =============================================================
-    // THEME TOGGLE (using localStorage for theme only)
+    // UTILITY: localStorage helpers
+    // =============================================================
+    function loadFromStorage(key) {
+      try {
+        const data = JSON.parse(localStorage.getItem(key));
+        return Array.isArray(data) ? data : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveToStorage(key, data) {
+      localStorage.setItem(key, JSON.stringify(data));
+    }
+
+    function getTodayDate() {
+      return new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+    }
+
+
+    // =============================================================
+    // THEME TOGGLE
     // =============================================================
     function toggleTheme() {
       const html = document.documentElement;
       const isDark = html.getAttribute('data-theme') === 'dark';
       const next = isDark ? 'light' : 'dark';
       html.setAttribute('data-theme', next);
-      localStorage.setItem('attendance-theme', next);
+      localStorage.setItem(KEYS.theme, next);
       updateThemeIcon(next);
     }
 
@@ -1099,13 +1122,9 @@
     }
 
     function loadTheme() {
-      const saved = localStorage.getItem('attendance-theme') || 'dark';
+      const saved = localStorage.getItem(KEYS.theme) || 'dark';
       document.documentElement.setAttribute('data-theme', saved);
       updateThemeIcon(saved);
-    }
-
-    function getTodayDate() {
-      return new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
     }
 
 
@@ -1136,9 +1155,9 @@
       document.getElementById('teacherPhone').value = '';
     }
 
-    async function saveTeacher() {
+    function saveTeacher() {
       const name = document.getElementById('teacherName').value.trim();
-      const classId = parseInt(document.getElementById('teacherClass').value);
+      const cls = document.getElementById('teacherClass').value.trim();
       const phone = document.getElementById('teacherPhone').value.trim();
 
       if (!name) {
@@ -1146,48 +1165,36 @@
         document.getElementById('teacherName').focus();
         return;
       }
-      if (!classId) {
-        showToast('⚠️ Please select a class', 'warning');
+      if (!cls) {
+        showToast('⚠️ Please enter class', 'warning');
         document.getElementById('teacherClass').focus();
         return;
       }
 
-      try {
-        const response = await fetch(`${API}/api/teachers`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, phone: phone || null, class_id: classId })
-        });
+      const teachers = loadFromStorage(KEYS.teachers);
+      const newTeacher = {
+        id: Date.now(),
+        name,
+        class: cls,
+        phone: phone || '—'
+      };
+      teachers.push(newTeacher);
+      saveToStorage(KEYS.teachers, teachers);
 
-        if (!response.ok) throw new Error('Failed to save teacher');
-        
-        clearTeacherForm();
-        toggleAddTeacher();
-        renderTeachers();
-        renderClasses();
-        showToast('✅ Teacher added successfully', 'success');
-      } catch (err) {
-        showToast(`❌ Error: ${err.message}`, 'error');
-      }
+      clearTeacherForm();
+      toggleAddTeacher();
+      renderTeachers();
+      renderClasses();
+      showToast('✅ Teacher added successfully', 'success');
     }
 
-    async function deleteTeacher(index) {
+    function deleteTeacher(index) {
       if (!confirm('Remove this teacher?')) return;
-      
-      try {
-        const teachers = await fetch(`${API}/api/teachers`).then(r => r.json());
-        if (index >= teachers.length) return;
-        
-        const teacher = teachers[index];
-        const response = await fetch(`${API}/api/teachers/${teacher.id}`, { method: 'DELETE' });
-        
-        if (!response.ok) throw new Error('Failed to delete teacher');
-        
-        renderTeachers();
-        showToast('🗑️ Teacher removed', 'info');
-      } catch (err) {
-        showToast(`❌ Error: ${err.message}`, 'error');
-      }
+      const teachers = loadFromStorage(KEYS.teachers);
+      teachers.splice(index, 1);
+      saveToStorage(KEYS.teachers, teachers);
+      renderTeachers();
+      showToast('🗑️ Teacher removed', 'info');
     }
 
     // =============================================================
@@ -1213,7 +1220,7 @@
       }
     }
 
-    async function saveStudent() {
+    function saveStudent() {
       const name = document.getElementById('studentName').value.trim();
       const rollNo = document.getElementById('studentRoll').value.trim();
       const phone = document.getElementById('studentPhone').value.trim();
@@ -1227,374 +1234,366 @@
         return;
       }
 
-      try {
-        const response = await fetch(`${API}/api/students`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, roll_no: rollNo, phone: phone || null })
-        });
-
-        if (!response.ok) throw new Error('Failed to save student');
-        
-        toggleAddStudent();
-        renderStudents();
-        showToast('✅ Student added successfully', 'success');
-      } catch (err) {
-        showToast(`❌ Error: ${err.message}`, 'error');
+      let students = loadFromStorage(KEYS.students);
+      // Initialize with default if completely empty
+      if (students.length === 0 && !localStorage.getItem(KEYS.students)) {
+         students = [
+          { id: 1, name: "Ali Hassan", rollNo: "CS-101", phone: "+923209789348" },
+          { id: 2, name: "Sara Ahmed", rollNo: "CS-102", phone: "+923215788075" },
+          { id: 3, name: "Omar Farooq", rollNo: "CS-103", phone: "+923209789348" },
+          { id: 4, name: "Fatima Zahra", rollNo: "CS-104", phone: "+923209789348" },
+          { id: 5, name: "Hassan Raza", rollNo: "CS-105", phone: "+923209789348" },
+          { id: 6, name: "Ayesha Khan", rollNo: "CS-106", phone: "+923209789348" },
+          { id: 7, name: "Bilal Mahmood", rollNo: "CS-107", phone: "+923209789348" },
+          { id: 8, name: "Zainab Tariq", rollNo: "CS-108", phone: "+923209789348" },
+        ];
       }
+      
+      const newId = students.length > 0 ? Math.max(...students.map(s => s.id)) + 1 : 1;
+      students.push({ id: newId, name, rollNo, phone: phone || '—' });
+      saveToStorage(KEYS.students, students);
+
+      toggleAddStudent();
+      renderStudents();
+      showToast('✅ Student added successfully', 'success');
     }
 
-    async function deleteStudent(id) {
+    function deleteStudent(id) {
       if (!confirm('Remove this student?')) return;
-      
-      try {
-        const response = await fetch(`${API}/api/students/${id}`, { method: 'DELETE' });
-        
-        if (!response.ok) throw new Error('Failed to delete student');
-        
-        renderStudents();
-        showToast('🗑️ Student removed', 'info');
-      } catch (err) {
-        showToast(`❌ Error: ${err.message}`, 'error');
-      }
+      let students = loadFromStorage(KEYS.students);
+      students = students.filter(s => s.id !== id);
+      saveToStorage(KEYS.students, students);
+      renderStudents();
+      showToast('🗑️ Student removed', 'info');
     }
 
-    async function renderStudents() {
+    function renderStudents() {
       const wrap = document.getElementById('studentsTableWrap');
+      let students = loadFromStorage(KEYS.students);
       
-      try {
-        const students = await fetch(`${API}/api/students`).then(r => r.json());
-
-        if (students.length === 0) {
-          wrap.innerHTML = `
-            <div class="empty-state">
-              <div class="icon">🎓</div>
-              <div class="msg">No students added yet</div>
-              <div class="sub">Click "Add Student" to register one</div>
-            </div>`;
-          return;
-        }
-
-        let html = `
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th style="width:50px;">ID</th>
-                <th>Name</th>
-                <th>Roll No</th>
-                <th>Contact</th>
-                <th style="width:90px;"></th>
-              </tr>
-            </thead>
-            <tbody>`;
-
-        students.forEach((s) => {
-          html += `
-            <tr>
-              <td style="color:var(--text-muted); font-size:0.75rem;">#${s.id}</td>
-              <td>${escapeHtml(s.name)}</td>
-              <td><span class="badge" style="background:var(--bg); border:1px solid var(--border); color:var(--text-secondary);">${escapeHtml(s.roll_no)}</span></td>
-              <td>${escapeHtml(s.phone || '—')}</td>
-              <td style="text-align:right;">
-                <div class="action-buttons">
-                  <button onclick="openEditStudentModal(${s.id})" class="btn-edit" title="Edit student">
-                    <i class="fas fa-pen"></i>
-                  </button>
-                  <button class="announcement-delete" style="opacity:1;" onclick="deleteStudent(${s.id})" title="Remove Student">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </div>
-              </td>
-            </tr>`;
-        });
-
-        html += `</tbody></table>`;
-        wrap.innerHTML = html;
-      } catch (err) {
-        wrap.innerHTML = `<div class="empty-state"><div class="msg">Error loading students: ${err.message}</div></div>`;
+      if (students.length === 0 && !localStorage.getItem(KEYS.students)) {
+        students = [
+          { id: 1, name: "Ali Hassan", rollNo: "CS-101", phone: "+923209789348" },
+          { id: 2, name: "Sara Ahmed", rollNo: "CS-102", phone: "+923215788075" },
+          { id: 3, name: "Omar Farooq", rollNo: "CS-103", phone: "+923209789348" },
+          { id: 4, name: "Fatima Zahra", rollNo: "CS-104", phone: "+923209789348" },
+          { id: 5, name: "Hassan Raza", rollNo: "CS-105", phone: "+923209789348" },
+          { id: 6, name: "Ayesha Khan", rollNo: "CS-106", phone: "+923209789348" },
+          { id: 7, name: "Bilal Mahmood", rollNo: "CS-107", phone: "+923209789348" },
+          { id: 8, name: "Zainab Tariq", rollNo: "CS-108", phone: "+923209789348" },
+        ];
+        saveToStorage(KEYS.students, students);
       }
+
+      if (students.length === 0) {
+        wrap.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">🎓</div>
+            <div class="msg">No students added yet</div>
+            <div class="sub">Click "Add Student" to register one</div>
+          </div>`;
+        return;
+      }
+
+      let html = `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width:50px;">ID</th>
+              <th>Name</th>
+              <th>Roll No</th>
+              <th>Contact</th>
+              <th style="width:90px;"></th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+      students.forEach((s) => {
+        html += `
+          <tr>
+            <td style="color:var(--text-muted); font-size:0.75rem;">#${s.id}</td>
+            <td>${s.name}</td>
+            <td><span class="badge" style="background:var(--bg); border:1px solid var(--border); color:var(--text-secondary);">${s.rollNo}</span></td>
+            <td>${s.phone}</td>
+            <td style="text-align:right;">
+              <div class="action-buttons">
+                <button onclick="openEditStudentModal(${s.id})" class="btn-edit" title="Edit student">
+                  <i class="fas fa-pen"></i>
+                </button>
+                <button class="announcement-delete" style="opacity:1;" onclick="deleteStudent(${s.id})" title="Remove Student">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </td>
+          </tr>`;
+      });
+
+      html += `</tbody></table>`;
+      wrap.innerHTML = html;
     }
 
-    async function renderTeachers() {
+    function renderTeachers() {
       const wrap = document.getElementById('teachersTableWrap');
-      
-      try {
-        const teachers = await fetch(`${API}/api/teachers`).then(r => r.json());
+      const teachers = loadFromStorage(KEYS.teachers);
 
-        if (teachers.length === 0) {
-          wrap.innerHTML = `
-            <div class="empty-state">
-              <div class="icon">👨‍🏫</div>
-              <div class="msg">No teachers added yet</div>
-              <div class="sub">Click "Add Teacher" to register one</div>
-            </div>`;
-          return;
-        }
+      if (teachers.length === 0) {
+        wrap.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">👨‍🏫</div>
+            <div class="msg">No teachers added yet</div>
+            <div class="sub">Click "Add Teacher" to register one</div>
+          </div>`;
+        return;
+      }
 
-        let html = `
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Name</th>
-                <th>Class</th>
-                <th>Contact</th>
-                <th style="width:90px;"></th>
-              </tr>
-            </thead>
-            <tbody>`;
+      let html = `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Class</th>
+              <th>Contact</th>
+              <th style="width:90px;"></th>
+            </tr>
+          </thead>
+          <tbody>`;
 
-        teachers.forEach((t, i) => {
-          html += `
+      teachers.forEach((t, i) => {
+        html += `
             <tr>
               <td style="color:var(--text-muted); font-weight:500;">${i + 1}</td>
               <td>${escapeHtml(t.name)}</td>
-              <td><span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">N/A</span></td>
-              <td>${escapeHtml(t.phone || '—')}</td>
+              <td><span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(t.class)}</span></td>
+              <td>${escapeHtml(t.phone)}</td>
               <td>
                 <div class="action-buttons">
-                  <button onclick="openEditTeacherModal(${t.id})" class="btn-edit" title="Edit teacher">
+                  <button onclick="openEditTeacherModal(${i})" class="btn-edit" title="Edit teacher">
                     <i class="fas fa-pen"></i>
                   </button>
-                  <button onclick="deleteTeacherById(${t.id})" class="announcement-delete" style="opacity:1;" title="Remove teacher">
+                  <button onclick="deleteTeacher(${i})" class="announcement-delete" style="opacity:1;" title="Remove teacher">
                     <i class="fas fa-trash-alt"></i>
                   </button>
                 </div>
               </td>
             </tr>`;
-        });
+      });
 
-        html += `</tbody></table>`;
-        wrap.innerHTML = html;
-      } catch (err) {
-        wrap.innerHTML = `<div class="empty-state"><div class="msg">Error loading teachers: ${err.message}</div></div>`;
-      }
-    }
-
-    async function deleteTeacherById(id) {
-      if (!confirm('Remove this teacher?')) return;
-      
-      try {
-        const response = await fetch(`${API}/api/teachers/${id}`, { method: 'DELETE' });
-        
-        if (!response.ok) throw new Error('Failed to delete teacher');
-        
-        renderTeachers();
-        showToast('🗑️ Teacher removed', 'info');
-      } catch (err) {
-        showToast(`❌ Error: ${err.message}`, 'error');
-      }
+      html += `</tbody></table>`;
+      wrap.innerHTML = html;
     }
 
 
     // =============================================================
     // SECTION 2: ATTENDANCE OVERVIEW
     // =============================================================
-    async function renderAttendance() {
+    function renderAttendance() {
       const wrap = document.getElementById('attendanceTableWrap');
-      
-      try {
-        const records = await fetch(`${API}/api/attendance/all`).then(r => r.json());
+      const records = loadFromStorage(KEYS.attendance);
 
-        if (records.length === 0) {
-          wrap.innerHTML = `
-            <div class="empty-state" style="padding:36px 16px;">
-              <div class="icon">📊</div>
-              <div class="msg">No attendance records found</div>
-              <div class="sub">Records appear here after teachers submit attendance</div>
-            </div>`;
-          return;
-        }
+      if (records.length === 0) {
+        wrap.innerHTML = `
+          <div class="empty-state" style="padding:36px 16px;">
+            <div class="icon">📊</div>
+            <div class="msg">No attendance records found</div>
+            <div class="sub">Records appear here after teachers submit attendance</div>
+          </div>`;
+        return;
+      }
 
-        // Group by date
-        const grouped = {};
-        records.forEach(r => {
-          if (!grouped[r.date]) grouped[r.date] = [];
-          grouped[r.date].push(r);
-        });
+      const sorted = [...records].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
-        let html = `
-          <div style="overflow-x:auto;">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Class</th>
-                <th>Present</th>
-                <th>Absent</th>
-                <th style="width:100px;"></th>
-              </tr>
-            </thead>
-            <tbody>`;
-
-        const sortedDates = Object.keys(grouped).sort().reverse();
-
-        sortedDates.forEach(date => {
-          const dayRecords = grouped[date];
-          const present = dayRecords.filter(r => r.status === 'Present').length;
-          const absent = dayRecords.filter(r => r.status === 'Absent').length;
-
-          html += `
+      let html = `
+        <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
             <tr>
-              <td>${escapeHtml(date || '—')}</td>
-              <td>${dayRecords[0]?.class_name ? escapeHtml(dayRecords[0].class_name) : '—'}</td>
+              <th>Date</th>
+              <th>Teacher</th>
+              <th>Class</th>
+              <th>Present</th>
+              <th>Absent</th>
+              <th>Leave</th>
+              <th style="width:100px;"></th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+      sorted.forEach(record => {
+        const students = record.students || [];
+        const present = students.filter(s => s.status === 'Present').length;
+        const absent = students.filter(s => s.status === 'Absent').length;
+        const leave = students.filter(s => s.status === 'Leave').length;
+        const dateKey = record.date.replace(/-/g, '');
+
+        html += `
+            <tr>
+              <td>${escapeHtml(record.date || '—')}</td>
+              <td style="color:var(--text-secondary);">${escapeHtml(record.teacher || '—')}</td>
+              <td>${record.class ? '<span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">' + escapeHtml(record.class) + '</span>' : '—'}</td>
               <td><span class="badge present">✅ ${present}</span></td>
               <td><span class="badge absent">❌ ${absent}</span></td>
+              <td style="color:var(--text-secondary);">${leave > 0 ? '📝 ' + leave : '—'}</td>
               <td>
-                ${absent > 0 ? `<button onclick="viewAbsentees('${date}')" class="btn-edit" title="View absent students" style="background:var(--danger-bg);color:var(--danger);">
+                ${absent > 0 ? `<button onclick="viewAbsentees('${record.date}', '${escapeHtml(record.teacher || '')}', '${escapeHtml(record.class || '')}')" class="btn-edit" title="View absent students" style="background:var(--danger-bg);color:var(--danger);">
                   <i class="fas fa-eye"></i>
                 </button>` : '<span style="color:var(--text-muted);font-size:0.7rem;">—</span>'}
               </td>
             </tr>`;
-        });
+      });
 
-        html += `</tbody></table></div>`;
-        wrap.innerHTML = html;
-      } catch (err) {
-        wrap.innerHTML = `<div class="empty-state"><div class="msg">Error loading attendance: ${err.message}</div></div>`;
-      }
+      html += `</tbody></table></div>`;
+      wrap.innerHTML = html;
     }
 
-    async function viewAbsentees(date) {
-      try {
-        const allRecords = await fetch(`${API}/api/attendance/all`).then(r => r.json());
-        const absentees = allRecords.filter(r => r.date === date && r.status === 'Absent');
-        
-        const modal = document.getElementById('absenteeModal');
-        const body = document.getElementById('absenteeList');
+    function viewAbsentees(date, teacher, cls) {
+      const records = loadFromStorage(KEYS.attendance);
+      const record = records.find(r => r.date === date);
+      if (!record) return;
 
-        document.getElementById('absenteeModalTitle').textContent = `Absent Students — ${date}`;
+      const absentees = (record.students || []).filter(s => s.status === 'Absent');
+      const leaveStudents = (record.students || []).filter(s => s.status === 'Leave');
 
-        if (absentees.length === 0) {
-          body.innerHTML = '<div class="empty-state" style="padding:20px;"><div class="msg">No absent students</div></div>';
-        } else {
-          let html = `<div style="margin-bottom:16px;"><h4 style="font-size:0.82rem;font-weight:700;color:var(--danger);margin-bottom:8px;"><i class="fas fa-times-circle" style="margin-right:6px;"></i>Absent (${absentees.length})</h4>`;
-          html += '<div class="absentee-list" style="display:flex;flex-direction:column;gap:6px;">';
-          absentees.forEach(s => {
-            html += `
-              <div class="absentee-row absent">
-                <div style="flex:1;">
-                  <div style="font-size:0.85rem;font-weight:600;color:var(--text);">${escapeHtml(s.name)}</div>
-                  <div style="font-size:0.72rem;color:var(--text-muted);">Roll: ${escapeHtml(s.roll_no || '—')} · Phone: ${escapeHtml(s.phone || '—')}</div>
-                </div>
-              </div>`;
-          });
-          html += '</div></div>';
-          body.innerHTML = html;
-        }
-        
-        modal.classList.add('open');
-      } catch (err) {
-        showToast(`❌ Error: ${err.message}`, 'error');
+      const modal = document.getElementById('absenteeModal');
+      const body = document.getElementById('absenteeList');
+
+      document.getElementById('absenteeModalTitle').textContent = `Absent Students — ${date} (${cls})`;
+
+      let html = '';
+
+      if (absentees.length === 0) {
+        html = '<div class="empty-state" style="padding:20px;"><div class="msg">No absent students</div></div>';
+      } else {
+        html += `<div style="margin-bottom:16px;"><h4 style="font-size:0.82rem;font-weight:700;color:var(--danger);margin-bottom:8px;"><i class="fas fa-times-circle" style="margin-right:6px;"></i>Absent (${absentees.length})</h4>`;
+        html += '<div class="absentee-list" style="display:flex;flex-direction:column;gap:6px;">';
+        absentees.forEach(s => {
+          html += `
+            <div class="absentee-row absent">
+              <div style="flex:1;">
+                <div style="font-size:0.85rem;font-weight:600;color:var(--text);">${escapeHtml(s.name)}</div>
+                <div style="font-size:0.72rem;color:var(--text-muted);">Roll: ${s.rollNo || '—'} · Phone: ${s.phone || '—'}</div>
+              </div>
+            </div>`;
+        });
+        html += '</div></div>';
       }
+
+      if (leaveStudents.length > 0) {
+        html += `<div><h4 style="font-size:0.82rem;font-weight:700;color:var(--warning);margin-bottom:8px;"><i class="fas fa-clock" style="margin-right:6px;"></i>On Leave (${leaveStudents.length})</h4>`;
+        html += '<div class="absentee-list" style="display:flex;flex-direction:column;gap:6px;">';
+        leaveStudents.forEach(s => {
+          html += `
+            <div class="absentee-row leave">
+              <div style="flex:1;">
+                <div style="font-size:0.85rem;font-weight:600;color:var(--text);">${escapeHtml(s.name)}</div>
+                <div style="font-size:0.72rem;color:var(--text-muted);">Roll: ${s.rollNo || '—'}</div>
+              </div>
+            </div>`;
+        });
+        html += '</div></div>';
+      }
+
+      body.innerHTML = html;
+      modal.classList.add('open');
     }
 
     function closeAbsenteeModal() {
       document.getElementById('absenteeModal').classList.remove('open');
     }
 
-    async function clearAttendanceHistory() {
+    function clearAttendanceHistory() {
       if (!confirm('Clear all attendance history? This cannot be undone.')) return;
-      showToast('⚠️ Manual deletion not supported via API', 'warning');
+      localStorage.removeItem(KEYS.attendance);
+      renderAttendance();
+      renderStats();
+      showToast('🗑️ Attendance history cleared', 'info');
     }
 
 
     // =============================================================
     // ATTENDANCE STATS / PERCENTAGES
     // =============================================================
-    async function renderStats() {
+    function renderStats() {
       const wrap = document.getElementById('statsTableWrap');
-      
-      try {
-        const records = await fetch(`${API}/api/attendance/all`).then(r => r.json());
+      const records = loadFromStorage(KEYS.attendance);
 
-        if (records.length === 0) {
-          wrap.innerHTML = `
-            <div class="empty-state" style="padding:36px 16px;">
-              <div class="icon">📊</div>
-              <div class="msg">No attendance data to calculate stats</div>
-              <div class="sub">Stats appear after teachers submit attendance</div>
-            </div>`;
-          return;
-        }
-
-        const studentMap = {};
-
-        records.forEach(record => {
-          if (!studentMap[record.student_id]) {
-            studentMap[record.student_id] = { 
-              id: record.student_id, 
-              name: record.name, 
-              rollNo: record.roll_no || '—', 
-              phone: record.phone || '—', 
-              present: 0, 
-              absent: 0, 
-              leave: 0, 
-              total: 0 
-            };
-          }
-          studentMap[record.student_id].total++;
-          if (record.status === 'Present') studentMap[record.student_id].present++;
-          else if (record.status === 'Absent') studentMap[record.student_id].absent++;
-          else if (record.status === 'Leave') studentMap[record.student_id].leave++;
-        });
-
-        const students = Object.values(studentMap).map(s => ({
-          ...s,
-          percentage: s.total > 0 ? Math.round((s.present / s.total) * 100) : 0
-        }));
-
-        students.sort((a, b) => b.percentage - a.percentage);
-
-        const totalDays = [...new Set(records.map(r => r.date))].length;
-
-        let html = `<div style="padding:16px 22px;"><div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">📅 Total days recorded: <strong style="color:var(--text);">${totalDays}</strong></div></div>`;
-        html += `<div style="overflow-x:auto;"><table class="data-table">
-          <thead><tr>
-            <th style="width:40px;">#</th>
-            <th>Name</th>
-            <th>Roll No</th>
-            <th>Present</th>
-            <th>Absent</th>
-            <th>Leave</th>
-            <th style="width:90px;">Attendance %</th>
-          </tr></thead><tbody>`;
-
-        students.forEach((s, i) => {
-          const pct = s.percentage;
-          let barColor = '#dc2626';
-          if (pct >= 80) barColor = '#22c55e';
-          else if (pct >= 60) barColor = '#f59e0b';
-          else if (pct >= 40) barColor = '#f97316';
-
-          let rankIcon = '';
-          if (i === 0) rankIcon = '🥇';
-          else if (i === 1) rankIcon = '🥈';
-          else if (i === 2) rankIcon = '🥉';
-
-          html += `<tr>
-            <td style="color:var(--text-muted);font-size:0.75rem;">${rankIcon || (i + 1)}</td>
-            <td>${escapeHtml(s.name)}</td>
-            <td><span class="badge" style="background:var(--bg);border:1px solid var(--border);color:var(--text-secondary);">${escapeHtml(s.rollNo)}</span></td>
-            <td><span class="badge present">✅ ${s.present}</span></td>
-            <td><span class="badge absent">❌ ${s.absent}</span></td>
-            <td style="color:var(--text-secondary);">${s.leave > 0 ? '📝 ' + s.leave : '—'}</td>
-            <td>
-              <span style="font-size:0.85rem;font-weight:700;color:${barColor};">${pct}%</span>
-            </td>
-          </tr>`;
-        });
-
-        html += '</tbody></table></div>';
-        wrap.innerHTML = html;
-      } catch (err) {
-        wrap.innerHTML = `<div class="empty-state"><div class="msg">Error loading stats: ${err.message}</div></div>`;
+      if (records.length === 0) {
+        wrap.innerHTML = `
+          <div class="empty-state" style="padding:36px 16px;">
+            <div class="icon">📊</div>
+            <div class="msg">No attendance data to calculate stats</div>
+            <div class="sub">Stats appear after teachers submit attendance</div>
+          </div>`;
+        return;
       }
+
+      const studentMap = {};
+
+      records.forEach(record => {
+        (record.students || []).forEach(s => {
+          if (!studentMap[s.id]) {
+            studentMap[s.id] = { id: s.id, name: s.name, rollNo: s.rollNo || '—', phone: s.phone || '—', present: 0, absent: 0, leave: 0, total: 0 };
+          }
+          studentMap[s.id].total++;
+          if (s.status === 'Present') studentMap[s.id].present++;
+          else if (s.status === 'Absent') studentMap[s.id].absent++;
+          else if (s.status === 'Leave') studentMap[s.id].leave++;
+        });
+      });
+
+      const students = Object.values(studentMap).map(s => ({
+        ...s,
+        percentage: s.total > 0 ? Math.round((s.present / s.total) * 100) : 0
+      }));
+
+      students.sort((a, b) => b.percentage - a.percentage);
+
+      const totalDays = records.length;
+
+      let html = `<div style="padding:16px 22px;"><div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">📅 Total days recorded: <strong style="color:var(--text);">${totalDays}</strong></div></div>`;
+      html += `<div style="overflow-x:auto;"><table class="data-table">
+        <thead><tr>
+          <th style="width:40px;">#</th>
+          <th>Name</th>
+          <th>Roll No</th>
+          <th>Present</th>
+          <th>Absent</th>
+          <th>Leave</th>
+          <th style="width:90px;">Attendance %</th>
+        </tr></thead><tbody>`;
+
+      students.forEach((s, i) => {
+        const pct = s.percentage;
+        let barColor = '#dc2626';
+        if (pct >= 80) barColor = '#22c55e';
+        else if (pct >= 60) barColor = '#f59e0b';
+        else if (pct >= 40) barColor = '#f97316';
+
+        let rankIcon = '';
+        if (i === 0) rankIcon = '🥇';
+        else if (i === 1) rankIcon = '🥈';
+        else if (i === 2) rankIcon = '🥉';
+
+        html += `<tr>
+          <td style="color:var(--text-muted);font-size:0.75rem;">${rankIcon || (i + 1)}</td>
+          <td>${s.name}</td>
+          <td><span class="badge" style="background:var(--bg);border:1px solid var(--border);color:var(--text-secondary);">${s.rollNo}</span></td>
+          <td><span class="badge present">✅ ${s.present}</span></td>
+          <td><span class="badge absent">❌ ${s.absent}</span></td>
+          <td style="color:var(--text-secondary);">${s.leave > 0 ? '📝 ' + s.leave : '—'}</td>
+          <td>
+            <span style="font-size:0.85rem;font-weight:700;color:${barColor};">${pct}%</span>
+          </td>
+        </tr>`;
+      });
+
+      html += '</tbody></table></div>';
+      wrap.innerHTML = html;
     }
 
 
     // =============================================================
-    // SECTION 3: SCHOOL ANNOUNCEMENTS (localStorage only for now)
+    // SECTION 3: SCHOOL ANNOUNCEMENTS
     // =============================================================
     function saveAnnouncement() {
       const textarea = document.getElementById('announcementText');
@@ -1606,12 +1605,12 @@
         return;
       }
 
-      const announcements = JSON.parse(localStorage.getItem('schoolAnnouncements') || '[]');
+      const announcements = loadFromStorage(KEYS.announcements);
       announcements.unshift({
         date: getTodayDate(),
         message: message
       });
-      localStorage.setItem('schoolAnnouncements', JSON.stringify(announcements));
+      saveToStorage(KEYS.announcements, announcements);
 
       textarea.value = '';
       renderAnnouncements();
@@ -1619,16 +1618,16 @@
     }
 
     function deleteAnnouncement(index) {
-      const announcements = JSON.parse(localStorage.getItem('schoolAnnouncements') || '[]');
+      const announcements = loadFromStorage(KEYS.announcements);
       announcements.splice(index, 1);
-      localStorage.setItem('schoolAnnouncements', JSON.stringify(announcements));
+      saveToStorage(KEYS.announcements, announcements);
       renderAnnouncements();
       showToast('🗑️ Announcement removed', 'info');
     }
 
     function renderAnnouncements() {
       const container = document.getElementById('announcementsList');
-      const announcements = JSON.parse(localStorage.getItem('schoolAnnouncements') || '[]');
+      const announcements = loadFromStorage(KEYS.announcements);
 
       if (announcements.length === 0) {
         container.innerHTML = `
@@ -1656,14 +1655,14 @@
     }
 
     // =============================================================
-    // RENDER CLASSES WITH TEACHERS
+    // RENDER CLASSES WITH TEACHERS (from classes.html)
     // =============================================================
-    async function renderClasses() {
+    function renderClasses() {
       const wrap = document.getElementById('classesTableWrap');
       
       try {
-        const classes = await fetch(`${API}/api/classes`).then(r => r.json());
-        const teachers = await fetch(`${API}/api/teachers`).then(r => r.json());
+        const classes = loadFromStorage('classes');
+        const teachers = loadFromStorage(KEYS.teachers);
 
         if (!classes || classes.length === 0) {
           wrap.innerHTML = `
@@ -1689,17 +1688,24 @@
             <tbody>`;
 
         classes.forEach((cls, i) => {
-          const teacher = teachers.find(t => t.class_id === cls.id);
+          const teacher = cls.teacherId ? teachers.find(t => t.id === cls.teacherId) : null;
+          const studentCount = cls.students ? cls.students.length : 0;
 
           html += `
             <tr>
               <td style="color:var(--text-muted); font-weight:500;">${i + 1}</td>
               <td>
                 <strong>${escapeHtml(cls.name)}</strong>
+                ${cls.section ? ` <span class="badge">${escapeHtml(cls.section)}</span>` : ''}
               </td>
-              <td style="text-align:center; font-weight:600;">—</td>
+              <td style="text-align:center; font-weight:600;">${studentCount}</td>
               <td>${teacher ? escapeHtml(teacher.name) : '–'}</td>
               <td style="text-align:right;">
+                ${teacher ? `
+                  <button onclick="copyTeacherLink('${teacher.id}')" class="btn-edit" title="Copy teacher link" style="margin-right:4px; background:var(--success-bg); color:var(--success);">
+                    <i class="fas fa-link"></i>
+                  </button>
+                ` : ''}
                 <a href="./classes.html" class="btn-edit" title="Edit class" style="text-decoration:none;">
                   <i class="fas fa-pen"></i>
                 </a>
@@ -1709,8 +1715,8 @@
 
         html += `</tbody></table>`;
         wrap.innerHTML = html;
-      } catch (err) {
-        wrap.innerHTML = `<div class="empty-state"><div class="msg">Error loading classes: ${err.message}</div></div>`;
+      } catch (e) {
+        wrap.innerHTML = `<div class="empty-state"><div class="msg">Error loading classes</div></div>`;
       }
     }
 
@@ -1768,69 +1774,44 @@
     // =============================================================
     // EDIT TEACHER MODAL
     // =============================================================
-    async function openEditTeacherModal(id) {
-      try {
-        const teachers = await fetch(`${API}/api/teachers`).then(r => r.json());
-        const teacher = teachers.find(t => t.id === id);
-        if (!teacher) return;
+    function openEditTeacherModal(index) {
+      const teachers = loadFromStorage(KEYS.teachers);
+      const teacher = teachers[index];
+      if (!teacher) return;
 
-        document.getElementById('editTeacherIndex').value = id;
-        document.getElementById('editTeacherName').value = teacher.name;
-        document.getElementById('editTeacherPhone').value = teacher.phone || '';
-        
-        // Populate and set class dropdown
-        const select = document.getElementById('editTeacherClass');
-        select.innerHTML = '<option value="">-- Select a class --</option>';
-        
-        const classes = await fetch(`${API}/api/classes`).then(r => r.json());
-        classes.forEach(cls => {
-          const option = document.createElement('option');
-          option.value = cls.id;
-          option.textContent = cls.name;
-          if (cls.id === teacher.class_id) option.selected = true;
-          select.appendChild(option);
-        });
-        
-        document.getElementById('editTeacherModal').classList.add('open');
-      } catch (err) {
-        showToast(`❌ Error: ${err.message}`, 'error');
-      }
+      document.getElementById('editTeacherIndex').value = index;
+      document.getElementById('editTeacherName').value = teacher.name;
+      document.getElementById('editTeacherClass').value = teacher.class;
+      document.getElementById('editTeacherPhone').value = teacher.phone || '';
+      document.getElementById('editTeacherModal').classList.add('open');
     }
 
     function closeEditTeacherModal() {
       document.getElementById('editTeacherModal').classList.remove('open');
     }
 
-    async function saveEditTeacher() {
-      const id = parseInt(document.getElementById('editTeacherIndex').value);
+    function saveEditTeacher() {
+      const index = parseInt(document.getElementById('editTeacherIndex').value);
       const name = document.getElementById('editTeacherName').value.trim();
-      const classId = parseInt(document.getElementById('editTeacherClass').value);
+      const cls = document.getElementById('editTeacherClass').value.trim();
       const phone = document.getElementById('editTeacherPhone').value.trim();
 
       if (!name) {
         showToast('⚠️ Please enter teacher name', 'warning');
         return;
       }
-      if (!classId) {
-        showToast('⚠️ Please select a class', 'warning');
+      if (!cls) {
+        showToast('⚠️ Please enter class', 'warning');
         return;
       }
 
-      try {
-        const response = await fetch(`${API}/api/teachers/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, phone: phone || null, class_id: classId })
-        });
+      const teachers = loadFromStorage(KEYS.teachers);
+      teachers[index] = { name, class: cls, phone: phone || '—' };
+      saveToStorage(KEYS.teachers, teachers);
 
-        if (!response.ok) throw new Error('Failed to update teacher');
-
-        closeEditTeacherModal();
-        renderTeachers();
-        showToast('✅ Teacher updated successfully', 'success');
-      } catch (err) {
-        showToast(`❌ Error: ${err.message}`, 'error');
-      }
+      closeEditTeacherModal();
+      renderTeachers();
+      showToast('✅ Teacher updated successfully', 'success');
     }
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -1849,27 +1830,23 @@
     // =============================================================
     // EDIT STUDENT MODAL
     // =============================================================
-    async function openEditStudentModal(id) {
-      try {
-        const students = await fetch(`${API}/api/students`).then(r => r.json());
-        const student = students.find(s => s.id === id);
-        if (!student) return;
+    function openEditStudentModal(id) {
+      const students = loadFromStorage(KEYS.students);
+      const student = students.find(s => s.id === id);
+      if (!student) return;
 
-        document.getElementById('editStudentId').value = student.id;
-        document.getElementById('editStudentName').value = student.name;
-        document.getElementById('editStudentRoll').value = student.roll_no || '';
-        document.getElementById('editStudentPhone').value = student.phone || '';
-        document.getElementById('editStudentModal').classList.add('open');
-      } catch (err) {
-        showToast(`❌ Error: ${err.message}`, 'error');
-      }
+      document.getElementById('editStudentId').value = student.id;
+      document.getElementById('editStudentName').value = student.name;
+      document.getElementById('editStudentRoll').value = student.rollNo;
+      document.getElementById('editStudentPhone').value = student.phone || '';
+      document.getElementById('editStudentModal').classList.add('open');
     }
 
     function closeEditStudentModal() {
       document.getElementById('editStudentModal').classList.remove('open');
     }
 
-    async function saveEditStudent() {
+    function saveEditStudent() {
       const id = parseInt(document.getElementById('editStudentId').value);
       const name = document.getElementById('editStudentName').value.trim();
       const rollNo = document.getElementById('editStudentRoll').value.trim();
@@ -1884,54 +1861,29 @@
         return;
       }
 
-      try {
-        const response = await fetch(`${API}/api/students/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, roll_no: rollNo, phone: phone || null })
-        });
-
-        if (!response.ok) throw new Error('Failed to update student');
-
-        closeEditStudentModal();
-        renderStudents();
-        showToast('✅ Student updated successfully', 'success');
-      } catch (err) {
-        showToast(`❌ Error: ${err.message}`, 'error');
+      const students = loadFromStorage(KEYS.students);
+      const idx = students.findIndex(s => s.id === id);
+      if (idx !== -1) {
+        students[idx] = { id, name, rollNo, phone: phone || '—' };
+        saveToStorage(KEYS.students, students);
       }
+
+      closeEditStudentModal();
+      renderStudents();
+      showToast('✅ Student updated successfully', 'success');
     }
 
-
-    // =============================================================
-    // POPULATE CLASS DROPDOWN
-    // =============================================================
-    async function populateClassDropdown() {
-      try {
-        const classes = await fetch(`${API}/api/classes`).then(r => r.json());
-        const select = document.getElementById('teacherClass');
-        
-        classes.forEach(cls => {
-          const option = document.createElement('option');
-          option.value = cls.id;
-          option.textContent = cls.name;
-          select.appendChild(option);
-        });
-      } catch (err) {
-        showToast(`❌ Error loading classes: ${err.message}`, 'error');
-      }
-    }
 
     // =============================================================
     // INITIALIZATION
     // =============================================================
-    async function init() {
+    function init() {
       loadTheme();
-      await populateClassDropdown();
-      await renderClasses();
-      await renderTeachers();
-      await renderStudents();
-      await renderAttendance();
-      await renderStats();
+      renderClasses();
+      renderTeachers();
+      renderStudents();
+      renderAttendance();
+      renderStats();
       renderAnnouncements();
     }
 
