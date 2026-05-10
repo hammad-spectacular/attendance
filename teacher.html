@@ -797,7 +797,7 @@
     let students = [];
 
     // Attendance state map: { studentId: "Present" | "Absent" | null }
-    const attendanceState = {};
+    let attendanceState = {};
 
     // Initialize state — all unmarked
     students.forEach(s => { attendanceState[s.id] = null; });
@@ -1658,8 +1658,14 @@
         const assignedClass = classes.find(c => c.id === teacher.class_id);
 
         if (!assignedClass) {
-          showToast('❌ No class assigned to this teacher', 'error');
-          showTeacherSelectionModal();
+          document.getElementById('teacherSelectionModal').classList.add('hidden');
+          document.getElementById('studentList').innerHTML = `
+            <div style="text-align:center; padding:40px; color:var(--text-muted);">
+              <div style="font-size:2rem; margin-bottom:12px;">⚠️</div>
+              <div style="font-weight:700; font-size:1rem;">No class assigned</div>
+              <div style="font-size:0.85rem; margin-top:8px;">Please contact admin to assign you a class.</div>
+            </div>`;
+          document.getElementById('headerTeacherName').textContent = teacher.name;
           return;
         }
 
