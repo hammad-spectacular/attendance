@@ -101,6 +101,31 @@ app.put('/api/classes/:id', async (req, res) => {
   }
 })
 
+app.post('/api/classes/:id/assign-teacher', async (req, res) => {
+  try {
+    const classId = req.params.id
+    const { teacher_id } = req.body
+
+    // First unassign any teacher currently assigned to this class
+    await pool.query(
+      'UPDATE teachers SET class_id = NULL WHERE class_id = $1',
+      [classId]
+    )
+
+    // Then assign the new teacher
+    if (teacher_id) {
+      await pool.query(
+        'UPDATE teachers SET class_id = $1 WHERE id = $2',
+        [classId, teacher_id]
+      )
+    }
+
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // ============================================
 // TEACHERS
 // ============================================
