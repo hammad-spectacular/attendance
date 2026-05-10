@@ -856,11 +856,13 @@
             </div>
             <div class="form-group">
               <label class="form-label" for="teacherClass">Class</label>
-              <input class="form-input" type="text" id="teacherClass" placeholder="e.g. 5A">
+              <select class="form-input" id="teacherClass" required>
+                <option value="">-- Select a class --</option>
+              </select>
             </div>
             <div class="form-group">
               <label class="form-label" for="teacherPhone">Contact</label>
-              <input class="form-input" type="text" id="teacherPhone" placeholder="e.g. 92300...">
+              <input class="form-input" type="tel" id="teacherPhone" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits (e.g., 03001234567)" required>
             </div>
           </div>
           <div style="display:flex; gap:8px; margin-top:4px;">
@@ -1019,11 +1021,13 @@
       </div>
       <div class="form-group">
         <label class="form-label" for="editTeacherClass">Class</label>
-        <input class="form-input" type="text" id="editTeacherClass" placeholder="e.g. 5A">
+        <select class="form-input" id="editTeacherClass" required>
+          <option value="">-- Select a class --</option>
+        </select>
       </div>
       <div class="form-group">
         <label class="form-label" for="editTeacherPhone">Contact</label>
-        <input class="form-input" type="text" id="editTeacherPhone" placeholder="e.g. 92300...">
+        <input class="form-input" type="tel" id="editTeacherPhone" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits (e.g., 03001234567)" required>
       </div>
       <div class="edit-modal-actions">
         <button class="btn btn-primary" onclick="saveEditTeacher()"><i class="fas fa-check"></i> Save</button>
@@ -1134,11 +1138,27 @@
     let addTeacherOpen = false;
 
     function toggleAddTeacher() {
+      const classes = loadFromStorage('classes');
+      if (!addTeacherOpen && classes.length === 0) {
+        showToast('⚠️ Please create a class first', 'warning');
+        return;
+      }
+
       addTeacherOpen = !addTeacherOpen;
       const form = document.getElementById('addTeacherForm');
       const btn = document.getElementById('addTeacherToggleBtn');
 
       if (addTeacherOpen) {
+        // Populate class dropdown
+        const select = document.getElementById('teacherClass');
+        select.innerHTML = '<option value="">-- Select a class --</option>';
+        classes.forEach(cls => {
+          const option = document.createElement('option');
+          option.value = cls.name;
+          option.textContent = cls.name;
+          select.appendChild(option);
+        });
+
         form.classList.add('open');
         btn.innerHTML = '<i class="fas fa-times"></i> Cancel';
         document.getElementById('teacherName').focus();
@@ -1168,6 +1188,11 @@
       if (!cls) {
         showToast('⚠️ Please enter class', 'warning');
         document.getElementById('teacherClass').focus();
+        return;
+      }
+      if (phone && !/^[0-9]{11}$/.test(phone)) {
+        showToast('⚠️ Phone number must be exactly 11 digits', 'warning');
+        document.getElementById('teacherPhone').focus();
         return;
       }
 
@@ -1231,6 +1256,11 @@
       }
       if (!rollNo) {
         showToast('⚠️ Please enter roll number', 'warning');
+        return;
+      }
+      if (phone && !/^[0-9]{11}$/.test(phone)) {
+        showToast('⚠️ Phone number must be exactly 11 digits', 'warning');
+        document.getElementById('studentPhone').focus();
         return;
       }
 
@@ -1781,8 +1811,20 @@
 
       document.getElementById('editTeacherIndex').value = index;
       document.getElementById('editTeacherName').value = teacher.name;
-      document.getElementById('editTeacherClass').value = teacher.class;
       document.getElementById('editTeacherPhone').value = teacher.phone || '';
+
+      // Populate class dropdown
+      const classes = loadFromStorage('classes');
+      const select = document.getElementById('editTeacherClass');
+      select.innerHTML = '<option value="">-- Select a class --</option>';
+      classes.forEach(cls => {
+        const option = document.createElement('option');
+        option.value = cls.name;
+        option.textContent = cls.name;
+        if (cls.name === teacher.class) option.selected = true;
+        select.appendChild(option);
+      });
+
       document.getElementById('editTeacherModal').classList.add('open');
     }
 
@@ -1802,6 +1844,11 @@
       }
       if (!cls) {
         showToast('⚠️ Please enter class', 'warning');
+        return;
+      }
+      if (phone && !/^[0-9]{11}$/.test(phone)) {
+        showToast('⚠️ Phone number must be exactly 11 digits', 'warning');
+        document.getElementById('editTeacherPhone').focus();
         return;
       }
 
@@ -1858,6 +1905,11 @@
       }
       if (!rollNo) {
         showToast('⚠️ Please enter roll number', 'warning');
+        return;
+      }
+      if (phone && !/^[0-9]{11}$/.test(phone)) {
+        showToast('⚠️ Phone number must be exactly 11 digits', 'warning');
+        document.getElementById('editStudentPhone').focus();
         return;
       }
 
