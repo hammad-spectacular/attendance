@@ -1307,16 +1307,18 @@
       try {
         const teachers = await fetch(`${API}/api/teachers`).then(r => r.json());
 
+        // IMPORTANT: Unassign any teacher currently in this class first
+        const currentTeacherInClass = teachers.find(t => t.class_id === classId);
+        if (currentTeacherInClass && currentTeacherInClass.id !== parseInt(teacherId)) {
+          await fetch(`${API}/api/teachers/${currentTeacherInClass.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: currentTeacherInClass.name, phone: currentTeacherInClass.phone, class_id: null })
+          });
+        }
+
         if (!teacherId) {
-          // Unassign the teacher currently in this class
-          const currentTeacher = teachers.find(t => t.class_id === classId);
-          if (currentTeacher) {
-            await fetch(`${API}/api/teachers/${currentTeacher.id}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name: currentTeacher.name, phone: currentTeacher.phone, class_id: null })
-            });
-          }
+          // Already unassigned above if there was one
         } else {
           // Assign new teacher
           const teacher = teachers.find(t => t.id === parseInt(teacherId));
