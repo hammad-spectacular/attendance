@@ -1034,8 +1034,11 @@
                   <div class="teacher-assignment-inner">
                     <div class="form-group" style="margin-bottom:0; flex:1;">
                       <select class="form-select" id="teacherSelect${cls.id}" onchange="assignTeacher(${cls.id})" ${teachers.length === 0 ? 'disabled' : ''}>
-                        ${teachers.length === 0 ? '<option value="">-- Add a teacher first --</option>' : '<option value="">-- Select Teacher --</option>'}
-                        ${teachers.map(t => `<option value="${t.id}" ${t.class_id === cls.id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('')}
+                        <option value="">-- Select Teacher --</option>
+                        ${teachers
+                          .filter(t => !t.class_id || t.class_id === cls.id)
+                          .map(t => `<option value="${t.id}" ${t.class_id === cls.id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`)
+                          .join('')}
                       </select>
                     </div>
                     ${teacherForClass ? `
@@ -1291,23 +1294,37 @@
     // TEACHER ASSIGNMENT & LINK GENERATION
     // =============================================================
     async function assignTeacher(classId) {
-      const teacherId = document.getElementById(`teacherSelect${classId}`).value
-      if (!teacherId) return
-
+      const teacherId = document.getElementById(`teacherSelect${classId}`).value;
+      
       try {
-        const teachers = await fetch(`${API}/api/teachers`).then(r => r.json())
-        const teacher = teachers.find(t => t.id === parseInt(teacherId))
+        const teachers = await fetch(`${API}/api/teachers`).then(r => r.json());
+
+        if (!teacherId) {
+          // Unassign the teacher currently in this class
+          const currentTeacher = teachers.find(t => t.class_id === classId);
+          if (currentTeacher) {
+            await fetch(`${API}/api/teachers/${currentTeacher.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: currentTeacher.name, phone: currentTeacher.phone, class_id: null })
+            });
+          }
+        } else {
+          // Assign new teacher
+          const teacher = teachers.find(t => t.id === parseInt(teacherId));
+          if (!teacher) return;
+          
+          await fetch(`${API}/api/teachers/${teacherId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: teacher.name, phone: teacher.phone, class_id: classId })
+          });
+        }
         
-        const response = await fetch(`${API}/api/teachers/${teacherId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: teacher.name, phone: teacher.phone, class_id: classId })
-        })
-        if (!response.ok) throw new Error('Failed to assign teacher')
-        renderClasses()
-        showToast('✅ Teacher assigned', 'success')
+        renderClasses();
+        showToast('✅ Assignment updated', 'success');
       } catch (err) {
-        showToast(`❌ Error: ${err.message}`, 'error')
+        showToast(`❌ Error: ${err.message}`, 'error');
       }
     }
 
