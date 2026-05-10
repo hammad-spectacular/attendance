@@ -792,18 +792,6 @@
       const stored = localStorage.getItem('students');
       if (stored) {
         students = JSON.parse(stored);
-      } else {
-        students = [
-          { id: 1, name: "Ali Hassan", rollNo: "CS-101", phone: "+923209789348" },
-          { id: 2, name: "Sara Ahmed", rollNo: "CS-102", phone: "+923215788075" },
-          { id: 3, name: "Omar Farooq", rollNo: "CS-103", phone: "+923209789348" },
-          { id: 4, name: "Fatima Zahra", rollNo: "CS-104", phone: "+923209789348" },
-          { id: 5, name: "Hassan Raza", rollNo: "CS-105", phone: "+923209789348" },
-          { id: 6, name: "Ayesha Khan", rollNo: "CS-106", phone: "+923209789348" },
-          { id: 7, name: "Bilal Mahmood", rollNo: "CS-107", phone: "+923209789348" },
-          { id: 8, name: "Zainab Tariq", rollNo: "CS-108", phone: "+923209789348" },
-        ];
-        localStorage.setItem('students', JSON.stringify(students));
       }
     } catch(e) { console.error('Error loading students', e); }
 
