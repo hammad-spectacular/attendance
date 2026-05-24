@@ -1,164 +1,309 @@
-// ============================================
-// PHASE 4: Express Backend Server
-// ============================================
-// Run: npm init -y && npm install express
-// Start: node server.js
-// Open: http://localhost:3000
-// ============================================
-require('dotenv').config(); // Load default .env file
-const express = require('express');
-const http = require('http');
-//const twilio = require('twilio'); // npm install twilio
-const { sendVeevoSMS } = require('./veevotech-sms');
-const app = express();
-const PORT = process.env.PORT || 3000;
+const express = require('express')
+const cors = require('cors')
+const pool = require('./db')
+require('dotenv').config()
 
-// 🔑 TWILIO CONFIG (from environment variables)
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
+const app = express()
+
+app.use(cors({
+  origin: 'https://theeye-beta.vercel.app'
+}))
+app.use(express.json())
+app.use(express.static('public'))
 
 // ============================================
-// ENTERPRISE SMS FUNCTION (modular - Twilio/WhatsApp ready)
+// CREATE TABLES ON STARTUP
 // ============================================
-async function sendSMS(phone, message, studentName) {
-    try {
-        const twilio = require('twilio');
-        const client = twilio(accountSid, authToken);
-        const result = await client.messages.create({
-            body: message,
-            from: twilioPhone,
-            to: phone
-        });
+async function createTables() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS classes (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(100) NOT NULL
+    );
 
-        console.log(`✅ SMS SID: ${result.sid} → ${phone} (${studentName})`);
-        return { success: true, sid: result.sid };
-    } catch (error) {
-        console.error(`❌ SMS failed → ${phone}:`, error.message);
-        return { success: false, error: error.message };
-    }
+    CREATE TABLE IF NOT EXISTS teachers (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      phone VARCHAR(20),
+      class_id INTEGER REFERENCES classes(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS students (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      roll_no VARCHAR(50),
+      phone VARCHAR(20),
+      class_id INTEGER REFERENCES classes(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS attendance (
+      id SERIAL PRIMARY KEY,
+      student_id INTEGER REFERENCES students(id),
+      date DATE NOT NULL,
+      status VARCHAR(20) NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS homework (
+      id SERIAL PRIMARY KEY,
+      subject VARCHAR(120) NOT NULL,
+      task TEXT NOT NULL,
+      class_id INTEGER REFERENCES classes(id),
+      teacher_id INTEGER REFERENCES teachers(id),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS announcements (
+      id SERIAL PRIMARY KEY,
+      title VARCHAR(120),
+      message TEXT NOT NULL,
+      class_id INTEGER REFERENCES classes(id),
+      teacher_id INTEGER REFERENCES teachers(id),
+      author VARCHAR(100),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `)
+  console.log('Tables ready')
 }
 
-// Phase 6: Easy provider swap
-async function sendViaProvider(provider, phone, message, studentName) {
-    if (provider === 'veevotech') return sendVeevoSMS(phone, message, studentName);
-    if (provider === 'twilio') return sendSMS(phone, message, studentName);
-    // if (provider === 'whatsapp') return sendWhatsApp(phone, message);
-}
+// ============================================
+// CLASSES
+// ============================================
+app.get('/api/classes', async (req, res) => {
+  const result = await pool.query('SELECT * FROM classes ORDER BY id')
+  res.json(result.rows)
+})
+
+app.post('/api/classes', async (req, res) => {
+  const { name } = req.body
+  const result = await pool.query(
+    'INSERT INTO classes (name) VALUES ($1) RETURNING *', [name]
+  )
+  res.json(result.rows[0])
+})
+
+app.delete('/api/classes/:id', async (req, res) => {
+  await pool.query('DELETE FROM classes WHERE id = $1', [req.params.id])
+  res.json({ success: true })
+})
 
 // ============================================
-// MIDDLEWARE
+// TEACHERS
 // ============================================
-app.use(express.json());
-app.use(express.static('.')); // Serves index.html from same folder
+app.get('/api/teachers', async (req, res) => {
+  const result = await pool.query(`
+    SELECT teachers.*, classes.name as class_name 
+    FROM teachers 
+    LEFT JOIN classes ON teachers.class_id = classes.id 
+    ORDER BY teachers.id
+  `)
+  res.json(result.rows)
+})
 
-// Enable CORS for frontend requests
-app.use((req, res, next) => {
-    res.header("Access-Control-Allow-Origin", "https://theeye-beta.vercel.app");
-    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-    if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
-    }
-    next();
-});
+app.post('/api/teachers', async (req, res) => {
+  const { name, phone, class_id } = req.body
+  const result = await pool.query(
+    'INSERT INTO teachers (name, phone, class_id) VALUES ($1, $2, $3) RETURNING *',
+    [name, phone, class_id]
+  )
+  res.json(result.rows[0])
+})
 
-// ============================================
-// HEALTH CHECK ENDPOINT
-// ============================================
-app.get('/health', (req, res) => {
-    res.json({
-        status: 'online',
-        time: new Date().toISOString(),
-        message: 'Attendance server is running'
-    });
-});
+app.put('/api/teachers/:id', async (req, res) => {
+  const { name, phone, class_id } = req.body
+  const result = await pool.query(
+    'UPDATE teachers SET name=$1, phone=$2, class_id=$3 WHERE id=$4 RETURNING *',
+    [name, phone, class_id, req.params.id]
+  )
+  res.json(result.rows[0])
+})
 
-// ============================================
-// SUBMIT ATTENDANCE ENDPOINT
-// ============================================
-app.post('/submit-attendance', async (req, res) => {
-    const { date, totalStudents, presentCount, absentCount, absentees } = req.body;
-
-    // Validation
-    if (!absentees || !Array.isArray(absentees)) {
-        console.log('❌ Invalid request — no absentees array');
-        return res.status(400).json({
-            success: false,
-            message: 'Invalid data: absentees array required'
-        });
-    }
-
-    // ============================================
-    // LOG RECEIVED DATA
-    // ============================================
-    console.log('\n' + '='.repeat(50));
-    console.log('📋 ATTENDANCE RECEIVED');
-    console.log('='.repeat(50));
-    console.log(`📅 Date:       ${date}`);
-    console.log(`👥 Total:      ${totalStudents}`);
-    console.log(`✅ Present:    ${presentCount}`);
-    console.log(`❌ Absent:     ${absentCount}`);
-    console.log('-'.repeat(50));
-
-    let results = [];
-    if (absentees.length === 0) {
-        console.log('🎉 All students present! No SMS needed.');
-    } else {
-        console.log(`📱 Twilio processing ${absentees.length} absentees...`);
-        console.log('-'.repeat(50));
-
-        // Process each absentee
-        for (const student of absentees) {
-            const message = `Your child ${student.name} was absent today.`;
-            // Call our enterprise SMS function provider
-            const result = await sendViaProvider('veevotech', student.phone, message, student.name);
-            results.push({ name: student.name, phone: student.phone, ...result });
-        }
-    }
-
-    console.log('-'.repeat(50));
-    const successCount = results.filter(r => r && r.success).length;
-    console.log(`📊 SMS sent: ${successCount}/${absentees.length}`);
-    console.log(`⏰ Received at: ${new Date().toLocaleTimeString()}`);
-    console.log('='.repeat(50) + '\n');
-
-    // ============================================
-    // RESPONSE
-    // ============================================
-    res.json({
-        success: true,
-        message: `Attendance received for ${date}`,
-        absentCount: absentees.length,
-        presentCount: presentCount,
-        totalStudents: totalStudents,
-        serverTime: new Date().toISOString(),
-        sent: successCount,
-        results: results.slice(0, 3) // First 3 for frontend
-    });
-});
+app.delete('/api/teachers/:id', async (req, res) => {
+  await pool.query('DELETE FROM teachers WHERE id = $1', [req.params.id])
+  res.json({ success: true })
+})
 
 // ============================================
-// 404 HANDLER
+// STUDENTS
 // ============================================
-app.use((req, res) => {
-    res.status(404).json({
-        success: false,
-        message: 'Endpoint not found'
-    });
-});
+app.get('/api/students', async (req, res) => {
+  const { class_id } = req.query
+  let result
+  if (class_id) {
+    result = await pool.query(
+      'SELECT * FROM students WHERE class_id = $1 ORDER BY id',
+      [class_id]
+    )
+  } else {
+    result = await pool.query('SELECT * FROM students ORDER BY id')
+  }
+  res.json(result.rows)
+})
+
+app.get('/api/students/:id', async (req, res) => {
+  const result = await pool.query('SELECT * FROM students WHERE id = $1', [req.params.id])
+  if (result.rows.length === 0) return res.status(404).json({ error: 'Student not found' })
+  res.json(result.rows[0])
+})
+
+app.post('/api/students', async (req, res) => {
+  const { name, roll_no, phone, class_id } = req.body
+  const result = await pool.query(
+    'INSERT INTO students (name, roll_no, phone, class_id) VALUES ($1, $2, $3, $4) RETURNING *',
+    [name, roll_no, phone, class_id]
+  )
+  res.json(result.rows[0])
+})
+
+app.put('/api/students/:id', async (req, res) => {
+  const { name, roll_no, phone, class_id } = req.body
+  const result = await pool.query(
+    'UPDATE students SET name=$1, roll_no=$2, phone=$3, class_id=$4 WHERE id=$5 RETURNING *',
+    [name, roll_no, phone, class_id, req.params.id]
+  )
+  res.json(result.rows[0])
+})
+
+app.delete('/api/students/:id', async (req, res) => {
+  await pool.query('DELETE FROM students WHERE id = $1', [req.params.id])
+  res.json({ success: true })
+})
+
+// ============================================
+// ATTENDANCE
+// ============================================
+app.post('/api/attendance', async (req, res) => {
+  const { date, records } = req.body
+  // records = [{student_id, status}]
+  for (const record of records) {
+    await pool.query(
+      `INSERT INTO attendance (student_id, date, status)
+       VALUES ($1, $2, $3)
+       ON CONFLICT DO NOTHING`,
+      [record.student_id, date, record.status]
+    )
+  }
+  res.json({ success: true })
+})
+
+app.get('/api/attendance', async (req, res) => {
+  const { date, class_id } = req.query
+  const result = await pool.query(`
+    SELECT attendance.*, students.name, students.phone, students.roll_no
+    FROM attendance
+    JOIN students ON attendance.student_id = students.id
+    WHERE attendance.date = $1 AND students.class_id = $2
+    ORDER BY students.id
+  `, [date, class_id])
+  res.json(result.rows)
+})
+
+app.get('/api/attendance/all', async (req, res) => {
+  const result = await pool.query(`
+    SELECT attendance.*, students.name, students.roll_no, classes.name as class_name
+    FROM attendance
+    JOIN students ON attendance.student_id = students.id
+    JOIN classes ON students.class_id = classes.id
+    ORDER BY attendance.date DESC
+  `)
+  res.json(result.rows)
+})
+
+// ============================================
+// HOMEWORK
+// ============================================
+app.get('/api/homework', async (req, res) => {
+  const { class_id } = req.query
+  let result
+
+  if (class_id) {
+    result = await pool.query(`
+      SELECT homework.*, classes.name as class_name, teachers.name as teacher_name
+      FROM homework
+      LEFT JOIN classes ON homework.class_id = classes.id
+      LEFT JOIN teachers ON homework.teacher_id = teachers.id
+      WHERE homework.class_id = $1
+      ORDER BY homework.created_at DESC
+    `, [class_id])
+  } else {
+    result = await pool.query(`
+      SELECT homework.*, classes.name as class_name, teachers.name as teacher_name
+      FROM homework
+      LEFT JOIN classes ON homework.class_id = classes.id
+      LEFT JOIN teachers ON homework.teacher_id = teachers.id
+      ORDER BY homework.created_at DESC
+    `)
+  }
+
+  res.json(result.rows)
+})
+
+app.post('/api/homework', async (req, res) => {
+  const { subject, task, class_id, teacher_id } = req.body
+  if (!subject || !task) return res.status(400).json({ error: 'Subject and task are required' })
+
+  const result = await pool.query(
+    'INSERT INTO homework (subject, task, class_id, teacher_id) VALUES ($1, $2, $3, $4) RETURNING *',
+    [subject, task, class_id || null, teacher_id || null]
+  )
+  res.json(result.rows[0])
+})
+
+app.delete('/api/homework/:id', async (req, res) => {
+  await pool.query('DELETE FROM homework WHERE id = $1', [req.params.id])
+  res.json({ success: true })
+})
+
+// ============================================
+// ANNOUNCEMENTS
+// ============================================
+app.get('/api/announcements', async (req, res) => {
+  const { class_id } = req.query
+  let result
+
+  if (class_id) {
+    result = await pool.query(`
+      SELECT announcements.*, classes.name as class_name, teachers.name as teacher_name
+      FROM announcements
+      LEFT JOIN classes ON announcements.class_id = classes.id
+      LEFT JOIN teachers ON announcements.teacher_id = teachers.id
+      WHERE announcements.class_id IS NULL OR announcements.class_id = $1
+      ORDER BY announcements.created_at DESC
+    `, [class_id])
+  } else {
+    result = await pool.query(`
+      SELECT announcements.*, classes.name as class_name, teachers.name as teacher_name
+      FROM announcements
+      LEFT JOIN classes ON announcements.class_id = classes.id
+      LEFT JOIN teachers ON announcements.teacher_id = teachers.id
+      ORDER BY announcements.created_at DESC
+    `)
+  }
+
+  res.json(result.rows)
+})
+
+app.post('/api/announcements', async (req, res) => {
+  const { title, message, class_id, teacher_id, author } = req.body
+  if (!message) return res.status(400).json({ error: 'Announcement message is required' })
+
+  const result = await pool.query(
+    'INSERT INTO announcements (title, message, class_id, teacher_id, author) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+    [title || null, message, class_id || null, teacher_id || null, author || null]
+  )
+  res.json(result.rows[0])
+})
+
+app.delete('/api/announcements/:id', async (req, res) => {
+  await pool.query('DELETE FROM announcements WHERE id = $1', [req.params.id])
+  res.json({ success: true })
+})
 
 // ============================================
 // START SERVER
 // ============================================
-const server = http.createServer(app);
-server.listen(PORT, () => {
-    console.log('\n' + '='.repeat(50));
-    console.log('🚀 ATTENDANCE SERVER STARTED');
-    console.log('='.repeat(50));
-    console.log(`🌐 URL:    http://localhost:${PORT}`);
-    console.log(`📡 API:    http://localhost:${PORT}/submit-attendance`);
-    console.log(`💚 Health: http://localhost:${PORT}/health`);
-    console.log('='.repeat(50));
-    console.log('⏳ Waiting for attendance submissions...\n');
-});
+const PORT = process.env.PORT || 3000
+createTables().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`)
+  })
+})
