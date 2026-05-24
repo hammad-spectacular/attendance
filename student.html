@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Portal — The Eye</title>
+  <meta name="description" content="Student and parent portal for The Eye School Management System.">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    [data-theme="dark"] {
+      --bg: #0f172a;
+      --bg-card: #1e293b;
+      --bg-card-hover: #263348;
+      --bg-input: #0f172a;
+      --border: #334155;
+      --text: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --primary: #22c55e;
+      --primary-light: #86efac;
+      --success: #22c55e;
+      --success-bg: rgba(34, 197, 94, 0.1);
+      --danger: #ef4444;
+      --danger-bg: rgba(239, 68, 68, 0.08);
+      --warning: #f59e0b;
+      --warning-bg: rgba(245, 158, 11, 0.08);
+      --shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+      --shadow-lg: 0 10px 25px -5px rgba(0,0,0,0.4);
+      --gradient: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    }
+
+    [data-theme="light"] {
+      --bg: #f1f5f9;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f8fafc;
+      --bg-input: #f8fafc;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      --primary: #16a34a;
+      --primary-light: #22c55e;
+      --success: #16a34a;
+      --success-bg: rgba(34, 197, 94, 0.08);
+      --danger: #dc2626;
+      --danger-bg: rgba(239, 68, 68, 0.06);
+      --warning: #d97706;
+      --warning-bg: rgba(245, 158, 11, 0.06);
+      --shadow: 0 4px 6px -1px rgba(0,0,0,0.07);
+      --shadow-lg: 0 10px 25px -5px rgba(0,0,0,0.1);
+      --gradient: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+
+    .header {
+      background: var(--gradient);
+      padding: 22px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      box-shadow: 0 4px 20px rgba(34,197,94,0.28);
+      overflow: hidden;
+    }
+
+    .header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 24% 50%, rgba(255,255,255,0.08) 0%, transparent 60%),
+                  radial-gradient(ellipse at 76% 50%, rgba(255,255,255,0.05) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .header-inner {
+      position: relative;
+      z-index: 1;
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .student-heading {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .back-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      border: 2px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.1);
+      color: white;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.25s ease;
+      backdrop-filter: blur(10px);
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+
+    .back-btn:hover {
+      background: rgba(255,255,255,0.2);
+      border-color: rgba(255,255,255,0.5);
+      transform: scale(1.06);
+    }
+
+    .avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      border: 2px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.12);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+      backdrop-filter: blur(10px);
+    }
+
+    .header-title { min-width: 0; }
+    .header-title strong {
+      display: block;
+      color: white;
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.4px;
+      line-height: 1.2;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .header-title span {
+      display: block;
+      margin-top: 3px;
+      color: rgba(255,255,255,0.72);
+      font-size: 0.78rem;
+      font-weight: 500;
+    }
+
+    .theme-toggle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.1);
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.25s ease;
+      flex-shrink: 0;
+      backdrop-filter: blur(10px);
+    }
+
+    .theme-toggle:hover {
+      background: rgba(255,255,255,0.2);
+      border-color: rgba(255,255,255,0.5);
+      transform: scale(1.06);
+    }
+
+    .main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 28px 20px 56px;
+    }
+
+    .tab-nav {
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      border-bottom: 2px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      position: sticky;
+      top: 92px;
+      z-index: 18;
+    }
+
+    [data-theme="dark"] .tab-nav {
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .tab-nav-inner {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0.5rem 20px;
+      display: flex;
+      gap: 0.5rem;
+      white-space: nowrap;
+    }
+
+    .tab-btn {
+      padding: 0.65rem 1.2rem;
+      border-radius: 12px;
+      border: 2px solid transparent;
+      background: var(--bg-card);
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.86rem;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      flex-shrink: 0;
+    }
+
+    .tab-btn:hover {
+      color: var(--primary-light);
+      background: var(--bg-card-hover);
+      border-color: var(--border);
+    }
+
+    .tab-btn.active {
+      color: white;
+      background: var(--gradient);
+      border-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(34, 197, 94, 0.35);
+    }
+
+    .notice {
+      display: none;
+      margin-bottom: 18px;
+      padding: 12px 14px;
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      border-radius: 12px;
+      background: var(--warning-bg);
+      color: var(--warning);
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .notice.show { display: block; }
+
+    .section-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      margin-bottom: 22px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      animation: fadeInUp 0.45s ease-out both;
+      scroll-margin-top: 168px;
+    }
+
+    .section-card:nth-child(2) { animation-delay: 0.05s; }
+    .section-card:nth-child(3) { animation-delay: 0.12s; }
+    .section-card:nth-child(4) { animation-delay: 0.19s; }
+    .section-card:nth-child(5) { animation-delay: 0.26s; }
+
+    .section-header {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg);
+    }
+
+    .section-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.05rem;
+      flex-shrink: 0;
+    }
+
+    .section-icon.blue { background: rgba(34, 197, 94, 0.12); color: var(--primary-light); }
+    .section-icon.green { background: var(--success-bg); color: var(--success); }
+    .section-icon.orange { background: var(--warning-bg); color: var(--warning); }
+
+    .section-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .section-subtitle {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .section-body { padding: 20px; }
+
+    .teacher-card {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .info-box {
+      padding: 14px;
+      border-radius: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+    }
+
+    .info-label {
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .info-value {
+      color: var(--text);
+      font-size: 0.95rem;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .attendance-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .summary-card {
+      padding: 16px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      min-height: 104px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .summary-card.present { border-color: rgba(34, 197, 94, 0.28); background: var(--success-bg); }
+    .summary-card.absent { border-color: rgba(239, 68, 68, 0.25); background: var(--danger-bg); }
+    .summary-card.leave { border-color: rgba(245, 158, 11, 0.25); background: var(--warning-bg); }
+
+    .summary-number {
+      font-size: 1.7rem;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .summary-label {
+      margin-top: 8px;
+      font-size: 0.76rem;
+      color: var(--text-secondary);
+      font-weight: 700;
+    }
+
+    .attendance-bar {
+      height: 10px;
+      border-radius: 999px;
+      background: var(--border);
+      overflow: hidden;
+      display: flex;
+      margin-top: 16px;
+    }
+
+    .bar-present { background: var(--success); }
+    .bar-absent { background: var(--danger); }
+    .bar-leave { background: var(--warning); }
+
+    .item-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .list-item {
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg);
+    }
+
+    .item-topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .item-title {
+      color: var(--text);
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .item-date {
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .item-text {
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+      line-height: 1.55;
+    }
+
+    .student-picker {
+      max-width: 520px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .student-picker select {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 2px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.88rem;
+      outline: none;
+    }
+
+    .student-picker select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+    }
+
+    .student-picker button {
+      width: 100%;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 12px;
+      background: var(--gradient);
+      color: white;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.84rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(34,197,94,0.28);
+    }
+
+    .state {
+      padding: 36px 20px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .state i {
+      display: block;
+      font-size: 1.8rem;
+      margin-bottom: 10px;
+      opacity: 0.75;
+    }
+
+    .state .msg {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .state .sub {
+      margin-top: 4px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 720px) {
+      .header { padding: 16px; }
+      .header-inner { align-items: flex-start; }
+      .header-title strong { font-size: 1.05rem; white-space: normal; }
+      .tab-nav { top: 80px; }
+      .tab-nav-inner { padding-left: 12px; padding-right: 12px; gap: 0.35rem; }
+      .tab-btn { padding: 0.55rem 0.95rem; font-size: 0.78rem; }
+      .main { padding: 16px 12px 48px; }
+      .section-header { padding: 14px; }
+      .section-body { padding: 14px; }
+      .section-card { scroll-margin-top: 154px; }
+      .teacher-card { grid-template-columns: 1fr; }
+      .attendance-grid { grid-template-columns: repeat(2, 1fr); }
+      .item-topline { align-items: flex-start; flex-direction: column; gap: 4px; }
+      .item-date { white-space: normal; }
+    }
+
+    @media (max-width: 420px) {
+      .attendance-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <div class="student-heading">
+        <a href="./index.html" class="back-btn" title="Back to login" aria-label="Back to login">
+          <i class="fas fa-arrow-left"></i>
+        </a>
+        <div class="avatar"><i class="fas fa-user-graduate"></i></div>
+        <div class="header-title">
+          <strong id="studentName">Loading student...</strong>
+          <span id="studentClass">Class details loading</span>
+        </div>
+      </div>
+      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+        <i id="themeIcon" class="fas fa-sun"></i>
+      </button>
+    </div>
+  </header>
+
+  <nav class="tab-nav" aria-label="Student portal sections">
+    <div class="tab-nav-inner">
+      <a href="#teacherSection" class="tab-btn active" data-section="teacherSection">
+        <i class="fas fa-chalkboard-user"></i>Teacher
+      </a>
+      <a href="#attendanceCard" class="tab-btn" data-section="attendanceCard">
+        <i class="fas fa-clipboard-check"></i>Attendance
+      </a>
+      <a href="#homeworkCard" class="tab-btn" data-section="homeworkCard">
+        <i class="fas fa-book-open"></i>Homework
+      </a>
+      <a href="#announcementsCard" class="tab-btn" data-section="announcementsCard">
+        <i class="fas fa-bullhorn"></i>Announcements
+      </a>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="notice" id="studentNotice"></div>
+
+    <section class="section-card" id="teacherSection">
+      <div class="section-header">
+        <div class="section-icon blue"><i class="fas fa-chalkboard-user"></i></div>
+        <div>
+          <div class="section-title">Class Teacher</div>
+          <div class="section-subtitle">Teacher assigned to this student's class</div>
+        </div>
+      </div>
+      <div class="section-body" id="teacherCard">
+        <div class="state"><i class="fas fa-spinner fa-spin"></i><div class="msg">Loading teacher details</div></div>
+      </div>
+    </section>
+
+    <section class="section-card" id="attendanceCard">
+      <div class="section-header">
+        <div class="section-icon green"><i class="fas fa-clipboard-check"></i></div>
+        <div>
+          <div class="section-title">Attendance</div>
+          <div class="section-subtitle">Summary from submitted attendance records</div>
+        </div>
+      </div>
+      <div class="section-body" id="attendanceSection">
+        <div class="state"><i class="fas fa-spinner fa-spin"></i><div class="msg">Loading attendance</div></div>
+      </div>
+    </section>
+
+    <section class="section-card" id="homeworkCard">
+      <div class="section-header">
+        <div class="section-icon orange"><i class="fas fa-book-open"></i></div>
+        <div>
+          <div class="section-title">Homework</div>
+          <div class="section-subtitle">Assignments shared by the teacher</div>
+        </div>
+      </div>
+      <div class="section-body" id="homeworkSection">
+        <div class="state"><i class="fas fa-spinner fa-spin"></i><div class="msg">Loading homework</div></div>
+      </div>
+    </section>
+
+    <section class="section-card" id="announcementsCard">
+      <div class="section-header">
+        <div class="section-icon blue"><i class="fas fa-bullhorn"></i></div>
+        <div>
+          <div class="section-title">Announcements</div>
+          <div class="section-subtitle">Updates from school and class teachers</div>
+        </div>
+      </div>
+      <div class="section-body" id="announcementsSection">
+        <div class="state"><i class="fas fa-spinner fa-spin"></i><div class="msg">Loading announcements</div></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const API = 'https://attendance-production-fb0b.up.railway.app';
+
+    const state = {
+      student: null,
+      classInfo: null,
+      teacher: null
+    };
+
+    function escapeHtml(value) {
+      const div = document.createElement('div');
+      div.textContent = value == null ? '' : String(value);
+      return div.innerHTML;
+    }
+
+    function normalizeStatus(status) {
+      return String(status || '').trim().toLowerCase();
+    }
+
+    function getStudentIdFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const raw = params.get('id') || params.get('student_id') || '';
+      const match = raw.match(/\d+/);
+      return match ? Number(match[0]) : null;
+    }
+
+    function getRollNoFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('roll_no') || params.get('roll') || null;
+    }
+
+    function setStateBox(id, icon, message, subtext) {
+      document.getElementById(id).innerHTML = `
+        <div class="state">
+          <i class="${icon}"></i>
+          <div class="msg">${escapeHtml(message)}</div>
+          ${subtext ? `<div class="sub">${escapeHtml(subtext)}</div>` : ''}
+        </div>
+      `;
+    }
+
+    function setNotice(message) {
+      const notice = document.getElementById('studentNotice');
+      notice.textContent = message;
+      notice.classList.add('show');
+    }
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      document.getElementById('themeIcon').className = next === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+    }
+
+    async function fetchJson(url) {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Request failed (${response.status})`);
+      return response.json();
+    }
+
+    async function fetchOptional(urls) {
+      let lastError = null;
+      for (const url of urls) {
+        try {
+          return await fetchJson(url);
+        } catch (err) {
+          lastError = err;
+        }
+      }
+      throw lastError || new Error('Request failed');
+    }
+
+    function formatDate(value) {
+      if (!value) return 'No date';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return String(value);
+      return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    function renderHeader() {
+      const className = state.classInfo ? state.classInfo.name : 'No class assigned';
+      document.getElementById('studentName').textContent = state.student ? state.student.name : 'Student Portal';
+      document.getElementById('studentClass').textContent = className;
+    }
+
+    function renderTeacher() {
+      const container = document.getElementById('teacherCard');
+      if (!state.teacher) {
+        setStateBox('teacherCard', 'fas fa-user-slash', 'No class teacher assigned', 'Teacher details will appear here after assignment.');
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="teacher-card">
+          <div class="info-box">
+            <div class="info-label">Teacher Name</div>
+            <div class="info-value">${escapeHtml(state.teacher.name)}</div>
+          </div>
+          <div class="info-box">
+            <div class="info-label">Contact</div>
+            <div class="info-value">${escapeHtml(state.teacher.phone || 'Not provided')}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAttendance(records) {
+      const filtered = Array.isArray(records)
+        ? records.filter(row => Number(row.student_id) === Number(state.student.id))
+        : [];
+
+      const present = filtered.filter(row => normalizeStatus(row.status) === 'present').length;
+      const absent = filtered.filter(row => normalizeStatus(row.status) === 'absent').length;
+      const leave = filtered.filter(row => normalizeStatus(row.status) === 'leave').length;
+      const total = filtered.length;
+
+      if (total === 0) {
+        setStateBox('attendanceSection', 'fas fa-calendar-xmark', 'No attendance records yet', 'Submitted attendance will appear here.');
+        return;
+      }
+
+      const presentWidth = (present / total) * 100;
+      const absentWidth = (absent / total) * 100;
+      const leaveWidth = (leave / total) * 100;
+      const percentage = Math.round((present / total) * 100);
+
+      document.getElementById('attendanceSection').innerHTML = `
+        <div class="attendance-grid">
+          <div class="summary-card">
+            <div class="summary-number">${total}</div>
+            <div class="summary-label">Total Days</div>
+          </div>
+          <div class="summary-card present">
+            <div class="summary-number">${present}</div>
+            <div class="summary-label">Present</div>
+          </div>
+          <div class="summary-card absent">
+            <div class="summary-number">${absent}</div>
+            <div class="summary-label">Absent</div>
+          </div>
+          <div class="summary-card leave">
+            <div class="summary-number">${leave}</div>
+            <div class="summary-label">Leave</div>
+          </div>
+        </div>
+        <div class="attendance-bar" title="${percentage}% present">
+          <div class="bar-present" style="width:${presentWidth}%;"></div>
+          <div class="bar-absent" style="width:${absentWidth}%;"></div>
+          <div class="bar-leave" style="width:${leaveWidth}%;"></div>
+        </div>
+        <div style="margin-top:10px; color:var(--text-muted); font-size:0.78rem; font-weight:600;">
+          ${percentage}% attendance based on submitted records
+        </div>
+      `;
+    }
+
+    function renderHomework(items) {
+      const homework = Array.isArray(items)
+        ? items.filter(item => !item.class_id || Number(item.class_id) === Number(state.student.class_id))
+        : [];
+
+      if (homework.length === 0) {
+        setStateBox('homeworkSection', 'fas fa-book', 'No homework assigned yet', 'Homework will appear here when the teacher posts it.');
+        return;
+      }
+
+      document.getElementById('homeworkSection').innerHTML = `
+        <div class="item-list">
+          ${homework.map(item => `
+            <div class="list-item">
+              <div class="item-topline">
+                <div class="item-title">${escapeHtml(item.subject || 'Homework')}</div>
+                <div class="item-date">${escapeHtml(formatDate(item.date || item.assigned_at || item.created_at))}</div>
+              </div>
+              <div class="item-text">${escapeHtml(item.task || item.description || item.message || '')}</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function renderAnnouncements(items) {
+      const announcements = Array.isArray(items)
+        ? items.filter(item => !item.class_id || Number(item.class_id) === Number(state.student.class_id))
+        : [];
+
+      if (announcements.length === 0) {
+        setStateBox('announcementsSection', 'fas fa-bullhorn', 'No announcements yet', 'School and class announcements will appear here.');
+        return;
+      }
+
+      document.getElementById('announcementsSection').innerHTML = `
+        <div class="item-list">
+          ${announcements.map(item => `
+            <div class="list-item">
+              <div class="item-topline">
+                <div class="item-title">${escapeHtml(item.title || item.author || 'Announcement')}</div>
+                <div class="item-date">${escapeHtml(formatDate(item.date || item.created_at))}</div>
+              </div>
+              <div class="item-text">${escapeHtml(item.message || item.text || item.body || '')}</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function renderStudentChooser(students, classes) {
+      document.getElementById('studentName').textContent = 'Choose student';
+      document.getElementById('studentClass').textContent = 'Select a student to open the portal';
+
+      const options = students.map(student => {
+        const cls = classes.find(item => Number(item.id) === Number(student.class_id));
+        const label = `${student.name}${student.roll_no ? ` - Roll ${student.roll_no}` : ''}${cls ? ` - ${cls.name}` : ''}`;
+        return `<option value="${student.id}">${escapeHtml(label)}</option>`;
+      }).join('');
+
+      document.getElementById('teacherCard').innerHTML = `
+        <div class="student-picker">
+          <select id="studentPicker">
+            <option value="">Select student</option>
+            ${options}
+          </select>
+          <button type="button" onclick="openSelectedStudent()">
+            <i class="fas fa-arrow-right" style="margin-right:8px;"></i>Open Portal
+          </button>
+        </div>
+      `;
+
+      ['attendanceSection', 'homeworkSection', 'announcementsSection'].forEach(id => {
+        setStateBox(id, 'fas fa-lock-open', 'Choose a student first', 'The portal will load after a student is selected.');
+      });
+    }
+
+    function openSelectedStudent() {
+      const select = document.getElementById('studentPicker');
+      if (!select || !select.value) {
+        setNotice('Please select a student to continue.');
+        return;
+      }
+      window.location.href = `${window.location.pathname}?id=s_${select.value}`;
+    }
+
+    async function loadPortal() {
+      try {
+        const [students, classes, teachers] = await Promise.all([
+          fetchJson(`${API}/api/students`),
+          fetchJson(`${API}/api/classes`),
+          fetchJson(`${API}/api/teachers`)
+        ]);
+
+        const studentId = getStudentIdFromUrl();
+        const rollNo = getRollNoFromUrl();
+        if (!studentId && !rollNo) {
+          renderStudentChooser(students, classes);
+          return;
+        }
+
+        state.student = studentId
+          ? students.find(student => Number(student.id) === studentId)
+          : students.find(student => String(student.roll_no || '').toLowerCase() === rollNo.toLowerCase());
+
+        if (!state.student) {
+          document.getElementById('studentName').textContent = 'Student not found';
+          document.getElementById('studentClass').textContent = 'Check the student link';
+          ['teacherCard', 'attendanceSection', 'homeworkSection', 'announcementsSection'].forEach(id => {
+            setStateBox(id, 'fas fa-triangle-exclamation', 'Unable to load this section', 'The selected student could not be found.');
+          });
+          return;
+        }
+
+        state.classInfo = classes.find(cls => Number(cls.id) === Number(state.student.class_id)) || null;
+        state.teacher = teachers.find(teacher => Number(teacher.class_id) === Number(state.student.class_id)) || null;
+
+        renderHeader();
+        renderTeacher();
+      } catch (err) {
+        document.getElementById('studentName').textContent = 'Unable to load portal';
+        document.getElementById('studentClass').textContent = 'Please try again later';
+        ['teacherCard', 'attendanceSection', 'homeworkSection', 'announcementsSection'].forEach(id => {
+          setStateBox(id, 'fas fa-circle-exclamation', 'Data failed to load', err.message);
+        });
+        return;
+      }
+
+      try {
+        const attendance = await fetchJson(`${API}/api/attendance/all`);
+        renderAttendance(attendance);
+      } catch (err) {
+        setStateBox('attendanceSection', 'fas fa-circle-exclamation', 'Attendance failed to load', err.message);
+      }
+
+      try {
+        const homework = await fetchOptional([
+          `${API}/api/homework?class_id=${state.student.class_id || ''}`,
+          `${API}/api/homework`
+        ]);
+        renderHomework(homework);
+      } catch (err) {
+        setStateBox('homeworkSection', 'fas fa-plug-circle-xmark', 'Homework API is not available yet', 'This section will work when the backend provides homework data.');
+      }
+
+      try {
+        const announcements = await fetchOptional([
+          `${API}/api/announcements?class_id=${state.student.class_id || ''}`,
+          `${API}/api/announcements`
+        ]);
+        renderAnnouncements(announcements);
+      } catch (err) {
+        setStateBox('announcementsSection', 'fas fa-plug-circle-xmark', 'Announcements API is not available yet', 'This section will work when the backend provides announcement data.');
+      }
+    }
+
+    function setupSectionTabs() {
+      const tabs = Array.from(document.querySelectorAll('.tab-btn[data-section]'));
+      const sections = tabs
+        .map(tab => document.getElementById(tab.dataset.section))
+        .filter(Boolean);
+
+      tabs.forEach(tab => {
+        tab.addEventListener('click', event => {
+          event.preventDefault();
+          const section = document.getElementById(tab.dataset.section);
+          if (!section) return;
+          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          history.replaceState(null, '', `#${section.id}`);
+        });
+      });
+
+      const observer = new IntersectionObserver(entries => {
+        const visible = entries
+          .filter(entry => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+
+        if (!visible) return;
+
+        tabs.forEach(tab => {
+          tab.classList.toggle('active', tab.dataset.section === visible.target.id);
+        });
+      }, {
+        rootMargin: '-42% 0px -45% 0px',
+        threshold: [0.1, 0.25, 0.5, 0.75]
+      });
+
+      sections.forEach(section => observer.observe(section));
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      setupSectionTabs();
+      loadPortal();
+    });
+  </script>
+</body>
+</html>
