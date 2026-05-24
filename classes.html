@@ -104,7 +104,6 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 20px;
     }
     .header-left {
       display: flex;
@@ -658,13 +657,6 @@
       -webkit-overflow-scrolling: touch;
       white-space: nowrap;
     }
-    .tab-nav::-webkit-scrollbar {
-      display: none;
-    }
-    .tab-nav {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
-    }
     [data-theme="dark"] .tab-nav { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3); }
     .tab-nav-inner {
       max-width: 960px;
@@ -758,22 +750,22 @@
   <!-- ======================== TAB NAVIGATION ======================== -->
   <nav class="tab-nav">
     <div class="tab-nav-inner">
-      <a href="./admin.html?tab=teachers" class="tab-btn" style="text-decoration:none;">
+      <a href="./admin.html" class="tab-btn" style="text-decoration:none;">
         <i class="fas fa-chalkboard-user"></i>Teachers
       </a>
-      <a href="./admin.html?tab=students" class="tab-btn" style="text-decoration:none;">
+      <a href="./admin.html" class="tab-btn" style="text-decoration:none;">
         <i class="fas fa-user-graduate"></i>Students
       </a>
       <button class="tab-btn active" style="cursor:default;">
         <i class="fas fa-book"></i>Classes
       </button>
-      <a href="./admin.html?tab=attendance" class="tab-btn" style="text-decoration:none;">
+      <a href="./admin.html" class="tab-btn" style="text-decoration:none;">
         <i class="fas fa-clipboard-list"></i>Attendance
       </a>
-      <a href="./admin.html?tab=stats" class="tab-btn" style="text-decoration:none;">
+      <a href="./admin.html" class="tab-btn" style="text-decoration:none;">
         <i class="fas fa-chart-bar"></i>Stats
       </a>
-      <a href="./admin.html?tab=announcements" class="tab-btn" style="text-decoration:none;">
+      <a href="./admin.html" class="tab-btn" style="text-decoration:none;">
         <i class="fas fa-bullhorn"></i>Announcements
       </a>
     </div>
