@@ -1685,6 +1685,7 @@
 
         if (!assignedClass) {
           document.getElementById('teacherSelectionModal').classList.add('hidden');
+          document.body.style.overflow = '';
           document.getElementById('studentList').innerHTML = `
             <div style="text-align:center; padding:40px; color:var(--text-muted);">
               <div style="font-size:2rem; margin-bottom:12px;">⚠️</div>
@@ -1706,6 +1707,7 @@
         
         // Hide modal and update UI
         document.getElementById('teacherSelectionModal').classList.add('hidden');
+        document.body.style.overflow = '';
         document.getElementById('headerTeacherName').textContent = teacher.name;
         document.getElementById('headerClassName').textContent = `Class ${assignedClass.name}`;
 
