@@ -30,9 +30,9 @@
        THEME VARIABLES
        ================================ */
     [data-theme="dark"] {
-      --primary: #4f46e5;
-      --primary-dark: #4338ca;
-      --primary-light: #818cf8;
+      --primary: #14b8a6;
+      --primary-dark: #0d9488;
+      --primary-light: #5eead4;
       --success: #22c55e;
       --success-dark: #16a34a;
       --success-bg: rgba(34, 197, 94, 0.1);
@@ -53,9 +53,9 @@
     }
 
     [data-theme="light"] {
-      --primary: #4f46e5;
-      --primary-dark: #4338ca;
-      --primary-light: #818cf8;
+      --primary: #0d9488;
+      --primary-dark: #0f766e;
+      --primary-light: #14b8a6;
       --success: #16a34a;
       --success-dark: #15803d;
       --success-bg: rgba(34, 197, 94, 0.12);
@@ -230,16 +230,15 @@
     }
     .tab-btn.active {
       color: #fff;
-      background: linear-gradient(135deg, #4f46e5, #6366f1);
-      border-color: #4f46e5;
-      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+      background: linear-gradient(135deg, #14b8a6, #0d9488);
+      border-color: #14b8a6;
+      box-shadow: 0 2px 8px rgba(20, 184, 166, 0.35);
     }
     .tab-content {
-      display: none;
+      scroll-margin-top: 150px;
+      margin-bottom: 32px;
     }
-    .tab-content.active {
-      display: block;
-    }
+    
 
     /* Settings button */
     .settings-btn {
@@ -470,6 +469,47 @@
       background-color: var(--bg-card) !important;
       border-color: var(--border) !important;
     }
+
+    /* Teacher accent color matches the landing page teacher card */
+    .bg-blue-600,
+    .bg-indigo-600,
+    .from-blue-600,
+    .to-indigo-600 {
+      background-color: var(--primary) !important;
+      background-image: linear-gradient(135deg, #14b8a6, #0d9488) !important;
+    }
+    .hover\:bg-blue-700:hover,
+    .hover\:from-blue-700:hover,
+    .hover\:to-indigo-700:hover {
+      background-color: var(--primary-dark) !important;
+      background-image: linear-gradient(135deg, #0d9488, #0f766e) !important;
+    }
+    .bg-blue-50,
+    .bg-indigo-50,
+    .bg-blue-100,
+    .bg-indigo-100 {
+      background-color: rgba(20, 184, 166, 0.1) !important;
+    }
+    .hover\:bg-blue-100:hover,
+    .hover\:bg-indigo-100:hover {
+      background-color: rgba(20, 184, 166, 0.16) !important;
+    }
+    .text-blue-500,
+    .text-blue-600,
+    .text-blue-700,
+    .text-indigo-600,
+    .text-indigo-700 {
+      color: var(--primary) !important;
+    }
+    .text-indigo-50 {
+      color: #ecfeff !important;
+    }
+    .border-blue-100,
+    .border-blue-400,
+    .border-indigo-100,
+    .focus\:border-blue-500:focus {
+      border-color: var(--primary) !important;
+    }
   </style>
 </head>
 
@@ -538,18 +578,18 @@
   <nav class="tab-nav sticky top-0 z-20">
     <div class="max-w-5xl mx-auto px-4">
       <div class="tab-nav-inner">
-        <button class="tab-btn active" data-tab="attendance" onclick="switchTab('attendance')">
+        <a href="#tab-attendance" class="tab-btn active" data-section="tab-attendance">
           <i class="fas fa-clipboard-check"></i>Attendance
-        </button>
-        <button class="tab-btn" data-tab="announcements" onclick="switchTab('announcements')">
+        </a>
+        <a href="#tab-announcements" class="tab-btn" data-section="tab-announcements">
           <i class="fas fa-bullhorn"></i>Announcements
-        </button>
-        <button class="tab-btn" data-tab="homework" onclick="switchTab('homework')">
+        </a>
+        <a href="#tab-homework" class="tab-btn" data-section="tab-homework">
           <i class="fas fa-book"></i>Homework
-        </button>
-        <button class="tab-btn" data-tab="stats" onclick="switchTab('stats')">
+        </a>
+        <a href="#tab-stats" class="tab-btn" data-section="tab-stats">
           <i class="fas fa-chart-bar"></i>Stats
-        </button>
+        </a>
       </div>
     </div>
   </nav>
@@ -1379,31 +1419,7 @@
     // TAB NAVIGATION
     // =============================================================
 
-    function switchTab(tabName) {
-      // Hide all tab content
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-      // Deactivate all tab buttons
-      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-      
-      // Show selected tab content
-      const tabContent = document.getElementById(`tab-${tabName}`);
-      if (tabContent) tabContent.classList.add('active');
-      
-      // Activate selected tab button
-      const tabBtn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
-      if (tabBtn) tabBtn.classList.add('active');
-      
-      // Show/hide submit button based on tab
-      const submitBtn = document.getElementById('submitBtn');
-      if (tabName === 'attendance') {
-        submitBtn.classList.remove('hidden-tab');
-      } else {
-        submitBtn.classList.add('hidden-tab');
-      }
-
-      // Render stats when stats tab is opened
-      if (tabName === 'stats') renderStats();
-    }
+    
 
 
     // =============================================================
@@ -1754,11 +1770,19 @@
       await autoLoadTeacherClass(teacherId);
     }
 
-    function renderSchoolAnnouncements() {
+    async function renderSchoolAnnouncements() {
       const container = document.getElementById('schoolAnnouncementsList');
       const container2 = document.getElementById('schoolAnnouncementsList2');
       let items = [];
-      try { items = JSON.parse(localStorage.getItem('schoolAnnouncements')) || []; } catch(e){}
+      try {
+        items = await fetch(`${API}/api/announcements`).then(r => r.json());
+        items = items.filter(item => !item.class_id);
+      } catch(e) {
+        const errorHtml = '<div class="text-xs text-[rgba(255,255,255,0.6)] italic py-2 mt-2">School announcements failed to load</div>';
+        if (container) container.innerHTML = errorHtml;
+        if (container2) container2.innerHTML = errorHtml;
+        return;
+      }
       
       if (items.length === 0) {
         const emptyHtml = '<div class="text-xs text-[rgba(255,255,255,0.6)] italic py-2 mt-2">No school announcements</div>';
@@ -1772,7 +1796,7 @@
         html += `
           <div class="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20 hover:bg-white/20 transition-colors text-white">
             <div class="flex items-center justify-between mb-1.5">
-              <span class="text-[10px] font-800 px-2.5 py-0.5 bg-indigo-500 rounded-md text-white uppercase tracking-wider">${item.date}</span>
+              <span class="text-[10px] font-800 px-2.5 py-0.5 bg-indigo-500 rounded-md text-white uppercase tracking-wider">${new Date(item.created_at).toLocaleDateString('en-CA')}</span>
             </div>
             <div class="item-text text-indigo-50 text-[13px] font-500 whitespace-pre-wrap leading-relaxed">${item.message}</div>
           </div>
@@ -1782,7 +1806,7 @@
       if (container2) container2.innerHTML = html;
     }
 
-    function saveClassAnnouncement() {
+    async function saveClassAnnouncement() {
       if (!currentTeacher) return;
       const text = document.getElementById('classAnnouncementText').value.trim();
       if (!text) {
@@ -1790,29 +1814,42 @@
         return;
       }
       
-      let items = [];
-      try { items = JSON.parse(localStorage.getItem('classAnnouncements')) || []; } catch(e){}
+      try {
+        const response = await fetch(`${API}/api/announcements`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: 'Class Announcement',
+            message: text,
+            class_id: currentClass ? currentClass.id : null,
+            teacher_id: currentTeacher.id,
+            author: currentTeacher.name
+          })
+        });
+
+        if (!response.ok) throw new Error('Failed to save announcement');
       
-      items.unshift({
-        teacher: currentTeacher.name,
-        class: currentTeacher.class,
-        date: new Date().toLocaleDateString('en-CA'),
-        message: text
-      });
-      localStorage.setItem('classAnnouncements', JSON.stringify(items));
       
       document.getElementById('classAnnouncementText').value = '';
       showToast('📢 Class Announcement saved', 'success');
       renderClassAnnouncements();
+      } catch (err) {
+        showToast(`Error: ${err.message}`, 'error');
+      }
     }
 
-    function renderClassAnnouncements() {
+    async function renderClassAnnouncements() {
       if (!currentTeacher) return;
       const container = document.getElementById('classAnnouncementsList');
-      let items = [];
-      try { items = JSON.parse(localStorage.getItem('classAnnouncements')) || []; } catch(e){}
-      
-      const myItems = items.filter(i => i.teacher === currentTeacher.name && i.class === currentTeacher.class);
+      let myItems = [];
+
+      try {
+        const items = await fetch(`${API}/api/announcements?class_id=${currentClass ? currentClass.id : ''}`).then(r => r.json());
+        myItems = items.filter(item => Number(item.class_id) === Number(currentClass.id));
+      } catch(e) {
+        container.innerHTML = '<div class="text-xs text-gray-400 italic py-2">Announcements failed to load</div>';
+        return;
+      }
       
       if (myItems.length === 0) {
         container.innerHTML = '<div class="text-xs text-gray-400 italic py-2">No announcements yet</div>';
@@ -1823,7 +1860,7 @@
       myItems.forEach((item, idx) => {
         html += `
           <div class="class-card-item bg-gray-50 border border-gray-100 rounded-lg p-2.5 text-sm">
-            <div class="text-xs font-600 text-blue-500 mb-1">${item.date}</div>
+            <div class="text-xs font-600 text-blue-500 mb-1">${new Date(item.created_at).toLocaleDateString('en-CA')}</div>
             <div class="item-text text-gray-700">${item.message}</div>
           </div>
         `;
@@ -1831,7 +1868,7 @@
       container.innerHTML = html;
     }
 
-    function saveHomework() {
+    async function saveHomework() {
       if (!currentTeacher) return;
       const subject = document.getElementById('homeworkSubject').value.trim();
       const task = document.getElementById('homeworkTask').value.trim();
@@ -1841,22 +1878,28 @@
         return;
       }
       
-      let items = [];
-      try { items = JSON.parse(localStorage.getItem('homework')) || []; } catch(e){}
+      try {
+        const response = await fetch(`${API}/api/homework`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subject,
+            task,
+            class_id: currentClass ? currentClass.id : null,
+            teacher_id: currentTeacher.id
+          })
+        });
+
+        if (!response.ok) throw new Error('Failed to save homework');
       
-      items.unshift({
-        teacher: currentTeacher.name,
-        class: currentTeacher.class,
-        date: new Date().toLocaleDateString('en-CA'),
-        subject: subject,
-        task: task
-      });
-      localStorage.setItem('homework', JSON.stringify(items));
       
       document.getElementById('homeworkSubject').value = '';
       document.getElementById('homeworkTask').value = '';
       showToast('📚 Homework saved', 'success');
       renderHomework();
+      } catch (err) {
+        showToast(`Error: ${err.message}`, 'error');
+      }
     }
 
     function clearSavedRecords() {
@@ -1913,13 +1956,17 @@
       }
     }
 
-    function renderHomework() {
+    async function renderHomework() {
       if (!currentTeacher) return;
       const container = document.getElementById('homeworkList');
-      let items = [];
-      try { items = JSON.parse(localStorage.getItem('homework')) || []; } catch(e){}
-      
-      const myItems = items.filter(i => i.teacher === currentTeacher.name && i.class === currentTeacher.class);
+      let myItems = [];
+
+      try {
+        myItems = await fetch(`${API}/api/homework?class_id=${currentClass ? currentClass.id : ''}`).then(r => r.json());
+      } catch(e) {
+        container.innerHTML = '<div class="text-xs text-gray-400 italic py-2">Homework failed to load</div>';
+        return;
+      }
       
       if (myItems.length === 0) {
         container.innerHTML = '<div class="text-xs text-gray-400 italic py-2">No homework saved yet</div>';
@@ -1932,7 +1979,7 @@
           <div class="class-card-item bg-gray-50 border border-gray-100 rounded-lg p-2.5 text-sm">
             <div class="flex justify-between items-start mb-1">
               <span class="text-xs font-700 text-indigo-600 uppercase bg-indigo-50 px-2 py-0.5 rounded">${item.subject}</span>
-              <span class="text-[10px] text-gray-400 font-600">${item.date}</span>
+              <span class="text-[10px] text-gray-400 font-600">${new Date(item.created_at).toLocaleDateString('en-CA')}</span>
             </div>
             <div class="item-text text-gray-700 mt-1.5">${item.task}</div>
           </div>
@@ -1941,7 +1988,52 @@
       container.innerHTML = html;
     }
 
+    
+    function setupSectionTabs() {
+      const tabs = Array.from(document.querySelectorAll('.tab-btn[data-section]'));
+      const sections = tabs
+        .map(tab => document.getElementById(tab.dataset.section))
+        .filter(Boolean);
+
+      tabs.forEach(tab => {
+        tab.addEventListener('click', event => {
+          event.preventDefault();
+          const section = document.getElementById(tab.dataset.section);
+          if (!section) return;
+          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          history.replaceState(null, '', '#' + section.id);
+        });
+      });
+
+      const observer = new IntersectionObserver(entries => {
+        const visible = entries
+          .filter(entry => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+
+        if (!visible) return;
+
+        tabs.forEach(tab => {
+          tab.classList.toggle('active', tab.dataset.section === visible.target.id);
+        });
+        
+        const submitBtn = document.getElementById('submitBtn');
+        if (submitBtn) {
+          if (visible.target.id === 'tab-attendance') {
+            submitBtn.classList.remove('hidden-tab');
+          } else {
+            submitBtn.classList.add('hidden-tab');
+          }
+        }
+      }, {
+        rootMargin: '-20% 0px -70% 0px',
+        threshold: [0.1, 0.25, 0.5]
+      });
+
+      sections.forEach(section => observer.observe(section));
+    }
+
     function init() {
+      setupSectionTabs();
       // Load theme preference
       loadTheme();
 
