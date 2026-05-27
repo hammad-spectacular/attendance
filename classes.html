@@ -1,0 +1,1363 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Classes Manager — The Eye</title>
+  <meta name="description" content="Manage classes, students, and teacher assignments.">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* ================================
+       THEME VARIABLES
+       ================================ */
+    [data-theme="dark"] {
+      --bg: #0f172a;
+      --bg-card: #1e293b;
+      --bg-card-hover: #263348;
+      --bg-input: #0f172a;
+      --border: #334155;
+      --border-focus: #4f46e5;
+      --text: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --primary: #4f46e5;
+      --primary-light: #818cf8;
+      --primary-hover: #6366f1;
+      --success: #22c55e;
+      --success-bg: rgba(34, 197, 94, 0.1);
+      --danger: #ef4444;
+      --danger-bg: rgba(239, 68, 68, 0.08);
+      --warning: #f59e0b;
+      --warning-bg: rgba(245, 158, 11, 0.08);
+      --shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+      --shadow-lg: 0 10px 25px -5px rgba(0,0,0,0.4);
+      --gradient: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+      --table-row-hover: rgba(79, 70, 229, 0.06);
+      --badge-bg: rgba(79, 70, 229, 0.12);
+      --badge-text: #a5b4fc;
+    }
+    [data-theme="light"] {
+      --bg: #f1f5f9;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f8fafc;
+      --bg-input: #f8fafc;
+      --border: #e2e8f0;
+      --border-focus: #4f46e5;
+      --text: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      --primary: #4f46e5;
+      --primary-light: #6366f1;
+      --primary-hover: #4338ca;
+      --success: #16a34a;
+      --success-bg: rgba(34, 197, 94, 0.08);
+      --danger: #dc2626;
+      --danger-bg: rgba(239, 68, 68, 0.06);
+      --warning: #d97706;
+      --warning-bg: rgba(245, 158, 11, 0.06);
+      --shadow: 0 4px 6px -1px rgba(0,0,0,0.07);
+      --shadow-lg: 0 10px 25px -5px rgba(0,0,0,0.1);
+      --gradient: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+      --table-row-hover: rgba(79, 70, 229, 0.04);
+      --badge-bg: rgba(79, 70, 229, 0.08);
+      --badge-text: #4f46e5;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      transition: background 0.4s ease, color 0.4s ease;
+      overflow-x: hidden;
+    }
+
+    /* ================================
+       HEADER
+       ================================ */
+    .header {
+      background: var(--gradient);
+      padding: 20px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(79,70,229,0.3);
+      animation: headerSlideDown 0.5s ease-out;
+    }
+    .header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 30% 50%, rgba(255,255,255,0.08) 0%, transparent 60%),
+                  radial-gradient(ellipse at 70% 50%, rgba(255,255,255,0.05) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .header-inner {
+      position: relative;
+      z-index: 1;
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .back-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      border: 2px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.1);
+      color: white;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+    .back-btn:hover {
+      background: rgba(255,255,255,0.2);
+      border-color: rgba(255,255,255,0.5);
+      transform: scale(1.06);
+    }
+    .header-title strong {
+      display: block;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: white;
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+    }
+    .header-title span {
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.65);
+      font-weight: 400;
+      letter-spacing: 0.3px;
+    }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .theme-toggle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.1);
+      color: white;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+    }
+    .theme-toggle:hover {
+      background: rgba(255,255,255,0.2);
+      border-color: rgba(255,255,255,0.5);
+      transform: scale(1.06);
+    }
+
+    /* ================================
+       MAIN CONTAINER
+       ================================ */
+    .main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 28px 20px 60px;
+    }
+
+    /* ================================
+       SECTION CARD
+       ================================ */
+    .section-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      animation: fadeInUp 0.5s ease-out both;
+    }
+    .section-card:nth-child(1) { animation-delay: 0.05s; }
+    .section-card:nth-child(2) { animation-delay: 0.15s; }
+    .section-card:nth-child(3) { animation-delay: 0.25s; }
+
+    .section-header {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg);
+    }
+    .section-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .section-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+    .section-icon.blue { background: rgba(79, 70, 229, 0.12); color: #4f46e5; }
+    .section-icon.green { background: rgba(34, 197, 94, 0.12); color: #22c55e; }
+    .section-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .section-subtitle {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .section-body {
+      padding: 20px;
+    }
+
+    /* ================================
+       FORM ELEMENTS
+       ================================ */
+    .form-group {
+      margin-bottom: 14px;
+    }
+    .form-label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .form-input,
+    .form-select,
+    .form-textarea {
+      width: 100%;
+      padding: 11px 14px;
+      border-radius: 10px;
+      border: 2px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.85rem;
+      transition: border-color 0.25s ease, box-shadow 0.25s ease;
+      outline: none;
+    }
+    .form-input:focus,
+    .form-select:focus,
+    .form-textarea:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
+    .form-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .form-row {
+      display: flex;
+      gap: 12px;
+    }
+    .form-row .form-group {
+      flex: 1;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 22px;
+      border-radius: 10px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      border: none;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      letter-spacing: 0.2px;
+    }
+    .btn-primary {
+      background: var(--gradient);
+      color: white;
+      box-shadow: 0 4px 12px rgba(79,70,229,0.3);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 6px 18px rgba(79,70,229,0.45);
+      transform: translateY(-1px);
+    }
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+    .btn-danger {
+      background: var(--danger-bg);
+      color: var(--danger);
+      border: 1px solid transparent;
+    }
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.15);
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-secondary);
+    }
+    .btn-sm {
+      padding: 8px 16px;
+      font-size: 0.75rem;
+    }
+    .btn-icon {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ================================
+       ACTION BUTTONS
+       ================================ */
+    .action-buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      align-items: center;
+    }
+    .action-buttons button {
+      padding: 8px 12px;
+      font-size: 1rem;
+    }
+
+    /* ================================
+       EMPTY STATE
+       ================================ */
+    .empty-state {
+      padding: 48px 24px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+    .empty-state .icon {
+      font-size: 2rem;
+      margin-bottom: 8px;
+      opacity: 0.6;
+    }
+    .empty-state .msg {
+      font-size: 0.82rem;
+      font-weight: 500;
+    }
+    .empty-state .sub {
+      font-size: 0.72rem;
+      margin-top: 4px;
+      opacity: 0.7;
+    }
+
+    /* ================================
+       CLASS CARDS
+       ================================ */
+    .class-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      margin-bottom: 16px;
+      animation: fadeInUp 0.3s ease-out;
+    }
+    .class-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .class-card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .class-card-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .class-card .btn-icon {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+    .class-card .btn-icon:hover {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+
+    .class-info {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .class-info-item {
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+    }
+    .class-info-label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .class-info-value {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .students-section {
+      margin-top: 16px;
+    }
+    .students-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .students-header h4 {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .students-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .student-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.82rem;
+    }
+    .student-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+    }
+    .student-item-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .add-student-form {
+      padding: 12px;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      background: var(--bg-card);
+      margin-bottom: 12px;
+    }
+    .add-student-form.hidden {
+      display: none;
+    }
+
+    /* ================================
+       TEACHER ASSIGNMENT
+       ================================ */
+    .teacher-assignment {
+      padding: 12px;
+      border-radius: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      margin-bottom: 12px;
+    }
+    .teacher-assignment-inner {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+    .teacher-assignment-inner .form-group {
+      flex: 1;
+      margin-bottom: 0;
+    }
+    .teacher-assignment-inner .form-label {
+      margin-bottom: 4px;
+    }
+    .teacher-assignment-inner .btn {
+      padding: 8px 14px;
+      font-size: 0.75rem;
+    }
+
+    /* ================================
+       MODAL
+       ================================ */
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(2px);
+      animation: fadeIn 0.2s ease-out;
+    }
+    .modal.open {
+      display: flex;
+    }
+    .modal-content {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+      animation: slideUp 0.3s ease-out;
+    }
+    .modal-header {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-close {
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    .modal-close:hover {
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+    .modal-footer {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+      justify-content: flex-end;
+    }
+
+    /* ================================
+       TOAST
+       ================================ */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-end;
+      pointer-events: none;
+    }
+    .toast {
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: white;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      animation: toastIn 0.35s ease-out, toastOut 0.35s ease-in 2.5s forwards;
+      pointer-events: auto;
+    }
+    .toast.success { background: #059669; }
+    .toast.info { background: #475569; }
+    .toast.error { background: #dc2626; }
+    .toast.warning { background: #d97706; }
+
+    /* ================================
+       ANIMATIONS
+       ================================ */
+    @keyframes headerSlideDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(20px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes toastOut {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(-10px); }
+    }
+
+    /* ================================
+       TAB NAVIGATION
+       ================================ */
+    .tab-nav {
+      background: var(--bg);
+      border-bottom: 2px solid var(--border);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      transition: background 0.3s ease, border-color 0.3s ease;
+      margin-top: 2px;
+      display: flex;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      white-space: nowrap;
+    }
+    .tab-nav::-webkit-scrollbar {
+      display: none;
+    }
+    .tab-nav {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    [data-theme="dark"] .tab-nav { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3); }
+    .tab-nav-inner {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      gap: 0.5rem;
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
+      width: 100%;
+    }
+    .tab-btn {
+      padding: 0.65rem 1.5rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      border-radius: 12px;
+      border: 2px solid transparent;
+      background: var(--bg-card);
+      transition: all 0.25s ease;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: 'Inter', sans-serif;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .tab-btn:hover {
+      color: var(--primary);
+      background: var(--bg-card-hover);
+      border-color: var(--border);
+    }
+    .tab-btn.active {
+      color: #fff;
+      background: var(--gradient);
+      border-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+    }
+
+    /* ================================
+       RESPONSIVE
+       ================================ */
+    @media (max-width: 640px) {
+      .header { padding: 16px; }
+      .header-title strong { font-size: 1.1rem; }
+      .main { padding: 16px 12px 50px; }
+      .section-header { padding: 12px 14px; }
+      .section-body { padding: 14px; }
+      .section-title { font-size: 0.85rem; }
+      .class-info { grid-template-columns: 1fr; }
+      .tab-nav-inner { padding-left: 14px; padding-right: 14px; gap: 0.35rem; }
+      .tab-btn { padding: 0.55rem 1.2rem; font-size: 0.8rem; }
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      background: var(--badge-bg);
+      color: var(--badge-text);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ======================== HEADER ======================== -->
+  <div class="header">
+    <div class="header-inner">
+      <div class="header-left">
+        <a href="./admin.html" class="back-btn" title="Back to Admin">
+          <i class="fas fa-arrow-left"></i>
+        </a>
+        <div class="header-title">
+          <strong>Classes & Students</strong>
+          <span>Manage classes and assign teachers</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <button onclick="toggleTheme()" class="theme-toggle" title="Toggle theme">
+          <i id="themeIcon" class="fas fa-sun"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== TAB NAVIGATION ======================== -->
+  <nav class="tab-nav">
+    <div class="tab-nav-inner">
+      <a href="./admin.html?tab=teachers" class="tab-btn" style="text-decoration:none;">
+        <i class="fas fa-chalkboard-user"></i>Teachers
+      </a>
+      <a href="./admin.html?tab=students" class="tab-btn" style="text-decoration:none;">
+        <i class="fas fa-user-graduate"></i>Students
+      </a>
+      <button class="tab-btn active" style="cursor:default;">
+        <i class="fas fa-book"></i>Classes
+      </button>
+      <a href="./admin.html?tab=attendance" class="tab-btn" style="text-decoration:none;">
+        <i class="fas fa-clipboard-list"></i>Attendance
+      </a>
+      <a href="./admin.html?tab=stats" class="tab-btn" style="text-decoration:none;">
+        <i class="fas fa-chart-bar"></i>Stats
+      </a>
+      <a href="./admin.html?tab=announcements" class="tab-btn" style="text-decoration:none;">
+        <i class="fas fa-bullhorn"></i>Announcements
+      </a>
+    </div>
+  </nav>
+
+  <!-- ======================== MAIN ======================== -->
+  <div class="main">
+
+    <!-- ======================== NEW CLASS SECTION ======================== -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-header-left">
+          <div class="section-icon blue"><i class="fas fa-plus"></i></div>
+          <div>
+            <div class="section-title">Add New Class</div>
+            <div class="section-subtitle">Create a new class and manage students</div>
+          </div>
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="newClassName">Class Name</label>
+            <input class="form-input" type="text" id="newClassName" placeholder="e.g. 9-A, 10-B">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="newClassSection">Section</label>
+            <input class="form-input" type="text" id="newClassSection" placeholder="e.g. A, B, Morning">
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="addNewClass()" style="width:100%;">
+          <i class="fas fa-plus"></i> Create Class
+        </button>
+      </div>
+    </div>
+
+    <!-- ======================== CLASSES LIST ======================== -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-header-left">
+          <div class="section-icon green"><i class="fas fa-list"></i></div>
+          <div>
+            <div class="section-title">All Classes</div>
+            <div class="section-subtitle" id="classCountSubtitle">0 classes created</div>
+          </div>
+        </div>
+      </div>
+      <div class="section-body">
+        <div id="classesContainer">
+          <div class="empty-state">
+            <div class="icon">📚</div>
+            <div class="msg">No classes created yet</div>
+            <div class="sub">Create a class to get started</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ======================== EDIT CLASS MODAL ======================== -->
+  <div class="modal" id="editClassModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <i class="fas fa-pen" style="margin-right:8px; color:var(--primary);"></i>Edit Class
+        </div>
+        <button class="modal-close" onclick="closeEditClassModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <input type="hidden" id="editClassId">
+      <div class="form-group">
+        <label class="form-label" for="editClassName">Class Name</label>
+        <input class="form-input" type="text" id="editClassName">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="editClassSection">Section</label>
+        <input class="form-input" type="text" id="editClassSection">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeEditClassModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveEditClass()"><i class="fas fa-check"></i> Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== EDIT STUDENT MODAL ======================== -->
+  <div class="modal" id="editStudentModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <i class="fas fa-pen" style="margin-right:8px; color:var(--primary);"></i>Edit Student
+        </div>
+        <button class="modal-close" onclick="closeEditStudentModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <input type="hidden" id="editStudentClassId">
+      <input type="hidden" id="editStudentIndex">
+      <div class="form-group">
+        <label class="form-label" for="editStudentName">Student Name</label>
+        <input class="form-input" type="text" id="editStudentName" placeholder="e.g. Ahmed Khan">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="editStudentRoll">Roll Number</label>
+        <input class="form-input" type="text" id="editStudentRoll" placeholder="e.g. 01">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="editStudentPhone">Contact</label>
+        <input class="form-input" type="tel" id="editStudentPhone" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits (e.g., 03001234567)" required>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeEditStudentModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveEditStudent()"><i class="fas fa-check"></i> Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== TOAST CONTAINER ======================== -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ======================== JAVASCRIPT ======================== -->
+  <script>
+    // =============================================================
+    // API CONFIGURATION
+    // =============================================================
+    const API = 'https://attendance-production-fb0b.up.railway.app';
+
+    // =============================================================
+    // UTILITY
+    // =============================================================
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // =============================================================
+    // THEME TOGGLE
+    // =============================================================
+    function toggleTheme() {
+      const html = document.documentElement;
+      const isDark = html.getAttribute('data-theme') === 'dark';
+      const next = isDark ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('attendance-theme', next);
+      updateThemeIcon(next);
+    }
+
+    function updateThemeIcon(theme) {
+      const icon = document.getElementById('themeIcon');
+      icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+    }
+
+    function loadTheme() {
+      const saved = localStorage.getItem('attendance-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', saved);
+      updateThemeIcon(saved);
+    }
+
+    // =============================================================
+    // TOAST NOTIFICATIONS
+    // =============================================================
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    // =============================================================
+    // CLASS MANAGEMENT
+    // =============================================================
+    async function addNewClass() {
+      const name = document.getElementById('newClassName').value.trim();
+      const section = document.getElementById('newClassSection').value.trim();
+
+      if (!name) {
+        showToast('⚠️ Enter class name', 'warning');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API}/api/classes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, section: section || null })
+        });
+
+        if (!response.ok) throw new Error('Failed to create class');
+
+        document.getElementById('newClassName').value = '';
+        document.getElementById('newClassSection').value = '';
+        renderClasses();
+        showToast('✅ Class created successfully', 'success');
+      } catch (err) {
+        showToast(`❌ Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function renderClasses() {
+      const container = document.getElementById('classesContainer');
+      const subtitle = document.getElementById('classCountSubtitle');
+
+      try {
+        const classes = await fetch(`${API}/api/classes`).then(r => r.json());
+        const students = await fetch(`${API}/api/students`).then(r => r.json());
+        const teachers = await fetch(`${API}/api/teachers`).then(r => r.json());
+
+        subtitle.textContent = `${classes.length} class${classes.length !== 1 ? 'es' : ''} created`;
+
+        if (classes.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="icon">📚</div>
+              <div class="msg">No classes created yet</div>
+              <div class="sub">Create a class to get started</div>
+            </div>`;
+          return;
+        }
+
+        // Group students by class
+        const studentsByClass = {};
+        students.forEach(s => {
+          if (!studentsByClass[s.class_id]) studentsByClass[s.class_id] = [];
+          studentsByClass[s.class_id].push(s);
+        });
+
+        let html = '';
+
+        classes.forEach((cls) => {
+          const classStudents = studentsByClass[cls.id] || [];
+          const teacherForClass = teachers.find(t => t.class_id === cls.id);
+
+          html += `
+            <div class="class-card">
+              <div class="class-card-header">
+                <div class="class-card-title">
+                  ${escapeHtml(cls.name)}
+                </div>
+                <div class="class-card-actions">
+                  <button class="btn btn-icon" onclick="openEditClassModal(${cls.id})" title="Edit class">
+                    <i class="fas fa-pen"></i>
+                  </button>
+                  <button class="btn btn-icon" onclick="deleteClass(${cls.id})" title="Delete class" style="color:#dc2626;">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="class-info">
+                <div class="class-info-item">
+                  <div class="class-info-label">Students</div>
+                  <div class="class-info-value">${classStudents.length}</div>
+                </div>
+                <div class="class-info-item">
+                  <div class="class-info-label">Teacher</div>
+                  <div class="class-info-value">${teacherForClass ? escapeHtml(teacherForClass.name) : '–'}</div>
+                </div>
+              </div>
+
+              <!-- Teacher Assignment -->
+              <div class="teacher-assignment">
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label">Assign Teacher</label>
+                  <div class="teacher-assignment-inner">
+                    <div class="form-group" style="margin-bottom:0; flex:1;">
+                      <select class="form-select" id="teacherSelect${cls.id}" onchange="assignTeacher(${cls.id})" ${teachers.length === 0 ? 'disabled' : ''}>
+                        <option value="">-- Select Teacher --</option>
+                        ${teachers
+                          .filter(t => !t.class_id || t.class_id === cls.id)
+                          .map(t => `<option value="${t.id}" ${t.class_id === cls.id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`)
+                          .join('')}
+                      </select>
+                    </div>
+                    ${teacherForClass ? `
+                      <button class="btn btn-primary btn-sm" onclick="copyTeacherLink('${teacherForClass.id}')" title="Copy teacher link">
+                        <i class="fas fa-link"></i> Copy Link
+                      </button>
+                    ` : ''}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Students Section -->
+              <div class="students-section">
+                <div class="students-header">
+                  <h4>Students (${classStudents.length})</h4>
+                </div>
+
+                <!-- Add Student Form -->
+                <div class="add-student-form" id="addStudentForm${cls.id}">
+                  <div class="form-row" style="margin-bottom:10px;">
+                    <div class="form-group">
+                      <label class="form-label">Name</label>
+                      <input class="form-input" type="text" id="studentName${cls.id}" placeholder="e.g. Ahmed Khan">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Roll No</label>
+                      <input class="form-input" type="text" id="studentRoll${cls.id}" placeholder="e.g. 01">
+                    </div>
+                  </div>
+                  <div class="form-group" style="margin-bottom:10px;">
+                    <label class="form-label">Contact</label>
+                    <input class="form-input" type="tel" id="studentPhone${cls.id}" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits" required>
+                  </div>
+                  <div style="display:flex; gap:8px;">
+                    <button class="btn btn-primary btn-sm" onclick="addStudent(${cls.id})" style="flex:1;">
+                      <i class="fas fa-plus"></i> Add
+                    </button>
+                    <button class="btn btn-ghost btn-sm" onclick="toggleAddStudentForm(${cls.id})" style="flex:1;">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Students List -->
+                <div class="students-list">
+                  ${classStudents.length > 0 ? classStudents.map(s => `
+                    <div class="student-item">
+                      <div class="student-info">
+                        <span style="color:var(--text-muted); font-weight:500; min-width:30px;">#${escapeHtml(s.roll_no || '—')}</span>
+                        <div>
+                          <div style="font-weight:600; color:var(--text);">${escapeHtml(s.name)}</div>
+                          <div style="font-size:0.75rem; color:var(--text-muted);">${escapeHtml(s.phone || 'N/A')}</div>
+                        </div>
+                      </div>
+                      <div class="student-item-actions">
+                        <button class="btn btn-icon" onclick="openEditStudentModal(${s.id})" title="Edit" style="background:transparent; border:none; color:var(--primary);">
+                          <i class="fas fa-pen"></i>
+                        </button>
+                        <button class="btn btn-icon" onclick="deleteStudent(${s.id})" title="Delete" style="background:transparent; border:none; color:var(--danger);">
+                          <i class="fas fa-trash-alt"></i>
+                        </button>
+                      </div>
+                    </div>
+                  `).join('') : `<div style="text-align:center; color:var(--text-muted); padding:12px; font-size:0.8rem;">No students added yet</div>`}
+                </div>
+
+                <button class="btn btn-ghost btn-sm" onclick="toggleAddStudentForm(${cls.id})" style="width:100%; margin-top:8px;">
+                  <i class="fas fa-plus"></i> Add Student
+                </button>
+              </div>
+            </div>`;
+        });
+
+        container.innerHTML = html;
+      } catch (err) {
+        container.innerHTML = `<div class="empty-state"><div class="msg">Error loading classes: ${err.message}</div></div>`;
+      }
+    }
+
+    async function deleteClass(classId) {
+      if (!confirm('Delete this class and all associated students?')) return;
+
+      try {
+        const response = await fetch(`${API}/api/classes/${classId}`, { method: 'DELETE' });
+
+        if (!response.ok) throw new Error('Failed to delete class');
+
+        renderClasses();
+        showToast('🗑️ Class deleted', 'info');
+      } catch (err) {
+        showToast(`❌ Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function openEditClassModal(classId) {
+      try {
+        const classes = await fetch(`${API}/api/classes`).then(r => r.json());
+        const cls = classes.find(c => c.id === classId);
+        if (!cls) return;
+
+        document.getElementById('editClassId').value = classId;
+        document.getElementById('editClassName').value = cls.name;
+        document.getElementById('editClassSection').value = cls.section || '';
+        document.getElementById('editClassModal').classList.add('open');
+      } catch (err) {
+        showToast(`❌ Error: ${err.message}`, 'error');
+      }
+    }
+
+    function closeEditClassModal() {
+      document.getElementById('editClassModal').classList.remove('open');
+    }
+
+    async function saveEditClass() {
+      const classId = parseInt(document.getElementById('editClassId').value);
+      const name = document.getElementById('editClassName').value.trim();
+      const section = document.getElementById('editClassSection').value.trim();
+
+      if (!name) {
+        showToast('⚠️ Enter class name', 'warning');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API}/api/classes/${classId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, section: section || null })
+        });
+
+        if (!response.ok) throw new Error('Failed to update class');
+
+        closeEditClassModal();
+        renderClasses();
+        showToast('✅ Class updated', 'success');
+      } catch (err) {
+        showToast(`❌ Error: ${err.message}`, 'error');
+      }
+    }
+
+    // =============================================================
+    // STUDENT MANAGEMENT
+    // =============================================================
+    function toggleAddStudentForm(classId) {
+      const form = document.getElementById(`addStudentForm${classId}`);
+      form.classList.toggle('hidden');
+    }
+
+    async function addStudent(classId) {
+      const name = document.getElementById(`studentName${classId}`).value.trim();
+      const rollNo = document.getElementById(`studentRoll${classId}`).value.trim();
+      const phone = document.getElementById(`studentPhone${classId}`).value.trim();
+
+      if (!name) {
+        showToast('⚠️ Enter student name', 'warning');
+        return;
+      }
+      if (!rollNo) {
+        showToast('⚠️ Enter roll number', 'warning');
+        return;
+      }
+      if (phone && !/^[0-9]{11}$/.test(phone)) {
+        showToast('⚠️ Phone number must be 11 digits', 'warning');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API}/api/students`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, roll_no: rollNo, phone: phone || null, class_id: classId })
+        });
+
+        if (!response.ok) throw new Error('Failed to add student');
+
+        document.getElementById(`studentName${classId}`).value = '';
+        document.getElementById(`studentRoll${classId}`).value = '';
+        document.getElementById(`studentPhone${classId}`).value = '';
+        document.getElementById(`addStudentForm${classId}`).classList.add('hidden');
+
+        renderClasses();
+        showToast('✅ Student added', 'success');
+      } catch (err) {
+        showToast(`❌ Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function deleteStudent(studentId) {
+      if (!confirm('Delete this student?')) return;
+
+      try {
+        const response = await fetch(`${API}/api/students/${studentId}`, { method: 'DELETE' });
+
+        if (!response.ok) throw new Error('Failed to delete student');
+
+        renderClasses();
+        showToast('🗑️ Student deleted', 'info');
+      } catch (err) {
+        showToast(`❌ Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function openEditStudentModal(studentId) {
+      try {
+        const students = await fetch(`${API}/api/students`).then(r => r.json());
+        const student = students.find(s => s.id === studentId);
+        if (!student) return;
+
+        document.getElementById('editStudentClassId').value = student.class_id;
+        document.getElementById('editStudentIndex').value = studentId;
+        document.getElementById('editStudentName').value = student.name;
+        document.getElementById('editStudentRoll').value = student.roll_no || '';
+        document.getElementById('editStudentPhone').value = student.phone || '';
+        document.getElementById('editStudentModal').classList.add('open');
+      } catch (err) {
+        showToast(`❌ Error: ${err.message}`, 'error');
+      }
+    }
+
+    function closeEditStudentModal() {
+      document.getElementById('editStudentModal').classList.remove('open');
+    }
+
+    async function saveEditStudent() {
+      const studentId = parseInt(document.getElementById('editStudentIndex').value);
+      const name = document.getElementById('editStudentName').value.trim();
+      const rollNo = document.getElementById('editStudentRoll').value.trim();
+      const phone = document.getElementById('editStudentPhone').value.trim();
+
+      if (!name) {
+        showToast('⚠️ Enter student name', 'warning');
+        return;
+      }
+      if (!rollNo) {
+        showToast('⚠️ Enter roll number', 'warning');
+        return;
+      }
+      if (phone && !/^[0-9]{11}$/.test(phone)) {
+        showToast('⚠️ Phone number must be 11 digits', 'warning');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API}/api/students/${studentId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, roll_no: rollNo, phone: phone || null })
+        });
+
+        if (!response.ok) throw new Error('Failed to update student');
+
+        closeEditStudentModal();
+        renderClasses();
+        showToast('✅ Student updated', 'success');
+      } catch (err) {
+        showToast(`❌ Error: ${err.message}`, 'error');
+      }
+    }
+
+    // =============================================================
+    // TEACHER ASSIGNMENT & LINK GENERATION
+    // =============================================================
+    async function assignTeacher(classId) {
+      const teacherId = document.getElementById(`teacherSelect${classId}`).value
+
+      try {
+        const response = await fetch(`${API}/api/classes/${classId}/assign-teacher`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ teacher_id: teacherId ? parseInt(teacherId) : null })
+        })
+        if (!response.ok) throw new Error('Failed to assign teacher')
+        showToast('✅ Teacher assigned', 'success')
+        setTimeout(() => location.reload(), 1000)
+      } catch (err) {
+        showToast(`❌ Error: ${err.message}`, 'error')
+      }
+    }
+
+    function copyTeacherLink(teacherId) {
+      const link = `${window.location.origin}/teacher.html?id=t_${teacherId}`;
+      navigator.clipboard.writeText(link).then(() => {
+        showToast('📋 Link copied to clipboard', 'success');
+      }).catch(() => {
+        showToast('❌ Failed to copy link', 'error');
+      });
+    }
+
+    // =============================================================
+    // INITIALIZATION
+    // =============================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      loadTheme();
+      renderClasses();
+
+      // Universal phone validation for all tel inputs
+      document.querySelectorAll('.form-input[type="tel"]').forEach(input => {
+        input.addEventListener('input', function() {
+          if (this.value.length === 0) {
+            this.style.borderColor = 'var(--border)';
+          } else if (this.validity.patternMismatch) {
+            this.style.borderColor = 'var(--danger)';
+          } else if (this.value.length === 11) {
+            this.style.borderColor = 'var(--success)';
+          } else {
+            this.style.borderColor = 'var(--border)';
+          }
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>
