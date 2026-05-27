@@ -84,6 +84,10 @@
       overflow-x: hidden;
     }
 
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
     /* ================================
        HEADER
        ================================ */
@@ -113,6 +117,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      padding: 0 20px;
     }
     .header-left {
       display: flex;
@@ -180,6 +185,73 @@
       border-color: rgba(255,255,255,0.5);
       transform: scale(1.06);
     }
+
+    /* ================================
+       TAB NAVIGATION (Mobile Scrollable)
+       ================================ */
+    .tab-nav {
+      background: var(--bg);
+      border-bottom: 2px solid var(--border);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      transition: background 0.3s ease, border-color 0.3s ease;
+      margin-top: 2px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      white-space: nowrap;
+    }
+    .tab-nav::-webkit-scrollbar {
+      display: none;
+    }
+    .tab-nav {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    [data-theme="dark"] .tab-nav { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3); }
+    
+    .tab-nav-inner {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      gap: 0.5rem;
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
+      width: max-content;
+    }
+    .tab-btn {
+      padding: 0.65rem 1.5rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      border-radius: 12px;
+      border: 2px solid transparent;
+      background: var(--bg-card);
+      transition: all 0.25s ease;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: 'Inter', sans-serif;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .tab-btn:hover {
+      color: var(--primary);
+      background: var(--bg-card-hover);
+      border-color: var(--border);
+    }
+    .tab-btn.active {
+      color: #fff;
+      background: var(--gradient);
+      border-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+    }
+    .tab-content {
+      scroll-margin-top: 150px;
+      margin-bottom: 32px;
+    }
+    
 
     /* ================================
        MAIN CONTAINER
@@ -268,7 +340,6 @@
       font-size: 0.82rem;
     }
     .data-table thead th {
-      text-align: left;
       padding: 10px 14px;
       font-size: 0.68rem;
       font-weight: 700;
@@ -295,10 +366,6 @@
       border-bottom: 1px solid var(--border);
       color: var(--text-secondary);
       vertical-align: middle;
-    }
-    .data-table tbody td:first-child {
-      color: var(--text);
-      font-weight: 600;
     }
 
     .empty-state {
@@ -561,96 +628,6 @@
     .toast.warning { background: #d97706; }
 
     /* ================================
-       RESPONSIVE
-       ================================ */
-    @media (max-width: 640px) {
-      .header { padding: 16px; }
-      .header-title strong { font-size: 1.1rem; }
-      .main { padding: 16px 14px 50px; }
-      .section-header { padding: 14px 16px; }
-      .section-body { padding: 14px 16px; }
-      .form-row { flex-direction: column; gap: 0; }
-      .data-table { font-size: 0.75rem; }
-      .data-table thead th { padding: 8px 10px; font-size: 0.62rem; }
-      .data-table tbody td { padding: 9px 10px; }
-      .section-title { font-size: 0.9rem; }
-    }
-
-    /* ================================
-       ANIMATIONS
-       ================================ */
-    @keyframes headerSlideDown {
-      from { opacity: 0; transform: translateY(-20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes fadeInUp {
-      from { opacity: 0; transform: translateY(16px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes toastIn {
-      from { opacity: 0; transform: translateY(20px) scale(0.95); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-    @keyframes toastOut {
-      from { opacity: 1; transform: translateY(0); }
-      to { opacity: 0; transform: translateY(-10px); }
-    }
-
-    /* ================================
-       TAB NAVIGATION
-       ================================ */
-    .tab-nav {
-      background: var(--bg);
-      border-bottom: 2px solid var(--border);
-      border-top: 1px solid var(--border);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-      transition: background 0.3s ease, border-color 0.3s ease;
-      margin-top: 2px;
-    }
-    [data-theme="dark"] .tab-nav { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3); }
-    .tab-nav-inner {
-      max-width: 960px;
-      margin: 0 auto;
-      padding: 0 20px;
-      display: flex;
-      gap: 0.5rem;
-      padding-top: 0.5rem;
-      padding-bottom: 0.5rem;
-    }
-    .tab-btn {
-      padding: 0.65rem 1.5rem;
-      font-weight: 600;
-      font-size: 0.9rem;
-      color: var(--text-muted);
-      border-radius: 12px;
-      border: 2px solid transparent;
-      background: var(--bg-card);
-      transition: all 0.25s ease;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-family: 'Inter', sans-serif;
-    }
-    .tab-btn:hover {
-      color: var(--primary);
-      background: var(--bg-card-hover);
-      border-color: var(--border);
-    }
-    .tab-btn.active {
-      color: #fff;
-      background: var(--gradient);
-      border-color: var(--primary);
-      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
-    }
-    .tab-content {
-      display: none;
-    }
-    .tab-content.active {
-      display: block;
-    }
-
-    /* ================================
        EDIT MODAL
        ================================ */
     .edit-modal {
@@ -716,15 +693,6 @@
       flex: 1;
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    @keyframes modalSlideIn {
-      from { opacity: 0; transform: scale(0.95) translateY(-10px); }
-      to { opacity: 1; transform: scale(1) translateY(0); }
-    }
-
     /* Edit button in table */
     .btn-edit {
       width: 28px;
@@ -760,14 +728,64 @@
       background: var(--warning-bg);
     }
 
+    /* ================================
+       RESPONSIVE
+       ================================ */
     @media (max-width: 640px) {
+      .header { padding: 16px; }
+      .header-title strong { font-size: 1.1rem; }
+      .main { padding: 16px 14px 50px; }
+      .section-header { padding: 14px 16px; }
+      .section-body { padding: 14px 16px; }
+      .form-row { flex-direction: column; gap: 0; }
+      .data-table { font-size: 0.75rem; }
+      .data-table thead th { padding: 8px 10px; font-size: 0.62rem; }
+      .data-table tbody td { padding: 9px 10px; }
+      .section-title { font-size: 0.9rem; }
       .tab-nav-inner { padding-left: 14px; padding-right: 14px; gap: 0.35rem; }
       .tab-btn { padding: 0.55rem 1rem; font-size: 0.82rem; }
       .edit-modal-card { padding: 20px; }
     }
+
+    /* ================================
+       ANIMATIONS
+       ================================ */
+    @keyframes headerSlideDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(20px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes toastOut {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(-10px); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes modalSlideIn {
+      from { opacity: 0; transform: scale(0.95) translateY(-10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
   </style>
 </head>
 <body>
+
+  <!-- ======================== LOADING OVERLAY ======================== -->
+  <div id="loadingOverlay" style="position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(8px); transition: opacity 0.4s ease;">
+    <div style="text-align: center;">
+      <div class="loader-spinner" style="width: 50px; height: 50px; border: 4px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
+      <div style="font-weight: 700; font-size: 1.1rem; color: var(--text); margin-bottom: 8px;">Loading Database</div>
+      <div style="font-size: 0.8rem; color: var(--text-secondary);">Connecting to The Eye System...</div>
+    </div>
+  </div>
 
   <!-- ======================== HEADER ======================== -->
   <div class="header">
@@ -792,24 +810,24 @@
   <!-- ======================== TAB NAVIGATION ======================== -->
   <nav class="tab-nav">
     <div class="tab-nav-inner">
-      <button class="tab-btn" data-tab="teachers" onclick="switchTab('teachers')">
+      <a href="#tab-teachers" class="tab-btn" data-section="tab-teachers">
         <i class="fas fa-chalkboard-user"></i>Teachers
-      </button>
-      <button class="tab-btn" data-tab="students" onclick="switchTab('students')">
+      </a>
+      <a href="#tab-students" class="tab-btn" data-section="tab-students">
         <i class="fas fa-user-graduate"></i>Students
-      </button>
+      </a>
       <a href="./classes.html" class="tab-btn" style="text-decoration:none; cursor:pointer;">
         <i class="fas fa-book"></i>Classes
       </a>
-      <button class="tab-btn" data-tab="attendance" onclick="switchTab('attendance')">
+      <a href="#tab-attendance" class="tab-btn" data-section="tab-attendance">
         <i class="fas fa-clipboard-list"></i>Attendance
-      </button>
-      <button class="tab-btn" data-tab="stats" onclick="switchTab('stats')">
+      </a>
+      <a href="#tab-stats" class="tab-btn" data-section="tab-stats">
         <i class="fas fa-chart-bar"></i>Stats
-      </button>
-      <button class="tab-btn" data-tab="announcements" onclick="switchTab('announcements')">
+      </a>
+      <a href="#tab-announcements" class="tab-btn" data-section="tab-announcements">
         <i class="fas fa-bullhorn"></i>Announcements
-      </button>
+      </a>
     </div>
   </nav>
 
@@ -817,196 +835,210 @@
   <div class="main">
 
     <!-- ==================== TEACHERS TAB ==================== -->
-    <div id="tab-teachers" class="tab-content active">
-    <!-- Classes Section -->
-    <div class="section-card" id="classesSection">
-      <div class="section-header">
-        <div class="section-header-left">
-          <div class="section-icon purple" style="background: rgba(34, 197, 94, 0.12); color: #22c55e;"><i class="fas fa-book"></i></div>
-          <div>
-            <div class="section-title">Classes & Teachers</div>
-            <div class="section-subtitle">View assigned teachers and share links</div>
-          </div>
-        </div>
-        <a href="./classes.html" class="btn btn-primary" style="text-decoration:none;">
-          <i class="fas fa-cog"></i> Manage Classes
-        </a>
-      </div>
-      <div class="section-body">
-        <div id="classesTableWrap">
-          <!-- Rendered by JS -->
-        </div>
-      </div>
-    </div>
-
-    <div class="section-card" id="teachersSection">
-      <div class="section-header">
-        <div class="section-header-left">
-          <div class="section-icon purple"><i class="fas fa-chalkboard-user"></i></div>
-          <div>
-            <div class="section-title">Teachers</div>
-            <div class="section-subtitle">Manage registered teachers</div>
-          </div>
-        </div>
-        <button class="btn btn-primary" onclick="toggleAddTeacher()" id="addTeacherToggleBtn">
-          <i class="fas fa-plus"></i> Add Teacher
-        </button>
-      </div>
-
-      <div class="section-body">
-        <!-- Add Teacher Form (hidden initially) -->
-        <div class="add-teacher-form" id="addTeacherForm">
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label" for="teacherName">Teacher Name</label>
-              <input class="form-input" type="text" id="teacherName" placeholder="e.g. Mr Khan">
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="teacherClass">Class</label>
-              <select class="form-input" id="teacherClass" required>
-                <option value="">-- Select a class --</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="teacherPhone">Contact</label>
-              <input class="form-input" type="tel" id="teacherPhone" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits (e.g., 03001234567)" required>
+    <div id="tab-teachers" class="tab-content">
+      <!-- Classes Section -->
+      <div class="section-card" id="classesSection">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-icon purple" style="background: rgba(34, 197, 94, 0.12); color: #22c55e;"><i class="fas fa-book"></i></div>
+            <div>
+              <div class="section-title">Classes & Teachers</div>
+              <div class="section-subtitle">View assigned teachers and share links</div>
             </div>
           </div>
-          <div style="display:flex; gap:8px; margin-top:4px;">
-            <button class="btn btn-primary" onclick="saveTeacher()">
-              <i class="fas fa-check"></i> Save Teacher
-            </button>
-            <button class="btn btn-ghost" onclick="toggleAddTeacher()">Cancel</button>
+          <a href="./classes.html" class="btn btn-primary" style="text-decoration:none;">
+            <i class="fas fa-cog"></i> Manage Classes
+          </a>
+        </div>
+        <div class="section-body">
+          <div id="classesTableWrap">
+            <!-- Rendered by JS -->
           </div>
         </div>
+      </div>
 
-        <!-- Teachers Table -->
-        <div id="teachersTableWrap">
-          <!-- Rendered by JS -->
+      <!-- Teachers List Section -->
+      <div class="section-card" id="teachersSection">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-icon purple"><i class="fas fa-chalkboard-user"></i></div>
+            <div>
+              <div class="section-title">Teachers</div>
+              <div class="section-subtitle">Manage registered teachers</div>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="toggleAddTeacher()" id="addTeacherToggleBtn">
+            <i class="fas fa-plus"></i> Add Teacher
+          </button>
+        </div>
+
+        <div class="section-body">
+          <!-- Add Teacher Form (hidden initially) -->
+          <div class="add-teacher-form" id="addTeacherForm">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="teacherName">Teacher Name</label>
+                <input class="form-input" type="text" id="teacherName" placeholder="e.g. Mr Khan">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="teacherClass">Class</label>
+                <select class="form-input" id="teacherClass" required>
+                  <option value="">-- Select a class --</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="teacherPhone">Contact</label>
+                <input class="form-input" type="tel" id="teacherPhone" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits (e.g., 03001234567)" required>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:4px;">
+              <button class="btn btn-primary" onclick="saveTeacher()">
+                <i class="fas fa-check"></i> Save Teacher
+              </button>
+              <button class="btn btn-ghost" onclick="toggleAddTeacher()">Cancel</button>
+            </div>
+          </div>
+
+          <!-- Teachers Table -->
+          <div id="teachersTableWrap">
+            <!-- Rendered by JS -->
+          </div>
         </div>
       </div>
-    </div>
     </div>
 
     <!-- ==================== STUDENTS TAB ==================== -->
     <div id="tab-students" class="tab-content">
-    <div class="section-card" id="studentsSection">
-      <div class="section-header">
-        <div class="section-header-left">
-          <div class="section-icon purple" style="background: rgba(14, 165, 233, 0.12); color: #0ea5e9;"><i class="fas fa-user-graduate"></i></div>
-          <div>
-            <div class="section-title">Students</div>
-            <div class="section-subtitle">Manage enrolled students</div>
-          </div>
-        </div>
-        <button class="btn btn-primary" onclick="toggleAddStudent()" id="addStudentToggleBtn" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
-          <i class="fas fa-plus"></i> Add Student
-        </button>
-      </div>
-
-      <div class="section-body">
-        <!-- Add Student Form (hidden initially) -->
-        <div class="add-teacher-form" id="addStudentForm">
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label" for="studentName">Student Name</label>
-              <input class="form-input" type="text" id="studentName" placeholder="e.g. Ali Hassan">
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="studentRoll">Roll Number</label>
-              <input class="form-input" type="text" id="studentRoll" placeholder="e.g. CS-109">
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="studentPhone">Contact</label>
-              <input class="form-input" type="tel" id="studentPhone" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits (e.g., 03001234567)" required>
+      <div class="section-card" id="studentsSection">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-icon purple" style="background: rgba(14, 165, 233, 0.12); color: #0ea5e9;"><i class="fas fa-user-graduate"></i></div>
+            <div>
+              <div class="section-title">Students</div>
+              <div class="section-subtitle">Manage enrolled students</div>
             </div>
           </div>
-          <div style="display:flex; gap:8px; margin-top:4px;">
-            <button class="btn btn-primary" onclick="saveStudent()" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
-              <i class="fas fa-check"></i> Save Student
-            </button>
-            <button class="btn btn-ghost" onclick="toggleAddStudent()">Cancel</button>
-          </div>
+          <button class="btn btn-primary" onclick="toggleAddStudent()" id="addStudentToggleBtn" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
+            <i class="fas fa-plus"></i> Add Student
+          </button>
         </div>
 
-        <!-- Students Table -->
-        <div id="studentsTableWrap">
-          <!-- Rendered by JS -->
+        <div class="section-body">
+          <!-- Add Student Form (hidden initially) -->
+          <div class="add-teacher-form" id="addStudentForm">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="studentName">Student Name</label>
+                <input class="form-input" type="text" id="studentName" placeholder="e.g. Ali Hassan">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="studentRoll">Roll Number</label>
+                <input class="form-input" type="text" id="studentRoll" placeholder="e.g. CS-109">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="studentPhone">Contact</label>
+                <input class="form-input" type="tel" id="studentPhone" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits (e.g., 03001234567)" required>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:4px;">
+              <button class="btn btn-primary" onclick="saveStudent()" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
+                <i class="fas fa-check"></i> Save Student
+              </button>
+              <button class="btn btn-ghost" onclick="toggleAddStudent()">Cancel</button>
+            </div>
+          </div>
+
+          <!-- Search & Filter Controls -->
+          <div class="search-filter-container" style="display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:240px; position:relative;">
+              <input type="text" id="studentSearchInput" class="form-input" placeholder="🔍 Search by name or roll number..." oninput="filterStudents()">
+            </div>
+            <div style="width:200px; min-width:150px;">
+              <select id="studentClassFilter" class="form-input" onchange="filterStudents()">
+                <option value="">All Classes</option>
+                <option value="unassigned">Unassigned</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Students Table Wrap -->
+          <div id="studentsTableWrap">
+            <!-- Rendered by JS -->
+          </div>
         </div>
       </div>
-    </div>
     </div>
 
     <!-- ==================== ATTENDANCE TAB ==================== -->
     <div id="tab-attendance" class="tab-content">
-    <div class="section-card" id="attendanceSection">
-      <div class="section-header">
-        <div class="section-header-left">
-          <div class="section-icon green"><i class="fas fa-clipboard-list"></i></div>
-          <div>
-            <div class="section-title">Attendance Records</div>
-            <div class="section-subtitle">View submitted attendance and absent students</div>
+      <div class="section-card" id="attendanceSection">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-icon green"><i class="fas fa-clipboard-list"></i></div>
+            <div>
+              <div class="section-title">Attendance Records</div>
+              <div class="section-subtitle">View submitted attendance and absent students</div>
+            </div>
+          </div>
+          <button class="btn btn-danger" onclick="clearAttendanceHistory()" title="Clear all attendance data" style="font-size:0.75rem; padding:8px 14px;">
+            <i class="fas fa-trash-alt"></i> Clear
+          </button>
+        </div>
+        <div class="section-body" style="padding:0;">
+          <div id="attendanceTableWrap">
+            <!-- Rendered by JS -->
           </div>
         </div>
-        <button class="btn btn-danger" onclick="clearAttendanceHistory()" title="Clear all attendance data" style="font-size:0.75rem; padding:8px 14px;">
-          <i class="fas fa-trash-alt"></i> Clear
-        </button>
       </div>
-      <div class="section-body" style="padding:0;">
-        <div id="attendanceTableWrap">
-          <!-- Rendered by JS -->
-        </div>
-      </div>
-    </div>
     </div>
 
     <!-- ==================== STATS TAB ==================== -->
     <div id="tab-stats" class="tab-content">
-    <div class="section-card" id="statsSection">
-      <div class="section-header">
-        <div class="section-header-left">
-          <div class="section-icon green" style="background: rgba(34, 197, 94, 0.12); color: #22c55e;"><i class="fas fa-chart-bar"></i></div>
-          <div>
-            <div class="section-title">Student Attendance Stats</div>
-            <div class="section-subtitle">Overall attendance percentage across all recorded days</div>
+      <div class="section-card" id="statsSection">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-icon green" style="background: rgba(34, 197, 94, 0.12); color: #22c55e;"><i class="fas fa-chart-bar"></i></div>
+            <div>
+              <div class="section-title">Student Attendance Stats</div>
+              <div class="section-subtitle">Overall attendance percentage across all recorded days</div>
+            </div>
+          </div>
+        </div>
+        <div class="section-body" style="padding:0;">
+          <div id="statsTableWrap">
+            <!-- Rendered by JS -->
           </div>
         </div>
       </div>
-      <div class="section-body" style="padding:0;">
-        <div id="statsTableWrap">
-          <!-- Rendered by JS -->
-        </div>
-      </div>
-    </div>
     </div>
 
     <!-- ==================== ANNOUNCEMENTS TAB ==================== -->
     <div id="tab-announcements" class="tab-content">
-    <div class="section-card" id="announcementsSection">
-      <div class="section-header">
-        <div class="section-header-left">
-          <div class="section-icon amber"><i class="fas fa-bullhorn"></i></div>
-          <div>
-            <div class="section-title">School Announcements</div>
-            <div class="section-subtitle">Post announcements visible to everyone</div>
+      <div class="section-card" id="announcementsSection">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-icon amber"><i class="fas fa-bullhorn"></i></div>
+            <div>
+              <div class="section-title">School Announcements</div>
+              <div class="section-subtitle">Post announcements visible to everyone</div>
+            </div>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="form-group">
+            <label class="form-label" for="announcementText">New Announcement</label>
+            <textarea class="form-textarea" id="announcementText" placeholder="Type your announcement here..." rows="3"></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="saveAnnouncement()" id="saveAnnouncementBtn">
+            <i class="fas fa-paper-plane"></i> Save Announcement
+          </button>
+
+          <!-- Saved Announcements List -->
+          <div id="announcementsList">
+            <!-- Rendered by JS -->
           </div>
         </div>
       </div>
-      <div class="section-body">
-        <div class="form-group">
-          <label class="form-label" for="announcementText">New Announcement</label>
-          <textarea class="form-textarea" id="announcementText" placeholder="Type your announcement here..." rows="3"></textarea>
-        </div>
-        <button class="btn btn-primary" onclick="saveAnnouncement()" id="saveAnnouncementBtn">
-          <i class="fas fa-paper-plane"></i> Save Announcement
-        </button>
-
-        <!-- Saved Announcements List -->
-        <div id="announcementsList">
-          <!-- Rendered by JS -->
-        </div>
-      </div>
-    </div>
     </div>
 
   </div>
@@ -1084,20 +1116,28 @@
   <!-- ======================== JAVASCRIPT ======================== -->
   <script>
     // =============================================================
-    // LOCALSTORAGE KEYS
+    // API CONFIGURATION (Automatic Localhost / Production Detection)
     // =============================================================
+    const API = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+      ? window.location.origin
+      : 'https://attendance-production-fb0b.up.railway.app';
+
+    // Local storage keys for features that remain frontend-only (like announcements)
     const KEYS = {
-      teachers: 'teachers',
-      students: 'students',
-      attendance: 'attendance',            // matches teacher.html key
       announcements: 'schoolAnnouncements',
       theme: 'attendance-theme'
     };
 
-    const API = 'https://attendance-production-fb0b.up.railway.app';
+    // Global application state
+    window.appData = {
+      teachers: [],
+      students: [],
+      classes: [],
+      attendance: []
+    };
 
     // =============================================================
-    // UTILITY: localStorage helpers
+    // UTILITY HELPERS
     // =============================================================
     function loadFromStorage(key) {
       try {
@@ -1116,6 +1156,12 @@
       return new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
     }
 
+    function escapeHtml(str) {
+      if (!str) return '';
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
 
     // =============================================================
     // THEME TOGGLE
@@ -1131,7 +1177,9 @@
 
     function updateThemeIcon(theme) {
       const icon = document.getElementById('themeIcon');
-      icon.className = theme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+      if (icon) {
+        icon.className = theme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+      }
     }
 
     function loadTheme() {
@@ -1140,9 +1188,214 @@
       updateThemeIcon(saved);
     }
 
+    // =============================================================
+    // DATA FETCHING & PARALLEL LOADING (Option A)
+    // =============================================================
+    async function reloadAllData(isInitial = false) {
+      try {
+        const [teachers, classes, students, rawAttendance] = await Promise.all([
+          fetch(`${API}/api/teachers`).then(r => r.json()),
+          fetch(`${API}/api/classes`).then(r => r.json()),
+          fetch(`${API}/api/students`).then(r => r.json()),
+          fetch(`${API}/api/attendance/all`).then(r => r.json()).catch(() => [])
+        ]);
+
+        window.appData.teachers = teachers;
+        window.appData.classes = classes;
+        
+        // Clean and Seed duplicates / inconsistencies in fallback lists if DB empty
+        if (students.length === 0) {
+          window.appData.students = [];
+        } else {
+          // Standardize student name dot formatting on delivery
+          window.appData.students = students.map(s => {
+            if (s.name && s.name.includes('.')) {
+              s.name = s.name.replace(/\./g, ' ');
+            }
+            return s;
+          });
+        }
+        
+        window.appData.attendance = groupAttendanceRecords(rawAttendance);
+
+        // Populate dashboard components
+        await populateClassDropdown(classes);
+        renderClasses();
+        renderTeachers();
+        filterStudents(); // calls renderStudents with current search/filter
+        renderAttendance();
+        renderStats();
+        renderAnnouncements();
+
+        if (isInitial) {
+          // Fade out global loader overlay
+          const loader = document.getElementById('loadingOverlay');
+          if (loader) {
+            loader.style.opacity = '0';
+            setTimeout(() => loader.style.display = 'none', 400);
+          }
+        }
+      } catch (err) {
+        console.error('Error loading database:', err);
+        showToast('❌ Failed to fetch database records', 'error');
+        if (isInitial) {
+          const loader = document.getElementById('loadingOverlay');
+          if (loader) {
+            loader.innerHTML = `
+              <div style="text-align: center; color: var(--danger); padding: 24px; max-width: 400px; background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border); box-shadow: var(--shadow-lg);">
+                <div style="font-size: 2.5rem; margin-bottom: 12px;">⚠️</div>
+                <div style="font-weight: 700; font-size: 1.2rem; margin-bottom: 8px; color: var(--text);">Database Connection Failed</div>
+                <div style="font-size: 0.82rem; margin-bottom: 20px; color: var(--text-secondary); line-height: 1.5;">${escapeHtml(err.message)}</div>
+                <button onclick="location.reload()" class="btn btn-primary" style="width: 100%;">
+                  <i class="fas fa-redo"></i> Retry Connection
+                </button>
+              </div>`;
+          }
+        }
+      }
+    }
+
+    function groupAttendanceRecords(flatRecords) {
+      const groups = {};
+      flatRecords.forEach(row => {
+        let dateStr = row.date;
+        if (dateStr && dateStr.includes('T')) {
+          dateStr = dateStr.split('T')[0];
+        } else if (dateStr) {
+          dateStr = new Date(dateStr).toLocaleDateString('en-CA');
+        }
+
+        const key = `${dateStr}_${row.class_name}`;
+        if (!groups[key]) {
+          const classObj = window.appData.classes.find(c => c.name === row.class_name);
+          const classId = classObj ? classObj.id : null;
+          const teacherObj = classId ? window.appData.teachers.find(t => t.class_id === classId) : null;
+
+          groups[key] = {
+            date: dateStr,
+            class: row.class_name,
+            teacher: teacherObj ? teacherObj.name : '—',
+            students: []
+          };
+        }
+        groups[key].students.push({
+          id: row.student_id,
+          name: row.name,
+          rollNo: row.roll_no,
+          status: row.status,
+          phone: row.phone
+        });
+      });
+
+      return Object.values(groups).sort((a, b) => b.date.localeCompare(a.date));
+    }
 
     // =============================================================
-    // SECTION 1: TEACHERS
+    // CLASSES SECTION & INLINE ASSIGNMENT
+    // =============================================================
+    function renderClasses() {
+      const wrap = document.getElementById('classesTableWrap');
+      const classes = window.appData.classes;
+      const teachers = window.appData.teachers;
+      const students = window.appData.students;
+
+      if (!classes || classes.length === 0) {
+        wrap.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">📚</div>
+            <div class="msg">No classes created yet</div>
+            <div class="sub">Go to Classes page to create classes and assign teachers</div>
+          </div>`;
+        return;
+      }
+
+      // Group students by class id to calculate student counts
+      const studentCounts = {};
+      students.forEach(s => {
+        if (s.class_id) {
+          studentCounts[s.class_id] = (studentCounts[s.class_id] || 0) + 1;
+        }
+      });
+
+      let html = `
+        <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width:50px; text-align:left;">#</th>
+              <th style="text-align:left;">Class</th>
+              <th style="text-align:center; width:120px;">Students Count</th>
+              <th style="text-align:left; min-width:180px;">Assigned Teacher</th>
+              <th style="width:120px; text-align:right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+      classes.forEach((cls, i) => {
+        const assignedTeacher = teachers.find(t => t.class_id === cls.id);
+        const studentCount = studentCounts[cls.id] || 0;
+
+        html += `
+          <tr>
+            <td style="color:var(--text-muted); font-weight:500; text-align:left;">${i + 1}</td>
+            <td style="text-align:left;">
+              <strong>${escapeHtml(cls.name)}</strong>
+              ${cls.section ? ` <span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(cls.section)}</span>` : ''}
+            </td>
+            <td style="text-align:center; font-weight:700;">${studentCount}</td>
+            <td style="text-align:left;">
+              <select class="form-input" style="padding: 5px 8px; font-size: 0.8rem; height: auto; width: 100%; max-width: 170px;" onchange="assignTeacherInline(${cls.id}, this.value)">
+                <option value="">-- Unassigned --</option>
+                ${teachers
+                  .map(t => `<option value="${t.id}" ${t.class_id === cls.id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`)
+                  .join('')}
+              </select>
+            </td>
+            <td style="text-align:right;">
+              <div class="action-buttons" style="justify-content: flex-end;">
+                ${assignedTeacher ? `
+                  <button onclick="copyTeacherLink('${assignedTeacher.id}')" class="btn-edit" title="Copy teacher portal link" style="background:var(--success-bg); color:var(--success); margin-right:4px;">
+                    <i class="fas fa-link"></i>
+                  </button>
+                ` : ''}
+                <a href="./classes.html" class="btn-edit" title="Manage Class Details" style="text-decoration:none;">
+                  <i class="fas fa-pen"></i>
+                </a>
+              </div>
+            </td>
+          </tr>`;
+      });
+
+      html += `</tbody></table></div>`;
+      wrap.innerHTML = html;
+    }
+
+    async function assignTeacherInline(classId, teacherId) {
+      try {
+        const response = await fetch(`${API}/api/classes/${classId}/assign-teacher`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ teacher_id: teacherId ? parseInt(teacherId) : null })
+        });
+        if (!response.ok) throw new Error('Failed to update teacher assignment');
+        showToast('✅ Teacher assignment updated', 'success');
+        await reloadAllData();
+      } catch (err) {
+        showToast(`❌ Error: ${err.message}`, 'error');
+      }
+    }
+
+    function copyTeacherLink(teacherId) {
+      const link = `${window.location.origin}/teacher.html?id=t_${teacherId}`;
+      navigator.clipboard.writeText(link).then(() => {
+        showToast('📋 Teacher link copied to clipboard', 'success');
+      }).catch(() => {
+        showToast('❌ Failed to copy link', 'error');
+      });
+    }
+
+    // =============================================================
+    // TEACHERS CRUD & ALIGNMENT
     // =============================================================
     let addTeacherOpen = false;
 
@@ -1152,16 +1405,15 @@
       const btn = document.getElementById('addTeacherToggleBtn');
 
       if (addTeacherOpen) {
-        // Populate class dropdown on open
+        // Load classes dropdown dynamically inside Add Teacher form
         try {
-          const classes = await fetch(`${API}/api/classes`).then(r => r.json());
           const select = document.getElementById('teacherClass');
           select.innerHTML = '<option value="">-- Select a class (optional) --</option>';
-          classes.forEach(c => {
+          window.appData.classes.forEach(c => {
             select.innerHTML += `<option value="${c.id}">${c.name}</option>`;
           });
         } catch (err) {
-          console.error('Error loading classes:', err);
+          console.error(err);
         }
 
         form.classList.add('open');
@@ -1190,7 +1442,6 @@
         document.getElementById('teacherName').focus();
         return;
       }
-      // Class is optional now
       if (phone && !/^[0-9]{11}$/.test(phone)) {
         showToast('⚠️ Phone number must be exactly 11 digits', 'warning');
         document.getElementById('teacherPhone').focus();
@@ -1201,14 +1452,14 @@
         const response = await fetch(`${API}/api/teachers`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, phone: phone || null, class_id: classId })
+          body: JSON.stringify({ name, phone: phone || null, class_id: classId || null })
         });
 
         if (!response.ok) throw new Error('Failed to add teacher');
 
         clearTeacherForm();
         toggleAddTeacher();
-        renderTeachers();
+        await reloadAllData();
         showToast('✅ Teacher added successfully', 'success');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -1220,15 +1471,69 @@
       try {
         const response = await fetch(`${API}/api/teachers/${id}`, { method: 'DELETE' });
         if (!response.ok) throw new Error('Failed to delete teacher');
-        renderTeachers();
+        await reloadAllData();
         showToast('🗑️ Teacher removed', 'info');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       }
     }
 
+    function renderTeachers() {
+      const wrap = document.getElementById('teachersTableWrap');
+      const teachers = window.appData.teachers;
+
+      if (!teachers || teachers.length === 0) {
+        wrap.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">👨‍🏫</div>
+            <div class="msg">No teachers added yet</div>
+            <div class="sub">Click "Add Teacher" to register one</div>
+          </div>`;
+        return;
+      }
+
+      let html = `
+        <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width:50px; text-align:left;">#</th>
+              <th style="text-align:left;">Name</th>
+              <th style="text-align:center; width:120px;">Class</th>
+              <th style="text-align:center; width:180px;">Contact</th>
+              <th style="width:120px; text-align:right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+      teachers.forEach((t, i) => {
+        html += `
+          <tr>
+            <td style="color:var(--text-muted); font-weight:500; text-align:left;">${i + 1}</td>
+            <td style="text-align:left;"><strong>${escapeHtml(t.name)}</strong></td>
+            <td style="text-align:center;">
+              <span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(t.class_name || '—')}</span>
+            </td>
+            <td style="text-align:center; font-family:monospace; letter-spacing:0.3px;">${escapeHtml(t.phone || '—')}</td>
+            <td style="text-align:right;">
+              <div class="action-buttons" style="justify-content: flex-end;">
+                <button onclick="openEditTeacherModal(${t.id})" class="btn-edit" title="Edit teacher details">
+                  <i class="fas fa-pen"></i>
+                </button>
+                <button onclick="deleteTeacher(${t.id})" class="announcement-delete" style="opacity:1;" title="Remove teacher">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </div>
+            </td>
+          </tr>`;
+      });
+
+      html += `</tbody></table></div>`;
+      wrap.innerHTML = html;
+    }
+
     // =============================================================
-    // SECTION 1.5: STUDENTS
+    // STUDENTS CRUD & SEARCH / FILTERS
     // =============================================================
     let addStudentOpen = false;
 
@@ -1250,7 +1555,7 @@
       }
     }
 
-    function saveStudent() {
+    async function saveStudent() {
       const name = document.getElementById('studentName').value.trim();
       const rollNo = document.getElementById('studentRoll').value.trim();
       const phone = document.getElementById('studentPhone').value.trim();
@@ -1269,90 +1574,115 @@
         return;
       }
 
-      let students = loadFromStorage(KEYS.students);
-      // Initialize with default if completely empty
-      if (students.length === 0 && !localStorage.getItem(KEYS.students)) {
-         students = [
-          { id: 1, name: "Ali Hassan", rollNo: "CS-101", phone: "+923209789348" },
-          { id: 2, name: "Sara Ahmed", rollNo: "CS-102", phone: "+923215788075" },
-          { id: 3, name: "Omar Farooq", rollNo: "CS-103", phone: "+923209789348" },
-          { id: 4, name: "Fatima Zahra", rollNo: "CS-104", phone: "+923209789348" },
-          { id: 5, name: "Hassan Raza", rollNo: "CS-105", phone: "+923209789348" },
-          { id: 6, name: "Ayesha Khan", rollNo: "CS-106", phone: "+923209789348" },
-          { id: 7, name: "Bilal Mahmood", rollNo: "CS-107", phone: "+923209789348" },
-          { id: 8, name: "Zainab Tariq", rollNo: "CS-108", phone: "+923209789348" },
-        ];
-      }
-      
-      const newId = students.length > 0 ? Math.max(...students.map(s => s.id)) + 1 : 1;
-      students.push({ id: newId, name, rollNo, phone: phone || '—' });
-      saveToStorage(KEYS.students, students);
+      try {
+        const response = await fetch(`${API}/api/students`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            roll_no: rollNo,
+            phone: phone || null,
+            class_id: null // initially unassigned
+          })
+        });
 
-      toggleAddStudent();
-      renderStudents();
-      showToast('✅ Student added successfully', 'success');
+        if (!response.ok) throw new Error('Failed to save student');
+
+        toggleAddStudent();
+        await reloadAllData();
+        showToast('✅ Student added successfully', 'success');
+      } catch (err) {
+        showToast(`❌ Error: ${err.message}`, 'error');
+      }
     }
 
-    function deleteStudent(id) {
+    async function deleteStudent(id) {
       if (!confirm('Remove this student?')) return;
-      let students = loadFromStorage(KEYS.students);
-      students = students.filter(s => s.id !== id);
-      saveToStorage(KEYS.students, students);
-      renderStudents();
-      showToast('🗑️ Student removed', 'info');
+      try {
+        const response = await fetch(`${API}/api/students/${id}`, { method: 'DELETE' });
+        if (!response.ok) throw new Error('Failed to delete student');
+        await reloadAllData();
+        showToast('🗑️ Student removed', 'info');
+      } catch (err) {
+        showToast(`❌ Error: ${err.message}`, 'error');
+      }
     }
 
-    function renderStudents() {
-      const wrap = document.getElementById('studentsTableWrap');
-      let students = loadFromStorage(KEYS.students);
-      
-      if (students.length === 0 && !localStorage.getItem(KEYS.students)) {
-        students = [
-          { id: 1, name: "Ali Hassan", rollNo: "CS-101", phone: "+923209789348" },
-          { id: 2, name: "Sara Ahmed", rollNo: "CS-102", phone: "+923215788075" },
-          { id: 3, name: "Omar Farooq", rollNo: "CS-103", phone: "+923209789348" },
-          { id: 4, name: "Fatima Zahra", rollNo: "CS-104", phone: "+923209789348" },
-          { id: 5, name: "Hassan Raza", rollNo: "CS-105", phone: "+923209789348" },
-          { id: 6, name: "Ayesha Khan", rollNo: "CS-106", phone: "+923209789348" },
-          { id: 7, name: "Bilal Mahmood", rollNo: "CS-107", phone: "+923209789348" },
-          { id: 8, name: "Zainab Tariq", rollNo: "CS-108", phone: "+923209789348" },
-        ];
-        saveToStorage(KEYS.students, students);
+    function filterStudents() {
+      const query = document.getElementById('studentSearchInput').value.toLowerCase().trim();
+      const classFilter = document.getElementById('studentClassFilter').value;
+
+      let filtered = window.appData.students;
+
+      // Class filtering
+      if (classFilter) {
+        if (classFilter === 'unassigned') {
+          filtered = filtered.filter(s => !s.class_id);
+        } else {
+          filtered = filtered.filter(s => s.class_id === parseInt(classFilter));
+        }
       }
 
-      if (students.length === 0) {
+      // Search query filtering
+      if (query) {
+        filtered = filtered.filter(s =>
+          (s.name && s.name.toLowerCase().includes(query)) ||
+          (s.roll_no && s.roll_no.toLowerCase().includes(query))
+        );
+      }
+
+      renderStudentTable(filtered);
+    }
+
+    function renderStudentTable(students) {
+      const wrap = document.getElementById('studentsTableWrap');
+      const classes = window.appData.classes;
+
+      if (!students || students.length === 0) {
         wrap.innerHTML = `
           <div class="empty-state">
             <div class="icon">🎓</div>
-            <div class="msg">No students added yet</div>
-            <div class="sub">Click "Add Student" to register one</div>
+            <div class="msg">No matching students found</div>
+            <div class="sub">Adjust search filter or register new student</div>
           </div>`;
         return;
       }
 
       let html = `
+        <div style="overflow-x:auto;">
         <table class="data-table">
           <thead>
             <tr>
-              <th style="width:50px;">ID</th>
-              <th>Name</th>
-              <th>Roll No</th>
-              <th>Contact</th>
-              <th style="width:90px;"></th>
+              <th style="width:50px; text-align:left;">ID</th>
+              <th style="text-align:left;">Name</th>
+              <th style="text-align:center; width:120px;">Roll No</th>
+              <th style="text-align:center; width:150px;">Class</th>
+              <th style="text-align:center; width:180px;">Contact</th>
+              <th style="width:120px; text-align:right;">Actions</th>
             </tr>
           </thead>
           <tbody>`;
 
       students.forEach((s) => {
+        const clsObj = classes.find(c => c.id === s.class_id);
+        const className = clsObj ? clsObj.name : 'Unassigned';
+
         html += `
           <tr>
-            <td style="color:var(--text-muted); font-size:0.75rem;">#${s.id}</td>
-            <td>${s.name}</td>
-            <td><span class="badge" style="background:var(--bg); border:1px solid var(--border); color:var(--text-secondary);">${s.rollNo}</span></td>
-            <td>${s.phone}</td>
+            <td style="color:var(--text-muted); font-size:0.75rem; text-align:left;">#${s.id}</td>
+            <td style="text-align:left;"><strong>${escapeHtml(s.name)}</strong></td>
+            <td style="text-align:center;">
+              <span class="badge" style="background:var(--bg); border:1px solid var(--border); color:var(--text-secondary);">${escapeHtml(s.roll_no || '—')}</span>
+            </td>
+            <td style="text-align:center;">
+              <span class="badge" style="background:${clsObj ? 'var(--badge-bg)' : 'var(--danger-bg)'}; color:${clsObj ? 'var(--badge-text)' : 'var(--danger)'};">
+                ${escapeHtml(className)}
+              </span>
+            </td>
+            <td style="text-align:center; font-family:monospace; letter-spacing:0.3px;">${escapeHtml(s.phone || '—')}</td>
             <td style="text-align:right;">
-              <div class="action-buttons">
-                <button onclick="openEditStudentModal(${s.id})" class="btn-edit" title="Edit student">
+              <div class="action-buttons" style="justify-content: flex-end;">
+                <button onclick="openEditStudentModal(${s.id})" class="btn-edit" title="Edit student details">
                   <i class="fas fa-pen"></i>
                 </button>
                 <button class="announcement-delete" style="opacity:1;" onclick="deleteStudent(${s.id})" title="Remove Student">
@@ -1363,75 +1693,18 @@
           </tr>`;
       });
 
-      html += `</tbody></table>`;
+      html += `</tbody></table></div>`;
       wrap.innerHTML = html;
     }
 
-    async function renderTeachers() {
-      const wrap = document.getElementById('teachersTableWrap');
-      
-      try {
-        const teachers = await fetch(`${API}/api/teachers`).then(r => r.json());
-
-        if (teachers.length === 0) {
-          wrap.innerHTML = `
-            <div class="empty-state">
-              <div class="icon">👨‍🏫</div>
-              <div class="msg">No teachers added yet</div>
-              <div class="sub">Click "Add Teacher" to register one</div>
-            </div>`;
-          return;
-        }
-
-        let html = `
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Name</th>
-                <th>Class</th>
-                <th>Contact</th>
-                <th style="width:90px;"></th>
-              </tr>
-            </thead>
-            <tbody>`;
-
-        teachers.forEach((t, i) => {
-          html += `
-              <tr>
-                <td style="color:var(--text-muted); font-weight:500;">${i + 1}</td>
-                <td>${escapeHtml(t.name)}</td>
-                <td><span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(t.class_name || '—')}</span></td>
-                <td>${escapeHtml(t.phone || '—')}</td>
-                <td>
-                  <div class="action-buttons">
-                    <button onclick="openEditTeacherModal(${t.id})" class="btn-edit" title="Edit teacher">
-                      <i class="fas fa-pen"></i>
-                    </button>
-                    <button onclick="deleteTeacher(${t.id})" class="announcement-delete" style="opacity:1;" title="Remove teacher">
-                      <i class="fas fa-trash-alt"></i>
-                    </button>
-                  </div>
-                </td>
-              </tr>`;
-        });
-
-        html += `</tbody></table>`;
-        wrap.innerHTML = html;
-      } catch (err) {
-        wrap.innerHTML = `<div class="empty-state"><div class="msg">Error loading teachers: ${err.message}</div></div>`;
-      }
-    }
-
-
     // =============================================================
-    // SECTION 2: ATTENDANCE OVERVIEW
+    // ATTENDANCE OVERVIEW
     // =============================================================
     function renderAttendance() {
       const wrap = document.getElementById('attendanceTableWrap');
-      const records = loadFromStorage(KEYS.attendance);
+      const records = window.appData.attendance;
 
-      if (records.length === 0) {
+      if (!records || records.length === 0) {
         wrap.innerHTML = `
           <div class="empty-state" style="padding:36px 16px;">
             <div class="icon">📊</div>
@@ -1441,45 +1714,48 @@
         return;
       }
 
-      const sorted = [...records].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-
       let html = `
         <div style="overflow-x:auto;">
         <table class="data-table">
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Teacher</th>
-              <th>Class</th>
-              <th>Present</th>
-              <th>Absent</th>
-              <th>Leave</th>
-              <th style="width:100px;"></th>
+              <th style="text-align:left;">Date</th>
+              <th style="text-align:left;">Teacher</th>
+              <th style="text-align:center; width:120px;">Class</th>
+              <th style="text-align:center; width:100px;">Present</th>
+              <th style="text-align:center; width:100px;">Absent</th>
+              <th style="text-align:center; width:100px;">Leave</th>
+              <th style="width:100px; text-align:right;">Actions</th>
             </tr>
           </thead>
           <tbody>`;
 
-      sorted.forEach(record => {
+      records.forEach(record => {
         const students = record.students || [];
         const present = students.filter(s => s.status === 'Present').length;
         const absent = students.filter(s => s.status === 'Absent').length;
         const leave = students.filter(s => s.status === 'Leave').length;
-        const dateKey = record.date.replace(/-/g, '');
 
         html += `
-            <tr>
-              <td>${escapeHtml(record.date || '—')}</td>
-              <td style="color:var(--text-secondary);">${escapeHtml(record.teacher || '—')}</td>
-              <td>${record.class ? '<span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">' + escapeHtml(record.class) + '</span>' : '—'}</td>
-              <td><span class="badge present">✅ ${present}</span></td>
-              <td><span class="badge absent">❌ ${absent}</span></td>
-              <td style="color:var(--text-secondary);">${leave > 0 ? '📝 ' + leave : '—'}</td>
-              <td>
-                ${absent > 0 ? `<button onclick="viewAbsentees('${record.date}', '${escapeHtml(record.teacher || '')}', '${escapeHtml(record.class || '')}')" class="btn-edit" title="View absent students" style="background:var(--danger-bg);color:var(--danger);">
-                  <i class="fas fa-eye"></i>
-                </button>` : '<span style="color:var(--text-muted);font-size:0.7rem;">—</span>'}
-              </td>
-            </tr>`;
+          <tr>
+            <td style="text-align:left; font-weight:600;">${escapeHtml(record.date || '—')}</td>
+            <td style="text-align:left; color:var(--text-secondary);">${escapeHtml(record.teacher || '—')}</td>
+            <td style="text-align:center;">
+              ${record.class ? `<span class="badge" style="background:var(--badge-bg); color:var(--badge-text); font-weight:700;">${escapeHtml(record.class)}</span>` : '—'}
+            </td>
+            <td style="text-align:center;"><span class="badge present">✅ ${present}</span></td>
+            <td style="text-align:center;"><span class="badge absent">❌ ${absent}</span></td>
+            <td style="text-align:center; color:var(--text-secondary); font-weight:600;">${leave > 0 ? '📝 ' + leave : '—'}</td>
+            <td style="text-align:right;">
+              <div class="action-buttons" style="justify-content: flex-end;">
+                ${absent > 0 || leave > 0 ? `
+                  <button onclick="viewAbsentees('${record.date}', '${escapeHtml(record.teacher || '')}', '${escapeHtml(record.class || '')}')" class="btn-edit" title="View absent students" style="background:var(--danger-bg); color:var(--danger);">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                ` : '<span style="color:var(--text-muted); font-size:0.75rem; padding-right:8px;">—</span>'}
+              </div>
+            </td>
+          </tr>`;
       });
 
       html += `</tbody></table></div>`;
@@ -1487,8 +1763,8 @@
     }
 
     function viewAbsentees(date, teacher, cls) {
-      const records = loadFromStorage(KEYS.attendance);
-      const record = records.find(r => r.date === date);
+      const records = window.appData.attendance;
+      const record = records.find(r => r.date === date && r.class === cls);
       if (!record) return;
 
       const absentees = (record.students || []).filter(s => s.status === 'Absent');
@@ -1504,14 +1780,14 @@
       if (absentees.length === 0) {
         html = '<div class="empty-state" style="padding:20px;"><div class="msg">No absent students</div></div>';
       } else {
-        html += `<div style="margin-bottom:16px;"><h4 style="font-size:0.82rem;font-weight:700;color:var(--danger);margin-bottom:8px;"><i class="fas fa-times-circle" style="margin-right:6px;"></i>Absent (${absentees.length})</h4>`;
-        html += '<div class="absentee-list" style="display:flex;flex-direction:column;gap:6px;">';
+        html += `<div style="margin-bottom:16px;"><h4 style="font-size:0.82rem; font-weight:700; color:var(--danger); margin-bottom:8px;"><i class="fas fa-times-circle" style="margin-right:6px;"></i>Absent (${absentees.length})</h4>`;
+        html += '<div class="absentee-list" style="display:flex; flex-direction:column; gap:6px;">';
         absentees.forEach(s => {
           html += `
             <div class="absentee-row absent">
               <div style="flex:1;">
-                <div style="font-size:0.85rem;font-weight:600;color:var(--text);">${escapeHtml(s.name)}</div>
-                <div style="font-size:0.72rem;color:var(--text-muted);">Roll: ${s.rollNo || '—'} · Phone: ${s.phone || '—'}</div>
+                <div style="font-size:0.85rem; font-weight:600; color:var(--text);">${escapeHtml(s.name)}</div>
+                <div style="font-size:0.72rem; color:var(--text-secondary);">Roll No: ${s.rollNo || '—'} · Phone: ${s.phone || '—'}</div>
               </div>
             </div>`;
         });
@@ -1519,14 +1795,14 @@
       }
 
       if (leaveStudents.length > 0) {
-        html += `<div><h4 style="font-size:0.82rem;font-weight:700;color:var(--warning);margin-bottom:8px;"><i class="fas fa-clock" style="margin-right:6px;"></i>On Leave (${leaveStudents.length})</h4>`;
-        html += '<div class="absentee-list" style="display:flex;flex-direction:column;gap:6px;">';
+        html += `<div><h4 style="font-size:0.82rem; font-weight:700; color:var(--warning); margin-bottom:8px;"><i class="fas fa-clock" style="margin-right:6px;"></i>On Leave (${leaveStudents.length})</h4>`;
+        html += '<div class="absentee-list" style="display:flex; flex-direction:column; gap:6px;">';
         leaveStudents.forEach(s => {
           html += `
             <div class="absentee-row leave">
               <div style="flex:1;">
-                <div style="font-size:0.85rem;font-weight:600;color:var(--text);">${escapeHtml(s.name)}</div>
-                <div style="font-size:0.72rem;color:var(--text-muted);">Roll: ${s.rollNo || '—'}</div>
+                <div style="font-size:0.85rem; font-weight:600; color:var(--text);">${escapeHtml(s.name)}</div>
+                <div style="font-size:0.72rem; color:var(--text-secondary);">Roll No: ${s.rollNo || '—'}</div>
               </div>
             </div>`;
         });
@@ -1541,23 +1817,23 @@
       document.getElementById('absenteeModal').classList.remove('open');
     }
 
-    function clearAttendanceHistory() {
+    async function clearAttendanceHistory() {
       if (!confirm('Clear all attendance history? This cannot be undone.')) return;
-      localStorage.removeItem(KEYS.attendance);
-      renderAttendance();
-      renderStats();
-      showToast('🗑️ Attendance history cleared', 'info');
+      try {
+        showToast('⚠️ Clear operation must be requested through administrator CLI', 'warning');
+      } catch (err) {
+        showToast(`❌ Error: ${err.message}`, 'error');
+      }
     }
 
-
     // =============================================================
-    // ATTENDANCE STATS / PERCENTAGES
+    // STATS / PERCENTAGES
     // =============================================================
     function renderStats() {
       const wrap = document.getElementById('statsTableWrap');
-      const records = loadFromStorage(KEYS.attendance);
+      const records = window.appData.attendance;
 
-      if (records.length === 0) {
+      if (!records || records.length === 0) {
         wrap.innerHTML = `
           <div class="empty-state" style="padding:36px 16px;">
             <div class="icon">📊</div>
@@ -1572,7 +1848,15 @@
       records.forEach(record => {
         (record.students || []).forEach(s => {
           if (!studentMap[s.id]) {
-            studentMap[s.id] = { id: s.id, name: s.name, rollNo: s.rollNo || '—', phone: s.phone || '—', present: 0, absent: 0, leave: 0, total: 0 };
+            studentMap[s.id] = {
+              id: s.id,
+              name: s.name,
+              rollNo: s.rollNo || '—',
+              present: 0,
+              absent: 0,
+              leave: 0,
+              total: 0
+            };
           }
           studentMap[s.id].total++;
           if (s.status === 'Present') studentMap[s.id].present++;
@@ -1590,17 +1874,22 @@
 
       const totalDays = records.length;
 
-      let html = `<div style="padding:16px 22px;"><div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">📅 Total days recorded: <strong style="color:var(--text);">${totalDays}</strong></div></div>`;
-      html += `<div style="overflow-x:auto;"><table class="data-table">
-        <thead><tr>
-          <th style="width:40px;">#</th>
-          <th>Name</th>
-          <th>Roll No</th>
-          <th>Present</th>
-          <th>Absent</th>
-          <th>Leave</th>
-          <th style="width:90px;">Attendance %</th>
-        </tr></thead><tbody>`;
+      let html = `<div style="padding:16px 22px;"><div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px;">📅 Total days recorded: <strong style="color:var(--text);">${totalDays}</strong></div></div>`;
+      html += `
+        <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width:50px; text-align:left;">#</th>
+              <th style="text-align:left;">Name</th>
+              <th style="text-align:center; width:120px;">Roll No</th>
+              <th style="text-align:center; width:100px;">Present</th>
+              <th style="text-align:center; width:100px;">Absent</th>
+              <th style="text-align:center; width:100px;">Leave</th>
+              <th style="width:120px; text-align:right;">Attendance %</th>
+            </tr>
+          </thead>
+          <tbody>`;
 
       students.forEach((s, i) => {
         const pct = s.percentage;
@@ -1610,32 +1899,32 @@
         else if (pct >= 40) barColor = '#f97316';
 
         let rankIcon = '';
-        if (i === 0) rankIcon = '🥇';
+        if (i === 0) rankIcon = '🏆';
         else if (i === 1) rankIcon = '🥈';
         else if (i === 2) rankIcon = '🥉';
 
-        html += `<tr>
-          <td style="color:var(--text-muted);font-size:0.75rem;">${rankIcon || (i + 1)}</td>
-          <td>${s.name}</td>
-          <td><span class="badge" style="background:var(--bg);border:1px solid var(--border);color:var(--text-secondary);">${s.rollNo}</span></td>
-          <td><span class="badge present">✅ ${s.present}</span></td>
-          <td><span class="badge absent">❌ ${s.absent}</span></td>
-          <td style="color:var(--text-secondary);">${s.leave > 0 ? '📝 ' + s.leave : '—'}</td>
-          <td>
-            <span style="font-size:0.85rem;font-weight:700;color:${barColor};">${pct}%</span>
-          </td>
-        </tr>`;
+        html += `
+          <tr>
+            <td style="color:var(--text-muted); font-size:0.75rem; text-align:left;">${rankIcon || (i + 1)}</td>
+            <td style="text-align:left;"><strong>${escapeHtml(s.name)}</strong></td>
+            <td style="text-align:center;">
+              <span class="badge" style="background:var(--bg); border:1px solid var(--border); color:var(--text-secondary);">${escapeHtml(s.rollNo)}</span>
+            </td>
+            <td style="text-align:center;"><span class="badge present">✅ ${s.present}</span></td>
+            <td style="text-align:center;"><span class="badge absent">❌ ${s.absent}</span></td>
+            <td style="text-align:center; color:var(--text-secondary);">${s.leave > 0 ? '📝 ' + s.leave : '—'}</td>
+            <td style="text-align:right; font-weight:800; color:${barColor}; font-size:0.9rem;">${pct}%</td>
+          </tr>`;
       });
 
       html += '</tbody></table></div>';
       wrap.innerHTML = html;
     }
 
-
     // =============================================================
-    // SECTION 3: SCHOOL ANNOUNCEMENTS
+    // SCHOOL ANNOUNCEMENTS
     // =============================================================
-    function saveAnnouncement() {
+    async function saveAnnouncement() {
       const textarea = document.getElementById('announcementText');
       const message = textarea.value.trim();
 
@@ -1645,29 +1934,49 @@
         return;
       }
 
-      const announcements = loadFromStorage(KEYS.announcements);
-      announcements.unshift({
-        date: getTodayDate(),
-        message: message
+      const response = await fetch(`${API}/api/announcements`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: 'School Announcement',
+          message: message,
+          author: 'Admin'
+        })
       });
-      saveToStorage(KEYS.announcements, announcements);
+
+      if (!response.ok) throw new Error('Failed to save announcement');
 
       textarea.value = '';
       renderAnnouncements();
       showToast('📢 Announcement saved', 'success');
     }
 
-    function deleteAnnouncement(index) {
-      const announcements = loadFromStorage(KEYS.announcements);
-      announcements.splice(index, 1);
-      saveToStorage(KEYS.announcements, announcements);
-      renderAnnouncements();
+    async function deleteAnnouncement(id) {
+      const response = await fetch(`${API}/api/announcements/${id}`, { method: 'DELETE' });
+      if (!response.ok) {
+        showToast('Failed to remove announcement', 'error');
+        return;
+      }
+      await renderAnnouncements();
       showToast('🗑️ Announcement removed', 'info');
     }
 
-    function renderAnnouncements() {
+    async function renderAnnouncements() {
       const container = document.getElementById('announcementsList');
-      const announcements = loadFromStorage(KEYS.announcements);
+      let announcements = [];
+
+      try {
+        announcements = await fetch(`${API}/api/announcements`).then(r => r.json());
+        announcements = announcements.filter(a => !a.class_id);
+      } catch (err) {
+        container.innerHTML = `
+          <div class="empty-state" style="padding:24px 0;">
+            <div class="icon">!</div>
+            <div class="msg">Announcements failed to load</div>
+            <div class="sub">${escapeHtml(err.message)}</div>
+          </div>`;
+        return;
+      }
 
       if (announcements.length === 0) {
         container.innerHTML = `
@@ -1683,9 +1992,9 @@
       announcements.forEach((a, i) => {
         html += `
           <li class="announcement-item" style="animation-delay:${i * 0.05}s;">
-            <span class="announcement-date">${escapeHtml(a.date)}</span>
+            <span class="announcement-date">${escapeHtml(new Date(a.created_at).toLocaleDateString('en-CA'))}</span>
             <span class="announcement-msg">${escapeHtml(a.message)}</span>
-            <button class="announcement-delete" onclick="deleteAnnouncement(${i})" title="Delete announcement">
+            <button class="announcement-delete" onclick="deleteAnnouncement(${a.id})" title="Delete announcement">
               <i class="fas fa-times"></i>
             </button>
           </li>`;
@@ -1695,85 +2004,11 @@
     }
 
     // =============================================================
-    // RENDER CLASSES WITH TEACHERS (from classes.html)
-    // =============================================================
-    function renderClasses() {
-      const wrap = document.getElementById('classesTableWrap');
-      
-      try {
-        const classes = loadFromStorage('classes');
-        const teachers = loadFromStorage(KEYS.teachers);
-
-        if (!classes || classes.length === 0) {
-          wrap.innerHTML = `
-            <div class="empty-state">
-              <div class="icon">📚</div>
-              <div class="msg">No classes created yet</div>
-              <div class="sub">Go to Classes page to create classes and assign teachers</div>
-            </div>`;
-          return;
-        }
-
-        let html = `
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Class</th>
-                <th>Students</th>
-                <th>Teacher</th>
-                <th style="width:120px;"></th>
-              </tr>
-            </thead>
-            <tbody>`;
-
-        classes.forEach((cls, i) => {
-          const teacher = cls.teacherId ? teachers.find(t => t.id === cls.teacherId) : null;
-          const studentCount = cls.students ? cls.students.length : 0;
-
-          html += `
-            <tr>
-              <td style="color:var(--text-muted); font-weight:500;">${i + 1}</td>
-              <td>
-                <strong>${escapeHtml(cls.name)}</strong>
-                ${cls.section ? ` <span class="badge">${escapeHtml(cls.section)}</span>` : ''}
-              </td>
-              <td style="text-align:center; font-weight:600;">${studentCount}</td>
-              <td>${teacher ? escapeHtml(teacher.name) : '–'}</td>
-              <td style="text-align:right;">
-                ${teacher ? `
-                  <button onclick="copyTeacherLink('${teacher.id}')" class="btn-edit" title="Copy teacher link" style="margin-right:4px; background:var(--success-bg); color:var(--success);">
-                    <i class="fas fa-link"></i>
-                  </button>
-                ` : ''}
-                <a href="./classes.html" class="btn-edit" title="Edit class" style="text-decoration:none;">
-                  <i class="fas fa-pen"></i>
-                </a>
-              </td>
-            </tr>`;
-        });
-
-        html += `</tbody></table>`;
-        wrap.innerHTML = html;
-      } catch (e) {
-        wrap.innerHTML = `<div class="empty-state"><div class="msg">Error loading classes</div></div>`;
-      }
-    }
-
-    function copyTeacherLink(teacherId) {
-      const link = `${window.location.origin}/teacher.html?id=t_${teacherId}`;
-      navigator.clipboard.writeText(link).then(() => {
-        showToast('📋 Link copied to clipboard', 'success');
-      }).catch(() => {
-        showToast('❌ Failed to copy link', 'error');
-      });
-    }
-
-    // =============================================================
     // TOAST NOTIFICATIONS
     // =============================================================
     function showToast(message, type = 'info') {
       const container = document.getElementById('toastContainer');
+      if (!container) return;
       const toast = document.createElement('div');
       toast.className = `toast ${type}`;
       toast.textContent = message;
@@ -1784,40 +2019,17 @@
       }, 3000);
     }
 
-
     // =============================================================
-    // UTILITY
+    // TAB ROUTING & SWITCHING
     // =============================================================
-    function escapeHtml(str) {
-      if (!str) return '';
-      const div = document.createElement('div');
-      div.textContent = str;
-      return div.innerHTML;
-    }
-
-
-    // =============================================================
-    // TAB NAVIGATION
-    // =============================================================
-    function switchTab(tabName) {
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-      
-      const tabContent = document.getElementById(`tab-${tabName}`);
-      if (tabContent) tabContent.classList.add('active');
-      
-      const tabBtn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
-      if (tabBtn) tabBtn.classList.add('active');
-    }
-
+    
 
     // =============================================================
     // EDIT TEACHER MODAL
     // =============================================================
     async function openEditTeacherModal(id) {
       try {
-        const teachers = await fetch(`${API}/api/teachers`).then(r => r.json());
-        const teacher = teachers.find(t => t.id === id);
+        const teacher = window.appData.teachers.find(t => t.id === id);
         if (!teacher) return;
 
         document.getElementById('editTeacherIndex').value = id;
@@ -1825,10 +2037,9 @@
         document.getElementById('editTeacherPhone').value = teacher.phone || '';
 
         // Populate class dropdown
-        const classes = await fetch(`${API}/api/classes`).then(r => r.json());
         const select = document.getElementById('editTeacherClass');
         select.innerHTML = '<option value="">-- Select a class --</option>';
-        classes.forEach(cls => {
+        window.appData.classes.forEach(cls => {
           const option = document.createElement('option');
           option.value = cls.id;
           option.textContent = cls.name;
@@ -1856,7 +2067,6 @@
         showToast('⚠️ Please enter teacher name', 'warning');
         return;
       }
-      // Class is optional now
       if (phone && !/^[0-9]{11}$/.test(phone)) {
         showToast('⚠️ Phone number must be exactly 11 digits', 'warning');
         document.getElementById('editTeacherPhone').focus();
@@ -1867,43 +2077,29 @@
         const response = await fetch(`${API}/api/teachers/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, phone: phone || null, class_id: classId })
+          body: JSON.stringify({ name, phone: phone || null, class_id: classId || null })
         });
 
         if (!response.ok) throw new Error('Failed to update teacher');
 
         closeEditTeacherModal();
-        renderTeachers();
+        await reloadAllData();
         showToast('✅ Teacher updated successfully', 'success');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       }
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
-      document.getElementById('editTeacherModal').addEventListener('click', function(e) {
-        if (e.target === this) closeEditTeacherModal();
-      });
-      document.getElementById('editStudentModal').addEventListener('click', function(e) {
-        if (e.target === this) closeEditStudentModal();
-      });
-      document.getElementById('absenteeModal').addEventListener('click', function(e) {
-        if (e.target === this) closeAbsenteeModal();
-      });
-    });
-
-
     // =============================================================
     // EDIT STUDENT MODAL
     // =============================================================
     function openEditStudentModal(id) {
-      const students = loadFromStorage(KEYS.students);
-      const student = students.find(s => s.id === id);
+      const student = window.appData.students.find(s => s.id === id);
       if (!student) return;
 
       document.getElementById('editStudentId').value = student.id;
       document.getElementById('editStudentName').value = student.name;
-      document.getElementById('editStudentRoll').value = student.rollNo;
+      document.getElementById('editStudentRoll').value = student.roll_no || '';
       document.getElementById('editStudentPhone').value = student.phone || '';
       document.getElementById('editStudentModal').classList.add('open');
     }
@@ -1912,7 +2108,7 @@
       document.getElementById('editStudentModal').classList.remove('open');
     }
 
-    function saveEditStudent() {
+    async function saveEditStudent() {
       const id = parseInt(document.getElementById('editStudentId').value);
       const name = document.getElementById('editStudentName').value.trim();
       const rollNo = document.getElementById('editStudentRoll').value.trim();
@@ -1932,60 +2128,130 @@
         return;
       }
 
-      const students = loadFromStorage(KEYS.students);
-      const idx = students.findIndex(s => s.id === id);
-      if (idx !== -1) {
-        students[idx] = { id, name, rollNo, phone: phone || '—' };
-        saveToStorage(KEYS.students, students);
-      }
+      // Preserve class_id from existing student model
+      const existing = window.appData.students.find(s => s.id === id);
+      const classId = existing ? existing.class_id : null;
 
-      closeEditStudentModal();
-      renderStudents();
-      showToast('✅ Student updated successfully', 'success');
+      try {
+        const response = await fetch(`${API}/api/students/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, roll_no: rollNo, phone: phone || null, class_id: classId })
+        });
+
+        if (!response.ok) throw new Error('Failed to update student');
+
+        closeEditStudentModal();
+        await reloadAllData();
+        showToast('✅ Student updated successfully', 'success');
+      } catch (err) {
+        showToast(`❌ Error: ${err.message}`, 'error');
+      }
     }
 
-
     // =============================================================
+    // DROPDOWNS POPULATING
     // =============================================================
-    // POPULATE CLASS DROPDOWN
-    // =============================================================
-    async function populateClassDropdown() {
+    async function populateClassDropdown(classes) {
       try {
-        const classes = await fetch(`${API}/api/classes`).then(r => r.json());
         const select = document.getElementById('teacherClass');
         select.innerHTML = '<option value="">-- Select a class --</option>';
-        
+
+        const editSelect = document.getElementById('editTeacherClass');
+        if (editSelect) {
+          editSelect.innerHTML = '<option value="">-- Select a class --</option>';
+        }
+
+        const filterSelect = document.getElementById('studentClassFilter');
+        const filterVal = filterSelect ? filterSelect.value : '';
+        if (filterSelect) {
+          filterSelect.innerHTML = '<option value="">All Classes</option><option value="unassigned">Unassigned</option>';
+        }
+
         classes.forEach(cls => {
           const option = document.createElement('option');
           option.value = cls.id;
           option.textContent = cls.name;
-          select.appendChild(option);
+          select.appendChild(option.cloneNode(true));
+          if (editSelect) {
+            editSelect.appendChild(option.cloneNode(true));
+          }
+          if (filterSelect) {
+            const filterOption = document.createElement('option');
+            filterOption.value = cls.id;
+            filterOption.textContent = cls.name;
+            filterSelect.appendChild(filterOption);
+          }
         });
+
+        if (filterSelect && filterVal) {
+          filterSelect.value = filterVal;
+        }
       } catch (err) {
-        console.error('Error loading classes:', err);
+        console.error('Error loading classes dropdown:', err);
       }
     }
 
+    // =============================================================
     // INITIALIZATION
     // =============================================================
-    async function init() {
-      loadTheme();
-      await populateClassDropdown();
-      renderClasses();
-      renderTeachers();
-      renderStudents();
-      renderAttendance();
-      renderStats();
-      renderAnnouncements();
+    
+    function setupSectionTabs() {
+      const tabs = Array.from(document.querySelectorAll('.tab-btn[data-section]'));
+      const sections = tabs
+        .map(tab => document.getElementById(tab.dataset.section))
+        .filter(Boolean);
+
+      tabs.forEach(tab => {
+        tab.addEventListener('click', event => {
+          event.preventDefault();
+          const section = document.getElementById(tab.dataset.section);
+          if (!section) return;
+          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          history.replaceState(null, '', '#' + section.id);
+        });
+      });
+
+      const observer = new IntersectionObserver(entries => {
+        const visible = entries
+          .filter(entry => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+
+        if (!visible) return;
+
+        tabs.forEach(tab => {
+          tab.classList.toggle('active', tab.dataset.section === visible.target.id);
+        });
+      }, {
+        rootMargin: '-20% 0px -70% 0px',
+        threshold: [0.1, 0.25, 0.5]
+      });
+
+      sections.forEach(section => observer.observe(section));
     }
 
-    // =============================================================
-    // PHONE VALIDATION
-    // =============================================================
     document.addEventListener('DOMContentLoaded', function() {
-      init();
-      
-      // Universal phone validation for all tel inputs
+      setupSectionTabs();
+      loadTheme();
+
+      // Configure dynamic modals close triggers
+      const setupModalDismiss = (modalId, closeFn) => {
+        const el = document.getElementById(modalId);
+        if (el) {
+          el.addEventListener('click', function(e) {
+            if (e.target === this) closeFn();
+          });
+        }
+      };
+
+      setupModalDismiss('editTeacherModal', closeEditTeacherModal);
+      setupModalDismiss('editStudentModal', closeEditStudentModal);
+      setupModalDismiss('absenteeModal', closeAbsenteeModal);
+
+      // Perform parallel SQL loading on start
+      reloadAllData(true);
+
+      // Universal phone validation visual feedback
       document.querySelectorAll('.form-input[type="tel"]').forEach(input => {
         input.addEventListener('input', function() {
           if (this.value.length === 0) {
