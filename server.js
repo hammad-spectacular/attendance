@@ -2,6 +2,7 @@ require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 const { Pool } = require('pg')
+const path = require('path')
 const { sendVeevoSMS } = require('./veevotech-sms')
 
 const pool = new Pool({
@@ -11,9 +12,20 @@ const pool = new Pool({
 const app = express()
 
 app.use(cors({
-  origin: 'https://theeye-beta.vercel.app'
+  origin: ['https://theeye-beta.vercel.app', 'http://localhost:3000']
 }))
 app.use(express.json())
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'))
+})
+app.get('/:page.html', (req, res, next) => {
+  const safePage = req.params.page.replace(/[^a-zA-Z0-9-_]/g, '');
+  res.sendFile(path.join(__dirname, `${safePage}.html`), (err) => {
+    if (err) next();
+  });
+})
+
 app.use(express.static('public'))
 
 // ============================================

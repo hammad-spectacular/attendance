@@ -1,14 +1,26 @@
 const express = require('express')
 const cors = require('cors')
 const pool = require('./db')
+const path = require('path')
 require('dotenv').config()
 
 const app = express()
 
 app.use(cors({
-  origin: 'https://theeye-beta.vercel.app'
+  origin: ['https://theeye-beta.vercel.app', 'http://localhost:3000']
 }))
 app.use(express.json())
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'))
+})
+app.get('/:page.html', (req, res, next) => {
+  const safePage = req.params.page.replace(/[^a-zA-Z0-9-_]/g, '');
+  res.sendFile(path.join(__dirname, `${safePage}.html`), (err) => {
+    if (err) next();
+  });
+})
+
 app.use(express.static('public'))
 
 // ============================================

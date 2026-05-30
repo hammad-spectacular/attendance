@@ -1,4 +1,15 @@
 .env
 .env
 node_modules/
-# it is so that the password be on the git 
+# it is so that the password be on the git
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+tests/test-failures/
+
+# Agent files
+.agent/

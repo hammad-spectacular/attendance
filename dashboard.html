@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Personal Assistant Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body>
+
+  <!-- SVG Glass Filter (hidden) -->
+  <svg style="display:none">
+    <filter id="glass-distortion" x="0%" y="0%" width="100%" height="100%" filterUnits="objectBoundingBox">
+      <feTurbulence type="fractalNoise" baseFrequency="0.001 0.005" numOctaves="1" seed="17" result="turbulence"/>
+      <feComponentTransfer in="turbulence" result="mapped">
+        <feFuncR type="gamma" amplitude="1" exponent="10" offset="0.5"/>
+        <feFuncG type="gamma" amplitude="0" exponent="1" offset="0"/>
+        <feFuncB type="gamma" amplitude="0" exponent="1" offset="0.5"/>
+      </feComponentTransfer>
+      <feGaussianBlur in="turbulence" stdDeviation="3" result="softMap"/>
+      <feSpecularLighting in="softMap" surfaceScale="5" specularConstant="1" specularExponent="100" lightingColor="white" result="specLight">
+        <fePointLight x="-200" y="-200" z="300"/>
+      </feSpecularLighting>
+      <feComposite in="specLight" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="litImage"/>
+      <feDisplacementMap in="SourceGraphic" in2="softMap" scale="200" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </svg>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon"><i class="fa-solid fa-brain"></i></div>
+      <span class="logo-text">AssistAI</span>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item active" data-section="dashboard">
+        <i class="fa-solid fa-house"></i><span>Dashboard</span>
+      </a>
+      <a href="#" class="nav-item" data-section="tasks">
+        <i class="fa-solid fa-list-check"></i><span>Tasks</span>
+      </a>
+      <a href="#" class="nav-item" data-section="calendar">
+        <i class="fa-solid fa-calendar-days"></i><span>Calendar</span>
+      </a>
+      <a href="#" class="nav-item" data-section="notes">
+        <i class="fa-solid fa-note-sticky"></i><span>Notes</span>
+      </a>
+      <a href="#" class="nav-item" data-section="analytics">
+        <i class="fa-solid fa-chart-line"></i><span>Analytics</span>
+      </a>
+    </nav>
+    <div class="sidebar-bottom">
+      <a href="#" class="nav-item" id="openSettings">
+        <i class="fa-solid fa-gear"></i><span>Settings</span>
+      </a>
+      <div class="user-profile">
+        <div class="avatar">H</div>
+        <div class="user-info">
+          <span class="user-name">Hammad</span>
+          <span class="user-role">Admin</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+
+    <!-- Top Bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1 class="page-title">Good Evening, Hammad 👋</h1>
+        <p class="page-subtitle">Here's what's happening today</p>
+      </div>
+      <div class="topbar-right">
+        <div class="search-bar">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" placeholder="Search anything..." />
+        </div>
+        <button class="notif-btn"><i class="fa-solid fa-bell"></i><span class="badge">3</span></button>
+      </div>
+    </header>
+
+    <!-- Stats Cards -->
+    <section class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon blue"><i class="fa-solid fa-check-circle"></i></div>
+        <div class="stat-info">
+          <span class="stat-value">24</span>
+          <span class="stat-label">Tasks Completed</span>
+        </div>
+        <div class="stat-trend up"><i class="fa-solid fa-arrow-trend-up"></i> 12%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon purple"><i class="fa-solid fa-calendar-check"></i></div>
+        <div class="stat-info">
+          <span class="stat-value">8</span>
+          <span class="stat-label">Meetings Today</span>
+        </div>
+        <div class="stat-trend up"><i class="fa-solid fa-arrow-trend-up"></i> 5%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green"><i class="fa-solid fa-note-sticky"></i></div>
+        <div class="stat-info">
+          <span class="stat-value">47</span>
+          <span class="stat-label">Notes Saved</span>
+        </div>
+        <div class="stat-trend down"><i class="fa-solid fa-arrow-trend-down"></i> 2%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon orange"><i class="fa-solid fa-bolt"></i></div>
+        <div class="stat-info">
+          <span class="stat-value">92%</span>
+          <span class="stat-label">Productivity Score</span>
+        </div>
+        <div class="stat-trend up"><i class="fa-solid fa-arrow-trend-up"></i> 8%</div>
+      </div>
+    </section>
+
+    <!-- Quick Actions (Liquid Glass Buttons) -->
+    <section class="quick-actions">
+      <h2 class="section-title">Quick Actions</h2>
+      <div class="glass-actions-row">
+        <button class="glass-btn" onclick="showToast('New Task created!')">
+          <div class="glass-layer"></div>
+          <div class="glass-shine"></div>
+          <div class="glass-content">
+            <i class="fa-solid fa-plus"></i>
+            <span>New Task</span>
+          </div>
+        </button>
+        <button class="glass-btn" onclick="showToast('Opening AI Chat...')">
+          <div class="glass-layer"></div>
+          <div class="glass-shine"></div>
+          <div class="glass-content">
+            <i class="fa-solid fa-robot"></i>
+            <span>Ask AI</span>
+          </div>
+        </button>
+        <button class="glass-btn" onclick="showToast('Scheduling meeting...')">
+          <div class="glass-layer"></div>
+          <div class="glass-shine"></div>
+          <div class="glass-content">
+            <i class="fa-solid fa-calendar-plus"></i>
+            <span>Schedule</span>
+          </div>
+        </button>
+        <button class="glass-btn" onclick="showToast('New note created!')">
+          <div class="glass-layer"></div>
+          <div class="glass-shine"></div>
+          <div class="glass-content">
+            <i class="fa-solid fa-pen-to-square"></i>
+            <span>Quick Note</span>
+          </div>
+        </button>
+        <button class="glass-btn" onclick="showToast('Uploading file...')">
+          <div class="glass-layer"></div>
+          <div class="glass-shine"></div>
+          <div class="glass-content">
+            <i class="fa-solid fa-upload"></i>
+            <span>Upload</span>
+          </div>
+        </button>
+        <button class="glass-btn" onclick="document.getElementById('settingsModal').classList.add('open')">
+          <div class="glass-layer"></div>
+          <div class="glass-shine"></div>
+          <div class="glass-content">
+            <i class="fa-solid fa-share-nodes"></i>
+            <span>Share Access</span>
+          </div>
+        </button>
+      </div>
+    </section>
+
+    <!-- Dashboard Grid -->
+    <div class="dashboard-grid">
+
+      <!-- Recent Tasks -->
+      <div class="card tasks-card">
+        <div class="card-header">
+          <h3>Recent Tasks</h3>
+          <button class="card-action-btn">View All <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+        <ul class="task-list">
+          <li class="task-item done">
+            <span class="task-check"><i class="fa-solid fa-circle-check"></i></span>
+            <span class="task-text">Review project proposal</span>
+            <span class="task-tag blue">Work</span>
+          </li>
+          <li class="task-item done">
+            <span class="task-check"><i class="fa-solid fa-circle-check"></i></span>
+            <span class="task-text">Send weekly report</span>
+            <span class="task-tag green">Done</span>
+          </li>
+          <li class="task-item">
+            <span class="task-check pending"><i class="fa-regular fa-circle"></i></span>
+            <span class="task-text">Update dashboard UI</span>
+            <span class="task-tag purple">Design</span>
+          </li>
+          <li class="task-item">
+            <span class="task-check pending"><i class="fa-regular fa-circle"></i></span>
+            <span class="task-text">Prepare presentation slides</span>
+            <span class="task-tag orange">Urgent</span>
+          </li>
+          <li class="task-item">
+            <span class="task-check pending"><i class="fa-regular fa-circle"></i></span>
+            <span class="task-text">Team standup meeting</span>
+            <span class="task-tag blue">Work</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- AI Assistant Widget -->
+      <div class="card ai-card">
+        <div class="card-header">
+          <h3><i class="fa-solid fa-robot"></i> AI Assistant</h3>
+          <span class="status-dot online"></span>
+        </div>
+        <div class="ai-chat">
+          <div class="ai-message">
+            <div class="ai-avatar"><i class="fa-solid fa-brain"></i></div>
+            <div class="ai-bubble">Hello! How can I help you today? I can manage your tasks, schedule meetings, or answer questions.</div>
+          </div>
+          <div class="user-message">
+            <div class="user-bubble">What's on my schedule today?</div>
+          </div>
+          <div class="ai-message">
+            <div class="ai-avatar"><i class="fa-solid fa-brain"></i></div>
+            <div class="ai-bubble">You have 8 meetings today. Your next one is at 3:00 PM — "Product Review" with the design team.</div>
+          </div>
+        </div>
+        <div class="ai-input-row">
+          <input type="text" placeholder="Ask your assistant..." id="aiInput" />
+          <button class="send-btn" onclick="sendAIMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+      </div>
+
+      <!-- Upcoming Events -->
+      <div class="card events-card">
+        <div class="card-header">
+          <h3>Upcoming Events</h3>
+          <button class="card-action-btn">Calendar <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+        <ul class="event-list">
+          <li class="event-item">
+            <div class="event-time">3:00 PM</div>
+            <div class="event-bar blue"></div>
+            <div class="event-details">
+              <span class="event-name">Product Review</span>
+              <span class="event-meta"><i class="fa-solid fa-users"></i> Design Team</span>
+            </div>
+          </li>
+          <li class="event-item">
+            <div class="event-time">5:00 PM</div>
+            <div class="event-bar purple"></div>
+            <div class="event-details">
+              <span class="event-name">Client Call</span>
+              <span class="event-meta"><i class="fa-solid fa-phone"></i> Zoom</span>
+            </div>
+          </li>
+          <li class="event-item">
+            <div class="event-time">7:30 PM</div>
+            <div class="event-bar green"></div>
+            <div class="event-details">
+              <span class="event-name">Team Dinner</span>
+              <span class="event-meta"><i class="fa-solid fa-location-dot"></i> Downtown</span>
+            </div>
+          </li>
+          <li class="event-item">
+            <div class="event-time">Tomorrow</div>
+            <div class="event-bar orange"></div>
+            <div class="event-details">
+              <span class="event-name">Sprint Planning</span>
+              <span class="event-meta"><i class="fa-solid fa-users"></i> Dev Team</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Productivity Chart -->
+      <div class="card chart-card">
+        <div class="card-header">
+          <h3>Weekly Productivity</h3>
+          <select class="chart-select">
+            <option>This Week</option>
+            <option>Last Week</option>
+            <option>This Month</option>
+          </select>
+        </div>
+        <div class="bar-chart">
+          <div class="bar-group"><div class="bar" style="--h:60%"><span class="bar-val">60%</span></div><span class="bar-label">Mon</span></div>
+          <div class="bar-group"><div class="bar" style="--h:80%"><span class="bar-val">80%</span></div><span class="bar-label">Tue</span></div>
+          <div class="bar-group"><div class="bar" style="--h:55%"><span class="bar-val">55%</span></div><span class="bar-label">Wed</span></div>
+          <div class="bar-group"><div class="bar" style="--h:90%"><span class="bar-val">90%</span></div><span class="bar-label">Thu</span></div>
+          <div class="bar-group"><div class="bar" style="--h:75%"><span class="bar-val">75%</span></div><span class="bar-label">Fri</span></div>
+          <div class="bar-group"><div class="bar" style="--h:40%"><span class="bar-val">40%</span></div><span class="bar-label">Sat</span></div>
+          <div class="bar-group"><div class="bar" style="--h:20%"><span class="bar-val">20%</span></div><span class="bar-label">Sun</span></div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ===================== SETTINGS MODAL (Manage Access) ===================== -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2><i class="fa-solid fa-share-nodes"></i> Share & Access</h2>
+        <button class="modal-close" onclick="document.getElementById('settingsModal').classList.remove('open')">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <p class="modal-subtitle">Invite others or share a link to collaborate on your dashboard.</p>
+
+      <!-- Invite Row -->
+      <div class="invite-row">
+        <input type="email" id="inviteEmail" placeholder="Email address..." class="invite-input" />
+        <select id="inviteRole" class="role-select">
+          <option value="viewer">Can view</option>
+          <option value="editor">Can edit</option>
+        </select>
+        <button class="invite-btn" onclick="inviteUser()">
+          <i class="fa-solid fa-user-plus"></i> Invite
+        </button>
+      </div>
+
+      <hr class="divider" />
+
+      <!-- General Access -->
+      <div class="access-section">
+        <h4>General Access</h4>
+        <div class="access-options">
+          <div class="access-option active" id="opt-private" onclick="setAccess('private')">
+            <i class="fa-solid fa-users"></i>
+            <div>
+              <strong>Only those invited</strong>
+              <span id="inviteCount">3 people</span>
+            </div>
+          </div>
+          <div class="access-option" id="opt-link" onclick="setAccess('link')">
+            <i class="fa-solid fa-link"></i>
+            <div>
+              <strong>Link access</strong>
+              <span>Anyone with the link can view</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider" />
+
+      <!-- People with Access -->
+      <div class="people-section">
+        <h4>People with Access</h4>
+        <ul class="people-list" id="peopleList">
+          <li class="person-item" data-id="1">
+            <div class="person-avatar">H</div>
+            <div class="person-info">
+              <span class="person-name">Hammad</span>
+              <span class="person-email">hammad@eyeg.app</span>
+            </div>
+            <span class="person-role owner">Owner</span>
+          </li>
+          <li class="person-item" data-id="2">
+            <div class="person-avatar" style="background:#7c3aed">S</div>
+            <div class="person-info">
+              <span class="person-name">Sara</span>
+              <span class="person-email">sara@eyeg.app</span>
+            </div>
+            <div class="person-actions">
+              <select class="role-select-sm" onchange="changeRole(2, this.value)">
+                <option value="editor" selected>Can edit</option>
+                <option value="viewer">Can view</option>
+              </select>
+              <button class="remove-btn" onclick="removeUser(2)"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+          </li>
+          <li class="person-item" data-id="3">
+            <div class="person-avatar" style="background:#059669">A</div>
+            <div class="person-info">
+              <span class="person-name">Ali</span>
+              <span class="person-email">ali@eyeg.app</span>
+            </div>
+            <div class="person-actions">
+              <select class="role-select-sm" onchange="changeRole(3, this.value)">
+                <option value="viewer" selected>Can view</option>
+                <option value="editor">Can edit</option>
+              </select>
+              <button class="remove-btn" onclick="removeUser(3)"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <hr class="divider" />
+
+      <!-- Copy Link Footer -->
+      <div class="modal-footer">
+        <div class="link-display">
+          <i class="fa-solid fa-link"></i>
+          <span>https://eyeg.app/dashboard/share/k373nH</span>
+        </div>
+        <button class="copy-btn" id="copyBtn" onclick="copyLink()">
+          <i class="fa-solid fa-copy"></i> Copy Link
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast"></div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>
