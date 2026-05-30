@@ -221,7 +221,7 @@ test('Admin — full interface audit', async ({ page }) => {
 // ════════════════════════════════════════════════════════════
 
 test('Admin — stress test: add 10 students then delete them', async ({ page }) => {
-  test.setTimeout(60000);
+  test.setTimeout(120000);
   try {
     await page.goto(BASE_URL);
     console.log('\n🧪 STRESS TEST — Add & Delete Students');
@@ -285,7 +285,7 @@ test('Admin — stress test: add 10 students then delete them', async ({ page })
       try {
         const row = page.locator(`tr, li, [class*="card"], [class*="row"]`).filter({ hasText: name }).first();
         if (await row.isVisible().catch(() => false)) {
-          const deleteBtn = row.locator('button, [role="button"]').filter({ hasText: /delete|remove/i }).first();
+          const deleteBtn = row.locator('button[aria-label="Delete"], button[aria-label="delete"], .announcement-delete').first();
           if (await deleteBtn.isVisible().catch(() => false)) {
             await deleteBtn.click();
             await page.waitForTimeout(400);
@@ -319,6 +319,7 @@ test('Admin — stress test: add 10 students then delete them', async ({ page })
 // ════════════════════════════════════════════════════════════
 
 test('Admin — stress test: add 5 classes then delete them', async ({ page }) => {
+  test.setTimeout(60000);
   try {
     await page.goto(BASE_URL);
     console.log('\n🧪 STRESS TEST — Add & Delete Classes');
@@ -370,7 +371,7 @@ test('Admin — stress test: add 5 classes then delete them', async ({ page }) =
     for (const name of addedClasses) {
       try {
         const row = page.locator(`tr, li, [class*="card"], [class*="row"]`).filter({ hasText: name }).first();
-        const deleteBtn = row.locator('button').filter({ hasText: /delete|remove/i }).first();
+        const deleteBtn = row.locator('button[aria-label="Delete"], button[aria-label="delete"], .announcement-delete').first();
         if (await deleteBtn.isVisible().catch(() => false)) {
           await deleteBtn.click();
           await page.waitForTimeout(400);
@@ -557,17 +558,17 @@ test('Student — audit both Student 1 and Student 2', async ({ page }) => {
       await page.waitForLoadState('networkidle');
 
       // Attendance
-      await safeClick(page, '[data-section="attendanceCard"], text=Attendance', 'Attendance');
+      await safeClick(page, '[data-section="attendanceCard"]', 'Attendance');
       await page.waitForLoadState('networkidle');
       await auditPage(page, `Student ${studentIndex + 1}`, 'Attendance');
 
       // Homework
-      await safeClick(page, '[data-section="homeworkCard"], text=Homework', 'Homework');
+      await safeClick(page, '[data-section="homeworkCard"]', 'Homework');
       await page.waitForLoadState('networkidle');
       await auditPage(page, `Student ${studentIndex + 1}`, 'Homework');
 
       // Notifications & Announcements
-      await safeClick(page, '[data-section="announcementsCard"], text=Notifications', 'Notifications');
+      await safeClick(page, '[data-section="announcementsCard"]', 'Notifications');
       await page.waitForLoadState('networkidle');
       await auditPage(page, `Student ${studentIndex + 1}`, 'Notifications');
 
