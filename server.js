@@ -2,6 +2,7 @@ require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 const { Pool } = require('pg')
+const path = require('path')
 const { sendVeevoSMS } = require('./veevotech-sms')
 
 const pool = new Pool({
@@ -11,9 +12,20 @@ const pool = new Pool({
 const app = express()
 
 app.use(cors({
-  origin: 'https://theeye-beta.vercel.app'
+  origin: ['https://theeye-beta.vercel.app', 'http://localhost:3000']
 }))
 app.use(express.json())
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'))
+})
+app.get('/:page.html', (req, res, next) => {
+  const safePage = req.params.page.replace(/[^a-zA-Z0-9-_]/g, '');
+  res.sendFile(path.join(__dirname, `${safePage}.html`), (err) => {
+    if (err) next();
+  });
+})
+
 app.use(express.static('public'))
 
 // ============================================
@@ -47,11 +59,36 @@ async function createTables() {
     CREATE TABLE IF NOT EXISTS attendance (
       id SERIAL PRIMARY KEY,
       student_id INTEGER REFERENCES students(id) ON DELETE CASCADE,
+      teacher_id INTEGER REFERENCES teachers(id) ON DELETE SET NULL,
       date DATE NOT NULL,
       status VARCHAR(20) NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(student_id, date)
     );
+
+    CREATE TABLE IF NOT EXISTS homework (
+      id SERIAL PRIMARY KEY,
+      subject VARCHAR(120) NOT NULL,
+      task TEXT NOT NULL,
+      class_id INTEGER REFERENCES classes(id) ON DELETE CASCADE,
+      teacher_id INTEGER REFERENCES teachers(id) ON DELETE SET NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS announcements (
+      id SERIAL PRIMARY KEY,
+      title VARCHAR(120),
+      message TEXT NOT NULL,
+      class_id INTEGER REFERENCES classes(id) ON DELETE CASCADE,
+      teacher_id INTEGER REFERENCES teachers(id) ON DELETE SET NULL,
+      author VARCHAR(100),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `)
+  await pool.query(`
+    ALTER TABLE attendance
+      ADD COLUMN IF NOT EXISTS teacher_id INTEGER REFERENCES teachers(id) ON DELETE SET NULL,
+      ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
   `)
   console.log('✅ Tables ready')
 }
@@ -219,6 +256,16 @@ app.post('/api/students', async (req, res) => {
   }
 })
 
+app.get('/api/students/:id', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM students WHERE id = $1', [req.params.id])
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Student not found' })
+    res.json(result.rows[0])
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 app.put('/api/students/:id', async (req, res) => {
   try {
     const { name, roll_no, phone, class_id } = req.body
@@ -283,11 +330,21 @@ app.get('/api/attendance', async (req, res) => {
 app.get('/api/attendance/all', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT attendance.*, students.name, students.roll_no, classes.name as class_name
+      SELECT
+        attendance.*,
+        students.name,
+        students.phone,
+        students.roll_no,
+        students.class_id,
+        classes.name as class_name,
+        COALESCE(marking_teacher.name, assigned_teacher.name) as marked_by,
+        COALESCE(marking_teacher.id, assigned_teacher.id) as marked_by_id
       FROM attendance
       JOIN students ON attendance.student_id = students.id
       JOIN classes ON students.class_id = classes.id
-      ORDER BY attendance.date DESC
+      LEFT JOIN teachers marking_teacher ON attendance.teacher_id = marking_teacher.id
+      LEFT JOIN teachers assigned_teacher ON assigned_teacher.class_id = students.class_id
+      ORDER BY attendance.date DESC, classes.name ASC, students.name ASC
     `)
     res.json(result.rows)
   } catch (err) {
@@ -297,17 +354,24 @@ app.get('/api/attendance/all', async (req, res) => {
 
 app.post('/api/attendance/submit', async (req, res) => {
   try {
-    const { date, class_id, records } = req.body
+    const { date, class_id, teacher_id, records } = req.body
     // records = [{student_id, name, phone, status}]
 
     // Save each record to database
     for (const record of records) {
-      await pool.query(
-        `INSERT INTO attendance (student_id, date, status)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (student_id, date) DO UPDATE SET status = EXCLUDED.status`,
-        [record.student_id, date, record.status]
+      const updated = await pool.query(
+        `UPDATE attendance
+         SET teacher_id = $1, status = $2
+         WHERE student_id = $3 AND date = $4`,
+        [teacher_id || null, record.status, record.student_id, date]
       )
+      if (updated.rowCount === 0) {
+        await pool.query(
+          `INSERT INTO attendance (student_id, teacher_id, date, status)
+           VALUES ($1, $2, $3, $4)`,
+          [record.student_id, teacher_id || null, date, record.status]
+        )
+      }
     }
 
     // Send SMS to absent students
@@ -333,6 +397,120 @@ app.post('/api/attendance/submit', async (req, res) => {
       sms_sent: smsResults.filter(r => r.success).length,
       results: smsResults
     })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ============================================
+// HOMEWORK
+// ============================================
+app.get('/api/homework', async (req, res) => {
+  try {
+    const { class_id } = req.query
+    let result
+
+    if (class_id) {
+      result = await pool.query(`
+        SELECT homework.*, classes.name as class_name, teachers.name as teacher_name
+        FROM homework
+        LEFT JOIN classes ON homework.class_id = classes.id
+        LEFT JOIN teachers ON homework.teacher_id = teachers.id
+        WHERE homework.class_id = $1
+        ORDER BY homework.created_at DESC
+      `, [class_id])
+    } else {
+      result = await pool.query(`
+        SELECT homework.*, classes.name as class_name, teachers.name as teacher_name
+        FROM homework
+        LEFT JOIN classes ON homework.class_id = classes.id
+        LEFT JOIN teachers ON homework.teacher_id = teachers.id
+        ORDER BY homework.created_at DESC
+      `)
+    }
+
+    res.json(result.rows)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.post('/api/homework', async (req, res) => {
+  try {
+    const { subject, task, class_id, teacher_id } = req.body
+    if (!subject || !task) return res.status(400).json({ error: 'Subject and task are required' })
+
+    const result = await pool.query(
+      'INSERT INTO homework (subject, task, class_id, teacher_id) VALUES ($1, $2, $3, $4) RETURNING *',
+      [subject, task, class_id || null, teacher_id || null]
+    )
+    res.json(result.rows[0])
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.delete('/api/homework/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM homework WHERE id = $1', [req.params.id])
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ============================================
+// ANNOUNCEMENTS
+// ============================================
+app.get('/api/announcements', async (req, res) => {
+  try {
+    const { class_id } = req.query
+    let result
+
+    if (class_id) {
+      result = await pool.query(`
+        SELECT announcements.*, classes.name as class_name, teachers.name as teacher_name
+        FROM announcements
+        LEFT JOIN classes ON announcements.class_id = classes.id
+        LEFT JOIN teachers ON announcements.teacher_id = teachers.id
+        WHERE announcements.class_id IS NULL OR announcements.class_id = $1
+        ORDER BY announcements.created_at DESC
+      `, [class_id])
+    } else {
+      result = await pool.query(`
+        SELECT announcements.*, classes.name as class_name, teachers.name as teacher_name
+        FROM announcements
+        LEFT JOIN classes ON announcements.class_id = classes.id
+        LEFT JOIN teachers ON announcements.teacher_id = teachers.id
+        ORDER BY announcements.created_at DESC
+      `)
+    }
+
+    res.json(result.rows)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.post('/api/announcements', async (req, res) => {
+  try {
+    const { title, message, class_id, teacher_id, author } = req.body
+    if (!message) return res.status(400).json({ error: 'Announcement message is required' })
+
+    const result = await pool.query(
+      'INSERT INTO announcements (title, message, class_id, teacher_id, author) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [title || null, message, class_id || null, teacher_id || null, author || null]
+    )
+    res.json(result.rows[0])
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.delete('/api/announcements/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM announcements WHERE id = $1', [req.params.id])
+    res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
