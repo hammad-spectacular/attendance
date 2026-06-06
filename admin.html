@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
+
 <head>
   <script>
     // Execute immediately to prevent theme flickering (FOUC)
-    (function() {
+    (function () {
       const savedTheme = localStorage.getItem('attendance-theme') || 'dark';
       document.documentElement.setAttribute('data-theme', savedTheme);
     })();
@@ -11,8 +12,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Dashboard — The Eye</title>
-  <meta name="description" content="Admin dashboard for The Eye School Management System. Manage teachers, view attendance, and post announcements.">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <meta name="description"
+    content="Admin dashboard for The Eye School Management System. Manage teachers, view attendance, and post announcements.">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     /* ================================
@@ -37,14 +40,15 @@
       --danger-bg: rgba(239, 68, 68, 0.08);
       --warning: #f59e0b;
       --warning-bg: rgba(245, 158, 11, 0.08);
-      --shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
-      --shadow-lg: 0 10px 25px -5px rgba(0,0,0,0.4);
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
       --gradient: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
       --table-row-hover: rgba(79, 70, 229, 0.06);
-      --table-stripe: rgba(255,255,255,0.02);
+      --table-stripe: rgba(255, 255, 255, 0.02);
       --badge-bg: rgba(79, 70, 229, 0.12);
       --badge-text: #a5b4fc;
     }
+
     [data-theme="light"] {
       --bg: #f1f5f9;
       --bg-card: #ffffff;
@@ -64,16 +68,20 @@
       --danger-bg: rgba(239, 68, 68, 0.06);
       --warning: #d97706;
       --warning-bg: rgba(245, 158, 11, 0.06);
-      --shadow: 0 4px 6px -1px rgba(0,0,0,0.07);
-      --shadow-lg: 0 10px 25px -5px rgba(0,0,0,0.1);
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
+      --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
       --gradient: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
       --table-row-hover: rgba(79, 70, 229, 0.04);
-      --table-stripe: rgba(0,0,0,0.015);
+      --table-stripe: rgba(0, 0, 0, 0.015);
       --badge-bg: rgba(79, 70, 229, 0.08);
       --badge-text: #4f46e5;
     }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
     body {
       font-family: 'Inter', sans-serif;
@@ -85,7 +93,9 @@
     }
 
     @keyframes spin {
-      to { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
 
     /* ================================
@@ -98,17 +108,19 @@
       top: 0;
       z-index: 30;
       overflow: hidden;
-      box-shadow: 0 4px 20px rgba(79,70,229,0.3);
+      box-shadow: 0 4px 20px rgba(79, 70, 229, 0.3);
       animation: headerSlideDown 0.5s ease-out;
     }
+
     .header::before {
       content: '';
       position: absolute;
       inset: 0;
-      background: radial-gradient(ellipse at 30% 50%, rgba(255,255,255,0.08) 0%, transparent 60%),
-                  radial-gradient(ellipse at 70% 50%, rgba(255,255,255,0.05) 0%, transparent 60%);
+      background: radial-gradient(ellipse at 30% 50%, rgba(255, 255, 255, 0.08) 0%, transparent 60%),
+        radial-gradient(ellipse at 70% 50%, rgba(255, 255, 255, 0.05) 0%, transparent 60%);
       pointer-events: none;
     }
+
     .header-inner {
       position: relative;
       z-index: 1;
@@ -119,17 +131,19 @@
       justify-content: space-between;
       padding: 0 20px;
     }
+
     .header-left {
       display: flex;
       align-items: center;
       gap: 14px;
     }
+
     .back-btn {
       width: 40px;
       height: 40px;
       border-radius: 12px;
-      border: 2px solid rgba(255,255,255,0.25);
-      background: rgba(255,255,255,0.1);
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.1);
       color: white;
       font-size: 0.9rem;
       cursor: pointer;
@@ -141,11 +155,13 @@
       text-decoration: none;
       flex-shrink: 0;
     }
+
     .back-btn:hover {
-      background: rgba(255,255,255,0.2);
-      border-color: rgba(255,255,255,0.5);
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.5);
       transform: scale(1.06);
     }
+
     .header-title strong {
       display: block;
       font-size: 1.25rem;
@@ -154,23 +170,26 @@
       letter-spacing: -0.5px;
       line-height: 1.2;
     }
+
     .header-title span {
       font-size: 0.72rem;
-      color: rgba(255,255,255,0.65);
+      color: rgba(255, 255, 255, 0.65);
       font-weight: 400;
       letter-spacing: 0.3px;
     }
+
     .header-right {
       display: flex;
       align-items: center;
       gap: 10px;
     }
+
     .theme-toggle {
       width: 40px;
       height: 40px;
       border-radius: 50%;
-      border: 2px solid rgba(255,255,255,0.25);
-      background: rgba(255,255,255,0.1);
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.1);
       color: white;
       font-size: 0.9rem;
       cursor: pointer;
@@ -180,9 +199,10 @@
       transition: all 0.3s ease;
       backdrop-filter: blur(10px);
     }
+
     .theme-toggle:hover {
-      background: rgba(255,255,255,0.2);
-      border-color: rgba(255,255,255,0.5);
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.5);
       transform: scale(1.06);
     }
 
@@ -200,15 +220,20 @@
       -webkit-overflow-scrolling: touch;
       white-space: nowrap;
     }
+
     .tab-nav::-webkit-scrollbar {
       display: none;
     }
+
     .tab-nav {
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
-    [data-theme="dark"] .tab-nav { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3); }
-    
+
+    [data-theme="dark"] .tab-nav {
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+    }
+
     .tab-nav-inner {
       max-width: 960px;
       margin: 0 auto;
@@ -219,6 +244,7 @@
       padding-bottom: 0.5rem;
       width: max-content;
     }
+
     .tab-btn {
       padding: 0.65rem 1.5rem;
       font-weight: 600;
@@ -236,22 +262,159 @@
       white-space: nowrap;
       flex-shrink: 0;
     }
+
     .tab-btn:hover {
       color: var(--primary);
       background: var(--bg-card-hover);
       border-color: var(--border);
     }
+
     .tab-btn.active {
       color: #fff;
       background: var(--gradient);
       border-color: var(--primary);
       box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
     }
+
     .tab-content {
-      scroll-margin-top: 150px;
-      margin-bottom: 32px;
+      display: none;
+      animation: fadeInUp 0.3s ease-out both;
     }
-    
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* ================================
+       DIRTY ROW HIGHLIGHT
+       ================================ */
+    .row-dirty {
+      background: rgba(245, 158, 11, 0.10) !important;
+    }
+
+    .row-dirty td {
+      border-bottom-color: rgba(245, 158, 11, 0.25) !important;
+    }
+
+    .inline-edit-input {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 0.82rem;
+      color: var(--text);
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .inline-edit-input:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
+
+    /* ================================
+       STICKY SAVE BAR
+       ================================ */
+    .save-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: var(--bg-card);
+      border-top: 2px solid var(--warning);
+      box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.25);
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      padding: 12px 20px;
+    }
+
+    .save-bar.visible {
+      transform: translateY(0);
+    }
+
+    .save-bar-inner {
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .save-bar-msg {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--warning);
+    }
+
+    .save-bar-msg i {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .save-bar-actions {
+      display: flex;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .btn-discard {
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text-secondary);
+      transition: all 0.2s ease;
+    }
+
+    .btn-discard:hover {
+      background: var(--bg-card-hover);
+      color: var(--text);
+    }
+
+    .btn-save-all {
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      background: var(--warning);
+      color: #fff;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 10px rgba(245, 158, 11, 0.35);
+    }
+
+    .btn-save-all:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+
+    .btn-save-all:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* push page content up when save bar is visible */
+    body.savebar-open .main {
+      padding-bottom: 90px;
+    }
+
 
     /* ================================
        MAIN CONTAINER
@@ -274,9 +437,18 @@
       overflow: hidden;
       animation: fadeInUp 0.5s ease-out both;
     }
-    .section-card:nth-child(1) { animation-delay: 0.05s; }
-    .section-card:nth-child(2) { animation-delay: 0.15s; }
-    .section-card:nth-child(3) { animation-delay: 0.25s; }
+
+    .section-card:nth-child(1) {
+      animation-delay: 0.05s;
+    }
+
+    .section-card:nth-child(2) {
+      animation-delay: 0.15s;
+    }
+
+    .section-card:nth-child(3) {
+      animation-delay: 0.25s;
+    }
 
     .section-header {
       padding: 18px 22px;
@@ -287,11 +459,13 @@
       gap: 12px;
       flex-wrap: wrap;
     }
+
     .section-header-left {
       display: flex;
       align-items: center;
       gap: 12px;
     }
+
     .section-icon {
       width: 40px;
       height: 40px;
@@ -302,24 +476,29 @@
       font-size: 1rem;
       flex-shrink: 0;
     }
+
     .section-icon.purple {
       background: var(--badge-bg);
       color: var(--badge-text);
     }
+
     .section-icon.green {
       background: var(--success-bg);
       color: var(--success);
     }
+
     .section-icon.amber {
       background: var(--warning-bg);
       color: var(--warning);
     }
+
     .section-title {
       font-size: 1rem;
       font-weight: 700;
       color: var(--text);
       line-height: 1.2;
     }
+
     .section-subtitle {
       font-size: 0.72rem;
       color: var(--text-muted);
@@ -339,6 +518,7 @@
       border-spacing: 0;
       font-size: 0.82rem;
     }
+
     .data-table thead th {
       padding: 10px 14px;
       font-size: 0.68rem;
@@ -349,18 +529,23 @@
       border-bottom: 1px solid var(--border);
       white-space: nowrap;
     }
+
     .data-table tbody tr {
       transition: background 0.2s ease;
     }
+
     .data-table tbody tr:hover {
       background: var(--table-row-hover);
     }
+
     .data-table tbody tr:nth-child(even) {
       background: var(--table-stripe);
     }
+
     .data-table tbody tr:nth-child(even):hover {
       background: var(--table-row-hover);
     }
+
     .data-table tbody td {
       padding: 11px 14px;
       border-bottom: 1px solid var(--border);
@@ -373,15 +558,18 @@
       padding: 30px 16px;
       color: var(--text-muted);
     }
+
     .empty-state .icon {
       font-size: 2rem;
       margin-bottom: 8px;
       opacity: 0.6;
     }
+
     .empty-state .msg {
       font-size: 0.82rem;
       font-weight: 500;
     }
+
     .empty-state .sub {
       font-size: 0.72rem;
       margin-top: 4px;
@@ -399,10 +587,12 @@
       font-weight: 600;
       white-space: nowrap;
     }
+
     .badge.present {
       background: var(--success-bg);
       color: var(--success);
     }
+
     .badge.absent {
       background: var(--danger-bg);
       color: var(--danger);
@@ -414,6 +604,7 @@
     .form-group {
       margin-bottom: 14px;
     }
+
     .form-label {
       display: block;
       font-size: 0.75rem;
@@ -423,6 +614,7 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
+
     .form-input,
     .form-textarea {
       width: 100%;
@@ -436,15 +628,18 @@
       transition: border-color 0.25s ease, box-shadow 0.25s ease;
       outline: none;
     }
+
     .form-input:focus,
     .form-textarea:focus {
       border-color: var(--border-focus);
       box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
     }
+
     .form-input::placeholder,
     .form-textarea::placeholder {
       color: var(--text-muted);
     }
+
     .form-textarea {
       resize: vertical;
       min-height: 80px;
@@ -454,6 +649,7 @@
       display: flex;
       gap: 12px;
     }
+
     .form-row .form-group {
       flex: 1;
     }
@@ -474,31 +670,38 @@
       transition: all 0.25s ease;
       letter-spacing: 0.2px;
     }
+
     .btn-primary {
       background: var(--gradient);
       color: white;
-      box-shadow: 0 4px 12px rgba(79,70,229,0.3);
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
     }
+
     .btn-primary:hover {
-      box-shadow: 0 6px 18px rgba(79,70,229,0.45);
+      box-shadow: 0 6px 18px rgba(79, 70, 229, 0.45);
       transform: translateY(-1px);
     }
+
     .btn-primary:active {
       transform: translateY(0);
     }
+
     .btn-danger {
       background: var(--danger-bg);
       color: var(--danger);
       border: 1px solid transparent;
     }
+
     .btn-danger:hover {
       background: rgba(239, 68, 68, 0.15);
     }
+
     .btn-ghost {
       background: transparent;
       color: var(--text-muted);
       border: 1px solid var(--border);
     }
+
     .btn-ghost:hover {
       background: var(--bg-card-hover);
       color: var(--text-secondary);
@@ -511,6 +714,7 @@
       list-style: none;
       margin-top: 16px;
     }
+
     .announcement-item {
       display: flex;
       align-items: flex-start;
@@ -523,10 +727,12 @@
       transition: transform 0.2s ease, box-shadow 0.2s ease;
       animation: fadeInUp 0.3s ease-out both;
     }
+
     .announcement-item:hover {
       transform: translateX(3px);
       box-shadow: var(--shadow);
     }
+
     .announcement-date {
       font-size: 0.68rem;
       font-weight: 600;
@@ -538,12 +744,14 @@
       flex-shrink: 0;
       margin-top: 1px;
     }
+
     .announcement-msg {
       font-size: 0.85rem;
       color: var(--text);
       line-height: 1.45;
       flex: 1;
     }
+
     .announcement-delete {
       width: 28px;
       height: 28px;
@@ -560,9 +768,11 @@
       transition: all 0.2s ease;
       opacity: 0;
     }
+
     .announcement-item:hover .announcement-delete {
       opacity: 1;
     }
+
     .announcement-delete:hover {
       background: rgba(239, 68, 68, 0.2);
       transform: scale(1.1);
@@ -577,6 +787,7 @@
       justify-content: flex-end;
       align-items: center;
     }
+
     .action-buttons button {
       padding: 8px 12px;
       font-size: 1rem;
@@ -594,6 +805,7 @@
       display: none;
       animation: fadeInUp 0.3s ease-out;
     }
+
     .add-teacher-form.open {
       display: block;
     }
@@ -612,20 +824,33 @@
       align-items: flex-end;
       pointer-events: none;
     }
+
     .toast {
       padding: 12px 20px;
       border-radius: 12px;
       font-size: 0.82rem;
       font-weight: 600;
       color: white;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
       animation: toastIn 0.35s ease-out, toastOut 0.35s ease-in 2.5s forwards;
       pointer-events: auto;
     }
-    .toast.success { background: #059669; }
-    .toast.info { background: #475569; }
-    .toast.error { background: #dc2626; }
-    .toast.warning { background: #d97706; }
+
+    .toast.success {
+      background: #059669;
+    }
+
+    .toast.info {
+      background: #475569;
+    }
+
+    .toast.error {
+      background: #dc2626;
+    }
+
+    .toast.warning {
+      background: #d97706;
+    }
 
     /* ================================
        EDIT MODAL
@@ -637,13 +862,15 @@
       display: none;
       align-items: center;
       justify-content: center;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0, 0, 0, 0.5);
       backdrop-filter: blur(4px);
       animation: fadeIn 0.2s ease-out;
     }
+
     .edit-modal.open {
       display: flex;
     }
+
     .edit-modal-card {
       background: var(--bg-card);
       border: 1px solid var(--border);
@@ -654,17 +881,20 @@
       box-shadow: var(--shadow-lg);
       animation: modalSlideIn 0.3s ease-out;
     }
+
     .edit-modal-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       margin-bottom: 20px;
     }
+
     .edit-modal-header h3 {
       font-size: 1.1rem;
       font-weight: 700;
       color: var(--text);
     }
+
     .edit-modal-close {
       width: 32px;
       height: 32px;
@@ -679,16 +909,19 @@
       justify-content: center;
       transition: all 0.2s ease;
     }
+
     .edit-modal-close:hover {
       background: var(--danger-bg);
       color: var(--danger);
       border-color: var(--danger);
     }
+
     .edit-modal-actions {
       display: flex;
       gap: 8px;
       margin-top: 16px;
     }
+
     .edit-modal-actions .btn {
       flex: 1;
     }
@@ -708,6 +941,7 @@
       justify-content: center;
       transition: all 0.2s ease;
     }
+
     .btn-edit:hover {
       background: rgba(79, 70, 229, 0.2);
       transform: scale(1.1);
@@ -721,9 +955,11 @@
       border-radius: 10px;
       border: 1px solid var(--border);
     }
+
     .absentee-row.absent {
       background: var(--danger-bg);
     }
+
     .absentee-row.leave {
       background: var(--warning-bg);
     }
@@ -732,66 +968,162 @@
        RESPONSIVE
        ================================ */
     @media (max-width: 640px) {
-      .header { padding: 16px; }
-      .header-title strong { font-size: 1.1rem; }
-      .main { padding: 16px 14px 50px; }
-      .section-header { padding: 14px 16px; }
-      .section-body { padding: 14px 16px; }
-      .form-row { flex-direction: column; gap: 0; }
-      .data-table { font-size: 0.75rem; }
-      .data-table thead th { padding: 8px 10px; font-size: 0.62rem; }
-      .data-table tbody td { padding: 9px 10px; }
-      .section-title { font-size: 0.9rem; }
-      .tab-nav-inner { padding-left: 14px; padding-right: 14px; gap: 0.35rem; }
-      .tab-btn { padding: 0.55rem 1rem; font-size: 0.82rem; }
-      .edit-modal-card { padding: 20px; }
+      .header {
+        padding: 16px;
+      }
+
+      .header-title strong {
+        font-size: 1.1rem;
+      }
+
+      .main {
+        padding: 16px 14px 50px;
+      }
+
+      .section-header {
+        padding: 14px 16px;
+      }
+
+      .section-body {
+        padding: 14px 16px;
+      }
+
+      .form-row {
+        flex-direction: column;
+        gap: 0;
+      }
+
+      .data-table {
+        font-size: 0.75rem;
+      }
+
+      .data-table thead th {
+        padding: 8px 10px;
+        font-size: 0.62rem;
+      }
+
+      .data-table tbody td {
+        padding: 9px 10px;
+      }
+
+      .section-title {
+        font-size: 0.9rem;
+      }
+
+      .tab-nav-inner {
+        padding-left: 14px;
+        padding-right: 14px;
+        gap: 0.35rem;
+      }
+
+      .tab-btn {
+        padding: 0.55rem 1rem;
+        font-size: 0.82rem;
+      }
+
+      .edit-modal-card {
+        padding: 20px;
+      }
     }
 
     /* ================================
        ANIMATIONS
        ================================ */
     @keyframes headerSlideDown {
-      from { opacity: 0; transform: translateY(-20px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
+
     @keyframes fadeInUp {
-      from { opacity: 0; transform: translateY(16px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
+
     @keyframes toastIn {
-      from { opacity: 0; transform: translateY(20px) scale(0.95); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
+      from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
     }
+
     @keyframes toastOut {
-      from { opacity: 1; transform: translateY(0); }
-      to { opacity: 0; transform: translateY(-10px); }
+      from {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      to {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
     }
+
     @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
     }
+
     @keyframes modalSlideIn {
-      from { opacity: 0; transform: scale(0.95) translateY(-10px); }
-      to { opacity: 1; transform: scale(1) translateY(0); }
+      from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
     }
 
     /* ================================
        SKELETON SHIMMER LOADERS
        ================================ */
     @keyframes skeleton-shimmer {
-      0% { background-position: -200% 0; }
-      100% { background-position: 200% 0; }
+      0% {
+        background-position: -200% 0;
+      }
+
+      100% {
+        background-position: 200% 0;
+      }
     }
+
     .skeleton-shimmer {
       background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
       background-size: 200% 100%;
       animation: skeleton-shimmer 1.6s infinite linear;
       border-color: transparent !important;
     }
+
     [data-theme="light"] .skeleton-shimmer {
       background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
       background-size: 200% 100%;
     }
+
     .skeleton-text {
       height: 12px;
       border-radius: 4px;
@@ -799,6 +1131,7 @@
       display: inline-block;
       opacity: 0.6;
     }
+
     .skeleton-circle {
       width: 36px;
       height: 36px;
@@ -809,12 +1142,16 @@
     }
   </style>
 </head>
+
 <body>
 
   <!-- ======================== LOADING OVERLAY ======================== -->
-  <div id="loadingOverlay" style="position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: none; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(8px); transition: opacity 0.4s ease;">
+  <div id="loadingOverlay"
+    style="position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: none; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(8px); transition: opacity 0.4s ease;">
     <div style="text-align: center;">
-      <div class="loader-spinner" style="width: 50px; height: 50px; border: 4px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
+      <div class="loader-spinner"
+        style="width: 50px; height: 50px; border: 4px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;">
+      </div>
       <div style="font-weight: 700; font-size: 1.1rem; color: var(--text); margin-bottom: 8px;">Loading Database</div>
       <div style="font-size: 0.8rem; color: var(--text-secondary);">Connecting to The Eye System...</div>
     </div>
@@ -843,13 +1180,13 @@
   <!-- ======================== TAB NAVIGATION ======================== -->
   <nav class="tab-nav">
     <div class="tab-nav-inner">
-      <a href="#tab-teachers" class="tab-btn" data-section="tab-teachers">
+      <a href="#tab-teachers" class="tab-btn active" data-section="tab-teachers">
         <i class="fas fa-chalkboard-user"></i>Teachers
       </a>
       <a href="#tab-students" class="tab-btn" data-section="tab-students">
         <i class="fas fa-user-graduate"></i>Students
       </a>
-      <a href="./classes.html" class="tab-btn" style="text-decoration:none; cursor:pointer;">
+      <a href="#tab-classes" class="tab-btn" data-section="tab-classes">
         <i class="fas fa-book"></i>Classes
       </a>
       <a href="#tab-attendance" class="tab-btn" data-section="tab-attendance">
@@ -868,27 +1205,7 @@
   <div class="main">
 
     <!-- ==================== TEACHERS TAB ==================== -->
-    <div id="tab-teachers" class="tab-content">
-      <!-- Classes Section -->
-      <div class="section-card" id="classesSection">
-        <div class="section-header">
-          <div class="section-header-left">
-            <div class="section-icon purple" style="background: rgba(34, 197, 94, 0.12); color: #22c55e;"><i class="fas fa-book"></i></div>
-            <div>
-              <div class="section-title">Classes & Teachers</div>
-              <div class="section-subtitle">View assigned teachers and share links</div>
-            </div>
-          </div>
-          <a href="./classes.html" class="btn btn-primary" style="text-decoration:none;">
-            <i class="fas fa-cog"></i> Manage Classes
-          </a>
-        </div>
-        <div class="section-body">
-          <div id="classesTableWrap">
-            <!-- Rendered by JS -->
-          </div>
-        </div>
-      </div>
+    <div id="tab-teachers" class="tab-content active">
 
       <!-- Teachers List Section -->
       <div class="section-card" id="teachersSection">
@@ -921,7 +1238,8 @@
               </div>
               <div class="form-group">
                 <label class="form-label" for="teacherPhone">Contact</label>
-                <input class="form-input" type="tel" id="teacherPhone" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits (e.g., 03001234567)" required>
+                <input class="form-input" type="tel" id="teacherPhone" placeholder="03001234567" pattern="[0-9]{11}"
+                  title="11 digits (e.g., 03001234567)" required>
               </div>
             </div>
             <div style="display:flex; gap:8px; margin-top:4px;">
@@ -945,13 +1263,15 @@
       <div class="section-card" id="studentsSection">
         <div class="section-header">
           <div class="section-header-left">
-            <div class="section-icon purple" style="background: rgba(14, 165, 233, 0.12); color: #0ea5e9;"><i class="fas fa-user-graduate"></i></div>
+            <div class="section-icon purple" style="background: rgba(14, 165, 233, 0.12); color: #0ea5e9;"><i
+                class="fas fa-user-graduate"></i></div>
             <div>
               <div class="section-title">Students</div>
               <div class="section-subtitle">Manage enrolled students</div>
             </div>
           </div>
-          <button class="btn btn-primary" onclick="toggleAddStudent()" id="addStudentToggleBtn" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
+          <button class="btn btn-primary" onclick="toggleAddStudent()" id="addStudentToggleBtn"
+            style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
             <i class="fas fa-plus"></i> Add Student
           </button>
         </div>
@@ -970,11 +1290,13 @@
               </div>
               <div class="form-group">
                 <label class="form-label" for="studentPhone">Contact</label>
-                <input class="form-input" type="tel" id="studentPhone" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits (e.g., 03001234567)" required>
+                <input class="form-input" type="tel" id="studentPhone" placeholder="03001234567" pattern="[0-9]{11}"
+                  title="11 digits (e.g., 03001234567)" required>
               </div>
             </div>
             <div style="display:flex; gap:8px; margin-top:4px;">
-              <button class="btn btn-primary" onclick="saveStudent()" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
+              <button class="btn btn-primary" onclick="saveStudent()"
+                style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
                 <i class="fas fa-check"></i> Save Student
               </button>
               <button class="btn btn-ghost" onclick="toggleAddStudent()">Cancel</button>
@@ -984,10 +1306,12 @@
           <!-- Search & Filter Controls -->
           <div class="search-filter-container" style="display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
             <div style="flex:1; min-width:240px; position:relative;">
-              <input type="text" id="studentSearchInput" class="form-input" placeholder="🔍 Search by name or roll number..." oninput="filterStudents()">
+              <input type="text" id="studentSearchInput" class="form-input"
+                placeholder="🔍 Search by name or roll number..." oninput="filterStudents()">
             </div>
             <div style="width:200px; min-width:150px;">
-              <select id="studentClassFilter" class="form-input" onchange="filterStudents()" aria-label="Filter students by class">
+              <select id="studentClassFilter" class="form-input" onchange="filterStudents()"
+                aria-label="Filter students by class">
                 <option value="">All Classes</option>
                 <option value="unassigned">Unassigned</option>
               </select>
@@ -996,6 +1320,26 @@
 
           <!-- Students Table Wrap -->
           <div id="studentsTableWrap">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== CLASSES TAB ==================== -->
+    <div id="tab-classes" class="tab-content">
+      <div class="section-card" id="classesSection">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-icon purple" style="background: rgba(34, 197, 94, 0.12); color: #22c55e;"><i class="fas fa-book"></i></div>
+            <div>
+              <div class="section-title">Classes &amp; Teacher Assignment</div>
+              <div class="section-subtitle">View enrolled students and assign teachers per class</div>
+            </div>
+          </div>
+        </div>
+        <div class="section-body">
+          <div id="classesTableWrap">
             <!-- Rendered by JS -->
           </div>
         </div>
@@ -1013,7 +1357,8 @@
               <div class="section-subtitle">View submitted attendance and absent students</div>
             </div>
           </div>
-          <button class="btn btn-danger" onclick="clearAttendanceHistory()" title="Clear all attendance data" style="font-size:0.75rem; padding:8px 14px;">
+          <button class="btn btn-danger" onclick="clearAttendanceHistory()" title="Clear all attendance data"
+            style="font-size:0.75rem; padding:8px 14px;">
             <i class="fas fa-trash-alt"></i> Clear
           </button>
         </div>
@@ -1030,7 +1375,8 @@
       <div class="section-card" id="statsSection">
         <div class="section-header">
           <div class="section-header-left">
-            <div class="section-icon green" style="background: rgba(34, 197, 94, 0.12); color: #22c55e;"><i class="fas fa-chart-bar"></i></div>
+            <div class="section-icon green" style="background: rgba(34, 197, 94, 0.12); color: #22c55e;"><i
+                class="fas fa-chart-bar"></i></div>
             <div>
               <div class="section-title">Student Attendance Stats</div>
               <div class="section-subtitle">Overall attendance percentage across all recorded days</div>
@@ -1060,7 +1406,8 @@
         <div class="section-body">
           <div class="form-group">
             <label class="form-label" for="announcementText">New Announcement</label>
-            <textarea class="form-textarea" id="announcementText" placeholder="Type your announcement here..." rows="3"></textarea>
+            <textarea class="form-textarea" id="announcementText" placeholder="Type your announcement here..."
+              rows="3"></textarea>
           </div>
           <button class="btn btn-primary" onclick="saveAnnouncement()" id="saveAnnouncementBtn">
             <i class="fas fa-paper-plane"></i> Save Announcement
@@ -1076,6 +1423,22 @@
 
   </div>
 
+  <!-- ======================== STICKY SAVE BAR ======================== -->
+  <div class="save-bar" id="savebar">
+    <div class="save-bar-inner">
+      <span class="save-bar-msg">
+        <i class="fas fa-circle-dot"></i>
+        <span id="savebarLabel">You have unsaved changes</span>
+      </span>
+      <div class="save-bar-actions">
+        <button class="btn-discard" onclick="discardTabChanges()" id="savebarDiscardBtn">Discard</button>
+        <button class="btn-save-all" onclick="saveTabChanges()" id="savebarSaveBtn">
+          <i class="fas fa-floppy-disk"></i> Save All Changes
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast container -->
   <div class="toast-container" id="toastContainer"></div>
 
@@ -1084,7 +1447,8 @@
     <div class="edit-modal-card">
       <div class="edit-modal-header">
         <h3><i class="fas fa-pen" style="margin-right:8px; color:var(--primary);"></i>Edit Teacher</h3>
-        <button class="edit-modal-close" onclick="closeEditTeacherModal()" aria-label="Close edit teacher modal"><i class="fas fa-times"></i></button>
+        <button class="edit-modal-close" onclick="closeEditTeacherModal()" aria-label="Close edit teacher modal"><i
+            class="fas fa-times"></i></button>
       </div>
       <input type="hidden" id="editTeacherIndex" aria-label="Hidden teacher index">
       <div class="form-group">
@@ -1099,7 +1463,8 @@
       </div>
       <div class="form-group">
         <label class="form-label" for="editTeacherPhone">Contact</label>
-        <input class="form-input" type="tel" id="editTeacherPhone" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits (e.g., 03001234567)" required>
+        <input class="form-input" type="tel" id="editTeacherPhone" placeholder="03001234567" pattern="[0-9]{11}"
+          title="11 digits (e.g., 03001234567)" required>
       </div>
       <div class="edit-modal-actions">
         <button class="btn btn-primary" onclick="saveEditTeacher()"><i class="fas fa-check"></i> Save</button>
@@ -1113,7 +1478,8 @@
     <div class="edit-modal-card">
       <div class="edit-modal-header">
         <h3><i class="fas fa-pen" style="margin-right:8px; color:var(--primary);"></i>Edit Student</h3>
-        <button class="edit-modal-close" onclick="closeEditStudentModal()" aria-label="Close edit student modal"><i class="fas fa-times"></i></button>
+        <button class="edit-modal-close" onclick="closeEditStudentModal()" aria-label="Close edit student modal"><i
+            class="fas fa-times"></i></button>
       </div>
       <input type="hidden" id="editStudentId" aria-label="Hidden student ID">
       <div class="form-group">
@@ -1126,10 +1492,13 @@
       </div>
       <div class="form-group">
         <label class="form-label" for="editStudentPhone">Contact</label>
-        <input class="form-input" type="tel" id="editStudentPhone" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits (e.g., 03001234567)" required>
+        <input class="form-input" type="tel" id="editStudentPhone" placeholder="03001234567" pattern="[0-9]{11}"
+          title="11 digits (e.g., 03001234567)" required>
       </div>
       <div class="edit-modal-actions">
-        <button class="btn btn-primary" onclick="saveEditStudent()" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);"><i class="fas fa-check"></i> Save</button>
+        <button class="btn btn-primary" onclick="saveEditStudent()"
+          style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);"><i class="fas fa-check"></i>
+          Save</button>
         <button class="btn btn-ghost" onclick="closeEditStudentModal()">Cancel</button>
       </div>
     </div>
@@ -1139,8 +1508,10 @@
   <div class="edit-modal" id="absenteeModal">
     <div class="edit-modal-card" style="max-width:480px;">
       <div class="edit-modal-header">
-        <h3 id="absenteeModalTitle" style="font-size:0.95rem;"><i class="fas fa-clipboard-check" style="margin-right:8px; color:var(--primary);"></i>Absent Students</h3>
-        <button class="edit-modal-close" onclick="closeAbsenteeModal()" aria-label="Close absentee modal"><i class="fas fa-times"></i></button>
+        <h3 id="absenteeModalTitle" style="font-size:0.95rem;"><i class="fas fa-clipboard-check"
+            style="margin-right:8px; color:var(--primary);"></i>Absent Students</h3>
+        <button class="edit-modal-close" onclick="closeAbsenteeModal()" aria-label="Close absentee modal"><i
+            class="fas fa-times"></i></button>
       </div>
       <div id="absenteeList" style="max-height:400px;overflow-y:auto;"></div>
     </div>
@@ -1222,7 +1593,7 @@
     }
 
     // =============================================================
-    // DATA FETCHING & PARALLEL LOADING (Option A)
+    // DATA FETCHING & PARALLEL LOADING
     // =============================================================
     const MIN_SKELETON_MS = 600; // minimum shimmer display time
 
@@ -1230,7 +1601,27 @@
       return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    async function reloadAllData(isInitial = false) {
+    // Cache state
+    let isDataLoaded = false;
+    let activeTabId = 'tab-teachers';
+    
+    // Dirty tracking
+    const dirtyState = {
+      'tab-teachers': new Map(), // id -> { original, current }
+      'tab-students': new Map()  // id -> { original, current }
+    };
+
+    function hasAnyDirtyChanges() {
+      return dirtyState['tab-teachers'].size > 0 || dirtyState['tab-students'].size > 0;
+    }
+
+    async function reloadAllData(isInitial = false, forceFetch = false) {
+      if (isDataLoaded && !forceFetch) {
+        // Data is already loaded, just re-render current tab
+        renderCurrentTab();
+        return;
+      }
+
       // Show high-fidelity shimmer skeletons immediately
       showAdminSkeletons();
       const skeletonStart = Date.now();
@@ -1252,7 +1643,7 @@
 
         window.appData.teachers = teachers;
         window.appData.classes = classes;
-        
+
         // Clean and Seed duplicates / inconsistencies in fallback lists if DB empty
         if (students.length === 0) {
           window.appData.students = [];
@@ -1265,23 +1656,27 @@
             return s;
           });
         }
-        
+
         window.appData.attendance = groupAttendanceRecords(rawAttendance);
+        isDataLoaded = true;
+
+        // Populate dropdowns used globally
+        populateClassDropdown(classes);
 
         // Staggered section reveals with min skeleton time
         await revealAfterMinTime(() => {
-          populateClassDropdown(classes);
-          renderClasses();
-          renderTeachers();
-          filterStudents();
+          renderCurrentTab();
         }, 0);
 
-        await delay(300);
-        renderAttendance();
-
-        await delay(300);
-        renderStats();
-        renderAnnouncements();
+        // Also pre-render other non-visible tabs quietly after a slight delay
+        setTimeout(() => {
+          if (activeTabId !== 'tab-classes') renderClasses();
+          if (activeTabId !== 'tab-teachers') renderTeachers();
+          if (activeTabId !== 'tab-students') filterStudents();
+          if (activeTabId !== 'tab-attendance') renderAttendance();
+          if (activeTabId !== 'tab-stats') renderStats();
+          if (activeTabId !== 'tab-announcements') renderAnnouncements();
+        }, 500);
 
         if (isInitial) {
           const loader = document.getElementById('loadingOverlay');
@@ -1310,6 +1705,16 @@
           }
         }
       }
+    }
+
+    function renderCurrentTab() {
+      if (activeTabId === 'tab-classes') renderClasses();
+      else if (activeTabId === 'tab-teachers') renderTeachers();
+      else if (activeTabId === 'tab-students') filterStudents();
+      else if (activeTabId === 'tab-attendance') renderAttendance();
+      else if (activeTabId === 'tab-stats') renderStats();
+      else if (activeTabId === 'tab-announcements') renderAnnouncements();
+      updateSaveBar();
     }
 
     function showAdminSkeletons() {
@@ -1459,8 +1864,8 @@
               <select class="form-input" style="padding: 5px 8px; font-size: 0.8rem; height: auto; width: 100%; max-width: 170px;" onchange="assignTeacherInline(${cls.id}, this.value)" aria-label="Assign teacher inline">
                 <option value="">-- Unassigned --</option>
                 ${teachers
-                  .map(t => `<option value="${t.id}" ${t.class_id === cls.id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`)
-                  .join('')}
+            .map(t => `<option value="${t.id}" ${t.class_id === cls.id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`)
+            .join('')}
               </select>
             </td>
             <td style="text-align:right;">
@@ -1590,9 +1995,30 @@
       }
     }
 
+    function markDirty(tabId, id, field, value) {
+      if (!dirtyState[tabId].has(id)) {
+        let original;
+        if (tabId === 'tab-teachers') original = window.appData.teachers.find(t => t.id === id);
+        if (tabId === 'tab-students') original = window.appData.students.find(s => s.id === id);
+        
+        dirtyState[tabId].set(id, {
+          original: { ...original },
+          current: { ...original }
+        });
+      }
+      
+      dirtyState[tabId].get(id).current[field] = value;
+      
+      const tr = document.getElementById(`row-${tabId}-${id}`);
+      if (tr) tr.classList.add('row-dirty');
+      
+      updateSaveBar();
+    }
+
     function renderTeachers() {
       const wrap = document.getElementById('teachersTableWrap');
       const teachers = window.appData.teachers;
+      const classes = window.appData.classes;
 
       if (!teachers || teachers.length === 0) {
         wrap.innerHTML = `
@@ -1611,7 +2037,7 @@
             <tr>
               <th style="width:50px; text-align:left;">#</th>
               <th style="text-align:left;">Name</th>
-              <th style="text-align:center; width:120px;">Class</th>
+              <th style="text-align:center; width:150px;">Class</th>
               <th style="text-align:center; width:180px;">Contact</th>
               <th style="width:120px; text-align:right;">Actions</th>
             </tr>
@@ -1619,18 +2045,28 @@
           <tbody>`;
 
       teachers.forEach((t, i) => {
+        const dirtyData = dirtyState['tab-teachers'].get(t.id)?.current || t;
+        const isDirty = dirtyState['tab-teachers'].has(t.id);
+        
         html += `
-          <tr>
+          <tr id="row-tab-teachers-${t.id}" class="${isDirty ? 'row-dirty' : ''}">
             <td style="color:var(--text-muted); font-weight:500; text-align:left;">${i + 1}</td>
-            <td style="text-align:left;"><strong>${escapeHtml(t.name)}</strong></td>
-            <td style="text-align:center;">
-              <span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(t.class_name || '—')}</span>
+            <td style="text-align:left;">
+              <input type="text" class="inline-edit-input" value="${escapeHtml(dirtyData.name)}" oninput="markDirty('tab-teachers', ${t.id}, 'name', this.value)" style="font-weight:bold;">
             </td>
-            <td style="text-align:center; font-family:monospace; letter-spacing:0.3px;">${escapeHtml(t.phone || '—')}</td>
+            <td style="text-align:center;">
+              <select class="inline-edit-input" style="text-align:center;" onchange="markDirty('tab-teachers', ${t.id}, 'class_id', this.value ? parseInt(this.value) : null)">
+                <option value="">-- Unassigned --</option>
+                ${classes.map(c => `<option value="${c.id}" ${dirtyData.class_id === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
+              </select>
+            </td>
+            <td style="text-align:center;">
+              <input type="tel" class="inline-edit-input" style="text-align:center; font-family:monospace; letter-spacing:0.3px;" value="${escapeHtml(dirtyData.phone || '')}" placeholder="—" oninput="markDirty('tab-teachers', ${t.id}, 'phone', this.value)">
+            </td>
             <td style="text-align:right;">
               <div class="action-buttons" style="justify-content: flex-end;">
-                <button onclick="openEditTeacherModal(${t.id})" class="btn-edit" title="Edit teacher details">
-                  <i class="fas fa-pen"></i>
+                <button onclick="openEditTeacherModal(${t.id})" class="btn-edit" title="Edit in modal">
+                  <i class="fas fa-expand"></i>
                 </button>
                 <button onclick="deleteTeacher(${t.id})" class="announcement-delete" style="opacity:1;" title="Remove teacher" aria-label="Delete">
                   <i class="fas fa-trash-alt"></i><span style="position: absolute; left: -9999px;">Delete</span>
@@ -1769,33 +2205,38 @@
               <th style="text-align:left;">Name</th>
               <th style="text-align:center; width:120px;">Roll No</th>
               <th style="text-align:center; width:150px;">Class</th>
-              <th style="text-align:center; width:180px;">Contact</th>
-              <th style="width:120px; text-align:right;">Actions</th>
+              <th style="text-align:center; width:150px;">Contact</th>
+              <th style="width:100px; text-align:right;">Actions</th>
             </tr>
           </thead>
           <tbody>`;
 
       students.forEach((s) => {
-        const clsObj = classes.find(c => c.id === s.class_id);
-        const className = clsObj ? clsObj.name : 'Unassigned';
+        const dirtyData = dirtyState['tab-students'].get(s.id)?.current || s;
+        const isDirty = dirtyState['tab-students'].has(s.id);
 
         html += `
-          <tr>
+          <tr id="row-tab-students-${s.id}" class="${isDirty ? 'row-dirty' : ''}">
             <td style="color:var(--text-muted); font-size:0.75rem; text-align:left;">#${s.id}</td>
-            <td style="text-align:left;"><strong>${escapeHtml(s.name)}</strong></td>
-            <td style="text-align:center;">
-              <span class="badge" style="background:var(--bg); border:1px solid var(--border); color:var(--text-secondary);">${escapeHtml(s.roll_no || '—')}</span>
+            <td style="text-align:left;">
+              <input type="text" class="inline-edit-input" value="${escapeHtml(dirtyData.name)}" oninput="markDirty('tab-students', ${s.id}, 'name', this.value)" style="font-weight:bold;">
             </td>
             <td style="text-align:center;">
-              <span class="badge" style="background:${clsObj ? 'var(--badge-bg)' : 'var(--danger-bg)'}; color:${clsObj ? 'var(--badge-text)' : 'var(--danger)'};">
-                ${escapeHtml(className)}
-              </span>
+              <input type="text" class="inline-edit-input" style="text-align:center;" value="${escapeHtml(dirtyData.roll_no || '')}" placeholder="—" oninput="markDirty('tab-students', ${s.id}, 'roll_no', this.value)">
             </td>
-            <td style="text-align:center; font-family:monospace; letter-spacing:0.3px;">${escapeHtml(s.phone || '—')}</td>
+            <td style="text-align:center;">
+              <select class="inline-edit-input" style="text-align:center;" onchange="markDirty('tab-students', ${s.id}, 'class_id', this.value ? parseInt(this.value) : null)">
+                <option value="">-- Unassigned --</option>
+                ${classes.map(c => `<option value="${c.id}" ${dirtyData.class_id === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
+              </select>
+            </td>
+            <td style="text-align:center;">
+              <input type="tel" class="inline-edit-input" style="text-align:center; font-family:monospace; letter-spacing:0.3px;" value="${escapeHtml(dirtyData.phone || '')}" placeholder="—" oninput="markDirty('tab-students', ${s.id}, 'phone', this.value)">
+            </td>
             <td style="text-align:right;">
               <div class="action-buttons" style="justify-content: flex-end;">
-                <button onclick="openEditStudentModal(${s.id})" class="btn-edit" title="Edit student details">
-                  <i class="fas fa-pen"></i>
+                <button onclick="openEditStudentModal(${s.id})" class="btn-edit" title="Edit in modal">
+                  <i class="fas fa-expand"></i>
                 </button>
                 <button class="announcement-delete" style="opacity:1;" onclick="deleteStudent(${s.id})" title="Remove Student" aria-label="Delete">
                   <i class="fas fa-trash"></i><span style="position: absolute; left: -9999px;">Delete</span>
@@ -2134,7 +2575,7 @@
     // =============================================================
     // TAB ROUTING & SWITCHING
     // =============================================================
-    
+
 
     // =============================================================
     // EDIT TEACHER MODAL
@@ -2307,42 +2748,131 @@
     // =============================================================
     // INITIALIZATION
     // =============================================================
+
+    function switchTab(newTabId) {
+      if (activeTabId === newTabId) return;
+
+      if (hasAnyDirtyChanges() && (activeTabId === 'tab-teachers' || activeTabId === 'tab-students')) {
+        const activeTabDirty = dirtyState[activeTabId] && dirtyState[activeTabId].size > 0;
+        if (activeTabDirty) {
+          const tabName = document.querySelector(`.tab-btn[data-section="${activeTabId}"]`)?.textContent.trim() || 'this tab';
+          if (!confirm(`You have unsaved changes in ${tabName}. Switch anyway? Your changes will remain but will not be saved yet.`)) {
+            return;
+          }
+        }
+      }
+
+      // Hide all tabs
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+      // Show new tab
+      const newTab = document.getElementById(newTabId);
+      if (newTab) newTab.classList.add('active');
+      
+      const newBtn = document.querySelector(`.tab-btn[data-section="${newTabId}"]`);
+      if (newBtn) newBtn.classList.add('active');
+
+      activeTabId = newTabId;
+      history.replaceState(null, '', '#' + newTabId);
+      
+      // Update sticky bar visibility
+      updateSaveBar();
+    }
+
+    function updateSaveBar() {
+      const bar = document.getElementById('savebar');
+      const label = document.getElementById('savebarLabel');
+      
+      const dirtyCount = dirtyState[activeTabId] ? dirtyState[activeTabId].size : 0;
+      
+      if (dirtyCount > 0) {
+        label.innerHTML = `You have ${dirtyCount} unsaved change(s) in <strong>${document.querySelector(`.tab-btn[data-section="${activeTabId}"]`)?.textContent.trim() || 'this tab'}</strong>`;
+        bar.classList.add('visible');
+        document.body.classList.add('savebar-open');
+      } else {
+        bar.classList.remove('visible');
+        document.body.classList.remove('savebar-open');
+      }
+    }
+
+    function discardTabChanges() {
+      if (activeTabId === 'tab-teachers') {
+        dirtyState['tab-teachers'].clear();
+        renderTeachers();
+      } else if (activeTabId === 'tab-students') {
+        dirtyState['tab-students'].clear();
+        filterStudents();
+      }
+      updateSaveBar();
+      showToast('Undo successful', 'info');
+    }
     
+    async function saveTabChanges() {
+      const btn = document.getElementById('savebarSaveBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+      
+      try {
+        if (activeTabId === 'tab-teachers') {
+          for (let [id, data] of dirtyState['tab-teachers']) {
+            await fetch(`${API}/api/teachers/${id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data.current)
+            });
+          }
+          dirtyState['tab-teachers'].clear();
+          await reloadAllData(false, true); // force fetch
+        } else if (activeTabId === 'tab-students') {
+          for (let [id, data] of dirtyState['tab-students']) {
+            await fetch(`${API}/api/students/${id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data.current)
+            });
+          }
+          dirtyState['tab-students'].clear();
+          await reloadAllData(false, true); // force fetch
+        }
+        
+        showToast('✅ All changes saved successfully', 'success');
+      } catch (err) {
+        showToast(`❌ Error saving changes: ${err.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save All Changes';
+        updateSaveBar();
+      }
+    }
+
     function setupSectionTabs() {
       const tabs = Array.from(document.querySelectorAll('.tab-btn[data-section]'));
-      const sections = tabs
-        .map(tab => document.getElementById(tab.dataset.section))
-        .filter(Boolean);
-
       tabs.forEach(tab => {
         tab.addEventListener('click', event => {
           event.preventDefault();
-          const section = document.getElementById(tab.dataset.section);
-          if (!section) return;
-          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          history.replaceState(null, '', '#' + section.id);
+          switchTab(tab.dataset.section);
         });
       });
-
-      const observer = new IntersectionObserver(entries => {
-        const visible = entries
-          .filter(entry => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-
-        if (!visible) return;
-
-        tabs.forEach(tab => {
-          tab.classList.toggle('active', tab.dataset.section === visible.target.id);
-        });
-      }, {
-        rootMargin: '-20% 0px -70% 0px',
-        threshold: [0.1, 0.25, 0.5]
-      });
-
-      sections.forEach(section => observer.observe(section));
+      
+      // Initial tab based on hash or default
+      const hash = window.location.hash.substring(1);
+      if (hash && document.getElementById(hash)) {
+        switchTab(hash);
+      } else {
+        switchTab('tab-teachers');
+      }
     }
+    
+    // Add beforeunload guard
+    window.addEventListener('beforeunload', e => {
+      if (hasAnyDirtyChanges()) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+      }
+    });
 
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
       setupSectionTabs();
       loadTheme();
 
@@ -2350,7 +2880,7 @@
       const setupModalDismiss = (modalId, closeFn) => {
         const el = document.getElementById(modalId);
         if (el) {
-          el.addEventListener('click', function(e) {
+          el.addEventListener('click', function (e) {
             if (e.target === this) closeFn();
           });
         }
@@ -2365,7 +2895,7 @@
 
       // Universal phone validation visual feedback
       document.querySelectorAll('.form-input[type="tel"]').forEach(input => {
-        input.addEventListener('input', function() {
+        input.addEventListener('input', function () {
           if (this.value.length === 0) {
             this.style.borderColor = 'var(--border)';
           } else if (this.validity.patternMismatch) {
@@ -2384,4 +2914,5 @@
   <script src="anti-inspect.js"></script>
 
 </body>
+
 </html>
