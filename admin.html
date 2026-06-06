@@ -1345,19 +1345,59 @@
               <div class="section-subtitle">View enrolled students and assign teachers per class</div>
             </div>
           </div>
+          <button class="btn btn-primary" onclick="toggleAddClass()" id="addClassToggleBtn">
+            <i class="fas fa-plus"></i> Add Class
+          </button>
         </div>
         <div class="section-body">
-          <!-- Search & Filter Controls -->
-          <div class="search-filter-container" style="display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
-            <div style="flex:1; min-width:240px; position:relative;">
-              <input type="text" id="classesSearchInput" class="form-input"
-                placeholder="🔍 Search classes by name or assigned teacher..." oninput="filterClasses()">
+          
+          <!-- Add Class Form (hidden initially) -->
+          <div class="add-teacher-form" id="addClassForm">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="className">Class Name</label>
+                <input class="form-input" type="text" id="className" placeholder="e.g. 10th Grade">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="classSection">Section (Optional)</label>
+                <input class="form-input" type="text" id="classSection" placeholder="e.g. A">
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:4px;">
+              <button class="btn btn-primary" onclick="saveClass()">
+                <i class="fas fa-check"></i> Save Class
+              </button>
+              <button class="btn btn-ghost" onclick="toggleAddClass()">Cancel</button>
             </div>
           </div>
 
-          <div id="classesTableWrap">
-            <!-- Rendered by JS -->
+          <!-- FULL LIST VIEW -->
+          <div id="classesFullListView">
+            <!-- Search & Filter Controls -->
+            <div class="search-filter-container" style="display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
+              <div style="flex:1; min-width:240px; position:relative;">
+                <input type="text" id="classesSearchInput" class="form-input"
+                  placeholder="🔍 Search classes by name or assigned teacher..." oninput="filterClasses()">
+              </div>
+            </div>
+
+            <div id="classesTableWrap">
+              <!-- Rendered by JS -->
+            </div>
           </div>
+
+          <!-- ISOLATED EDIT VIEW -->
+          <div id="classesIsolatedView" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-ghost" onclick="closeClassIsolation()">
+                <i class="fas fa-arrow-left"></i> Back to all classes
+              </button>
+            </div>
+            <div id="isolatedClassContent">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -1373,12 +1413,23 @@
               <div class="section-subtitle">View submitted attendance and absent students</div>
             </div>
           </div>
-          <button class="btn btn-danger" onclick="clearAttendanceHistory()" title="Clear all attendance data"
-            style="font-size:0.75rem; padding:8px 14px;">
-            <i class="fas fa-trash-alt"></i> Clear
-          </button>
         </div>
         <div class="section-body" style="padding:0;">
+          <div style="padding: 16px; border-bottom: 1px solid var(--border);">
+            <div class="search-filter-container" style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+              <div style="flex:1; min-width:240px; position:relative;">
+                <input type="text" id="attendanceSearchInput" class="form-input"
+                  placeholder="Search by student name..." oninput="filterAttendance()">
+              </div>
+              <input type="month" id="attendanceMonthFilter" class="form-input" style="max-width:180px;" onchange="filterAttendance()">
+              <select id="attendanceClassFilter" class="form-input" style="max-width:220px;" onchange="filterAttendance()">
+                <option value="">All Classes</option>
+              </select>
+              <button class="btn btn-ghost" onclick="exportAttendanceCsv()" title="Export filtered records">
+                <i class="fas fa-file-csv"></i> Export CSV
+              </button>
+            </div>
+          </div>
           <div id="attendanceTableWrap">
             <!-- Rendered by JS -->
           </div>
@@ -1400,6 +1451,18 @@
           </div>
         </div>
         <div class="section-body" style="padding:0;">
+          <div style="padding: 16px; border-bottom: 1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+            <div id="statsClassHeader">
+              <div style="font-size: 1.1rem; font-weight: 700; color: var(--text);">Overall Leaderboard</div>
+              <div style="font-size: 0.85rem; color: var(--text-secondary);">Filter by class or teacher to view top students</div>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <input type="text" id="statsSearchInput" class="form-input" style="min-width:220px;" placeholder="Search class or teacher..." oninput="renderStats()">
+              <select id="statsClassSelect" class="form-input" style="max-width: 250px;" onchange="renderStats()">
+                <option value="">All Classes</option>
+              </select>
+            </div>
+          </div>
           <div id="statsTableWrap">
             <!-- Rendered by JS -->
           </div>
@@ -1423,11 +1486,23 @@
           <div class="form-group">
             <label class="form-label" for="announcementText">New Announcement</label>
             <textarea class="form-textarea" id="announcementText" placeholder="Type your announcement here..."
-              rows="3"></textarea>
+              rows="3" onkeydown="handleAnnouncementKeydown(event)"></textarea>
           </div>
           <button class="btn btn-primary" onclick="saveAnnouncement()" id="saveAnnouncementBtn">
             <i class="fas fa-paper-plane"></i> Save Announcement
           </button>
+
+          <div style="margin-top:22px; padding-top:18px; border-top:1px solid var(--border);">
+            <div style="font-size:1rem; font-weight:800; color:var(--text); margin-bottom:10px;">All Announcements Audit Log</div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+              <input type="text" id="announcementAuditSearch" class="form-input" style="flex:1; min-width:240px;" placeholder="Search teacher, class, date, or text..." oninput="renderAnnouncements()">
+              <select id="announcementTypeFilter" class="form-input" style="max-width:210px;" onchange="renderAnnouncements()">
+                <option value="">All Posts</option>
+                <option value="school">School-wide</option>
+                <option value="class">Teacher class posts</option>
+              </select>
+            </div>
+          </div>
 
           <!-- Saved Announcements List -->
           <div id="announcementsList">
@@ -1553,7 +1628,8 @@
       teachers: [],
       students: [],
       classes: [],
-      attendance: []
+      attendance: [],
+      attendanceLoadError: ''
     };
 
     // =============================================================
@@ -1650,11 +1726,18 @@
       }
 
       try {
+        window.appData.attendanceLoadError = '';
         const [teachers, classes, students, rawAttendance] = await Promise.all([
           fetch(`${API}/api/teachers`).then(r => r.json()),
           fetch(`${API}/api/classes`).then(r => r.json()),
           fetch(`${API}/api/students`).then(r => r.json()),
-          fetch(`${API}/api/attendance/all`).then(r => r.json()).catch(() => [])
+          fetch(`${API}/api/attendance/all`).then(r => {
+            if (!r.ok) throw new Error('Attendance failed to load');
+            return r.json();
+          }).catch(err => {
+            window.appData.attendanceLoadError = err.message || 'Attendance failed to load';
+            return [];
+          })
         ]);
 
         window.appData.teachers = teachers;
@@ -1823,6 +1906,40 @@
       return Object.values(groups).sort((a, b) => b.date.localeCompare(a.date));
     }
 
+    function groupAttendanceRecords(flatRecords) {
+      return (flatRecords || []).map(row => {
+        let dateStr = row.date;
+        if (dateStr && String(dateStr).includes('T')) {
+          dateStr = String(dateStr).split('T')[0];
+        } else if (dateStr) {
+          dateStr = new Date(dateStr).toLocaleDateString('en-CA');
+        }
+
+        const classObj = row.class_id
+          ? window.appData.classes.find(c => String(c.id) === String(row.class_id))
+          : window.appData.classes.find(c => c.name === row.class_name);
+        const assignedTeacher = classObj
+          ? window.appData.teachers.find(t => String(t.class_id) === String(classObj.id))
+          : null;
+
+        return {
+          id: row.id,
+          studentId: row.student_id,
+          studentName: row.name || 'Unknown Student',
+          rollNo: row.roll_no || '',
+          phone: row.phone || '',
+          classId: row.class_id || (classObj ? classObj.id : ''),
+          className: row.class_name || (classObj ? classObj.name : ''),
+          date: dateStr || '',
+          month: dateStr ? dateStr.slice(0, 7) : '',
+          status: row.status || '',
+          markedBy: row.marked_by || (assignedTeacher ? assignedTeacher.name : 'Unknown'),
+          markedById: row.marked_by_id || (assignedTeacher ? assignedTeacher.id : ''),
+          createdAt: row.created_at || ''
+        };
+      }).sort((a, b) => (b.date || '').localeCompare(a.date || '') || a.studentName.localeCompare(b.studentName));
+    }
+
     // =============================================================
     // CLASSES SECTION & INLINE ASSIGNMENT
     // =============================================================
@@ -1906,9 +2023,9 @@
                     <i class="fas fa-link"></i>
                   </button>
                 ` : ''}
-                <a href="./classes.html" class="btn-edit" title="Manage Class Details" style="text-decoration:none;">
+                <button onclick="openClassIsolation(${cls.id})" class="btn-edit" title="Edit Class Details" style="border:none;">
                   <i class="fas fa-pen"></i>
-                </a>
+                </button>
               </div>
             </td>
           </tr>`;
@@ -1919,6 +2036,16 @@
     }
 
     async function assignTeacherInline(classId, teacherId) {
+      if (teacherId) {
+        const tid = parseInt(teacherId);
+        const conflict = window.appData.teachers.some(t => t.id === tid && t.class_id !== null && t.class_id !== classId);
+        if (conflict) {
+          showToast(`⚠️ This teacher is already assigned to another class.`, 'error');
+          renderClasses(); // reset the UI
+          return;
+        }
+      }
+
       try {
         const response = await fetch(`${API}/api/classes/${classId}/assign-teacher`, {
           method: 'POST',
@@ -1927,7 +2054,7 @@
         });
         if (!response.ok) throw new Error('Failed to update teacher assignment');
         showToast('✅ Teacher assignment updated', 'success');
-        await reloadAllData();
+        await reloadAllData(false, true); // force fetch to get updated data
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       }
@@ -1940,6 +2067,125 @@
       }).catch(() => {
         showToast('❌ Failed to copy link', 'error');
       });
+    }
+
+    // =============================================================
+    // CLASSES ISOLATION & ADD CLASS
+    // =============================================================
+    let addClassOpen = false;
+
+    function toggleAddClass() {
+      addClassOpen = !addClassOpen;
+      const form = document.getElementById('addClassForm');
+      const btn = document.getElementById('addClassToggleBtn');
+
+      if (addClassOpen) {
+        form.classList.add('open');
+        btn.innerHTML = '<i class="fas fa-times"></i> Cancel';
+        document.getElementById('className').focus();
+      } else {
+        form.classList.remove('open');
+        btn.innerHTML = '<i class="fas fa-plus"></i> Add Class';
+        document.getElementById('className').value = '';
+        document.getElementById('classSection').value = '';
+      }
+    }
+
+    async function saveClass() {
+      const name = document.getElementById('className').value.trim();
+      const section = document.getElementById('classSection').value.trim();
+
+      if (!name) {
+        showToast('⚠️ Please enter a class name', 'warning');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API}/api/classes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, section: section || null })
+        });
+        if (!response.ok) throw new Error('Failed to create class');
+        
+        toggleAddClass();
+        await reloadAllData();
+        showToast('✅ Class created successfully', 'success');
+      } catch (err) {
+        showToast(`❌ Error: ${err.message}`, 'error');
+      }
+    }
+
+    function openClassIsolation(classId) {
+      const cls = window.appData.classes.find(c => c.id === classId);
+      if (!cls) return;
+
+      document.getElementById('classesFullListView').style.display = 'none';
+      const isolatedView = document.getElementById('classesIsolatedView');
+      isolatedView.style.display = 'block';
+      isolatedView.classList.add('active'); // trigger animation if we want
+
+      const teachers = window.appData.teachers;
+      const assignedTeacher = teachers.find(t => t.class_id === cls.id);
+      
+      const classStudents = window.appData.students.filter(s => s.class_id === cls.id);
+
+      const content = document.getElementById('isolatedClassContent');
+      content.innerHTML = `
+        <div style="background: var(--bg-card-hover); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px;">
+          <h2 style="margin-bottom: 12px; font-size: 1.25rem;">${escapeHtml(cls.name)} ${cls.section ? `<span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(cls.section)}</span>` : ''}</h2>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Assigned Teacher</label>
+              <select class="form-input" style="max-width: 300px;" onchange="assignTeacherInline(${cls.id}, this.value)">
+                <option value="">-- Unassigned --</option>
+                ${teachers.map(t => {
+                  const isAssignedToThis = t.class_id === cls.id;
+                  const isUnassigned = !t.class_id;
+                  const suggestLabel = isUnassigned ? ' (★ Suggested)' : '';
+                  return `<option value="${t.id}" ${isAssignedToThis ? 'selected' : ''}>${escapeHtml(t.name)}${suggestLabel}</option>`;
+                }).join('')}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="font-size: 1rem; margin-bottom: 12px;">Enrolled Students (${classStudents.length})</h3>
+        ${classStudents.length === 0 ? `<div class="empty-state"><div class="msg">No students in this class</div></div>` : `
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width:50px;">#</th>
+                <th style="text-align:left;">Name</th>
+                <th style="text-align:left;">Roll No</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${classStudents.map((s, i) => `
+                <tr>
+                  <td>${i + 1}</td>
+                  <td style="text-align:left;"><strong>${escapeHtml(s.name)}</strong></td>
+                  <td style="text-align:left;">${escapeHtml(s.roll_no)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        `}
+      `;
+    }
+
+    function closeClassIsolation() {
+      document.getElementById('classesIsolatedView').style.display = 'none';
+      document.getElementById('classesFullListView').style.display = 'block';
+      // Reset search filter so it shows all classes
+      const searchInput = document.getElementById('classesSearchInput');
+      if (searchInput && searchInput.value) {
+        searchInput.value = '';
+        filterClasses();
+      }
     }
 
     // =============================================================
@@ -2027,6 +2273,38 @@
     }
 
     function markDirty(tabId, id, field, value) {
+      // VALIDATION: "dont a teacher to be given class twice"
+      // If we are modifying a teacher's class_id
+      if (tabId === 'tab-teachers' && field === 'class_id' && value !== null) {
+        // Check if ANY other teacher already has this class_id assigned (either in original data or in dirty state)
+        const conflictInCache = window.appData.teachers.some(t => t.class_id === value && t.id !== id);
+        let conflictInDirty = false;
+        
+        for (let [otherId, otherData] of dirtyState['tab-teachers'].entries()) {
+          if (otherId !== id && otherData.current.class_id === value) {
+            conflictInDirty = true;
+          }
+        }
+
+        if (conflictInCache || conflictInDirty) {
+          const cls = window.appData.classes.find(c => c.id === value);
+          const clsName = cls ? cls.name : 'this class';
+          showToast(`Another teacher is already assigned to ${clsName}. A class can only have one teacher.`, 'error');
+          
+          // Revert the UI select element back to its previous value
+          const tr = document.getElementById(`row-tab-teachers-${id}`);
+          if (tr) {
+            const select = tr.querySelector('select');
+            if (select) {
+              const previousValue = dirtyState[tabId]?.get(id)?.current?.class_id || 
+                                   window.appData.teachers.find(t => t.id === id)?.class_id || '';
+              select.value = previousValue;
+            }
+          }
+          return; // Block the change
+        }
+      }
+
       if (!dirtyState[tabId].has(id)) {
         let original;
         if (tabId === 'tab-teachers') original = window.appData.teachers.find(t => t.id === id);
@@ -2102,7 +2380,7 @@
                   <option value="">-- Unassigned --</option>
                   ${classes.map(c => `<option value="${c.id}" ${dirtyData.class_id === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
                 </select>
-                ${dirtyData.class_id ? `<button onclick="jumpToClass('${escapeHtml(classes.find(c => c.id === dirtyData.class_id)?.name || '')}')" title="Jump to this class in Classes Tab" style="background:transparent; border:none; color:var(--primary); cursor:pointer;"><i class="fas fa-external-link-alt"></i></button>` : ''}
+                ${dirtyData.class_id ? `<button onclick="jumpToClass(${dirtyData.class_id})" title="Jump to this class in Classes Tab" style="background:transparent; border:none; color:var(--primary); cursor:pointer;"><i class="fas fa-external-link-alt"></i></button>` : ''}
               </div>
             </td>
             <td style="text-align:center;">
@@ -2306,6 +2584,9 @@
             </td>
             <td style="text-align:right;">
               <div class="action-buttons" style="justify-content: flex-end;">
+                <button onclick="markDirty('tab-students', ${s.id}, 'is_frozen', ${!dirtyData.is_frozen})" class="btn-edit" title="${dirtyData.is_frozen ? 'Unfreeze Account' : 'Freeze Account'}" style="background: ${dirtyData.is_frozen ? 'var(--danger-bg)' : 'var(--warning-bg)'}; color: ${dirtyData.is_frozen ? 'var(--danger)' : 'var(--warning)'}; border: none;">
+                  <i class="fas ${dirtyData.is_frozen ? 'fa-lock' : 'fa-lock-open'}"></i>
+                </button>
                 <button onclick="openEditStudentModal(${s.id})" class="btn-edit" title="Edit in modal">
                   <i class="fas fa-expand"></i>
                 </button>
@@ -2590,7 +2871,7 @@
       let announcements = [];
 
       try {
-        announcements = await fetch(`${API}/api/announcements`).then(r => r.json());
+        announcements = await fetch(`${API}/api/announcements?t=${Date.now()}`).then(r => r.json());
         announcements = announcements.filter(a => !a.class_id);
       } catch (err) {
         container.innerHTML = `
@@ -2624,6 +2905,373 @@
           </li>`;
       });
       html += '</ul>';
+      container.innerHTML = html;
+    }
+
+    function getFilteredAttendanceRecords() {
+      const records = window.appData.attendance || [];
+      const search = (document.getElementById('attendanceSearchInput')?.value || '').toLowerCase().trim();
+      const monthInput = document.getElementById('attendanceMonthFilter');
+      const classFilter = document.getElementById('attendanceClassFilter')?.value || '';
+
+      if (monthInput && !monthInput.value) {
+        monthInput.value = new Date().toISOString().slice(0, 7);
+      }
+      const month = monthInput?.value || '';
+
+      return records.filter(record => {
+        const matchesSearch = !search || (record.studentName || '').toLowerCase().includes(search);
+        const matchesMonth = !month || record.month === month;
+        const matchesClass = !classFilter || String(record.classId) === String(classFilter);
+        return matchesSearch && matchesMonth && matchesClass;
+      });
+    }
+
+    function filterAttendance() {
+      renderAttendance();
+    }
+
+    function renderAttendance() {
+      const wrap = document.getElementById('attendanceTableWrap');
+      if (!wrap) return;
+
+      if (window.appData.attendanceLoadError) {
+        wrap.innerHTML = `
+          <div class="empty-state" style="padding:36px 16px;">
+            <div class="icon">!</div>
+            <div class="msg">Attendance failed to load</div>
+            <div class="sub">${escapeHtml(window.appData.attendanceLoadError)}</div>
+          </div>`;
+        return;
+      }
+
+      const allRecords = window.appData.attendance || [];
+      const records = getFilteredAttendanceRecords();
+
+      if (allRecords.length === 0) {
+        wrap.innerHTML = `
+          <div class="empty-state" style="padding:36px 16px;">
+            <div class="icon"><i class="fas fa-clipboard-list"></i></div>
+            <div class="msg">No attendance records found</div>
+            <div class="sub">Records appear here after teachers submit attendance</div>
+          </div>`;
+        return;
+      }
+
+      if (records.length === 0) {
+        wrap.innerHTML = `
+          <div class="empty-state" style="padding:36px 16px;">
+            <div class="icon"><i class="fas fa-search"></i></div>
+            <div class="msg">No matching attendance records found</div>
+            <div class="sub">Try another student name, month, or class</div>
+          </div>`;
+        return;
+      }
+
+      let html = `
+        <div style="padding:12px 18px; color:var(--text-secondary); font-size:0.82rem; border-bottom:1px solid var(--border);">
+          Showing <strong style="color:var(--text);">${records.length}</strong> read-only record${records.length === 1 ? '' : 's'}
+        </div>
+        <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="text-align:left;">Student Name</th>
+              <th style="text-align:center; width:130px;">Class</th>
+              <th style="text-align:center; width:130px;">Date</th>
+              <th style="text-align:center; width:120px;">Status</th>
+              <th style="text-align:left;">Marked By</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+      records.forEach(record => {
+        const status = record.status || '';
+        const statusLower = status.toLowerCase();
+        let rowBg = 'transparent';
+        let badgeClass = '';
+        if (statusLower === 'present') {
+          rowBg = 'rgba(34,197,94,0.08)';
+          badgeClass = 'present';
+        } else if (statusLower === 'absent') {
+          rowBg = 'rgba(239,68,68,0.08)';
+          badgeClass = 'absent';
+        } else if (statusLower === 'leave') {
+          rowBg = 'rgba(245,158,11,0.10)';
+        }
+
+        html += `
+          <tr style="background:${rowBg};">
+            <td style="text-align:left; font-weight:700;">
+              ${escapeHtml(record.studentName)}
+              ${record.rollNo ? `<div style="font-size:0.72rem; color:var(--text-secondary); font-weight:500;">Roll No: ${escapeHtml(record.rollNo)}</div>` : ''}
+            </td>
+            <td style="text-align:center;"><span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(record.className || '-')}</span></td>
+            <td style="text-align:center; color:var(--text-secondary); font-weight:600;">${escapeHtml(record.date || '-')}</td>
+            <td style="text-align:center;"><span class="badge ${badgeClass}" style="${statusLower === 'leave' ? 'background:rgba(245,158,11,0.14); color:#b45309;' : ''}">${escapeHtml(status || '-')}</span></td>
+            <td style="text-align:left; color:var(--text-secondary);">${escapeHtml(record.markedBy || 'Unknown')}</td>
+          </tr>`;
+      });
+
+      html += '</tbody></table></div>';
+      wrap.innerHTML = html;
+    }
+
+    function escapeCsvValue(value) {
+      const text = String(value ?? '');
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+
+    function exportAttendanceCsv() {
+      const records = getFilteredAttendanceRecords();
+      if (records.length === 0) {
+        showToast('No attendance records to export', 'warning');
+        return;
+      }
+
+      const rows = [
+        ['Student Name', 'Class', 'Date', 'Status', 'Marked By', 'Roll No', 'Phone'],
+        ...records.map(r => [r.studentName, r.className, r.date, r.status, r.markedBy, r.rollNo, r.phone])
+      ];
+      const csv = rows.map(row => row.map(escapeCsvValue).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const month = document.getElementById('attendanceMonthFilter')?.value || 'all';
+      link.href = url;
+      link.download = `attendance-${month}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      showToast('Attendance CSV exported', 'success');
+    }
+
+    function getStatsFilteredRecords() {
+      const classId = document.getElementById('statsClassSelect')?.value || '';
+      const search = (document.getElementById('statsSearchInput')?.value || '').toLowerCase().trim();
+      return (window.appData.attendance || []).filter(record => {
+        const matchesClass = !classId || String(record.classId) === String(classId);
+        const haystack = `${record.className || ''} ${record.markedBy || ''}`.toLowerCase();
+        const matchesSearch = !search || haystack.includes(search);
+        return matchesClass && matchesSearch;
+      });
+    }
+
+    function renderStats() {
+      const wrap = document.getElementById('statsTableWrap');
+      if (!wrap) return;
+      const allRecords = window.appData.attendance || [];
+      const records = getStatsFilteredRecords();
+      const selectedClass = document.getElementById('statsClassSelect')?.value || '';
+
+      if (allRecords.length === 0) {
+        wrap.innerHTML = `
+          <div class="empty-state" style="padding:36px 16px;">
+            <div class="icon"><i class="fas fa-chart-bar"></i></div>
+            <div class="msg">No attendance data yet</div>
+            <div class="sub">Stats appear after teachers submit attendance</div>
+          </div>`;
+        return;
+      }
+
+      if (records.length === 0) {
+        wrap.innerHTML = `
+          <div class="empty-state" style="padding:36px 16px;">
+            <div class="icon"><i class="fas fa-search"></i></div>
+            <div class="msg">${selectedClass ? 'No attendance data yet for this class' : 'No matching attendance stats found'}</div>
+            <div class="sub">Try another class or teacher search</div>
+          </div>`;
+        return;
+      }
+
+      const studentMap = {};
+      records.forEach(record => {
+        const key = record.studentId || record.studentName;
+        if (!studentMap[key]) {
+          studentMap[key] = {
+            id: key,
+            name: record.studentName,
+            rollNo: record.rollNo || '-',
+            className: record.className || '-',
+            present: 0,
+            absent: 0,
+            leave: 0,
+            total: 0
+          };
+        }
+        studentMap[key].total++;
+        if (record.status === 'Present') studentMap[key].present++;
+        else if (record.status === 'Absent') studentMap[key].absent++;
+        else if (record.status === 'Leave') studentMap[key].leave++;
+      });
+
+      const students = Object.values(studentMap).map(s => ({
+        ...s,
+        percentage: s.total > 0 ? Math.round((s.present / s.total) * 100) : 0
+      })).sort((a, b) => b.percentage - a.percentage || b.present - a.present || a.name.localeCompare(b.name));
+
+      let html = `<div style="padding:16px 22px;"><div style="font-size:0.75rem; color:var(--text-muted);">Attendance records counted: <strong style="color:var(--text);">${records.length}</strong></div></div>`;
+      html += `
+        <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width:70px; text-align:left;">Rank</th>
+              <th style="text-align:left;">Name</th>
+              <th style="text-align:center; width:130px;">Class</th>
+              <th style="text-align:center; width:100px;">Present</th>
+              <th style="text-align:center; width:100px;">Absent</th>
+              <th style="text-align:center; width:100px;">Leave</th>
+              <th style="width:120px; text-align:right;">Attendance %</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+      students.forEach((s, i) => {
+        const rank = i === 0 ? '1st' : i === 1 ? '2nd' : i === 2 ? '3rd' : String(i + 1);
+        const rankStyle = i < 3 ? 'font-weight:900; color:var(--success);' : 'color:var(--text-muted);';
+        const pctColor = s.percentage >= 80 ? '#22c55e' : s.percentage >= 60 ? '#f59e0b' : '#dc2626';
+        html += `
+          <tr>
+            <td style="text-align:left; ${rankStyle}">${rank}</td>
+            <td style="text-align:left;"><strong>${escapeHtml(s.name)}</strong><div style="font-size:0.72rem; color:var(--text-secondary);">Roll No: ${escapeHtml(s.rollNo)}</div></td>
+            <td style="text-align:center;"><span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(s.className)}</span></td>
+            <td style="text-align:center;"><span class="badge present">${s.present}</span></td>
+            <td style="text-align:center;"><span class="badge absent">${s.absent}</span></td>
+            <td style="text-align:center; color:var(--text-secondary);">${s.leave || '-'}</td>
+            <td style="text-align:right; font-weight:800; color:${pctColor};">${s.percentage}%</td>
+          </tr>`;
+      });
+
+      html += '</tbody></table></div>';
+      wrap.innerHTML = html;
+    }
+
+    function handleAnnouncementKeydown(event) {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        saveAnnouncement();
+      }
+    }
+
+    async function saveAnnouncement() {
+      const textarea = document.getElementById('announcementText');
+      const button = document.getElementById('saveAnnouncementBtn');
+      const message = textarea.value.trim();
+
+      if (!message) {
+        showToast('Please type an announcement', 'warning');
+        textarea.focus();
+        return;
+      }
+
+      const originalHtml = button.innerHTML;
+      button.disabled = true;
+      button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+
+      try {
+        const response = await fetch(`${API}/api/announcements`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: 'School Announcement',
+            message,
+            author: 'Admin'
+          })
+        });
+
+        if (!response.ok) throw new Error('Failed to save announcement');
+
+        textarea.value = '';
+        button.innerHTML = '<i class="fas fa-check"></i> Updated';
+        await renderAnnouncements();
+        showToast('Announcement saved', 'success');
+      } catch (err) {
+        showToast(`Error: ${err.message}`, 'error');
+      } finally {
+        setTimeout(() => {
+          button.disabled = false;
+          button.innerHTML = originalHtml;
+        }, 900);
+      }
+    }
+
+    async function renderAnnouncements() {
+      const container = document.getElementById('announcementsList');
+      if (!container) return;
+      let announcements = [];
+
+      try {
+        announcements = await fetch(`${API}/api/announcements?t=${Date.now()}`).then(r => {
+          if (!r.ok) throw new Error('Announcements failed to load');
+          return r.json();
+        });
+      } catch (err) {
+        container.innerHTML = `
+          <div class="empty-state" style="padding:24px 0;">
+            <div class="icon">!</div>
+            <div class="msg">Announcements failed to load</div>
+            <div class="sub">${escapeHtml(err.message)}</div>
+          </div>`;
+        return;
+      }
+
+      const search = (document.getElementById('announcementAuditSearch')?.value || '').toLowerCase().trim();
+      const type = document.getElementById('announcementTypeFilter')?.value || '';
+      const filtered = announcements.filter(item => {
+        const isSchool = !item.class_id;
+        const matchesType = !type || (type === 'school' ? isSchool : !isSchool);
+        const date = item.created_at ? new Date(item.created_at).toLocaleString() : '';
+        const haystack = `${item.message || ''} ${item.author || ''} ${item.teacher_name || ''} ${item.class_name || ''} ${date}`.toLowerCase();
+        return matchesType && (!search || haystack.includes(search));
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state" style="padding:24px 0;">
+            <div class="icon"><i class="fas fa-bullhorn"></i></div>
+            <div class="msg">No matching announcements</div>
+            <div class="sub">Teacher and admin posts will appear in this audit log</div>
+          </div>`;
+        return;
+      }
+
+      let html = `
+        <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="text-align:left;">Announcement</th>
+              <th style="text-align:left; width:160px;">Posted By</th>
+              <th style="text-align:center; width:130px;">Class</th>
+              <th style="text-align:center; width:170px;">Date</th>
+              <th style="text-align:right; width:100px;">Action</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+      filtered.forEach(item => {
+        const postedBy = item.teacher_name || item.author || 'Admin';
+        const date = item.created_at ? new Date(item.created_at).toLocaleString() : '-';
+        html += `
+          <tr>
+            <td style="text-align:left;">
+              <strong>${escapeHtml(item.title || (item.class_id ? 'Class Announcement' : 'School Announcement'))}</strong>
+              <div style="font-size:0.82rem; color:var(--text-secondary); margin-top:4px; white-space:normal;">${escapeHtml(item.message)}</div>
+            </td>
+            <td style="text-align:left; color:var(--text-secondary);">${escapeHtml(postedBy)}</td>
+            <td style="text-align:center;"><span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(item.class_name || 'School-wide')}</span></td>
+            <td style="text-align:center; color:var(--text-secondary);">${escapeHtml(date)}</td>
+            <td style="text-align:right;">
+              <button class="announcement-delete" style="opacity:1;" onclick="deleteAnnouncement(${item.id})" title="Delete / take down announcement">
+                <i class="fas fa-times"></i>
+              </button>
+            </td>
+          </tr>`;
+      });
+
+      html += '</tbody></table></div>';
       container.innerHTML = html;
     }
 
@@ -2816,6 +3464,73 @@
       }
     }
 
+    async function populateClassDropdown(classes) {
+      try {
+        const select = document.getElementById('teacherClass');
+        if (select) select.innerHTML = '<option value="">-- Select a class --</option>';
+
+        const editSelect = document.getElementById('editTeacherClass');
+        if (editSelect) editSelect.innerHTML = '<option value="">-- Select a class --</option>';
+
+        const filterSelect = document.getElementById('studentClassFilter');
+        const filterVal = filterSelect ? filterSelect.value : '';
+        if (filterSelect) {
+          filterSelect.innerHTML = '<option value="">All Classes</option><option value="unassigned">Unassigned</option>';
+        }
+
+        const attendanceClassFilter = document.getElementById('attendanceClassFilter');
+        const attendanceVal = attendanceClassFilter ? attendanceClassFilter.value : '';
+        if (attendanceClassFilter) {
+          attendanceClassFilter.innerHTML = '<option value="">All Classes</option>';
+        }
+
+        const statsClassSelect = document.getElementById('statsClassSelect');
+        const statsVal = statsClassSelect ? statsClassSelect.value : '';
+        if (statsClassSelect) {
+          statsClassSelect.innerHTML = '<option value="">All Classes</option>';
+        }
+
+        classes.forEach(cls => {
+          if (select) {
+            const option = document.createElement('option');
+            option.value = cls.id;
+            option.textContent = cls.name;
+            select.appendChild(option);
+          }
+          if (editSelect) {
+            const option = document.createElement('option');
+            option.value = cls.id;
+            option.textContent = cls.name;
+            editSelect.appendChild(option);
+          }
+          if (filterSelect) {
+            const option = document.createElement('option');
+            option.value = cls.id;
+            option.textContent = cls.name;
+            filterSelect.appendChild(option);
+          }
+          if (attendanceClassFilter) {
+            const option = document.createElement('option');
+            option.value = cls.id;
+            option.textContent = cls.name;
+            attendanceClassFilter.appendChild(option);
+          }
+          if (statsClassSelect) {
+            const option = document.createElement('option');
+            option.value = cls.id;
+            option.textContent = cls.name;
+            statsClassSelect.appendChild(option);
+          }
+        });
+
+        if (filterSelect && filterVal) filterSelect.value = filterVal;
+        if (attendanceClassFilter && attendanceVal) attendanceClassFilter.value = attendanceVal;
+        if (statsClassSelect && statsVal) statsClassSelect.value = statsVal;
+      } catch (err) {
+        console.error('Error loading classes dropdown:', err);
+      }
+    }
+
     // =============================================================
     // INITIALIZATION
     // =============================================================
@@ -2849,6 +3564,7 @@
 
       if (clearSearch) {
         if (newTabId === 'tab-classes') {
+          closeClassIsolation();
           const inp = document.getElementById('classesSearchInput');
           if (inp) { inp.value = ''; filterClasses(); }
         } else if (newTabId === 'tab-teachers') {
@@ -2861,13 +3577,9 @@
       updateSaveBar();
     }
 
-    function jumpToClass(className) {
+    function jumpToClass(classId) {
       switchTab('tab-classes', false);
-      const searchInput = document.getElementById('classesSearchInput');
-      if (searchInput) {
-        searchInput.value = className;
-        filterClasses();
-      }
+      openClassIsolation(classId);
     }
 
     function updateSaveBar() {
