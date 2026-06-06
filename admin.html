@@ -1250,6 +1250,14 @@
             </div>
           </div>
 
+          <!-- Search & Filter Controls -->
+          <div class="search-filter-container" style="display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:240px; position:relative;">
+              <input type="text" id="teacherSearchInput" class="form-input"
+                placeholder="🔍 Search teachers by name or phone..." oninput="filterTeachers()">
+            </div>
+          </div>
+
           <!-- Teachers Table -->
           <div id="teachersTableWrap">
             <!-- Rendered by JS -->
@@ -1339,6 +1347,14 @@
           </div>
         </div>
         <div class="section-body">
+          <!-- Search & Filter Controls -->
+          <div class="search-filter-container" style="display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:240px; position:relative;">
+              <input type="text" id="classesSearchInput" class="form-input"
+                placeholder="🔍 Search classes by name or assigned teacher..." oninput="filterClasses()">
+            </div>
+          </div>
+
           <div id="classesTableWrap">
             <!-- Rendered by JS -->
           </div>
@@ -1810,9 +1826,22 @@
     // =============================================================
     // CLASSES SECTION & INLINE ASSIGNMENT
     // =============================================================
-    function renderClasses() {
+    function filterClasses() {
+      const query = document.getElementById('classesSearchInput')?.value.toLowerCase().trim() || '';
+      let filtered = window.appData.classes;
+      if (query) {
+        filtered = filtered.filter(c => {
+          const assigned = window.appData.teachers.find(t => t.class_id === c.id);
+          return (c.name && c.name.toLowerCase().includes(query)) ||
+                 (assigned && assigned.name && assigned.name.toLowerCase().includes(query));
+        });
+      }
+      renderClasses(filtered);
+    }
+
+    function renderClasses(classesList) {
       const wrap = document.getElementById('classesTableWrap');
-      const classes = window.appData.classes;
+      const classes = classesList || window.appData.classes;
       const teachers = window.appData.teachers;
       const students = window.appData.students;
 
@@ -1820,8 +1849,7 @@
         wrap.innerHTML = `
           <div class="empty-state">
             <div class="icon">📚</div>
-            <div class="msg">No classes created yet</div>
-            <div class="sub">Go to Classes page to create classes and assign teachers</div>
+            <div class="msg">No classes found</div>
           </div>`;
         return;
       }
@@ -1863,9 +1891,12 @@
             <td style="text-align:left;">
               <select class="form-input" style="padding: 5px 8px; font-size: 0.8rem; height: auto; width: 100%; max-width: 170px;" onchange="assignTeacherInline(${cls.id}, this.value)" aria-label="Assign teacher inline">
                 <option value="">-- Unassigned --</option>
-                ${teachers
-            .map(t => `<option value="${t.id}" ${t.class_id === cls.id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`)
-            .join('')}
+                ${teachers.map(t => {
+                  const isAssignedToThis = t.class_id === cls.id;
+                  const isUnassigned = !t.class_id;
+                  const suggestLabel = isUnassigned ? ' (★ Suggested)' : '';
+                  return `<option value="${t.id}" ${isAssignedToThis ? 'selected' : ''}>${escapeHtml(t.name)}${suggestLabel}</option>`;
+                }).join('')}
               </select>
             </td>
             <td style="text-align:right;">
@@ -2015,17 +2046,28 @@
       updateSaveBar();
     }
 
-    function renderTeachers() {
+    function filterTeachers() {
+      const query = document.getElementById('teacherSearchInput')?.value.toLowerCase().trim() || '';
+      let filtered = window.appData.teachers;
+      if (query) {
+        filtered = filtered.filter(t => 
+          (t.name && t.name.toLowerCase().includes(query)) ||
+          (t.phone && t.phone.toLowerCase().includes(query))
+        );
+      }
+      renderTeachers(filtered);
+    }
+
+    function renderTeachers(teachersList) {
       const wrap = document.getElementById('teachersTableWrap');
-      const teachers = window.appData.teachers;
+      const teachers = teachersList || window.appData.teachers;
       const classes = window.appData.classes;
 
       if (!teachers || teachers.length === 0) {
         wrap.innerHTML = `
           <div class="empty-state">
             <div class="icon">👨‍🏫</div>
-            <div class="msg">No teachers added yet</div>
-            <div class="sub">Click "Add Teacher" to register one</div>
+            <div class="msg">No matching teachers found</div>
           </div>`;
         return;
       }
@@ -2054,11 +2096,14 @@
             <td style="text-align:left;">
               <input type="text" class="inline-edit-input" value="${escapeHtml(dirtyData.name)}" oninput="markDirty('tab-teachers', ${t.id}, 'name', this.value)" style="font-weight:bold;">
             </td>
-            <td style="text-align:center;">
-              <select class="inline-edit-input" style="text-align:center;" onchange="markDirty('tab-teachers', ${t.id}, 'class_id', this.value ? parseInt(this.value) : null)">
-                <option value="">-- Unassigned --</option>
-                ${classes.map(c => `<option value="${c.id}" ${dirtyData.class_id === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
-              </select>
+            <td style="text-align:center; position:relative;">
+              <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
+                <select class="inline-edit-input" style="text-align:center; max-width:120px;" onchange="markDirty('tab-teachers', ${t.id}, 'class_id', this.value ? parseInt(this.value) : null)">
+                  <option value="">-- Unassigned --</option>
+                  ${classes.map(c => `<option value="${c.id}" ${dirtyData.class_id === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
+                </select>
+                ${dirtyData.class_id ? `<button onclick="jumpToClass('${escapeHtml(classes.find(c => c.id === dirtyData.class_id)?.name || '')}')" title="Jump to this class in Classes Tab" style="background:transparent; border:none; color:var(--primary); cursor:pointer;"><i class="fas fa-external-link-alt"></i></button>` : ''}
+              </div>
             </td>
             <td style="text-align:center;">
               <input type="tel" class="inline-edit-input" style="text-align:center; font-family:monospace; letter-spacing:0.3px;" value="${escapeHtml(dirtyData.phone || '')}" placeholder="—" oninput="markDirty('tab-teachers', ${t.id}, 'phone', this.value)">
@@ -2182,6 +2227,32 @@
       renderStudentTable(filtered);
     }
 
+    function getClassCapacity(classId) {
+      const cls = window.appData.classes.find(c => c.id === classId);
+      return cls?.max_capacity || 30; // fallback capacity
+    }
+    
+    function getEnrolledCount(classId) {
+      return window.appData.students.filter(s => s.class_id === classId).length;
+    }
+
+    function getStudentClassOptionsHtml(currentClassId) {
+      const classes = window.appData.classes;
+      return classes.map(c => {
+        const capacity = getClassCapacity(c.id);
+        const enrolled = getEnrolledCount(c.id);
+        
+        const isCurrentClass = currentClassId === c.id;
+        const isFull = !isCurrentClass && enrolled >= capacity;
+        
+        const disabledAttr = isFull ? 'disabled' : '';
+        const capacityLabel = isFull ? ` (Full - ${enrolled}/${capacity})` : '';
+        const selected = isCurrentClass ? 'selected' : '';
+        
+        return `<option value="${c.id}" ${disabledAttr} ${selected}>${escapeHtml(c.name)}${capacityLabel}</option>`;
+      }).join('');
+    }
+
     function renderStudentTable(students) {
       const wrap = document.getElementById('studentsTableWrap');
       const classes = window.appData.classes;
@@ -2227,7 +2298,7 @@
             <td style="text-align:center;">
               <select class="inline-edit-input" style="text-align:center;" onchange="markDirty('tab-students', ${s.id}, 'class_id', this.value ? parseInt(this.value) : null)">
                 <option value="">-- Unassigned --</option>
-                ${classes.map(c => `<option value="${c.id}" ${dirtyData.class_id === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
+                ${getStudentClassOptionsHtml(dirtyData.class_id)}
               </select>
             </td>
             <td style="text-align:center;">
@@ -2749,7 +2820,7 @@
     // INITIALIZATION
     // =============================================================
 
-    function switchTab(newTabId) {
+    function switchTab(newTabId, clearSearch = true) {
       if (activeTabId === newTabId) return;
 
       if (hasAnyDirtyChanges() && (activeTabId === 'tab-teachers' || activeTabId === 'tab-students')) {
@@ -2775,9 +2846,28 @@
 
       activeTabId = newTabId;
       history.replaceState(null, '', '#' + newTabId);
+
+      if (clearSearch) {
+        if (newTabId === 'tab-classes') {
+          const inp = document.getElementById('classesSearchInput');
+          if (inp) { inp.value = ''; filterClasses(); }
+        } else if (newTabId === 'tab-teachers') {
+          const inp = document.getElementById('teacherSearchInput');
+          if (inp) { inp.value = ''; filterTeachers(); }
+        }
+      }
       
       // Update sticky bar visibility
       updateSaveBar();
+    }
+
+    function jumpToClass(className) {
+      switchTab('tab-classes', false);
+      const searchInput = document.getElementById('classesSearchInput');
+      if (searchInput) {
+        searchInput.value = className;
+        filterClasses();
+      }
     }
 
     function updateSaveBar() {
