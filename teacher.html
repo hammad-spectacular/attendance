@@ -235,10 +235,17 @@
       box-shadow: 0 2px 8px rgba(20, 184, 166, 0.35);
     }
     .tab-content {
-      scroll-margin-top: 150px;
+      display: none;
       margin-bottom: 32px;
     }
-    
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.4s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
 
     /* Settings button */
     .settings-btn {
@@ -2132,48 +2139,65 @@
     }
 
     
+    let activeTabId = 'tab-attendance';
+
+    function switchTab(newTabId) {
+      if (activeTabId === newTabId) return;
+
+      // Hide all tabs
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+      // Show new tab
+      const newTab = document.getElementById(newTabId);
+      if (newTab) newTab.classList.add('active');
+      
+      const newBtn = document.querySelector(`.tab-btn[data-section="${newTabId}"]`);
+      if (newBtn) newBtn.classList.add('active');
+
+      activeTabId = newTabId;
+      history.replaceState(null, '', '#' + newTabId);
+
+      const submitBtn = document.getElementById('submitBtn');
+      if (submitBtn) {
+        if (newTabId === 'tab-attendance') {
+          submitBtn.classList.remove('hidden-tab');
+        } else {
+          submitBtn.classList.add('hidden-tab');
+        }
+      }
+    }
+
     function setupSectionTabs() {
       const tabs = Array.from(document.querySelectorAll('.tab-btn[data-section]'));
-      const sections = tabs
-        .map(tab => document.getElementById(tab.dataset.section))
-        .filter(Boolean);
-
       tabs.forEach(tab => {
         tab.addEventListener('click', event => {
           event.preventDefault();
-          const section = document.getElementById(tab.dataset.section);
-          if (!section) return;
-          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          history.replaceState(null, '', '#' + section.id);
+          switchTab(tab.dataset.section);
         });
       });
-
-      const observer = new IntersectionObserver(entries => {
-        const visible = entries
-          .filter(entry => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-
-        if (!visible) return;
-
-        tabs.forEach(tab => {
-          tab.classList.toggle('active', tab.dataset.section === visible.target.id);
-        });
-        
-        const submitBtn = document.getElementById('submitBtn');
-        if (submitBtn) {
-          if (visible.target.id === 'tab-attendance') {
-            submitBtn.classList.remove('hidden-tab');
-          } else {
-            submitBtn.classList.add('hidden-tab');
-          }
-        }
-      }, {
-        rootMargin: '-20% 0px -70% 0px',
-        threshold: [0.1, 0.25, 0.5]
-      });
-
-      sections.forEach(section => observer.observe(section));
+      
+      const hash = window.location.hash.substring(1);
+      if (hash && document.getElementById(hash)) {
+        switchTab(hash);
+      } else {
+        switchTab('tab-attendance');
+      }
     }
+
+    function hasUnsavedChanges() {
+      if (typeof attendanceState !== 'undefined' && attendanceState !== null) {
+        return Object.values(attendanceState).some(s => s !== null);
+      }
+      return false;
+    }
+
+    window.addEventListener('beforeunload', e => {
+      if (hasUnsavedChanges()) {
+        e.preventDefault();
+        e.returnValue = 'You have unmarked attendance changes. Are you sure you want to leave?';
+      }
+    });
 
     function init() {
       setupSectionTabs();
