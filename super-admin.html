@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Super Admin — The Eye</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+[data-theme="dark"] {
+  --bg: #0f172a; --bg-card: #1e293b; --bg-card-hover: #263348; --border: #334155;
+  --text: #f1f5f9; --text-secondary: #94a3b8; --text-muted: #64748b;
+  --primary: #4f46e5; --primary-light: #818cf8;
+  --success: #22c55e; --danger: #ef4444; --warning: #f59e0b;
+  --success-bg: rgba(34,197,94,0.1); --danger-bg: rgba(239,68,68,0.08); --warning-bg: rgba(245,158,11,0.08);
+  --shadow: 0 4px 6px -1px rgba(0,0,0,0.3); --shadow-lg: 0 10px 25px -5px rgba(0,0,0,0.4);
+  --gradient: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  --badge-bg: rgba(79,70,229,0.12); --badge-text: #a5b4fc;
+  --table-row-hover: rgba(79,70,229,0.06);
+}
+[data-theme="light"] {
+  --bg: #f1f5f9; --bg-card: #ffffff; --bg-card-hover: #f8fafc; --border: #e2e8f0;
+  --text: #0f172a; --text-secondary: #475569; --text-muted: #94a3b8;
+  --primary: #4f46e5; --primary-light: #6366f1;
+  --success: #16a34a; --danger: #dc2626; --warning: #d97706;
+  --success-bg: rgba(34,197,94,0.08); --danger-bg: rgba(239,68,68,0.06); --warning-bg: rgba(245,158,11,0.06);
+  --shadow: 0 4px 6px -1px rgba(0,0,0,0.07); --shadow-lg: 0 10px 25px -5px rgba(0,0,0,0.1);
+  --gradient: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  --badge-bg: rgba(79,70,229,0.08); --badge-text: #4f46e5;
+  --table-row-hover: rgba(79,70,229,0.04);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; transition:background 0.4s ease; }
+.header { background:var(--gradient); padding:20px 24px; position:sticky; top:0; z-index:30; box-shadow:0 4px 20px rgba(79,70,229,0.3); }
+.header-inner { max-width:1000px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; }
+.header-left { display:flex; align-items:center; gap:14px; }
+.back-btn { width:40px; height:40px; border-radius:12px; border:2px solid rgba(255,255,255,0.25); background:rgba(255,255,255,0.1); color:white; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.3s ease; text-decoration:none; }
+.back-btn:hover { background:rgba(255,255,255,0.2); border-color:rgba(255,255,255,0.5); transform:scale(1.06); }
+.header-title strong { display:block; font-size:1.2rem; font-weight:800; color:white; }
+.header-title span { font-size:0.7rem; color:rgba(255,255,255,0.65); }
+.header-right { display:flex; align-items:center; gap:10px; }
+.theme-toggle { width:40px; height:40px; border-radius:50%; border:2px solid rgba(255,255,255,0.25); background:rgba(255,255,255,0.1); color:white; cursor:pointer; font-size:0.9rem; display:flex; align-items:center; justify-content:center; transition:all 0.3s ease; }
+.theme-toggle:hover { background:rgba(255,255,255,0.2); border-color:rgba(255,255,255,0.5); transform:scale(1.06); }
+.header-btn { padding:8px 16px; border-radius:10px; border:2px solid rgba(255,255,255,0.25); background:rgba(255,255,255,0.1); color:white; cursor:pointer; font-size:0.78rem; font-weight:600; font-family:'Inter',sans-serif; transition:all 0.3s ease; }
+.header-btn:hover { background:rgba(255,255,255,0.2); border-color:rgba(255,255,255,0.5); }
+
+.tab-nav { background:var(--bg); border-bottom:2px solid var(--border); border-top:1px solid var(--border); box-shadow:0 2px 8px rgba(0,0,0,0.08); margin-top:2px; }
+[data-theme="dark"] .tab-nav { box-shadow:0 2px 12px rgba(0,0,0,0.3); }
+.tab-nav-inner { max-width:1000px; margin:0 auto; padding:0.5rem 20px; display:flex; gap:0.5rem; }
+.tab-btn { padding:0.65rem 1.5rem; font-weight:600; font-size:0.9rem; color:var(--text-muted); border-radius:12px; border:2px solid transparent; background:var(--bg-card); transition:all 0.25s ease; cursor:pointer; display:flex; align-items:center; gap:0.5rem; font-family:'Inter',sans-serif; }
+.tab-btn:hover { color:var(--primary); background:var(--bg-card-hover); border-color:var(--border); }
+.tab-btn.active { color:#fff; background:var(--gradient); border-color:var(--primary); box-shadow:0 2px 8px rgba(79,70,229,0.35); }
+.tab-content { display:none; }
+.tab-content.active { display:block; }
+
+.main { max-width:1000px; margin:0 auto; padding:28px 20px 60px; }
+.section-card { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; margin-bottom:24px; box-shadow:var(--shadow); overflow:hidden; }
+.section-header { padding:18px 22px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.section-header-left { display:flex; align-items:center; gap:12px; }
+.section-icon { width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1rem; flex-shrink:0; }
+.section-icon.purple { background:var(--badge-bg); color:var(--badge-text); }
+.section-title { font-size:1rem; font-weight:700; color:var(--text); }
+.section-subtitle { font-size:0.72rem; color:var(--text-muted); }
+.section-body { padding:18px 22px; }
+.data-table { width:100%; border-collapse:separate; border-spacing:0; font-size:0.82rem; }
+.data-table thead th { text-align:left; padding:10px 14px; font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-muted); border-bottom:1px solid var(--border); white-space:nowrap; }
+.data-table tbody tr { transition:background 0.2s ease; }
+.data-table tbody tr:hover { background:var(--table-row-hover); }
+.data-table tbody td { padding:12px 14px; border-bottom:1px solid var(--border); color:var(--text-secondary); vertical-align:middle; }
+.badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:8px; font-size:0.72rem; font-weight:600; white-space:nowrap; }
+.badge.pending { background:var(--warning-bg); color:var(--warning); }
+.badge.approved { background:var(--success-bg); color:var(--success); }
+.badge.active { background:var(--success-bg); color:var(--success); }
+.badge.suspended { background:var(--danger-bg); color:var(--danger); }
+.btn-sm { padding:6px 14px; border-radius:8px; font-size:0.75rem; font-weight:600; font-family:'Inter',sans-serif; cursor:pointer; border:none; transition:all 0.2s ease; }
+.btn-sm.primary { background:var(--gradient); color:white; }
+.btn-sm.primary:hover { opacity:0.9; }
+.btn-sm.danger { background:var(--danger-bg); color:var(--danger); border:1px solid transparent; }
+.btn-sm.danger:hover { background:rgba(239,68,68,0.15); }
+.btn-sm.success { background:var(--success-bg); color:var(--success); }
+.btn-sm.success:hover { background:rgba(34,197,94,0.15); }
+.actions { display:flex; gap:6px; }
+
+.empty-state { text-align:center; padding:30px 16px; color:var(--text-muted); }
+.empty-state .icon { font-size:2rem; margin-bottom:8px; opacity:0.6; }
+.empty-state .msg { font-size:0.82rem; font-weight:500; }
+
+.modal { position:fixed; inset:0; z-index:100; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.5); backdrop-filter:blur(4px); }
+.modal.open { display:flex; }
+.modal-card { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:28px 24px; width:90%; max-width:440px; box-shadow:var(--shadow-lg); }
+.modal-card h3 { font-size:1.1rem; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+.modal-card h3 i { color:var(--primary); }
+.credential-box { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:14px; margin:12px 0; font-family:monospace; font-size:0.9rem; }
+.credential-box span { font-weight:700; color:var(--primary-light); }
+.warning-text { font-size:0.78rem; color:var(--danger); font-weight:600; margin-top:8px; }
+.modal-actions { display:flex; gap:8px; margin-top:16px; }
+.modal-actions .btn { flex:1; padding:10px; border:none; border-radius:10px; font-weight:600; font-family:'Inter',sans-serif; cursor:pointer; transition:all 0.2s ease; }
+.modal-actions .btn.primary { background:var(--gradient); color:white; }
+.modal-actions .btn.primary:hover { opacity:0.9; }
+.modal-actions .btn.ghost { background:transparent; color:var(--text-muted); border:1px solid var(--border); }
+.modal-actions .btn.ghost:hover { background:var(--bg-card-hover); }
+.form-group { margin-bottom:14px; }
+.form-group label { display:block; font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-secondary); margin-bottom:6px; }
+.form-group input, .form-group textarea { width:100%; padding:11px 14px; border-radius:10px; border:2px solid var(--border); background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; font-size:0.85rem; outline:none; transition:border-color 0.25s ease; }
+.form-group input:focus, .form-group textarea:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(79,70,229,0.15); }
+
+.toast-container { position:fixed; bottom:24px; right:24px; z-index:200; display:flex; flex-direction:column; gap:8px; align-items:flex-end; pointer-events:none; }
+.toast { padding:12px 20px; border-radius:12px; font-size:0.82rem; font-weight:600; color:white; box-shadow:0 8px 24px rgba(0,0,0,0.25); animation:toastIn 0.35s ease-out, toastOut 0.35s ease-in 2.5s forwards; pointer-events:auto; }
+.toast.success { background:#059669; }
+.toast.info { background:#475569; }
+.toast.error { background:#dc2626; }
+.toast.warning { background:#d97706; }
+@keyframes toastIn { from { opacity:0; transform:translateY(20px) scale(0.95); } to { opacity:1; transform:translateY(0) scale(1); } }
+@keyframes toastOut { from { opacity:1; } to { opacity:0; transform:translateY(-10px); } }
+
+.spinner { display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,0.3); border-top-color:white; border-radius:50%; animation:spin 0.6s linear infinite; vertical-align:middle; }
+@keyframes spin { to { transform:rotate(360deg); } }
+@media (max-width:640px) { .tab-nav-inner { padding:0.5rem 14px; gap:0.35rem; } .tab-btn { padding:0.55rem 1rem; font-size:0.82rem; } .main { padding:16px 14px 50px; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="header-left">
+      <a href="./index.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+      <div class="header-title">
+        <strong><i class="fas fa-shield-halved"></i> Super Admin</strong>
+        <span>The Eye — System Administration</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="header-btn" onclick="openChangePasswordModal()"><i class="fas fa-key"></i> Change Password</button>
+      <button class="header-btn" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+      <button class="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></button>
+    </div>
+  </div>
+</div>
+
+<nav class="tab-nav">
+  <div class="tab-nav-inner">
+    <button class="tab-btn active" data-tab="pending" onclick="switchTab('pending')"><i class="fas fa-clock"></i> Pending Requests</button>
+    <button class="tab-btn" data-tab="active" onclick="switchTab('active')"><i class="fas fa-check-circle"></i> Active Schools</button>
+    <button class="tab-btn" data-tab="suspended" onclick="switchTab('suspended')"><i class="fas fa-ban"></i> Suspended</button>
+  </div>
+</nav>
+
+<div class="main">
+  <div id="tab-pending" class="tab-content active">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-header-left">
+          <div class="section-icon purple"><i class="fas fa-clock"></i></div>
+          <div><div class="section-title">Pending School Requests</div><div class="section-subtitle">Review and approve new school registrations</div></div>
+        </div>
+      </div>
+      <div class="section-body" style="padding:0;">
+        <div id="pendingRequestsTableWrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-active" class="tab-content">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-header-left">
+          <div class="section-icon purple"><i class="fas fa-check-circle"></i></div>
+          <div><div class="section-title">Active Schools</div><div class="section-subtitle">Currently active organizations</div></div>
+        </div>
+      </div>
+      <div class="section-body" style="padding:0;">
+        <div id="activeSchoolsTableWrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-suspended" class="tab-content">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-header-left">
+          <div class="section-icon purple"><i class="fas fa-ban"></i></div>
+          <div><div class="section-title">Suspended Schools</div><div class="section-subtitle">Reactivate suspended organizations</div></div>
+        </div>
+      </div>
+      <div class="section-body" style="padding:0;">
+        <div id="suspendedSchoolsTableWrap"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Approve Modal -->
+<div class="modal" id="approveModal">
+  <div class="modal-card">
+    <h3><i class="fas fa-check-circle"></i> Approve School</h3>
+    <input type="hidden" id="approveRequestId">
+    <input type="hidden" id="approveSchoolName">
+    <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px;">Enter a 4-letter school code for <strong id="approveSchoolDisplay"></strong></p>
+    <div class="form-group">
+      <label for="schoolCode">School Code (4 uppercase letters)</label>
+      <input type="text" id="schoolCode" placeholder="e.g. HARV" maxlength="4" style="text-transform:uppercase;font-family:monospace;font-size:1.1rem;letter-spacing:4px;text-align:center;">
+    </div>
+    <div class="modal-actions">
+      <button class="btn primary" onclick="confirmApprove()">Approve</button>
+      <button class="btn ghost" onclick="closeModal('approveModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Credentials Modal -->
+<div class="modal" id="credentialsModal">
+  <div class="modal-card">
+    <h3><i class="fas fa-key"></i> School Credentials</h3>
+    <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Share these credentials with the school admin:</p>
+    <div class="credential-box" id="credentialDisplay"></div>
+    <p class="warning-text">⚠️ Copy these now. They will not be shown again.</p>
+    <div class="modal-actions">
+      <button class="btn primary" onclick="closeModal('credentialsModal');fetchPendingRequests();fetchActiveSchools();">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal" id="changePasswordModal">
+  <div class="modal-card">
+    <h3><i class="fas fa-key"></i> Change Password</h3>
+    <form id="changePwdForm" onsubmit="handleChangePassword(event)">
+      <div class="form-group">
+        <label for="cpCurrent">Current Password</label>
+        <input type="password" id="cpCurrent" required>
+      </div>
+      <div class="form-group">
+        <label for="cpNew">New Password</label>
+        <input type="password" id="cpNew" required minlength="6">
+      </div>
+      <div class="form-group">
+        <label for="cpConfirm">Confirm New Password</label>
+        <input type="password" id="cpConfirm" required>
+      </div>
+      <div id="cpMsg" style="font-size:0.8rem;margin-bottom:10px;display:none;"></div>
+      <div class="modal-actions">
+        <button type="submit" class="btn primary" id="cpBtn"><span id="cpBtnText">Change Password</span></button>
+        <button type="button" class="btn ghost" onclick="closeModal('changePasswordModal')">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+let currentRole = 'super_admin';
+
+function toggleTheme() {
+  const html = document.documentElement;
+  const icon = document.getElementById('themeIcon');
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+  localStorage.setItem('attendance-theme', isDark ? 'light' : 'dark');
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  const tc = document.getElementById('tab-'+name);
+  if (tc) tc.classList.add('active');
+  const tb = document.querySelector(`.tab-btn[data-tab="${name}"]`);
+  if (tb) tb.classList.add('active');
+  if (name === 'pending') fetchPendingRequests();
+  if (name === 'active') fetchActiveSchools();
+  if (name === 'suspended') fetchSuspendedSchools();
+}
+
+function showToast(msg, type='info') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast '+type;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => { if (t.parentNode) t.parentNode.removeChild(t); }, 3000);
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// Approve school
+function openApproveModal(id, name) {
+  document.getElementById('approveRequestId').value = id;
+  document.getElementById('approveSchoolName').value = name;
+  document.getElementById('approveSchoolDisplay').textContent = name;
+  document.getElementById('schoolCode').value = '';
+  openModal('approveModal');
+}
+
+async function confirmApprove() {
+  const request_id = document.getElementById('approveRequestId').value;
+  const school_name = document.getElementById('approveSchoolName').value;
+  const school_code = document.getElementById('schoolCode').value.trim().toUpperCase();
+
+  if (!school_code || school_code.length !== 4) {
+    showToast('⚠️ Enter a valid 4-letter code', 'warning');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth/approve-school', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ request_id, school_code, school_name })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      showToast('⚠️ ' + (data.error || 'Failed'), 'error');
+      return;
+    }
+
+    closeModal('approveModal');
+    document.getElementById('credentialDisplay').innerHTML =
+      '<div>Admin ID: <span>'+data.admin_id+'</span></div><div style="margin-top:8px;">Temp Password: <span>'+data.temp_password+'</span></div>';
+    openModal('credentialsModal');
+    showToast('✅ School approved successfully', 'success');
+  } catch (e) {
+    showToast('⚠️ Connection error', 'error');
+  }
+}
+
+// Reject school
+async function rejectSchool(id) {
+  if (!confirm('Reject this request?')) return;
+  try {
+    const res = await fetch('/api/auth/reject-school', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ request_id: id })
+    });
+    if (res.ok) { showToast('Request rejected', 'info'); fetchPendingRequests(); }
+  } catch(e) { showToast('⚠️ Error', 'error'); }
+}
+
+// Suspend school
+async function suspendSchool(id) {
+  if (!confirm('Suspend this school?')) return;
+  try {
+    const res = await fetch('/api/auth/suspend-school', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ school_id: id })
+    });
+    if (res.ok) { showToast('School suspended', 'info'); fetchActiveSchools(); fetchSuspendedSchools(); }
+  } catch(e) { showToast('⚠️ Error', 'error'); }
+}
+
+// Reactivate school
+async function reactivateSchool(id) {
+  if (!confirm('Reactivate this school?')) return;
+  try {
+    const res = await fetch('/api/auth/reactivate-school', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ school_id: id })
+    });
+    if (res.ok) { showToast('School reactivated', 'success'); fetchActiveSchools(); fetchSuspendedSchools(); }
+  } catch(e) { showToast('⚠️ Error', 'error'); }
+}
+
+// Fetch data
+async function fetchPendingRequests() {
+  const wrap = document.getElementById('pendingRequestsTableWrap');
+  try {
+    const res = await fetch('/api/auth/pending-requests');
+    if (!res.ok) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🔒</div><div class="msg">Access denied</div></div>'; return; }
+    const data = await res.json();
+    if (data.length === 0) { wrap.innerHTML = '<div class="empty-state"><div class="icon">📭</div><div class="msg">No pending requests</div></div>'; return; }
+    let html = '<table class="data-table"><thead><tr><th>School</th><th>Contact</th><th>Email</th><th>Message</th><th>Date</th><th>Actions</th></tr></thead><tbody>';
+    data.forEach(r => {
+      html += '<tr><td>'+escapeHtml(r.school_name)+'</td><td>'+escapeHtml(r.contact_person)+'</td><td>'+escapeHtml(r.contact_email)+'</td><td style="font-size:0.75rem;">'+(r.message ? escapeHtml(r.message) : '—')+'</td><td style="font-size:0.75rem;">'+new Date(r.created_at).toLocaleDateString()+'</td><td><div class="actions"><button class="btn-sm primary" onclick="openApproveModal('+r.id+',\''+escapeHtml(r.school_name).replace(/'/g,"\\'")+'\')"><i class="fas fa-check"></i> Approve</button><button class="btn-sm danger" onclick="rejectSchool('+r.id+')"><i class="fas fa-times"></i></button></div></td></tr>';
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  } catch(e) { wrap.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div class="msg">Failed to load</div></div>'; }
+}
+
+async function fetchActiveSchools() {
+  const wrap = document.getElementById('activeSchoolsTableWrap');
+  try {
+    const res = await fetch('/api/auth/active-schools');
+    if (!res.ok) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🔒</div><div class="msg">Access denied</div></div>'; return; }
+    const data = await res.json();
+    if (data.length === 0) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🏫</div><div class="msg">No active schools</div></div>'; return; }
+    let html = '<table class="data-table"><thead><tr><th>Code</th><th>School Name</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
+    data.forEach(s => {
+      html += '<tr><td><span class="badge" style="background:var(--badge-bg);color:var(--badge-text);font-family:monospace;">'+escapeHtml(s.school_code)+'</span></td><td>'+escapeHtml(s.school_name)+'</td><td><span class="badge active">Active</span></td><td style="font-size:0.75rem;">'+new Date(s.created_at).toLocaleDateString()+'</td><td><button class="btn-sm danger" onclick="suspendSchool('+s.id+')"><i class="fas fa-ban"></i> Suspend</button></td></tr>';
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  } catch(e) { wrap.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div class="msg">Failed to load</div></div>'; }
+}
+
+async function fetchSuspendedSchools() {
+  const wrap = document.getElementById('suspendedSchoolsTableWrap');
+  try {
+    const res = await fetch('/api/auth/suspended-schools');
+    if (!res.ok) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🔒</div><div class="msg">Access denied</div></div>'; return; }
+    const data = await res.json();
+    if (data.length === 0) { wrap.innerHTML = '<div class="empty-state"><div class="icon">✅</div><div class="msg">No suspended schools</div></div>'; return; }
+    let html = '<table class="data-table"><thead><tr><th>Code</th><th>School Name</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
+    data.forEach(s => {
+      html += '<tr><td><span class="badge" style="background:var(--badge-bg);color:var(--badge-text);font-family:monospace;">'+escapeHtml(s.school_code)+'</span></td><td>'+escapeHtml(s.school_name)+'</td><td><span class="badge suspended">Suspended</span></td><td style="font-size:0.75rem;">'+new Date(s.created_at).toLocaleDateString()+'</td><td><button class="btn-sm success" onclick="reactivateSchool('+s.id+')"><i class="fas fa-undo"></i> Reactivate</button></td></tr>';
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  } catch(e) { wrap.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div class="msg">Failed to load</div></div>'; }
+}
+
+// Change password
+function openChangePasswordModal() {
+  document.getElementById('cpCurrent').value = '';
+  document.getElementById('cpNew').value = '';
+  document.getElementById('cpConfirm').value = '';
+  document.getElementById('cpMsg').style.display = 'none';
+  openModal('changePasswordModal');
+}
+
+async function handleChangePassword(e) {
+  e.preventDefault();
+  const current = document.getElementById('cpCurrent').value;
+  const newPw = document.getElementById('cpNew').value;
+  const confirm = document.getElementById('cpConfirm').value;
+  const msgEl = document.getElementById('cpMsg');
+  const btn = document.getElementById('cpBtn');
+  const btnText = document.getElementById('cpBtnText');
+
+  msgEl.style.display = 'none';
+  if (newPw !== confirm) { msgEl.textContent = 'Passwords do not match'; msgEl.style.display = 'block'; msgEl.style.color = '#ef4444'; return; }
+  if (newPw.length < 6) { msgEl.textContent = 'Min 6 characters'; msgEl.style.display = 'block'; msgEl.style.color = '#ef4444'; return; }
+
+  btn.disabled = true; btnText.innerHTML = '<span class="spinner"></span> Saving...';
+
+  try {
+    const res = await fetch('/api/auth/change-password', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password: current, new_password: newPw, confirm_password: confirm })
+    });
+    const data = await res.json();
+    if (!res.ok) { msgEl.textContent = data.error || 'Failed'; msgEl.style.display = 'block'; msgEl.style.color = '#ef4444'; }
+    else {
+      msgEl.textContent = 'Password changed successfully'; msgEl.style.display = 'block'; msgEl.style.color = '#22c55e';
+      setTimeout(() => closeModal('changePasswordModal'), 1000);
+    }
+  } catch(e) { msgEl.textContent = 'Connection error'; msgEl.style.display = 'block'; msgEl.style.color = '#ef4444'; }
+  btn.disabled = false; btnText.textContent = 'Change Password';
+}
+
+// Logout
+async function handleLogout() {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  window.location.href = '/login.html';
+}
+
+// Session check
+async function checkSession() {
+  try {
+    const res = await fetch('/api/auth/me');
+    if (!res.ok) { window.location.href = '/login.html'; return; }
+    const data = await res.json();
+    currentRole = data.role;
+    if (data.role !== 'super_admin') { window.location.href = '/login.html'; return; }
+    if (data.is_first_login) { window.location.href = '/change-password.html'; return; }
+    fetchPendingRequests();
+  } catch(e) { window.location.href = '/login.html'; }
+}
+
+function escapeHtml(str) { if (!str) return ''; const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+
+(function() {
+  const saved = localStorage.getItem('attendance-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', saved);
+  document.getElementById('themeIcon').className = saved === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+})();
+
+document.addEventListener('DOMContentLoaded', checkSession);
+</script>
+</body>
+</html>
