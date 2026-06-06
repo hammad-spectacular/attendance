@@ -265,7 +265,19 @@
       box-shadow: var(--shadow);
       overflow: hidden;
       animation: fadeInUp 0.45s ease-out both;
-      scroll-margin-top: 168px;
+    }
+
+    /* True tab switching */
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.4s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
     .section-card:nth-child(2) { animation-delay: 0.05s; }
@@ -507,7 +519,6 @@
       .main { padding: 16px 12px 48px; }
       .section-header { padding: 14px; }
       .section-body { padding: 14px; }
-      .section-card { scroll-margin-top: 154px; }
       .teacher-card { grid-template-columns: 1fr; }
       .attendance-grid { grid-template-columns: repeat(2, 1fr); }
       .item-topline { align-items: flex-start; flex-direction: column; gap: 4px; }
@@ -574,70 +585,80 @@
 
   <nav class="tab-nav" aria-label="Student portal sections">
     <div class="tab-nav-inner">
-      <a href="#teacherSection" class="tab-btn active" data-section="teacherSection">
+      <a href="#tab-teacher" class="tab-btn active" data-section="tab-teacher">
         <i class="fas fa-chalkboard-user"></i>Teacher
       </a>
-      <a href="#attendanceCard" class="tab-btn" data-section="attendanceCard">
+      <a href="#tab-attendance" class="tab-btn" data-section="tab-attendance">
         <i class="fas fa-clipboard-check"></i>Attendance
       </a>
-      <a href="#homeworkCard" class="tab-btn" data-section="homeworkCard">
+      <a href="#tab-homework" class="tab-btn" data-section="tab-homework">
         <i class="fas fa-book-open"></i>Homework
       </a>
-      <a href="#announcementsCard" class="tab-btn" data-section="announcementsCard">
-        <i class="fas fa-bullhorn"></i>Notifications & Announcements
-      </a>
-      <a href="#attendanceCard" class="tab-btn" data-section="attendanceCard">
-        <i class="fas fa-chart-bar"></i>Stats & Statistics
+      <a href="#tab-announcements" class="tab-btn" data-section="tab-announcements">
+        <i class="fas fa-bullhorn"></i>Announcements
       </a>
     </div>
   </nav>
 
   <main class="main">
-    <div class="notice" id="studentNotice"></div>
 
-    <section class="section-card" id="teacherSection">
-      <div class="section-header">
-        <div class="section-icon blue"><i class="fas fa-chalkboard-user"></i></div>
-        <div>
-          <div class="section-title">Class Teacher</div>
-          <div class="section-subtitle">Teacher assigned to this student's class</div>
+    <!-- TEACHER TAB -->
+    <div id="tab-teacher" class="tab-content active">
+      <div class="notice" id="studentNotice"></div>
+      <section class="section-card" id="teacherSection">
+        <div class="section-header">
+          <div class="section-icon blue"><i class="fas fa-chalkboard-user"></i></div>
+          <div>
+            <div class="section-title">Class Teacher</div>
+            <div class="section-subtitle">Teacher assigned to this student's class</div>
+          </div>
         </div>
-      </div>
-      <div class="section-body" id="teacherCard"></div>
-    </section>
+        <div class="section-body" id="teacherCard"></div>
+      </section>
+    </div>
 
-    <section class="section-card" id="attendanceCard">
-      <div class="section-header">
-        <div class="section-icon green"><i class="fas fa-clipboard-check"></i></div>
-        <div>
-          <div class="section-title">Attendance</div>
-          <div class="section-subtitle">Summary from submitted attendance records</div>
+    <!-- ATTENDANCE TAB -->
+    <div id="tab-attendance" class="tab-content">
+      <section class="section-card" id="attendanceCard">
+        <div class="section-header">
+          <div class="section-icon green"><i class="fas fa-clipboard-check"></i></div>
+          <div>
+            <div class="section-title">Attendance</div>
+            <div class="section-subtitle">Summary from submitted attendance records</div>
+          </div>
         </div>
-      </div>
-      <div class="section-body" id="attendanceSection"></div>
-    </section>
+        <div class="section-body" id="attendanceSection"></div>
+      </section>
+    </div>
 
-    <section class="section-card" id="homeworkCard">
-      <div class="section-header">
-        <div class="section-icon orange"><i class="fas fa-book-open"></i></div>
-        <div>
-          <div class="section-title">Homework</div>
-          <div class="section-subtitle">Assignments shared by the teacher</div>
+    <!-- HOMEWORK TAB -->
+    <div id="tab-homework" class="tab-content">
+      <section class="section-card" id="homeworkCard">
+        <div class="section-header">
+          <div class="section-icon orange"><i class="fas fa-book-open"></i></div>
+          <div>
+            <div class="section-title">Homework</div>
+            <div class="section-subtitle">Assignments shared by the teacher</div>
+          </div>
         </div>
-      </div>
-      <div class="section-body" id="homeworkSection"></div>
-    </section>
+        <div class="section-body" id="homeworkSection"></div>
+      </section>
+    </div>
 
-    <section class="section-card" id="announcementsCard">
-      <div class="section-header">
-        <div class="section-icon blue"><i class="fas fa-bullhorn"></i></div>
-        <div>
-          <div class="section-title">Announcements</div>
-          <div class="section-subtitle">Updates from school and class teachers</div>
+    <!-- ANNOUNCEMENTS TAB -->
+    <div id="tab-announcements" class="tab-content">
+      <section class="section-card" id="announcementsCard">
+        <div class="section-header">
+          <div class="section-icon blue"><i class="fas fa-bullhorn"></i></div>
+          <div>
+            <div class="section-title">Announcements</div>
+            <div class="section-subtitle">Updates from school and class teachers</div>
+          </div>
         </div>
-      </div>
-      <div class="section-body" id="announcementsSection"></div>
-    </section>
+        <div class="section-body" id="announcementsSection"></div>
+      </section>
+    </div>
+
   </main>
 
   <script>
@@ -1062,38 +1083,44 @@
       }
     }
 
-    function setupSectionTabs() {
-      const tabs = Array.from(document.querySelectorAll('.tab-btn[data-section]'));
-      const sections = tabs
-        .map(tab => document.getElementById(tab.dataset.section))
-        .filter(Boolean);
+    // =============================================================
+    // TRUE TAB SWITCHING
+    // =============================================================
+    let activeTabId = 'tab-teacher';
 
-      tabs.forEach(tab => {
+    function switchTab(newTabId) {
+      if (activeTabId === newTabId) return;
+
+      // Hide all tab content and deactivate all buttons
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+      // Show the new tab and activate the matching button
+      const newTab = document.getElementById(newTabId);
+      if (newTab) newTab.classList.add('active');
+      const newBtn = document.querySelector(`.tab-btn[data-section="${newTabId}"]`);
+      if (newBtn) newBtn.classList.add('active');
+
+      activeTabId = newTabId;
+      history.replaceState(null, '', '#' + newTabId);
+    }
+
+    function setupSectionTabs() {
+      // Wire up all tab buttons
+      document.querySelectorAll('.tab-btn[data-section]').forEach(tab => {
         tab.addEventListener('click', event => {
           event.preventDefault();
-          const section = document.getElementById(tab.dataset.section);
-          if (!section) return;
-          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          history.replaceState(null, '', `#${section.id}`);
+          switchTab(tab.dataset.section);
         });
       });
 
-      const observer = new IntersectionObserver(entries => {
-        const visible = entries
-          .filter(entry => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-
-        if (!visible) return;
-
-        tabs.forEach(tab => {
-          tab.classList.toggle('active', tab.dataset.section === visible.target.id);
-        });
-      }, {
-        rootMargin: '-42% 0px -45% 0px',
-        threshold: [0.1, 0.25, 0.5, 0.75]
-      });
-
-      sections.forEach(section => observer.observe(section));
+      // Honour URL hash on load, else default to Teacher tab
+      const hash = window.location.hash.substring(1);
+      if (hash && document.getElementById(hash)) {
+        switchTab(hash);
+      } else {
+        switchTab('tab-teacher');
+      }
     }
 
     window.addEventListener('DOMContentLoaded', () => {
