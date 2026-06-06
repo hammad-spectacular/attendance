@@ -517,6 +517,39 @@
     @media (max-width: 420px) {
       .attendance-grid { grid-template-columns: 1fr; }
     }
+
+    /* ================================
+       SKELETON SHIMMER LOADERS
+       ================================ */
+    @keyframes skeleton-shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .skeleton-shimmer {
+      background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
+      background-size: 200% 100%;
+      animation: skeleton-shimmer 1.6s infinite linear;
+      border-color: transparent !important;
+    }
+    [data-theme="light"] .skeleton-shimmer {
+      background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+      background-size: 200% 100%;
+    }
+    .skeleton-text {
+      height: 12px;
+      border-radius: 4px;
+      background-color: var(--border);
+      display: inline-block;
+      opacity: 0.6;
+    }
+    .skeleton-circle {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background-color: var(--border);
+      display: inline-block;
+      opacity: 0.6;
+    }
   </style>
 </head>
 <body>
@@ -551,7 +584,10 @@
         <i class="fas fa-book-open"></i>Homework
       </a>
       <a href="#announcementsCard" class="tab-btn" data-section="announcementsCard">
-        <i class="fas fa-bullhorn"></i>Announcements
+        <i class="fas fa-bullhorn"></i>Notifications & Announcements
+      </a>
+      <a href="#attendanceCard" class="tab-btn" data-section="attendanceCard">
+        <i class="fas fa-chart-bar"></i>Stats & Statistics
       </a>
     </div>
   </nav>
@@ -567,9 +603,7 @@
           <div class="section-subtitle">Teacher assigned to this student's class</div>
         </div>
       </div>
-      <div class="section-body" id="teacherCard">
-        <div class="state"><i class="fas fa-spinner fa-spin"></i><div class="msg">Loading teacher details</div></div>
-      </div>
+      <div class="section-body" id="teacherCard"></div>
     </section>
 
     <section class="section-card" id="attendanceCard">
@@ -580,9 +614,7 @@
           <div class="section-subtitle">Summary from submitted attendance records</div>
         </div>
       </div>
-      <div class="section-body" id="attendanceSection">
-        <div class="state"><i class="fas fa-spinner fa-spin"></i><div class="msg">Loading attendance</div></div>
-      </div>
+      <div class="section-body" id="attendanceSection"></div>
     </section>
 
     <section class="section-card" id="homeworkCard">
@@ -593,9 +625,7 @@
           <div class="section-subtitle">Assignments shared by the teacher</div>
         </div>
       </div>
-      <div class="section-body" id="homeworkSection">
-        <div class="state"><i class="fas fa-spinner fa-spin"></i><div class="msg">Loading homework</div></div>
-      </div>
+      <div class="section-body" id="homeworkSection"></div>
     </section>
 
     <section class="section-card" id="announcementsCard">
@@ -606,14 +636,17 @@
           <div class="section-subtitle">Updates from school and class teachers</div>
         </div>
       </div>
-      <div class="section-body" id="announcementsSection">
-        <div class="state"><i class="fas fa-spinner fa-spin"></i><div class="msg">Loading announcements</div></div>
-      </div>
+      <div class="section-body" id="announcementsSection"></div>
     </section>
   </main>
 
   <script>
-    const API = 'https://attendance-production-fb0b.up.railway.app';
+    // =============================================================
+    // API CONFIGURATION (Automatic Localhost / Production Detection)
+    // =============================================================
+    const API = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+      ? window.location.origin
+      : 'https://attendance-production-fb0b.up.railway.app';
 
     const state = {
       student: null,
@@ -830,7 +863,7 @@
 
       document.getElementById('teacherCard').innerHTML = `
         <div class="student-picker">
-          <select id="studentPicker">
+          <select id="studentPicker" aria-label="Select student">
             <option value="">Select student</option>
             ${options}
           </select>
@@ -854,55 +887,158 @@
       window.location.href = `${window.location.pathname}?id=s_${select.value}`;
     }
 
+    // ============================================================
+    // SKELETON LOADERS — dynamic, staggered, theme-adaptive
+    // ============================================================
+    const MIN_SKELETON_MS = 600; // minimum shimmer time before reveal
+
+    function skBar(w = '60%', h = '12px', mb = '0') {
+      return `<div class="skeleton-shimmer" style="height:${h};width:${w};border-radius:6px;margin-bottom:${mb};"></div>`;
+    }
+
+    function showStudentSkeletons() {
+      // Teacher card skeleton — mimics the 2-column info-box layout
+      document.getElementById('teacherCard').innerHTML = `
+        <div class="teacher-card">
+          <div class="info-box">
+            ${skBar('45%', '10px', '8px')}
+            ${skBar('75%', '18px')}
+          </div>
+          <div class="info-box">
+            ${skBar('45%', '10px', '8px')}
+            ${skBar('60%', '18px')}
+          </div>
+        </div>
+      `;
+
+      // Attendance skeleton — 4 summary cards + progress bar
+      document.getElementById('attendanceSection').innerHTML = `
+        <div class="attendance-grid">
+          ${[1,2,3,4].map(() => `
+            <div class="summary-card skeleton-shimmer" style="border-color:transparent;">
+              ${skBar('48px', '32px', '10px')}
+              ${skBar('70%', '10px')}
+            </div>
+          `).join('')}
+        </div>
+        <div class="attendance-bar" style="margin-top:16px;">
+          <div class="bar-present skeleton-shimmer" style="width:60%;"></div>
+        </div>
+        <div style="margin-top:10px;">${skBar('40%', '10px')}</div>
+      `;
+
+      // Homework skeleton — 3 list items
+      document.getElementById('homeworkSection').innerHTML = `
+        <div class="item-list">
+          ${[1,2,3].map(() => `
+            <div class="list-item">
+              <div class="item-topline">
+                ${skBar('50%', '13px')}
+                ${skBar('20%', '10px')}
+              </div>
+              ${skBar('90%', '10px', '6px')}
+              ${skBar('75%', '10px')}
+            </div>
+          `).join('')}
+        </div>
+      `;
+
+      // Announcements skeleton — 2 list items
+      document.getElementById('announcementsSection').innerHTML = `
+        <div class="item-list">
+          ${[1,2].map(() => `
+            <div class="list-item">
+              <div class="item-topline">
+                ${skBar('55%', '13px')}
+                ${skBar('18%', '10px')}
+              </div>
+              ${skBar('95%', '10px', '6px')}
+              ${skBar('80%', '10px')}
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
     async function loadPortal() {
+      // Show skeleton immediately before any network call
+      showStudentSkeletons();
+      const skeletonStart = Date.now();
+
+      // Helper: waits for remaining skeleton time then runs a fn
+      async function revealAfterMinTime(fn, extraDelay = 0) {
+        const elapsed = Date.now() - skeletonStart;
+        const wait = Math.max(0, MIN_SKELETON_MS - elapsed) + extraDelay;
+        await delay(wait);
+        fn();
+      }
+
+      let students, classes, teachers;
       try {
-        const [students, classes, teachers] = await Promise.all([
+        [students, classes, teachers] = await Promise.all([
           fetchJson(`${API}/api/students`),
           fetchJson(`${API}/api/classes`),
           fetchJson(`${API}/api/teachers`)
         ]);
+      } catch (err) {
+        await revealAfterMinTime(() => {
+          document.getElementById('studentName').textContent = 'Unable to load portal';
+          document.getElementById('studentClass').textContent = 'Please try again later';
+          ['teacherCard', 'attendanceSection', 'homeworkSection', 'announcementsSection'].forEach(id => {
+            setStateBox(id, 'fas fa-circle-exclamation', 'Data failed to load', err.message);
+          });
+        });
+        return;
+      }
 
-        const studentId = getStudentIdFromUrl();
-        const rollNo = getRollNoFromUrl();
-        if (!studentId && !rollNo) {
-          renderStudentChooser(students, classes);
-          return;
-        }
+      const studentId = getStudentIdFromUrl();
+      const rollNo = getRollNoFromUrl();
+      if (!studentId && !rollNo) {
+        await revealAfterMinTime(() => renderStudentChooser(students, classes));
+        return;
+      }
 
-        state.student = studentId
-          ? students.find(student => Number(student.id) === studentId)
-          : students.find(student => String(student.roll_no || '').toLowerCase() === rollNo.toLowerCase());
+      state.student = studentId
+        ? students.find(student => Number(student.id) === studentId)
+        : students.find(student => String(student.roll_no || '').toLowerCase() === rollNo.toLowerCase());
 
-        if (!state.student) {
+      if (!state.student) {
+        await revealAfterMinTime(() => {
           document.getElementById('studentName').textContent = 'Student not found';
           document.getElementById('studentClass').textContent = 'Check the student link';
           ['teacherCard', 'attendanceSection', 'homeworkSection', 'announcementsSection'].forEach(id => {
             setStateBox(id, 'fas fa-triangle-exclamation', 'Unable to load this section', 'The selected student could not be found.');
           });
-          return;
-        }
-
-        state.classInfo = classes.find(cls => Number(cls.id) === Number(state.student.class_id)) || null;
-        state.teacher = teachers.find(teacher => Number(teacher.class_id) === Number(state.student.class_id)) || null;
-
-        renderHeader();
-        renderTeacher();
-      } catch (err) {
-        document.getElementById('studentName').textContent = 'Unable to load portal';
-        document.getElementById('studentClass').textContent = 'Please try again later';
-        ['teacherCard', 'attendanceSection', 'homeworkSection', 'announcementsSection'].forEach(id => {
-          setStateBox(id, 'fas fa-circle-exclamation', 'Data failed to load', err.message);
         });
         return;
       }
 
+      state.classInfo = classes.find(cls => Number(cls.id) === Number(state.student.class_id)) || null;
+      state.teacher = teachers.find(teacher => Number(teacher.class_id) === Number(state.student.class_id)) || null;
+
+      // Section 1 — Teacher (0ms extra stagger, just honour MIN_SKELETON_MS)
+      await revealAfterMinTime(() => {
+        renderHeader();
+        renderTeacher();
+      }, 0);
+
+      // Section 2 — Attendance (300ms stagger after min-time)
       try {
-        const attendance = await fetchJson(`${API}/api/attendance/all`);
+        const [attendance] = await Promise.all([
+          fetchJson(`${API}/api/attendance/all`),
+          delay(300)
+        ]);
         renderAttendance(attendance);
       } catch (err) {
         setStateBox('attendanceSection', 'fas fa-circle-exclamation', 'Attendance failed to load', err.message);
       }
 
+      // Section 3 — Homework (300ms stagger after previous reveal)
+      await delay(300);
       try {
         const homework = await fetchOptional([
           `${API}/api/homework?class_id=${state.student.class_id || ''}`,
@@ -913,6 +1049,8 @@
         setStateBox('homeworkSection', 'fas fa-plug-circle-xmark', 'Homework API is not available yet', 'This section will work when the backend provides homework data.');
       }
 
+      // Section 4 — Announcements (300ms stagger after previous reveal)
+      await delay(300);
       try {
         const announcements = await fetchOptional([
           `${API}/api/announcements?class_id=${state.student.class_id || ''}`,
