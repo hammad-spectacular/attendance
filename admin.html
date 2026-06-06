@@ -1170,6 +1170,8 @@
         </div>
       </div>
       <div class="header-right">
+        <button class="btn" onclick="openChangePasswordModal()" style="padding:8px 14px;font-size:0.75rem;background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.25);color:white;border-radius:10px;font-weight:600;cursor:pointer;transition:all 0.3s ease;font-family:'Inter',sans-serif;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'"><i class="fas fa-key"></i> Change Password</button>
+        <button class="btn" onclick="handleLogout()" style="padding:8px 14px;font-size:0.75rem;background:rgba(239,68,68,0.2);border:2px solid rgba(239,68,68,0.3);color:white;border-radius:10px;font-weight:600;cursor:pointer;transition:all 0.3s ease;font-family:'Inter',sans-serif;" onmouseover="this.style.background='rgba(239,68,68,0.35)'" onmouseout="this.style.background='rgba(239,68,68,0.2)'"><i class="fas fa-sign-out-alt"></i> Logout</button>
         <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
           <i class="fas fa-moon" id="themeIcon"></i>
         </button>
@@ -1599,11 +1601,41 @@
   <div class="edit-modal" id="absenteeModal">
     <div class="edit-modal-card" style="max-width:480px;">
       <div class="edit-modal-header">
-        <h3 id="absenteeModalTitle" style="font-size:0.95rem;"><i class="fas fa-clipboard-check"
-            style="margin-right:8px; color:var(--primary);"></i>Absent Students</h3>
-        <button class="edit-modal-close" onclick="closeAbsenteeModal()" aria-label="Close absentee modal"><i
-            class="fas fa-times"></i></button>
+        <h3 id="absenteeModalTitle" style="font-size:0.95rem;"><i class="fas fa-clipboard-check" style="margin-right:8px; color:var(--primary);"></i>Absent Students</h3>
+        <button class="edit-modal-close" onclick="closeAbsenteeModal()"><i class="fas fa-times"></i></button>
       </div>
+      <div id="absenteeList" style="max-height:400px;overflow-y:auto;"></div>
+    </div>
+  </div>
+
+  <!-- ======================== CHANGE PASSWORD MODAL ======================== -->
+  <div class="edit-modal" id="changePasswordModal">
+    <div class="edit-modal-card">
+      <div class="edit-modal-header">
+        <h3><i class="fas fa-key" style="margin-right:8px; color:var(--primary);"></i>Change Password</h3>
+        <button class="edit-modal-close" onclick="closeChangePasswordModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <form id="changePwdForm" onsubmit="handleChangePassword(event)">
+        <div class="form-group">
+          <label class="form-label" for="cpCurrent">Current Password</label>
+          <input class="form-input" type="password" id="cpCurrent" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="cpNew">New Password</label>
+          <input class="form-input" type="password" id="cpNew" required minlength="6">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="cpConfirm">Confirm New Password</label>
+          <input class="form-input" type="password" id="cpConfirm" required>
+        </div>
+        <div id="cpMsg" style="padding:10px;border-radius:10px;font-size:0.8rem;font-weight:500;display:none;margin-bottom:10px;"></div>
+        <div class="edit-modal-actions">
+          <button type="submit" class="btn btn-primary" id="cpBtn" style="flex:1;justify-content:center;"><span id="cpBtnText">Change Password</span></button>
+          <button type="button" class="btn btn-ghost" onclick="closeChangePasswordModal()" style="flex:1;justify-content:center;">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
       <div id="absenteeList" style="max-height:400px;overflow-y:auto;"></div>
     </div>
   </div>
@@ -3276,19 +3308,96 @@
     }
 
     // =============================================================
-    // TOAST NOTIFICATIONS
+    // SESSION CHECK + AUTH
     // =============================================================
-    function showToast(message, type = 'info') {
-      const container = document.getElementById('toastContainer');
-      if (!container) return;
-      const toast = document.createElement('div');
-      toast.className = `toast ${type}`;
-      toast.textContent = message;
-      container.appendChild(toast);
+    async function checkSession() {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (!res.ok) { window.location.href = '/login.html'; return; }
+        const data = await res.json();
+        if (data.role !== 'admin' && data.role !== 'super_admin') { window.location.href = '/login.html'; return; }
+        if (data.is_first_login) { window.location.href = '/change-password.html'; return; }
+      } catch (e) { window.location.href = '/login.html'; }
+    }
 
-      setTimeout(() => {
-        if (toast.parentNode) toast.parentNode.removeChild(toast);
-      }, 3000);
+    async function handleLogout() {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/login.html';
+    }
+
+    // Change Password Modal
+    function openChangePasswordModal() {
+      document.getElementById('cpCurrent').value = '';
+      document.getElementById('cpNew').value = '';
+      document.getElementById('cpConfirm').value = '';
+      document.getElementById('cpMsg').style.display = 'none';
+      document.getElementById('changePasswordModal').classList.add('open');
+    }
+
+    function closeChangePasswordModal() {
+      document.getElementById('changePasswordModal').classList.remove('open');
+    }
+
+    async function handleChangePassword(e) {
+      e.preventDefault();
+      const current = document.getElementById('cpCurrent').value;
+      const newPw = document.getElementById('cpNew').value;
+      const confirm = document.getElementById('cpConfirm').value;
+      const msgEl = document.getElementById('cpMsg');
+      const btn = document.getElementById('cpBtn');
+      const btnText = document.getElementById('cpBtnText');
+
+      msgEl.style.display = 'none';
+      if (newPw !== confirm) { msgEl.textContent = 'New passwords do not match'; msgEl.style.display = 'block'; msgEl.style.cssText += 'background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);'; return; }
+      if (newPw.length < 6) { msgEl.textContent = 'Password must be at least 6 characters'; msgEl.style.display = 'block'; msgEl.style.cssText += 'background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);'; return; }
+
+      btn.disabled = true;
+      btnText.innerHTML = '<span class="spinner"></span> Saving...';
+
+      try {
+        const res = await fetch('/api/auth/change-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ current_password: current, new_password: newPw, confirm_password: confirm })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          msgEl.textContent = data.error || 'Failed to change password';
+          msgEl.style.display = 'block';
+          msgEl.style.cssText += 'background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);';
+        } else {
+          msgEl.textContent = 'Password changed successfully';
+          msgEl.style.display = 'block';
+          msgEl.style.cssText += 'background:rgba(34,197,94,0.1);color:#22c55e;border:1px solid rgba(34,197,94,0.2);';
+          setTimeout(() => closeChangePasswordModal(), 1000);
+        }
+      } catch (e) {
+        msgEl.textContent = 'Connection error. Please try again.';
+        msgEl.style.display = 'block';
+        msgEl.style.cssText += 'background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);';
+      }
+      btn.disabled = false;
+      btnText.textContent = 'Change Password';
+    }
+
+    document.getElementById('changePasswordModal').addEventListener('click', function(e) {
+      if (e.target === this) closeChangePasswordModal();
+    });
+
+
+    // =============================================================
+    // INITIALIZATION
+    // =============================================================
+    function init() {
+      checkSession().then(() => {
+        loadTheme();
+        renderTeachers();
+        renderStudents();
+        renderAttendance();
+        renderStats();
+        renderAnnouncements();
+      });
     }
 
     // =============================================================
