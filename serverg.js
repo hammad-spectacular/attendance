@@ -1,14 +1,26 @@
 const express = require('express')
 const cors = require('cors')
 const pool = require('./db')
+const path = require('path')
 require('dotenv').config()
 
 const app = express()
 
 app.use(cors({
-  origin: 'https://theeye-beta.vercel.app'
+  origin: ['https://theeye-beta.vercel.app', 'http://localhost:3000']
 }))
 app.use(express.json())
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'))
+})
+app.get('/:page.html', (req, res, next) => {
+  const safePage = req.params.page.replace(/[^a-zA-Z0-9-_]/g, '');
+  res.sendFile(path.join(__dirname, `${safePage}.html`), (err) => {
+    if (err) next();
+  });
+})
+
 app.use(express.static('public'))
 
 // ============================================
@@ -39,8 +51,11 @@ async function createTables() {
     CREATE TABLE IF NOT EXISTS attendance (
       id SERIAL PRIMARY KEY,
       student_id INTEGER REFERENCES students(id),
+      teacher_id INTEGER REFERENCES teachers(id),
       date DATE NOT NULL,
-      status VARCHAR(20) NOT NULL
+      status VARCHAR(20) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(student_id, date)
     );
 
     CREATE TABLE IF NOT EXISTS homework (
@@ -61,6 +76,11 @@ async function createTables() {
       author VARCHAR(100),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+  `)
+  await pool.query(`
+    ALTER TABLE attendance
+      ADD COLUMN IF NOT EXISTS teacher_id INTEGER REFERENCES teachers(id),
+      ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
   `)
   console.log('Tables ready')
 }
@@ -199,13 +219,49 @@ app.get('/api/attendance', async (req, res) => {
 
 app.get('/api/attendance/all', async (req, res) => {
   const result = await pool.query(`
-    SELECT attendance.*, students.name, students.roll_no, classes.name as class_name
+    SELECT
+      attendance.*,
+      students.name,
+      students.phone,
+      students.roll_no,
+      students.class_id,
+      classes.name as class_name,
+      COALESCE(marking_teacher.name, assigned_teacher.name) as marked_by,
+      COALESCE(marking_teacher.id, assigned_teacher.id) as marked_by_id
     FROM attendance
     JOIN students ON attendance.student_id = students.id
     JOIN classes ON students.class_id = classes.id
-    ORDER BY attendance.date DESC
+    LEFT JOIN teachers marking_teacher ON attendance.teacher_id = marking_teacher.id
+    LEFT JOIN teachers assigned_teacher ON assigned_teacher.class_id = students.class_id
+    ORDER BY attendance.date DESC, classes.name ASC, students.name ASC
   `)
   res.json(result.rows)
+})
+
+app.post('/api/attendance/submit', async (req, res) => {
+  try {
+    const { date, teacher_id, records } = req.body
+
+    for (const record of records) {
+      const updated = await pool.query(
+        `UPDATE attendance
+         SET teacher_id = $1, status = $2
+         WHERE student_id = $3 AND date = $4`,
+        [teacher_id || null, record.status, record.student_id, date]
+      )
+      if (updated.rowCount === 0) {
+        await pool.query(
+          `INSERT INTO attendance (student_id, teacher_id, date, status)
+           VALUES ($1, $2, $3, $4)`,
+          [record.student_id, teacher_id || null, date, record.status]
+        )
+      }
+    }
+
+    res.json({ success: true, saved: records.length })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
 })
 
 // ============================================
