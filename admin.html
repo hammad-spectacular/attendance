@@ -774,12 +774,45 @@
       from { opacity: 0; transform: scale(0.95) translateY(-10px); }
       to { opacity: 1; transform: scale(1) translateY(0); }
     }
+
+    /* ================================
+       SKELETON SHIMMER LOADERS
+       ================================ */
+    @keyframes skeleton-shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .skeleton-shimmer {
+      background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
+      background-size: 200% 100%;
+      animation: skeleton-shimmer 1.6s infinite linear;
+      border-color: transparent !important;
+    }
+    [data-theme="light"] .skeleton-shimmer {
+      background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+      background-size: 200% 100%;
+    }
+    .skeleton-text {
+      height: 12px;
+      border-radius: 4px;
+      background-color: var(--border);
+      display: inline-block;
+      opacity: 0.6;
+    }
+    .skeleton-circle {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background-color: var(--border);
+      display: inline-block;
+      opacity: 0.6;
+    }
   </style>
 </head>
 <body>
 
   <!-- ======================== LOADING OVERLAY ======================== -->
-  <div id="loadingOverlay" style="position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(8px); transition: opacity 0.4s ease;">
+  <div id="loadingOverlay" style="position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: none; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(8px); transition: opacity 0.4s ease;">
     <div style="text-align: center;">
       <div class="loader-spinner" style="width: 50px; height: 50px; border: 4px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
       <div style="font-weight: 700; font-size: 1.1rem; color: var(--text); margin-bottom: 8px;">Loading Database</div>
@@ -954,7 +987,7 @@
               <input type="text" id="studentSearchInput" class="form-input" placeholder="🔍 Search by name or roll number..." oninput="filterStudents()">
             </div>
             <div style="width:200px; min-width:150px;">
-              <select id="studentClassFilter" class="form-input" onchange="filterStudents()">
+              <select id="studentClassFilter" class="form-input" onchange="filterStudents()" aria-label="Filter students by class">
                 <option value="">All Classes</option>
                 <option value="unassigned">Unassigned</option>
               </select>
@@ -1051,9 +1084,9 @@
     <div class="edit-modal-card">
       <div class="edit-modal-header">
         <h3><i class="fas fa-pen" style="margin-right:8px; color:var(--primary);"></i>Edit Teacher</h3>
-        <button class="edit-modal-close" onclick="closeEditTeacherModal()"><i class="fas fa-times"></i></button>
+        <button class="edit-modal-close" onclick="closeEditTeacherModal()" aria-label="Close edit teacher modal"><i class="fas fa-times"></i></button>
       </div>
-      <input type="hidden" id="editTeacherIndex">
+      <input type="hidden" id="editTeacherIndex" aria-label="Hidden teacher index">
       <div class="form-group">
         <label class="form-label" for="editTeacherName">Teacher Name</label>
         <input class="form-input" type="text" id="editTeacherName" placeholder="e.g. Mr Khan">
@@ -1080,9 +1113,9 @@
     <div class="edit-modal-card">
       <div class="edit-modal-header">
         <h3><i class="fas fa-pen" style="margin-right:8px; color:var(--primary);"></i>Edit Student</h3>
-        <button class="edit-modal-close" onclick="closeEditStudentModal()"><i class="fas fa-times"></i></button>
+        <button class="edit-modal-close" onclick="closeEditStudentModal()" aria-label="Close edit student modal"><i class="fas fa-times"></i></button>
       </div>
-      <input type="hidden" id="editStudentId">
+      <input type="hidden" id="editStudentId" aria-label="Hidden student ID">
       <div class="form-group">
         <label class="form-label" for="editStudentName">Student Name</label>
         <input class="form-input" type="text" id="editStudentName" placeholder="e.g. Ali Hassan">
@@ -1107,7 +1140,7 @@
     <div class="edit-modal-card" style="max-width:480px;">
       <div class="edit-modal-header">
         <h3 id="absenteeModalTitle" style="font-size:0.95rem;"><i class="fas fa-clipboard-check" style="margin-right:8px; color:var(--primary);"></i>Absent Students</h3>
-        <button class="edit-modal-close" onclick="closeAbsenteeModal()"><i class="fas fa-times"></i></button>
+        <button class="edit-modal-close" onclick="closeAbsenteeModal()" aria-label="Close absentee modal"><i class="fas fa-times"></i></button>
       </div>
       <div id="absenteeList" style="max-height:400px;overflow-y:auto;"></div>
     </div>
@@ -1191,7 +1224,24 @@
     // =============================================================
     // DATA FETCHING & PARALLEL LOADING (Option A)
     // =============================================================
+    const MIN_SKELETON_MS = 600; // minimum shimmer display time
+
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
     async function reloadAllData(isInitial = false) {
+      // Show high-fidelity shimmer skeletons immediately
+      showAdminSkeletons();
+      const skeletonStart = Date.now();
+
+      async function revealAfterMinTime(fn, extraDelay = 0) {
+        const elapsed = Date.now() - skeletonStart;
+        const wait = Math.max(0, MIN_SKELETON_MS - elapsed) + extraDelay;
+        await delay(wait);
+        fn();
+      }
+
       try {
         const [teachers, classes, students, rawAttendance] = await Promise.all([
           fetch(`${API}/api/teachers`).then(r => r.json()),
@@ -1218,17 +1268,22 @@
         
         window.appData.attendance = groupAttendanceRecords(rawAttendance);
 
-        // Populate dashboard components
-        await populateClassDropdown(classes);
-        renderClasses();
-        renderTeachers();
-        filterStudents(); // calls renderStudents with current search/filter
+        // Staggered section reveals with min skeleton time
+        await revealAfterMinTime(() => {
+          populateClassDropdown(classes);
+          renderClasses();
+          renderTeachers();
+          filterStudents();
+        }, 0);
+
+        await delay(300);
         renderAttendance();
+
+        await delay(300);
         renderStats();
         renderAnnouncements();
 
         if (isInitial) {
-          // Fade out global loader overlay
           const loader = document.getElementById('loadingOverlay');
           if (loader) {
             loader.style.opacity = '0';
@@ -1241,18 +1296,75 @@
         if (isInitial) {
           const loader = document.getElementById('loadingOverlay');
           if (loader) {
+            loader.style.display = 'flex';
+            loader.style.opacity = '1';
             loader.innerHTML = `
               <div style="text-align: center; color: var(--danger); padding: 24px; max-width: 400px; background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border); box-shadow: var(--shadow-lg);">
                 <div style="font-size: 2.5rem; margin-bottom: 12px;">⚠️</div>
                 <div style="font-weight: 700; font-size: 1.2rem; margin-bottom: 8px; color: var(--text);">Database Connection Failed</div>
                 <div style="font-size: 0.82rem; margin-bottom: 20px; color: var(--text-secondary); line-height: 1.5;">${escapeHtml(err.message)}</div>
                 <button onclick="location.reload()" class="btn btn-primary" style="width: 100%;">
-                  <i class="fas fa-redo"></i> Retry Connection
+                   <i class="fas fa-redo"></i> Retry Connection
                 </button>
               </div>`;
           }
         }
       }
+    }
+
+    function showAdminSkeletons() {
+      document.getElementById('classesTableWrap').innerHTML = getTableSkeletonHtml(5, 4);
+      document.getElementById('teachersTableWrap').innerHTML = getTableSkeletonHtml(5, 5);
+      document.getElementById('studentsTableWrap').innerHTML = getTableSkeletonHtml(6, 6);
+      document.getElementById('attendanceTableWrap').innerHTML = getTableSkeletonHtml(7, 5);
+      document.getElementById('statsTableWrap').innerHTML = getTableSkeletonHtml(7, 5);
+      document.getElementById('announcementsList').innerHTML = getAnnouncementsSkeletonHtml(3);
+    }
+
+    function getTableSkeletonHtml(cols = 4, rows = 5) {
+      let html = `
+        <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>`;
+      for (let i = 0; i < cols; i++) {
+        html += `<th><div class="skeleton-text skeleton-shimmer" style="width: 70px; height: 12px; display: inline-block;"></div></th>`;
+      }
+      html += `</tr>
+          </thead>
+          <tbody>`;
+      for (let r = 0; r < rows; r++) {
+        html += `<tr>`;
+        for (let c = 0; c < cols; c++) {
+          const width = 45 + Math.floor(Math.random() * 50);
+          if (c === 0 && cols > 4) { // Render round avatar skeleton in first column sometimes
+            html += `<td>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div class="skeleton-circle skeleton-shimmer" style="width:24px; height:24px; flex-shrink:0;"></div>
+                <div class="skeleton-text skeleton-shimmer" style="width: ${width}px; height: 12px;"></div>
+              </div>
+            </td>`;
+          } else {
+            html += `<td><div class="skeleton-text skeleton-shimmer" style="width: ${width}px; height: 12px;"></div></td>`;
+          }
+        }
+        html += `</tr>`;
+      }
+      html += `</tbody></table></div>`;
+      return html;
+    }
+
+    function getAnnouncementsSkeletonHtml(count = 3) {
+      let html = '<ul class="announcement-list">';
+      for (let i = 0; i < count; i++) {
+        html += `
+          <li class="announcement-item" style="opacity: 0.85;">
+            <div class="skeleton-text skeleton-shimmer" style="width: 80px; height: 20px; border-radius: 6px; margin-right: 12px; flex-shrink:0;"></div>
+            <div class="skeleton-text skeleton-shimmer" style="flex:1; height: 14px; border-radius: 4px;"></div>
+          </li>`;
+      }
+      html += '</ul>';
+      return html;
     }
 
     function groupAttendanceRecords(flatRecords) {
@@ -1344,7 +1456,7 @@
             </td>
             <td style="text-align:center; font-weight:700;">${studentCount}</td>
             <td style="text-align:left;">
-              <select class="form-input" style="padding: 5px 8px; font-size: 0.8rem; height: auto; width: 100%; max-width: 170px;" onchange="assignTeacherInline(${cls.id}, this.value)">
+              <select class="form-input" style="padding: 5px 8px; font-size: 0.8rem; height: auto; width: 100%; max-width: 170px;" onchange="assignTeacherInline(${cls.id}, this.value)" aria-label="Assign teacher inline">
                 <option value="">-- Unassigned --</option>
                 ${teachers
                   .map(t => `<option value="${t.id}" ${t.class_id === cls.id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`)
@@ -1520,8 +1632,8 @@
                 <button onclick="openEditTeacherModal(${t.id})" class="btn-edit" title="Edit teacher details">
                   <i class="fas fa-pen"></i>
                 </button>
-                <button onclick="deleteTeacher(${t.id})" class="announcement-delete" style="opacity:1;" title="Remove teacher">
-                  <i class="fas fa-trash-alt"></i>
+                <button onclick="deleteTeacher(${t.id})" class="announcement-delete" style="opacity:1;" title="Remove teacher" aria-label="Delete">
+                  <i class="fas fa-trash-alt"></i><span style="position: absolute; left: -9999px;">Delete</span>
                 </button>
               </div>
             </td>
@@ -1685,8 +1797,8 @@
                 <button onclick="openEditStudentModal(${s.id})" class="btn-edit" title="Edit student details">
                   <i class="fas fa-pen"></i>
                 </button>
-                <button class="announcement-delete" style="opacity:1;" onclick="deleteStudent(${s.id})" title="Remove Student">
-                  <i class="fas fa-trash"></i>
+                <button class="announcement-delete" style="opacity:1;" onclick="deleteStudent(${s.id})" title="Remove Student" aria-label="Delete">
+                  <i class="fas fa-trash"></i><span style="position: absolute; left: -9999px;">Delete</span>
                 </button>
               </div>
             </td>
