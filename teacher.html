@@ -922,7 +922,7 @@
     // DATA LAYER
     // Store student data in an array of objects.
     // TODO: In future, replace this static array with an API call
-    //       e.g., fetch('/api/students').then(res => res.json())
+    //       e.g., fetch('https://attendance-production-fb0b.up.railway.app/api/students').then(res => res.json())
     // =============================================================
     let students = [];
 
@@ -950,7 +950,7 @@
      * Persists attendance data to localStorage.
      *
      * TODO: Replace with API call:
-     *       fetch('/api/attendance/save', {
+     *       fetch('https://attendance-production-fb0b.up.railway.app/api/attendance/save', {
      *         method: 'POST',
      *         headers: { 'Content-Type': 'application/json' },
      *         body: JSON.stringify(todayData)
@@ -1282,7 +1282,7 @@
      *
      * TODO: In future, this function can also push the change
      *       to a backend via API call:
-     *       fetch('/api/attendance', { method: 'POST', body: ... })
+     *       fetch('https://attendance-production-fb0b.up.railway.app/api/attendance', { method: 'POST', body: ... })
      */
     function markAttendance(id, status) {
       // Toggle: if same status clicked again, unmark
@@ -1702,7 +1702,7 @@
     // =============================================================
     async function checkSession() {
       try {
-        const res = await fetch('/api/auth/me');
+        const res = await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/me');
         if (!res.ok) { window.location.href = '/login.html'; return; }
         const data = await res.json();
         if (data.role !== 'teacher') { window.location.href = '/login.html'; return; }
@@ -1711,7 +1711,7 @@
     }
 
     async function handleLogout() {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/logout', { method: 'POST' });
       window.location.href = '/login.html';
     }
 
@@ -1744,7 +1744,7 @@
       btnText.innerHTML = 'Saving...';
 
       try {
-        const res = await fetch('/api/auth/change-password', {
+        const res = await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/change-password', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ current_password: current, new_password: newPw, confirm_password: confirm })
