@@ -3312,7 +3312,7 @@
     // =============================================================
     async function checkSession() {
       try {
-        const res = await fetch('/api/auth/me');
+        const res = await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/me');
         if (!res.ok) { window.location.href = '/login.html'; return; }
         const data = await res.json();
         if (data.role !== 'admin' && data.role !== 'super_admin') { window.location.href = '/login.html'; return; }
@@ -3321,7 +3321,7 @@
     }
 
     async function handleLogout() {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/logout', { method: 'POST' });
       window.location.href = '/login.html';
     }
 
@@ -3355,7 +3355,7 @@
       btnText.innerHTML = '<span class="spinner"></span> Saving...';
 
       try {
-        const res = await fetch('/api/auth/change-password', {
+        const res = await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/change-password', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ current_password: current, new_password: newPw, confirm_password: confirm })
