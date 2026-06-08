@@ -9,11 +9,12 @@ function requireAuth(allowedRoles = []) {
     }
 
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET)
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-change-me')
       req.user = {
         user_id: decoded.user_id,
         role: decoded.role,
-        tenant_id: decoded.tenant_id
+        tenant_id: decoded.tenant_id,
+        login_id: decoded.login_id
       }
 
       if (allowedRoles.length > 0 && !allowedRoles.includes(decoded.role)) {
