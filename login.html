@@ -200,7 +200,7 @@ async function handleLogin(e) {
   btnText.innerHTML = '<span class="spinner"></span> Signing in...';
 
   try {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ full_id: fullId, password })
