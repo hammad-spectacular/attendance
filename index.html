@@ -275,12 +275,15 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
   btn.innerHTML = '<span class="spinner"></span> Signing in...';
 
   try {
-    const res = await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/login', {
+    const res = await fetch('/api/auth/login', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tenant_id, login_id, password })
     });
-    const data = await res.json();
+    const text = await res.text();
+    let data = {};
+    try { data = text ? JSON.parse(text) : {}; } catch { throw new Error(`Server error (${res.status})`); }
 
     if (!res.ok) {
       errorEl.textContent = data.error || 'Login failed. Please try again.';
