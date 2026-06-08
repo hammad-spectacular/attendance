@@ -1645,9 +1645,7 @@
     // =============================================================
     // API CONFIGURATION (Automatic Localhost / Production Detection)
     // =============================================================
-    const API = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-      ? window.location.origin
-      : 'https://attendance-production-fb0b.up.railway.app';
+    const API = '';
 
     // Local storage keys for features that remain frontend-only (like announcements)
     const KEYS = {
@@ -1760,10 +1758,10 @@
       try {
         window.appData.attendanceLoadError = '';
         const [teachers, classes, students, rawAttendance] = await Promise.all([
-          fetch(`${API}/api/teachers`).then(r => r.json()),
-          fetch(`${API}/api/classes`).then(r => r.json()),
-          fetch(`${API}/api/students`).then(r => r.json()),
-          fetch(`${API}/api/attendance/all`).then(r => {
+          fetch('/api/teachers', { credentials: 'include' }).then(r => r.json()),
+          fetch('/api/classes', { credentials: 'include' }).then(r => r.json()),
+          fetch('/api/students', { credentials: 'include' }).then(r => r.json()),
+          fetch('/api/attendance/all', { credentials: 'include' }).then(r => {
             if (!r.ok) throw new Error('Attendance failed to load');
             return r.json();
           }).catch(err => {
@@ -2079,7 +2077,8 @@
       }
 
       try {
-        const response = await fetch(`${API}/api/classes/${classId}/assign-teacher`, {
+        const response = await fetch(`/api/classes/${classId}/assign-teacher`, {
+          credentials: 'include',
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ teacher_id: teacherId ? parseInt(teacherId) : null })
@@ -2133,7 +2132,8 @@
       }
 
       try {
-        const response = await fetch(`${API}/api/classes`, {
+        const response = await fetch('/api/classes', {
+          credentials: 'include',
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, section: section || null })
@@ -2275,18 +2275,19 @@
       }
 
       try {
-        const response = await fetch(`${API}/api/teachers`, {
+        const response = await fetch('/api/auth/create-teacher', {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, phone: phone || null, class_id: classId || null })
         });
-
-        if (!response.ok) throw new Error('Failed to add teacher');
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to add teacher');
 
         clearTeacherForm();
         toggleAddTeacher();
         await reloadAllData();
-        showToast('✅ Teacher added successfully', 'success');
+        alert(`Teacher created!\n\nTeacher ID: ${data.teacher_id}\nTemp Password: ${data.temp_password}\n\nCopy this now — it will not be shown again.`);
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       }
@@ -2295,7 +2296,7 @@
     async function deleteTeacher(id) {
       if (!confirm('Remove this teacher?')) return;
       try {
-        const response = await fetch(`${API}/api/teachers/${id}`, { method: 'DELETE' });
+        const response = await fetch(`/api/teachers/${id}`, { method: 'DELETE', credentials: 'include' });
         if (!response.ok) throw new Error('Failed to delete teacher');
         await reloadAllData();
         showToast('🗑️ Teacher removed', 'info');
@@ -2478,22 +2479,23 @@
       }
 
       try {
-        const response = await fetch(`${API}/api/students`, {
+        const response = await fetch('/api/auth/create-student', {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name,
             roll_no: rollNo,
             phone: phone || null,
-            class_id: null // initially unassigned
+            class_id: null
           })
         });
-
-        if (!response.ok) throw new Error('Failed to save student');
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to save student');
 
         toggleAddStudent();
         await reloadAllData();
-        showToast('✅ Student added successfully', 'success');
+        alert(`Student created!\n\nStudent ID: ${data.student_id}\nTemp Password: ${data.temp_password}\n\nCopy this now — it will not be shown again.`);
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       }
@@ -2502,7 +2504,7 @@
     async function deleteStudent(id) {
       if (!confirm('Remove this student?')) return;
       try {
-        const response = await fetch(`${API}/api/students/${id}`, { method: 'DELETE' });
+        const response = await fetch(`/api/students/${id}`, { method: 'DELETE', credentials: 'include' });
         if (!response.ok) throw new Error('Failed to delete student');
         await reloadAllData();
         showToast('🗑️ Student removed', 'info');
@@ -2871,7 +2873,8 @@
         return;
       }
 
-      const response = await fetch(`${API}/api/announcements`, {
+      const response = await fetch('/api/announcements', {
+        credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2889,7 +2892,7 @@
     }
 
     async function deleteAnnouncement(id) {
-      const response = await fetch(`${API}/api/announcements/${id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/announcements/${id}`, { method: 'DELETE', credentials: 'include' });
       if (!response.ok) {
         showToast('Failed to remove announcement', 'error');
         return;
@@ -2903,7 +2906,7 @@
       let announcements = [];
 
       try {
-        announcements = await fetch(`${API}/api/announcements?t=${Date.now()}`).then(r => r.json());
+        announcements = await fetch(`/api/announcements?t=${Date.now()}`, { credentials: 'include' }).then(r => r.json());
         announcements = announcements.filter(a => !a.class_id);
       } catch (err) {
         container.innerHTML = `
@@ -3203,7 +3206,8 @@
       button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
 
       try {
-        const response = await fetch(`${API}/api/announcements`, {
+        const response = await fetch('/api/announcements', {
+        credentials: 'include',
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -3235,7 +3239,7 @@
       let announcements = [];
 
       try {
-        announcements = await fetch(`${API}/api/announcements?t=${Date.now()}`).then(r => {
+        announcements = await fetch(`/api/announcements?t=${Date.now()}`, { credentials: 'include' }).then(r => {
           if (!r.ok) throw new Error('Announcements failed to load');
           return r.json();
         });
@@ -3312,7 +3316,7 @@
     // =============================================================
     async function checkSession() {
       try {
-        const res = await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/me');
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
         if (!res.ok) { window.location.href = '/login.html'; return; }
         const data = await res.json();
         if (data.role !== 'admin' && data.role !== 'super_admin') { window.location.href = '/login.html'; return; }
@@ -3321,7 +3325,7 @@
     }
 
     async function handleLogout() {
-      await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/logout', { method: 'POST' });
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
       window.location.href = '/login.html';
     }
 
@@ -3355,8 +3359,9 @@
       btnText.innerHTML = '<span class="spinner"></span> Saving...';
 
       try {
-        const res = await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/change-password', {
+        const res = await fetch('/api/auth/change-password', {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ current_password: current, new_password: newPw, confirm_password: confirm })
         });
@@ -3455,7 +3460,8 @@
       }
 
       try {
-        const response = await fetch(`${API}/api/teachers/${id}`, {
+        const response = await fetch(`/api/teachers/${id}`, {
+          credentials: 'include',
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, phone: phone || null, class_id: classId || null })
@@ -3514,7 +3520,8 @@
       const classId = existing ? existing.class_id : null;
 
       try {
-        const response = await fetch(`${API}/api/students/${id}`, {
+        const response = await fetch(`/api/students/${id}`, {
+          credentials: 'include',
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, roll_no: rollNo, phone: phone || null, class_id: classId })
@@ -3727,7 +3734,8 @@
       try {
         if (activeTabId === 'tab-teachers') {
           for (let [id, data] of dirtyState['tab-teachers']) {
-            await fetch(`${API}/api/teachers/${id}`, {
+            await fetch(`/api/teachers/${id}`, {
+              credentials: 'include',
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(data.current)
@@ -3737,7 +3745,8 @@
           await reloadAllData(false, true); // force fetch
         } else if (activeTabId === 'tab-students') {
           for (let [id, data] of dirtyState['tab-students']) {
-            await fetch(`${API}/api/students/${id}`, {
+            await fetch(`/api/students/${id}`, {
+              credentials: 'include',
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(data.current)
