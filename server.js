@@ -12,7 +12,8 @@ const pool = new Pool({
 const app = express()
 
 app.use(cors({
-  origin: ['https://theeye-beta.vercel.app', 'http://localhost:3000']
+  origin: ['https://theeye-beta.vercel.app', 'http://localhost:3000'],
+  credentials: true
 }))
 app.use(express.json())
 
@@ -59,7 +60,6 @@ async function createTables() {
     CREATE TABLE IF NOT EXISTS attendance (
       id SERIAL PRIMARY KEY,
       student_id INTEGER REFERENCES students(id) ON DELETE CASCADE,
-      teacher_id INTEGER REFERENCES teachers(id) ON DELETE SET NULL,
       date DATE NOT NULL,
       status VARCHAR(20) NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -84,11 +84,6 @@ async function createTables() {
       author VARCHAR(100),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
-  `)
-  await pool.query(`
-    ALTER TABLE attendance
-      ADD COLUMN IF NOT EXISTS teacher_id INTEGER REFERENCES teachers(id) ON DELETE SET NULL,
-      ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
   `)
   console.log('✅ Tables ready')
 }
@@ -330,21 +325,11 @@ app.get('/api/attendance', async (req, res) => {
 app.get('/api/attendance/all', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT
-        attendance.*,
-        students.name,
-        students.phone,
-        students.roll_no,
-        students.class_id,
-        classes.name as class_name,
-        COALESCE(marking_teacher.name, assigned_teacher.name) as marked_by,
-        COALESCE(marking_teacher.id, assigned_teacher.id) as marked_by_id
+      SELECT attendance.*, students.name, students.roll_no, classes.name as class_name
       FROM attendance
       JOIN students ON attendance.student_id = students.id
       JOIN classes ON students.class_id = classes.id
-      LEFT JOIN teachers marking_teacher ON attendance.teacher_id = marking_teacher.id
-      LEFT JOIN teachers assigned_teacher ON assigned_teacher.class_id = students.class_id
-      ORDER BY attendance.date DESC, classes.name ASC, students.name ASC
+      ORDER BY attendance.date DESC
     `)
     res.json(result.rows)
   } catch (err) {
@@ -354,24 +339,17 @@ app.get('/api/attendance/all', async (req, res) => {
 
 app.post('/api/attendance/submit', async (req, res) => {
   try {
-    const { date, class_id, teacher_id, records } = req.body
+    const { date, class_id, records } = req.body
     // records = [{student_id, name, phone, status}]
 
     // Save each record to database
     for (const record of records) {
-      const updated = await pool.query(
-        `UPDATE attendance
-         SET teacher_id = $1, status = $2
-         WHERE student_id = $3 AND date = $4`,
-        [teacher_id || null, record.status, record.student_id, date]
+      await pool.query(
+        `INSERT INTO attendance (student_id, date, status)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (student_id, date) DO UPDATE SET status = EXCLUDED.status`,
+        [record.student_id, date, record.status]
       )
-      if (updated.rowCount === 0) {
-        await pool.query(
-          `INSERT INTO attendance (student_id, teacher_id, date, status)
-           VALUES ($1, $2, $3, $4)`,
-          [record.student_id, teacher_id || null, date, record.status]
-        )
-      }
     }
 
     // Send SMS to absent students
