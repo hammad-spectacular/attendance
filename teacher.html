@@ -922,7 +922,7 @@
     // DATA LAYER
     // Store student data in an array of objects.
     // TODO: In future, replace this static array with an API call
-    //       e.g., fetch('https://attendance-production-fb0b.up.railway.app/api/students').then(res => res.json())
+    //       e.g., fetch('/api/students').then(res => res.json())
     // =============================================================
     let students = [];
 
@@ -950,7 +950,7 @@
      * Persists attendance data to localStorage.
      *
      * TODO: Replace with API call:
-     *       fetch('https://attendance-production-fb0b.up.railway.app/api/attendance/save', {
+     *       fetch('/api/attendance/save', {
      *         method: 'POST',
      *         headers: { 'Content-Type': 'application/json' },
      *         body: JSON.stringify(todayData)
@@ -1282,7 +1282,7 @@
      *
      * TODO: In future, this function can also push the change
      *       to a backend via API call:
-     *       fetch('https://attendance-production-fb0b.up.railway.app/api/attendance', { method: 'POST', body: ... })
+     *       fetch('/api/attendance', { method: 'POST', body: ... })
      */
     function markAttendance(id, status) {
       // Toggle: if same status clicked again, unmark
@@ -1424,8 +1424,9 @@
       showSmsOverlay('pending');
 
       // 6. Send to Express server
-      fetch(`${API}/api/attendance/submit`, {
+      fetch('/api/attendance/submit', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           date: today,
@@ -1702,7 +1703,7 @@
     // =============================================================
     async function checkSession() {
       try {
-        const res = await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/me');
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
         if (!res.ok) { window.location.href = '/login.html'; return; }
         const data = await res.json();
         if (data.role !== 'teacher') { window.location.href = '/login.html'; return; }
@@ -1711,7 +1712,7 @@
     }
 
     async function handleLogout() {
-      await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/logout', { method: 'POST' });
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
       window.location.href = '/login.html';
     }
 
@@ -1744,8 +1745,9 @@
       btnText.innerHTML = 'Saving...';
 
       try {
-        const res = await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/change-password', {
+        const res = await fetch('/api/auth/change-password', {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ current_password: current, new_password: newPw, confirm_password: confirm })
         });
@@ -1791,9 +1793,7 @@
     // =============================================================
     // API CONFIGURATION (Automatic Localhost / Production Detection)
     // =============================================================
-    const API = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-      ? window.location.origin
-      : 'https://attendance-production-fb0b.up.railway.app';
+    const API = '';
 
     // ============================================================
     // SKELETON HELPERS
@@ -1861,9 +1861,9 @@
 
       try {
         const [teachers, classes, allStudents] = await Promise.all([
-          fetch(`${API}/api/teachers`).then(r => r.json()),
-          fetch(`${API}/api/classes`).then(r => r.json()),
-          fetch(`${API}/api/students`).then(r => r.json())
+          fetch('/api/teachers', { credentials: 'include' }).then(r => r.json()),
+          fetch('/api/classes', { credentials: 'include' }).then(r => r.json()),
+          fetch('/api/students', { credentials: 'include' }).then(r => r.json())
         ]);
 
         const teacher = teachers.find(t => t.id === teacherId);
@@ -1937,7 +1937,7 @@
       const btn = modal.querySelector('button');
       
       try {
-        const teachers = await fetch(`${API}/api/teachers`).then(r => r.json());
+        const teachers = await fetch('/api/teachers', { credentials: 'include' }).then(r => r.json());
 
         if (!Array.isArray(teachers) || teachers.length === 0) {
           dropdown.style.display = 'none';
@@ -2038,7 +2038,7 @@
       let items = [];
       try {
         const [res] = await Promise.all([
-          fetch(`${API}/api/announcements`).then(r => r.json()),
+          fetch('/api/announcements', { credentials: 'include' }).then(r => r.json()),
           new Promise(r => setTimeout(r, 600)) // ensure shimmer shows
         ]);
         items = res.filter(item => !item.class_id);
@@ -2080,8 +2080,9 @@
       }
       
       try {
-        const response = await fetch(`${API}/api/announcements`, {
+        const response = await fetch('/api/announcements', {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             title: 'Class Announcement',
@@ -2111,7 +2112,7 @@
       let myItems = [];
       try {
         const [items] = await Promise.all([
-          fetch(`${API}/api/announcements?class_id=${currentClass ? currentClass.id : ''}`).then(r => r.json()),
+          fetch(`/api/announcements?class_id=${currentClass ? currentClass.id : ''}`, { credentials: 'include' }).then(r => r.json()),
           new Promise(r => setTimeout(r, 600))
         ]);
         myItems = items.filter(item => Number(item.class_id) === Number(currentClass.id));
@@ -2148,8 +2149,9 @@
       }
       
       try {
-        const response = await fetch(`${API}/api/homework`, {
+        const response = await fetch('/api/homework', {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             subject,
@@ -2233,7 +2235,7 @@
 
       try {
         const [items] = await Promise.all([
-          fetch(`${API}/api/homework?class_id=${currentClass ? currentClass.id : ''}`).then(r => r.json()),
+          fetch(`/api/homework?class_id=${currentClass ? currentClass.id : ''}`, { credentials: 'include' }).then(r => r.json()),
           new Promise(r => setTimeout(r, 600))
         ]);
         myItems = items;
@@ -2326,6 +2328,7 @@
     function init() {
       // Session check first
       checkSession().then(() => {
+        setupSectionTabs();
         // Load theme preference
         loadTheme();
 
