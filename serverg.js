@@ -236,7 +236,7 @@ app.post('/api/auth/login', async (req, res) => {
     res.cookie('auth_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: 8 * 60 * 60 * 1000
     })
 
@@ -258,8 +258,8 @@ app.post('/api/auth/change-password', requireAuth(), async (req, res) => {
   try {
     const { current_password, new_password, confirm_password } = req.body
 
-    if (!current_password || !new_password || !confirm_password) {
-      return res.status(400).json({ error: 'All fields are required' })
+    if (!new_password || !confirm_password) {
+      return res.status(400).json({ error: 'New password and confirmation are required' })
     }
 
     if (new_password !== confirm_password) {
@@ -270,7 +270,7 @@ app.post('/api/auth/change-password', requireAuth(), async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters' })
     }
 
-    const { user_id, role, tenant_id } = req.user
+    const { user_id, role, tenant_id, login_id } = req.user
     let table = ''
 
     if (role === 'super_admin' || role === 'admin') table = 'admins'
@@ -287,9 +287,16 @@ app.post('/api/auth/change-password', requireAuth(), async (req, res) => {
       return res.status(404).json({ error: 'User not found' })
     }
 
-    const validCurrent = await bcrypt.compare(current_password, result.rows[0].password_hash)
-    if (!validCurrent) {
-      return res.status(400).json({ error: 'Current password is incorrect' })
+    const user = result.rows[0]
+
+    if (!user.is_first_login) {
+      if (!current_password) {
+        return res.status(400).json({ error: 'Current password is required' })
+      }
+      const validCurrent = await bcrypt.compare(current_password, user.password_hash)
+      if (!validCurrent) {
+        return res.status(400).json({ error: 'Current password is incorrect' })
+      }
     }
 
     const newHash = await bcrypt.hash(new_password, BCRYPT_ROUNDS)
@@ -298,6 +305,25 @@ app.post('/api/auth/change-password', requireAuth(), async (req, res) => {
       `UPDATE ${table} SET password_hash = $1, is_first_login = false WHERE id = $2`,
       [newHash, user_id]
     )
+
+    const token = jwt.sign(
+      {
+        user_id,
+        role,
+        tenant_id,
+        login_id: login_id || user.login_id,
+        is_first_login: false
+      },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRY }
+    )
+
+    res.cookie('auth_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 8 * 60 * 60 * 1000
+    })
 
     res.json({ success: true, message: 'Password changed successfully' })
   } catch (err) {
@@ -562,7 +588,8 @@ app.post('/api/classes', requireAuth(['admin', 'super_admin']), async (req, res)
 })
 
 app.delete('/api/classes/:id', requireAuth(['admin', 'super_admin']), async (req, res) => {
-  await pool.query('DELETE FROM classes WHERE id = $1', [req.params.id])
+  const tenant_id = req.user.tenant_id
+  await pool.query('DELETE FROM classes WHERE id = $1 AND tenant_id = $2', [req.params.id, tenant_id])
   res.json({ success: true })
 })
 
@@ -591,15 +618,17 @@ app.post('/api/teachers', requireAuth(['admin', 'super_admin']), async (req, res
 
 app.put('/api/teachers/:id', requireAuth(['admin', 'super_admin']), async (req, res) => {
   const { name, phone, class_id } = req.body
+  const tenant_id = req.user.tenant_id
   const result = await pool.query(
-    'UPDATE teachers SET name=$1, phone=$2, class_id=$3 WHERE id=$4 RETURNING *',
-    [name, phone, class_id, req.params.id]
+    'UPDATE teachers SET name=$1, phone=$2, class_id=$3 WHERE id=$4 AND tenant_id=$5 RETURNING *',
+    [name, phone, class_id, req.params.id, tenant_id]
   )
   res.json(result.rows[0])
 })
 
 app.delete('/api/teachers/:id', requireAuth(['admin', 'super_admin']), async (req, res) => {
-  await pool.query('DELETE FROM teachers WHERE id = $1', [req.params.id])
+  const tenant_id = req.user.tenant_id
+  await pool.query('DELETE FROM teachers WHERE id = $1 AND tenant_id = $2', [req.params.id, tenant_id])
   res.json({ success: true })
 })
 
@@ -623,7 +652,8 @@ app.get('/api/students', requireAuth(['admin', 'teacher', 'student', 'super_admi
 })
 
 app.get('/api/students/:id', requireAuth(['admin', 'teacher', 'super_admin']), async (req, res) => {
-  const result = await pool.query('SELECT * FROM students WHERE id = $1', [req.params.id])
+  const tenant_id = req.user.tenant_id
+  const result = await pool.query('SELECT * FROM students WHERE id = $1 AND tenant_id = $2', [req.params.id, tenant_id])
   if (result.rows.length === 0) return res.status(404).json({ error: 'Student not found' })
   res.json(result.rows[0])
 })
@@ -640,15 +670,17 @@ app.post('/api/students', requireAuth(['admin', 'super_admin']), async (req, res
 
 app.put('/api/students/:id', requireAuth(['admin', 'super_admin']), async (req, res) => {
   const { name, roll_no, phone, class_id } = req.body
+  const tenant_id = req.user.tenant_id
   const result = await pool.query(
-    'UPDATE students SET name=$1, roll_no=$2, phone=$3, class_id=$4 WHERE id=$5 RETURNING *',
-    [name, roll_no, phone, class_id, req.params.id]
+    'UPDATE students SET name=$1, roll_no=$2, phone=$3, class_id=$4 WHERE id=$5 AND tenant_id=$6 RETURNING *',
+    [name, roll_no, phone, class_id, req.params.id, tenant_id]
   )
   res.json(result.rows[0])
 })
 
 app.delete('/api/students/:id', requireAuth(['admin', 'super_admin']), async (req, res) => {
-  await pool.query('DELETE FROM students WHERE id = $1', [req.params.id])
+  const tenant_id = req.user.tenant_id
+  await pool.query('DELETE FROM students WHERE id = $1 AND tenant_id = $2', [req.params.id, tenant_id])
   res.json({ success: true })
 })
 
@@ -772,7 +804,8 @@ app.post('/api/homework', requireAuth(['teacher', 'admin']), async (req, res) =>
 })
 
 app.delete('/api/homework/:id', requireAuth(['teacher', 'admin']), async (req, res) => {
-  await pool.query('DELETE FROM homework WHERE id = $1', [req.params.id])
+  const tenant_id = req.user.tenant_id
+  await pool.query('DELETE FROM homework WHERE id = $1 AND tenant_id = $2', [req.params.id, tenant_id])
   res.json({ success: true })
 })
 
@@ -818,7 +851,8 @@ app.post('/api/announcements', requireAuth(['admin', 'teacher', 'super_admin']),
 })
 
 app.delete('/api/announcements/:id', requireAuth(['admin', 'teacher', 'super_admin']), async (req, res) => {
-  await pool.query('DELETE FROM announcements WHERE id = $1', [req.params.id])
+  const tenant_id = req.user.tenant_id
+  await pool.query('DELETE FROM announcements WHERE id = $1 AND tenant_id = $2', [req.params.id, tenant_id])
   res.json({ success: true })
 })
 
