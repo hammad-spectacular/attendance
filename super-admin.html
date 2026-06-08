@@ -304,7 +304,7 @@ async function confirmApprove() {
   }
 
   try {
-    const res = await fetch('/api/auth/approve-school', {
+    const res = await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/approve-school', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ request_id, school_code, school_name })
     });
@@ -329,7 +329,7 @@ async function confirmApprove() {
 async function rejectSchool(id) {
   if (!confirm('Reject this request?')) return;
   try {
-    const res = await fetch('/api/auth/reject-school', {
+    const res = await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/reject-school', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ request_id: id })
     });
@@ -341,7 +341,7 @@ async function rejectSchool(id) {
 async function suspendSchool(id) {
   if (!confirm('Suspend this school?')) return;
   try {
-    const res = await fetch('/api/auth/suspend-school', {
+    const res = await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/suspend-school', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ school_id: id })
     });
@@ -353,7 +353,7 @@ async function suspendSchool(id) {
 async function reactivateSchool(id) {
   if (!confirm('Reactivate this school?')) return;
   try {
-    const res = await fetch('/api/auth/reactivate-school', {
+    const res = await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/reactivate-school', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ school_id: id })
     });
@@ -365,7 +365,7 @@ async function reactivateSchool(id) {
 async function fetchPendingRequests() {
   const wrap = document.getElementById('pendingRequestsTableWrap');
   try {
-    const res = await fetch('/api/auth/pending-requests');
+    const res = await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/pending-requests');
     if (!res.ok) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🔒</div><div class="msg">Access denied</div></div>'; return; }
     const data = await res.json();
     if (data.length === 0) { wrap.innerHTML = '<div class="empty-state"><div class="icon">📭</div><div class="msg">No pending requests</div></div>'; return; }
@@ -381,7 +381,7 @@ async function fetchPendingRequests() {
 async function fetchActiveSchools() {
   const wrap = document.getElementById('activeSchoolsTableWrap');
   try {
-    const res = await fetch('/api/auth/active-schools');
+    const res = await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/active-schools');
     if (!res.ok) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🔒</div><div class="msg">Access denied</div></div>'; return; }
     const data = await res.json();
     if (data.length === 0) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🏫</div><div class="msg">No active schools</div></div>'; return; }
@@ -397,7 +397,7 @@ async function fetchActiveSchools() {
 async function fetchSuspendedSchools() {
   const wrap = document.getElementById('suspendedSchoolsTableWrap');
   try {
-    const res = await fetch('/api/auth/suspended-schools');
+    const res = await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/suspended-schools');
     if (!res.ok) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🔒</div><div class="msg">Access denied</div></div>'; return; }
     const data = await res.json();
     if (data.length === 0) { wrap.innerHTML = '<div class="empty-state"><div class="icon">✅</div><div class="msg">No suspended schools</div></div>'; return; }
@@ -435,7 +435,7 @@ async function handleChangePassword(e) {
   btn.disabled = true; btnText.innerHTML = '<span class="spinner"></span> Saving...';
 
   try {
-    const res = await fetch('/api/auth/change-password', {
+    const res = await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/change-password', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ current_password: current, new_password: newPw, confirm_password: confirm })
     });
@@ -451,14 +451,14 @@ async function handleChangePassword(e) {
 
 // Logout
 async function handleLogout() {
-  await fetch('/api/auth/logout', { method: 'POST' });
+  await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/logout', { method: 'POST' });
   window.location.href = '/login.html';
 }
 
 // Session check
 async function checkSession() {
   try {
-    const res = await fetch('/api/auth/me');
+    const res = await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/me');
     if (!res.ok) { window.location.href = '/login.html'; return; }
     const data = await res.json();
     currentRole = data.role;
