@@ -577,9 +577,17 @@
           <span id="studentClass">Class details loading</span>
         </div>
       </div>
-      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
-        <i id="themeIcon" class="fas fa-sun"></i>
-      </button>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="theme-toggle" onclick="openChangePasswordModal()" title="Change Password" aria-label="Change Password" style="position:static;">
+          <i class="fas fa-key"></i>
+        </button>
+        <button class="theme-toggle" onclick="handleLogout()" title="Logout" aria-label="Logout" style="position:static;">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme" style="position:static;">
+          <i id="themeIcon" class="fas fa-sun"></i>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -661,13 +669,37 @@
 
   </main>
 
+  <div class="edit-modal" id="changePasswordModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:400px;width:90%;">
+      <h3 style="margin-bottom:16px;font-size:1rem;">Change Password</h3>
+      <form onsubmit="handleChangePassword(event)">
+        <div style="margin-bottom:12px;">
+          <label style="font-size:0.75rem;color:var(--text-secondary);">Current Password</label>
+          <input type="password" id="cpCurrent" required style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text);margin-top:4px;">
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:0.75rem;color:var(--text-secondary);">New Password</label>
+          <input type="password" id="cpNew" required minlength="6" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text);margin-top:4px;">
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:0.75rem;color:var(--text-secondary);">Confirm Password</label>
+          <input type="password" id="cpConfirm" required style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text);margin-top:4px;">
+        </div>
+        <div id="cpMsg" style="display:none;font-size:0.8rem;margin-bottom:10px;"></div>
+        <div style="display:flex;gap:8px;">
+          <button type="submit" style="flex:1;padding:10px;border:none;border-radius:8px;background:var(--gradient);color:white;font-weight:600;cursor:pointer;">Save</button>
+          <button type="button" onclick="closeChangePasswordModal()" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);cursor:pointer;">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     // =============================================================
     // API CONFIGURATION (Automatic Localhost / Production Detection)
     // =============================================================
-    const API = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-      ? window.location.origin
-      : 'https://attendance-production-fb0b.up.railway.app';
+    const API = '';
+    let sessionUser = null;
 
     const state = {
       student: null,
@@ -721,9 +753,61 @@
     }
 
     async function fetchJson(url) {
-      const response = await fetch(url);
+      const response = await fetch(url, { credentials: 'include' });
+      if (response.status === 401) {
+        window.location.href = '/login.html?expired=1';
+        throw new Error('Session expired');
+      }
       if (!response.ok) throw new Error(`Request failed (${response.status})`);
       return response.json();
+    }
+
+    async function checkSession() {
+      const res = await fetch('/api/auth/me', { credentials: 'include' });
+      if (!res.ok) { window.location.href = '/login.html'; return false; }
+      const data = await res.json();
+      if (data.role !== 'student') { window.location.href = '/login.html'; return false; }
+      if (data.is_first_login) { window.location.href = '/change-password.html'; return false; }
+      sessionUser = data;
+      return true;
+    }
+
+    async function handleLogout() {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      window.location.href = '/login.html';
+    }
+
+    function openChangePasswordModal() {
+      document.getElementById('changePasswordModal').style.display = 'flex';
+    }
+
+    function closeChangePasswordModal() {
+      document.getElementById('changePasswordModal').style.display = 'none';
+    }
+
+    async function handleChangePassword(e) {
+      e.preventDefault();
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          current_password: document.getElementById('cpCurrent').value,
+          new_password: document.getElementById('cpNew').value,
+          confirm_password: document.getElementById('cpConfirm').value
+        })
+      });
+      const data = await res.json();
+      const msgEl = document.getElementById('cpMsg');
+      msgEl.style.display = 'block';
+      if (!res.ok) {
+        msgEl.textContent = data.error || 'Failed to change password';
+        msgEl.style.color = 'var(--danger)';
+      } else {
+        msgEl.textContent = 'Password changed successfully';
+        msgEl.style.color = 'var(--success)';
+        setTimeout(closeChangePasswordModal, 1000);
+      }
     }
 
     async function fetchOptional(urls) {
@@ -1016,16 +1100,12 @@
         return;
       }
 
-      const studentId = getStudentIdFromUrl();
+      const studentId = sessionUser ? Number(sessionUser.user_id) : getStudentIdFromUrl();
       const rollNo = getRollNoFromUrl();
-      if (!studentId && !rollNo) {
-        await revealAfterMinTime(() => renderStudentChooser(students, classes));
-        return;
-      }
 
       state.student = studentId
         ? students.find(student => Number(student.id) === studentId)
-        : students.find(student => String(student.roll_no || '').toLowerCase() === rollNo.toLowerCase());
+        : rollNo ? students.find(student => String(student.roll_no || '').toLowerCase() === rollNo.toLowerCase()) : null;
 
       if (!state.student) {
         await revealAfterMinTime(() => {
@@ -1123,9 +1203,10 @@
       }
     }
 
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
       setupSectionTabs();
-      loadPortal();
+      const ok = await checkSession();
+      if (ok) loadPortal();
     });
   </script>
 </body>
