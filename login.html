@@ -183,7 +183,24 @@ function toggleTheme() {
   const saved = localStorage.getItem('attendance-theme') || 'dark';
   document.documentElement.setAttribute('data-theme', saved);
   document.getElementById('themeIcon').className = saved === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('expired') === '1') {
+    const errorEl = document.getElementById('loginError');
+    errorEl.textContent = 'Your session has expired. Please log in again.';
+    errorEl.classList.add('show');
+  }
 })();
+
+async function parseJsonResponse(res) {
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(res.ok ? 'Invalid server response' : `Server error (${res.status})`);
+  }
+}
 
 async function handleLogin(e) {
   e.preventDefault();
@@ -196,19 +213,35 @@ async function handleLogin(e) {
   errorEl.classList.remove('show');
   errorEl.textContent = '';
 
+  if (!fullId) {
+    errorEl.textContent = 'Please enter your Full ID';
+    errorEl.classList.add('show');
+    return;
+  }
+  if (fullId.indexOf('-') === -1) {
+    errorEl.textContent = 'Invalid ID format. Your ID should look like HARV-T001';
+    errorEl.classList.add('show');
+    return;
+  }
+
+  const lastDashIndex = fullId.lastIndexOf('-');
+  const tenant_id = fullId.substring(0, lastDashIndex).toUpperCase();
+  const login_id = fullId.substring(lastDashIndex + 1);
+
   btn.disabled = true;
   btnText.innerHTML = '<span class="spinner"></span> Signing in...';
 
   try {
-    const res = await fetch('https://attendance-production-fb0b.up.railway.app/api/auth/login', {
+    const res = await fetch('/api/auth/login', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ full_id: fullId, password })
+      body: JSON.stringify({ tenant_id, login_id, password })
     });
-    const data = await res.json();
+    const data = await parseJsonResponse(res);
 
     if (!res.ok) {
-      errorEl.textContent = data.error || 'Login failed';
+      errorEl.textContent = data.error || 'Login failed. Please try again.';
       errorEl.classList.add('show');
       btn.disabled = false;
       btnText.textContent = 'Sign In';
@@ -221,7 +254,7 @@ async function handleLogin(e) {
       window.location.href = data.redirect_url || '/';
     }
   } catch (err) {
-    errorEl.textContent = 'Connection error. Please try again.';
+    errorEl.textContent = err.message || 'Connection error. Please check your internet and try again.';
     errorEl.classList.add('show');
     btn.disabled = false;
     btnText.textContent = 'Sign In';
