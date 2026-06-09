@@ -171,6 +171,10 @@ body {
 </div>
 
 <script>
+const API_BASE = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+  ? window.location.origin
+  : 'https://attendance-production-fb0b.up.railway.app';
+
 function toggleTheme() {
   const html = document.documentElement;
   const icon = document.getElementById('themeIcon');
@@ -232,7 +236,7 @@ async function handleLogin(e) {
   btnText.innerHTML = '<span class="spinner"></span> Signing in...';
 
   try {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch(API_BASE + '/api/auth/login', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
