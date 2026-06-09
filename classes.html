@@ -104,6 +104,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      padding: 0 20px;
     }
     .header-left {
       display: flex;
@@ -657,6 +658,13 @@
       -webkit-overflow-scrolling: touch;
       white-space: nowrap;
     }
+    .tab-nav::-webkit-scrollbar {
+      display: none;
+    }
+    .tab-nav {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
     [data-theme="dark"] .tab-nav { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3); }
     .tab-nav-inner {
       max-width: 960px;
@@ -750,22 +758,22 @@
   <!-- ======================== TAB NAVIGATION ======================== -->
   <nav class="tab-nav">
     <div class="tab-nav-inner">
-      <a href="./admin.html" class="tab-btn" style="text-decoration:none;">
+      <a href="./admin.html?tab=teachers" class="tab-btn" style="text-decoration:none;">
         <i class="fas fa-chalkboard-user"></i>Teachers
       </a>
-      <a href="./admin.html" class="tab-btn" style="text-decoration:none;">
+      <a href="./admin.html?tab=students" class="tab-btn" style="text-decoration:none;">
         <i class="fas fa-user-graduate"></i>Students
       </a>
       <button class="tab-btn active" style="cursor:default;">
         <i class="fas fa-book"></i>Classes
       </button>
-      <a href="./admin.html" class="tab-btn" style="text-decoration:none;">
+      <a href="./admin.html?tab=attendance" class="tab-btn" style="text-decoration:none;">
         <i class="fas fa-clipboard-list"></i>Attendance
       </a>
-      <a href="./admin.html" class="tab-btn" style="text-decoration:none;">
+      <a href="./admin.html?tab=stats" class="tab-btn" style="text-decoration:none;">
         <i class="fas fa-chart-bar"></i>Stats
       </a>
-      <a href="./admin.html" class="tab-btn" style="text-decoration:none;">
+      <a href="./admin.html?tab=announcements" class="tab-btn" style="text-decoration:none;">
         <i class="fas fa-bullhorn"></i>Announcements
       </a>
     </div>
@@ -833,9 +841,9 @@
         <div>
           <i class="fas fa-pen" style="margin-right:8px; color:var(--primary);"></i>Edit Class
         </div>
-        <button class="modal-close" onclick="closeEditClassModal()"><i class="fas fa-times"></i></button>
+        <button class="modal-close" onclick="closeEditClassModal()" aria-label="Close edit class modal"><i class="fas fa-times"></i></button>
       </div>
-      <input type="hidden" id="editClassId">
+      <input type="hidden" id="editClassId" aria-label="Edit Class ID">
       <div class="form-group">
         <label class="form-label" for="editClassName">Class Name</label>
         <input class="form-input" type="text" id="editClassName">
@@ -858,10 +866,10 @@
         <div>
           <i class="fas fa-pen" style="margin-right:8px; color:var(--primary);"></i>Edit Student
         </div>
-        <button class="modal-close" onclick="closeEditStudentModal()"><i class="fas fa-times"></i></button>
+        <button class="modal-close" onclick="closeEditStudentModal()" aria-label="Close edit student modal"><i class="fas fa-times"></i></button>
       </div>
-      <input type="hidden" id="editStudentClassId">
-      <input type="hidden" id="editStudentIndex">
+      <input type="hidden" id="editStudentClassId" aria-label="Edit Student Class ID">
+      <input type="hidden" id="editStudentIndex" aria-label="Edit Student Index">
       <div class="form-group">
         <label class="form-label" for="editStudentName">Student Name</label>
         <input class="form-input" type="text" id="editStudentName" placeholder="e.g. Ahmed Khan">
@@ -887,9 +895,11 @@
   <!-- ======================== JAVASCRIPT ======================== -->
   <script>
     // =============================================================
-    // API CONFIGURATION
+    // API CONFIGURATION (Automatic Localhost / Production Detection)
     // =============================================================
-    const API = 'https://attendance-production-fb0b.up.railway.app';
+    const API = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+      ? window.location.origin
+      : 'https://attendance-production-fb0b.up.railway.app';
 
     // =============================================================
     // UTILITY
@@ -971,9 +981,9 @@
       const subtitle = document.getElementById('classCountSubtitle');
 
       try {
-        const classes = await fetch(`${API}/api/classes`).then(r => r.json());
-        const students = await fetch(`${API}/api/students`).then(r => r.json());
-        const teachers = await fetch(`${API}/api/teachers`).then(r => r.json());
+        const classes = await fetch(`${API}/api/classes`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
+        const students = await fetch(`${API}/api/students`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
+        const teachers = await fetch(`${API}/api/teachers`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
 
         subtitle.textContent = `${classes.length} class${classes.length !== 1 ? 'es' : ''} created`;
 
@@ -1010,8 +1020,8 @@
                   <button class="btn btn-icon" onclick="openEditClassModal(${cls.id})" title="Edit class">
                     <i class="fas fa-pen"></i>
                   </button>
-                  <button class="btn btn-icon" onclick="deleteClass(${cls.id})" title="Delete class" style="color:#dc2626;">
-                    <i class="fas fa-trash-alt"></i>
+                  <button class="btn btn-icon" onclick="deleteClass(${cls.id})" title="Delete class" style="color:#dc2626;" aria-label="Delete">
+                    <i class="fas fa-trash-alt"></i><span style="position: absolute; left: -9999px;">Delete</span>
                   </button>
                 </div>
               </div>
@@ -1033,7 +1043,7 @@
                   <label class="form-label">Assign Teacher</label>
                   <div class="teacher-assignment-inner">
                     <div class="form-group" style="margin-bottom:0; flex:1;">
-                      <select class="form-select" id="teacherSelect${cls.id}" onchange="assignTeacher(${cls.id})" ${teachers.length === 0 ? 'disabled' : ''}>
+                      <select class="form-select" id="teacherSelect${cls.id}" onchange="assignTeacher(${cls.id})" ${teachers.length === 0 ? 'disabled' : ''} aria-label="Assign Teacher">
                         <option value="">-- Select Teacher --</option>
                         ${teachers
                           .filter(t => !t.class_id || t.class_id === cls.id)
@@ -1097,8 +1107,8 @@
                         <button class="btn btn-icon" onclick="openEditStudentModal(${s.id})" title="Edit" style="background:transparent; border:none; color:var(--primary);">
                           <i class="fas fa-pen"></i>
                         </button>
-                        <button class="btn btn-icon" onclick="deleteStudent(${s.id})" title="Delete" style="background:transparent; border:none; color:var(--danger);">
-                          <i class="fas fa-trash-alt"></i>
+                        <button class="btn btn-icon" onclick="deleteStudent(${s.id})" title="Delete" style="background:transparent; border:none; color:var(--danger);" aria-label="Delete">
+                          <i class="fas fa-trash-alt"></i><span style="position: absolute; left: -9999px;">Delete</span>
                         </button>
                       </div>
                     </div>
@@ -1135,7 +1145,7 @@
 
     async function openEditClassModal(classId) {
       try {
-        const classes = await fetch(`${API}/api/classes`).then(r => r.json());
+        const classes = await fetch(`${API}/api/classes`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
         const cls = classes.find(c => c.id === classId);
         if (!cls) return;
 
@@ -1243,7 +1253,7 @@
 
     async function openEditStudentModal(studentId) {
       try {
-        const students = await fetch(`${API}/api/students`).then(r => r.json());
+        const students = await fetch(`${API}/api/students`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
         const student = students.find(s => s.id === studentId);
         if (!student) return;
 
