@@ -235,8 +235,8 @@ app.post('/api/auth/login', async (req, res) => {
 
     res.cookie('auth_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: true,
+      sameSite: 'none',
       maxAge: 8 * 60 * 60 * 1000
     })
 
@@ -320,8 +320,8 @@ app.post('/api/auth/change-password', requireAuth(), async (req, res) => {
 
     res.cookie('auth_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: true,
+      sameSite: 'none',
       maxAge: 8 * 60 * 60 * 1000
     })
 
