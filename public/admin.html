@@ -1194,10 +1194,10 @@
     async function reloadAllData(isInitial = false) {
       try {
         const [teachers, classes, students, rawAttendance] = await Promise.all([
-          fetch(`${API}/api/teachers`).then(r => r.json()),
-          fetch(`${API}/api/classes`).then(r => r.json()),
-          fetch(`${API}/api/students`).then(r => r.json()),
-          fetch(`${API}/api/attendance/all`).then(r => r.json()).catch(() => [])
+          fetch(`${API}/api/teachers`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); }),
+          fetch(`${API}/api/classes`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); }),
+          fetch(`${API}/api/students`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); }),
+          fetch(`${API}/api/attendance/all`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); }).catch(() => [])
         ]);
 
         window.appData.teachers = teachers;
@@ -1966,7 +1966,7 @@
       let announcements = [];
 
       try {
-        announcements = await fetch(`${API}/api/announcements`).then(r => r.json());
+        announcements = await fetch(`${API}/api/announcements`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
         announcements = announcements.filter(a => !a.class_id);
       } catch (err) {
         container.innerHTML = `

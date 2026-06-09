@@ -268,7 +268,7 @@
     // DATA LAYER
     // Store student data in an array of objects.
     // TODO: In future, replace this static array with an API call
-    //       e.g., fetch('/api/students').then(res => res.json())
+    //       e.g., fetch('https://attendance-production-fb0b.up.railway.app/api/students').then(res => res.json())
     // =============================================================
     const students = [
       { id: 1, name: "Ali Hassan", rollNo: "CS-101", phone: "+923209789348", status: null },
@@ -305,7 +305,7 @@
      * Persists attendance data to localStorage.
      *
      * TODO: Replace with API call:
-     *       fetch('/api/attendance/save', {
+     *       fetch('https://attendance-production-fb0b.up.railway.app/api/attendance/save', {
      *         method: 'POST',
      *         headers: { 'Content-Type': 'application/json' },
      *         body: JSON.stringify(todayData)
@@ -619,7 +619,7 @@
      *
      * TODO: In future, this function can also push the change
      *       to a backend via API call:
-     *       fetch('/api/attendance', { method: 'POST', body: ... })
+     *       fetch('https://attendance-production-fb0b.up.railway.app/api/attendance', { method: 'POST', body: ... })
      */
     function markAttendance(id, status) {
       // Toggle: if same status clicked again, unmark

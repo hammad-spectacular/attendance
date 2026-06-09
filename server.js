@@ -12,7 +12,8 @@ const pool = new Pool({
 const app = express()
 
 app.use(cors({
-  origin: ['https://theeye-beta.vercel.app', 'http://localhost:3000']
+  origin: ['https://theeye-beta.vercel.app', 'http://localhost:3000'],
+  credentials: true
 }))
 app.use(express.json())
 

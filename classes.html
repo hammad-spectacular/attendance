@@ -981,9 +981,9 @@
       const subtitle = document.getElementById('classCountSubtitle');
 
       try {
-        const classes = await fetch(`${API}/api/classes`).then(r => r.json());
-        const students = await fetch(`${API}/api/students`).then(r => r.json());
-        const teachers = await fetch(`${API}/api/teachers`).then(r => r.json());
+        const classes = await fetch(`${API}/api/classes`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
+        const students = await fetch(`${API}/api/students`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
+        const teachers = await fetch(`${API}/api/teachers`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
 
         subtitle.textContent = `${classes.length} class${classes.length !== 1 ? 'es' : ''} created`;
 
@@ -1145,7 +1145,7 @@
 
     async function openEditClassModal(classId) {
       try {
-        const classes = await fetch(`${API}/api/classes`).then(r => r.json());
+        const classes = await fetch(`${API}/api/classes`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
         const cls = classes.find(c => c.id === classId);
         if (!cls) return;
 
@@ -1253,7 +1253,7 @@
 
     async function openEditStudentModal(studentId) {
       try {
-        const students = await fetch(`${API}/api/students`).then(r => r.json());
+        const students = await fetch(`${API}/api/students`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
         const student = students.find(s => s.id === studentId);
         if (!student) return;
 
