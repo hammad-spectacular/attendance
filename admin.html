@@ -1758,11 +1758,10 @@
       try {
         window.appData.attendanceLoadError = '';
         const [teachers, classes, students, rawAttendance] = await Promise.all([
-          fetch('/api/teachers', { credentials: 'include' }).then(r => r.json()),
-          fetch('/api/classes', { credentials: 'include' }).then(r => r.json()),
-          fetch('/api/students', { credentials: 'include' }).then(r => r.json()),
-          fetch('/api/attendance/all', { credentials: 'include' }).then(r => {
-            if (!r.ok) throw new Error('Attendance failed to load');
+          fetch('/api/teachers', { credentials: 'include' }).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); }),
+          fetch('/api/classes', { credentials: 'include' }).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); }),
+          fetch('/api/students', { credentials: 'include' }).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); }),
+          fetch('', { credentials: 'include' }).then(r => { if(r.status===401) window.location.href='/login.html'; if (!r.ok) throw new Error('Attendance failed to load');
             return r.json();
           }).catch(err => {
             window.appData.attendanceLoadError = err.message || 'Attendance failed to load';
@@ -2906,7 +2905,7 @@
       let announcements = [];
 
       try {
-        announcements = await fetch(`/api/announcements?t=${Date.now()}`, { credentials: 'include' }).then(r => r.json());
+        announcements = await fetch(`/api/announcements?t=${Date.now()}`, { credentials: 'include' }).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
         announcements = announcements.filter(a => !a.class_id);
       } catch (err) {
         container.innerHTML = `
