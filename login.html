@@ -1,15 +1,9 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
-<script>
-  (function() {
-    const saved = localStorage.getItem('attendance-theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', saved);
-  })();
-</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Eye — Sign In</title>
+<title>Sign In — The Eye</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
@@ -46,7 +40,7 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 20px;
-  padding: 44px 36px 36px;
+  padding: 40px 36px;
   width: 90%;
   max-width: 400px;
   box-shadow: var(--shadow-lg);
@@ -58,51 +52,28 @@ body {
   background: var(--gradient);
   border-radius: 16px;
   display: flex; align-items: center; justify-content: center;
-  margin: 0 auto 14px;
+  margin: 0 auto 16px;
   font-size: 1.5rem; color: white;
   box-shadow: 0 4px 12px rgba(79,70,229,0.3);
 }
-.login-header h1 { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.3px; }
+.login-header h1 { font-size: 1.4rem; font-weight: 800; }
 .login-header p { font-size: 0.82rem; color: var(--text-secondary); margin-top: 4px; }
-.form-group { margin-bottom: 18px; }
+.form-group { margin-bottom: 16px; }
 .form-group label {
   display: block; font-size: 0.75rem; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.5px;
   color: var(--text-secondary); margin-bottom: 6px;
 }
-.input-wrap {
-  position: relative;
-}
-.input-wrap input {
+.form-group input {
   width: 100%; padding: 12px 14px;
   border-radius: 10px; border: 2px solid var(--border);
   background: var(--bg); color: var(--text);
   font-family: 'Inter', sans-serif; font-size: 0.9rem;
   outline: none; transition: border-color 0.25s ease, box-shadow 0.25s ease;
-  padding-right: 42px;
 }
-.input-wrap input:focus {
+.form-group input:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(79,70,229,0.15);
-}
-.input-wrap .toggle-pw {
-  position: absolute;
-  right: 12px; top: 50%;
-  transform: translateY(-50%);
-  background: none; border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 1rem;
-  padding: 4px;
-  transition: color 0.2s;
-}
-.input-wrap .toggle-pw:hover { color: var(--text-secondary); }
-.helper {
-  text-align: center;
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  margin: -8px 0 20px;
-  line-height: 1.4;
 }
 .btn {
   width: 100%; padding: 13px;
@@ -124,13 +95,13 @@ body {
   border-radius: 10px;
   font-size: 0.8rem;
   font-weight: 500;
-  margin-top: 16px;
+  margin-top: 12px;
   display: none;
   animation: fadeIn 0.3s ease-out;
 }
 .error-msg.show { display: block; }
 .footer-link {
-  text-align: center; margin-top: 22px;
+  text-align: center; margin-top: 20px;
   font-size: 0.8rem; color: var(--text-muted);
 }
 .footer-link a { color: var(--primary-light); text-decoration: none; font-weight: 600; }
@@ -144,7 +115,6 @@ body {
   cursor: pointer; font-size: 1rem;
   display: flex; align-items: center; justify-content: center;
   transition: all 0.3s ease;
-  z-index: 10;
 }
 .theme-toggle:hover {
   border-color: var(--primary);
@@ -159,17 +129,15 @@ body {
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
   vertical-align: middle;
-  margin-right: 6px;
 }
 @keyframes fadeInUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
 @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
 @keyframes spin { to { transform: rotate(360deg); } }
-@media (max-width: 480px) { .login-card { padding: 32px 20px 28px; } }
+@media (max-width: 480px) { .login-card { padding: 28px 20px; } }
 </style>
 </head>
 <body>
-
-<button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+<button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
   <i class="fas fa-moon" id="themeIcon"></i>
 </button>
 
@@ -180,34 +148,25 @@ body {
     <p>Sign in to your account</p>
   </div>
 
-  <form id="loginForm" novalidate>
+  <form id="loginForm" onsubmit="handleLogin(event)">
     <div class="form-group">
       <label for="fullId">Full ID</label>
-      <div class="input-wrap">
-        <input type="text" id="fullId" placeholder="e.g. HARV-T001" autocomplete="username" required>
-      </div>
+      <input type="text" id="fullId" placeholder="e.g. HARV-T001" autocomplete="username" required>
     </div>
     <div class="form-group">
       <label for="password">Password</label>
-      <div class="input-wrap">
-        <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password" required>
-        <button type="button" class="toggle-pw" id="togglePw" tabindex="-1" aria-label="Toggle password visibility">
-          <i class="fas fa-eye"></i>
-        </button>
-      </div>
+      <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password" required>
     </div>
-
-    <p class="helper">Your Full ID was provided by your school administrator</p>
 
     <div class="error-msg" id="loginError"></div>
 
     <button type="submit" class="btn" id="loginBtn">
-      Sign In
+      <span id="btnText">Sign In</span>
     </button>
   </form>
 
   <div class="footer-link">
-    Are you a school? <a href="./register.html">Register here</a>
+    Don't have an account? <a href="./register.html">Register your school</a>
   </div>
 </div>
 
@@ -224,33 +183,36 @@ function toggleTheme() {
   const saved = localStorage.getItem('attendance-theme') || 'dark';
   document.documentElement.setAttribute('data-theme', saved);
   document.getElementById('themeIcon').className = saved === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('expired') === '1') {
+    const errorEl = document.getElementById('loginError');
+    errorEl.textContent = 'Your session has expired. Please log in again.';
+    errorEl.classList.add('show');
+  }
 })();
 
-// Show/hide password toggle
-const pwInput = document.getElementById('password');
-const toggleBtn = document.getElementById('togglePw');
-toggleBtn.addEventListener('click', function() {
-  const isPassword = pwInput.type === 'password';
-  pwInput.type = isPassword ? 'text' : 'password';
-  this.querySelector('i').className = isPassword ? 'fas fa-eye-slash' : 'fas fa-eye';
-});
+async function parseJsonResponse(res) {
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(res.ok ? 'Invalid server response' : `Server error (${res.status})`);
+  }
+}
 
-// Enter key triggers submit
-document.getElementById('fullId').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
-document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
-
-document.getElementById('loginForm').addEventListener('submit', async function(e) {
+async function handleLogin(e) {
   e.preventDefault();
-
   const fullId = document.getElementById('fullId').value.trim();
   const password = document.getElementById('password').value;
   const errorEl = document.getElementById('loginError');
   const btn = document.getElementById('loginBtn');
+  const btnText = document.getElementById('btnText');
 
   errorEl.classList.remove('show');
   errorEl.textContent = '';
 
-  // Client-side validation
   if (!fullId) {
     errorEl.textContent = 'Please enter your Full ID';
     errorEl.classList.add('show');
@@ -261,18 +223,13 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     errorEl.classList.add('show');
     return;
   }
-  if (!password) {
-    errorEl.textContent = 'Please enter your password';
-    errorEl.classList.add('show');
-    return;
-  }
 
   const lastDashIndex = fullId.lastIndexOf('-');
   const tenant_id = fullId.substring(0, lastDashIndex).toUpperCase();
   const login_id = fullId.substring(lastDashIndex + 1);
 
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Signing in...';
+  btnText.innerHTML = '<span class="spinner"></span> Signing in...';
 
   try {
     const res = await fetch('/api/auth/login', {
@@ -281,16 +238,13 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tenant_id, login_id, password })
     });
-    const text = await res.text();
-    let data = {};
-    try { data = text ? JSON.parse(text) : {}; } catch { throw new Error(`Server error (${res.status})`); }
+    const data = await parseJsonResponse(res);
 
     if (!res.ok) {
       errorEl.textContent = data.error || 'Login failed. Please try again.';
       errorEl.classList.add('show');
-      document.getElementById('password').value = '';
       btn.disabled = false;
-      btn.textContent = 'Sign In';
+      btnText.textContent = 'Sign In';
       return;
     }
 
@@ -300,14 +254,12 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
       window.location.href = data.redirect_url || '/';
     }
   } catch (err) {
-    errorEl.textContent = 'Connection error. Please check your internet and try again.';
+    errorEl.textContent = err.message || 'Connection error. Please check your internet and try again.';
     errorEl.classList.add('show');
-    document.getElementById('password').value = '';
     btn.disabled = false;
-    btn.textContent = 'Sign In';
+    btnText.textContent = 'Sign In';
   }
-});
+}
 </script>
-
 </body>
 </html>

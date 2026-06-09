@@ -235,10 +235,17 @@
       box-shadow: 0 2px 8px rgba(20, 184, 166, 0.35);
     }
     .tab-content {
-      scroll-margin-top: 150px;
+      display: none;
       margin-bottom: 32px;
     }
-    
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.4s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
 
     /* Settings button */
     .settings-btn {
@@ -510,6 +517,39 @@
     .focus\:border-blue-500:focus {
       border-color: var(--primary) !important;
     }
+
+    /* ================================
+       SKELETON SHIMMER LOADERS
+       ================================ */
+    @keyframes skeleton-shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .skeleton-shimmer {
+      background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
+      background-size: 200% 100%;
+      animation: skeleton-shimmer 1.6s infinite linear;
+      border-color: transparent !important;
+    }
+    [data-theme="light"] .skeleton-shimmer {
+      background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+      background-size: 200% 100%;
+    }
+    .skeleton-text {
+      height: 12px;
+      border-radius: 4px;
+      background-color: var(--border);
+      display: inline-block;
+      opacity: 0.6;
+    }
+    .skeleton-circle {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background-color: var(--border);
+      display: inline-block;
+      opacity: 0.6;
+    }
   </style>
 </head>
 
@@ -560,6 +600,12 @@
           </div>
           <button onclick="openSettings()" class="settings-btn" aria-label="Settings" id="settingsBtn" title="Settings">
             <i class="fas fa-gear"></i>
+          </button>
+          <button onclick="openChangePasswordModal()" class="theme-toggle" aria-label="Change Password" id="changePwdBtn" title="Change Password" style="font-size:14px;">
+            <i class="fas fa-key"></i>
+          </button>
+          <button onclick="handleLogout()" class="theme-toggle" aria-label="Logout" id="logoutBtn" title="Logout" style="font-size:14px;">
+            <i class="fas fa-sign-out-alt"></i>
           </button>
           <button onclick="toggleTheme()" class="theme-toggle" aria-label="Toggle theme" id="themeToggleBtn">
             <i id="themeIcon" class="fas fa-sun"></i>
@@ -813,12 +859,51 @@
   <div id="editStudentModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
     <div class="bg-white rounded-2xl p-6 sm:p-8 shadow-2xl max-w-sm w-full mx-4">
       <h3 class="text-xl font-800 text-gray-900 mb-4">Edit Student</h3>
-      <input type="hidden" id="editStudentId" aria-label="Edit Student ID">
+      <input type="hidden" id="editStudentId">
       <div class="space-y-4">
         <div>
-          <label class="block text-xs font-600 text-gray-500 uppercase mb-1" for="editStudentName">Name</label>
-          <input type="text" id="editStudentName" placeholder="Name" class="w-full px-4 py-2 xl border border-gray-200 rounded-xl focus:border-blue-500 outline-none">
+          <label class="block text-xs font-600 text-gray-500 uppercase mb-1">Name</label>
+          <input type="text" id="editStudentName" class="w-full px-4 py-2 xl border border-gray-200 rounded-xl focus:border-blue-500 outline-none">
         </div>
+        <div>
+          <label class="block text-xs font-600 text-gray-500 uppercase mb-1">Phone</label>
+          <input type="text" id="editStudentPhone" class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:border-blue-500 outline-none text-sm font-mono">
+        </div>
+      </div>
+      <div class="mt-6 flex gap-3">
+        <button onclick="saveStudentEdit()" class="flex-1 py-2.5 bg-blue-600 text-white font-600 rounded-xl hover:bg-blue-700 transition-colors">Save</button>
+        <button onclick="closeStudentEdit()" class="flex-1 py-2.5 bg-gray-100 text-gray-600 font-600 rounded-xl hover:bg-gray-200 transition-colors">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change Password Modal -->
+  <div id="changePasswordModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div class="rounded-2xl p-6 sm:p-8 shadow-2xl max-w-sm w-full mx-4" style="background-color:var(--bg-card);border:1px solid var(--border);">
+      <h3 class="text-xl font-800 mb-4 flex items-center gap-2" style="color:var(--text);"><i class="fas fa-key" style="color:var(--primary);"></i> Change Password</h3>
+      <form id="changePwdForm" onsubmit="handleChangePassword(event)">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-600 uppercase mb-1" style="color:var(--text-secondary);">Current Password</label>
+            <input type="password" id="cpCurrent" class="w-full px-4 py-2.5 rounded-xl border outline-none" style="background:var(--bg);border-color:var(--border);color:var(--text);" required>
+          </div>
+          <div>
+            <label class="block text-xs font-600 uppercase mb-1" style="color:var(--text-secondary);">New Password</label>
+            <input type="password" id="cpNew" class="w-full px-4 py-2.5 rounded-xl border outline-none" style="background:var(--bg);border-color:var(--border);color:var(--text);" required minlength="6">
+          </div>
+          <div>
+            <label class="block text-xs font-600 uppercase mb-1" style="color:var(--text-secondary);">Confirm New Password</label>
+            <input type="password" id="cpConfirm" class="w-full px-4 py-2.5 rounded-xl border outline-none" style="background:var(--bg);border-color:var(--border);color:var(--text);" required>
+          </div>
+          <div id="cpMsg" style="padding:10px;border-radius:10px;font-size:0.8rem;font-weight:500;display:none;"></div>
+        </div>
+        <div class="mt-6 flex gap-3">
+          <button type="submit" class="flex-1 py-2.5 font-600 rounded-xl transition-colors text-white" style="background:linear-gradient(135deg,#4f46e5,#6366f1);" id="cpBtn"><span id="cpBtnText">Change Password</span></button>
+          <button type="button" onclick="closeChangePasswordModal()" class="flex-1 py-2.5 font-600 rounded-xl transition-colors" style="background:var(--bg);color:var(--text-secondary);border:1px solid var(--border);">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
         <div>
           <label class="block text-xs font-600 text-gray-500 uppercase mb-1" for="editStudentPhone">Phone</label>
           <input type="text" id="editStudentPhone" placeholder="Phone" class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:border-blue-500 outline-none text-sm font-mono">
@@ -1339,12 +1424,14 @@
       showSmsOverlay('pending');
 
       // 6. Send to Express server
-      fetch(`${API}/api/attendance/submit`, {
+      fetch('/api/attendance/submit', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           date: today,
           class_id: currentClass ? currentClass.id : null,
+          teacher_id: currentTeacher ? currentTeacher.id : null,
           records: students.map(s => ({
             student_id: s.id,
             name: s.name,
@@ -1604,7 +1691,86 @@
       if (!modal.classList.contains('hidden') && e.target === modal) {
         closeSettings();
       }
+      const cpModal = document.getElementById('changePasswordModal');
+      if (!cpModal.classList.contains('hidden') && e.target === cpModal) {
+        closeChangePasswordModal();
+      }
     });
+
+
+    // =============================================================
+    // SESSION CHECK + AUTH
+    // =============================================================
+    async function checkSession() {
+      try {
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        if (!res.ok) { window.location.href = '/login.html'; return; }
+        const data = await res.json();
+        if (data.role !== 'teacher') { window.location.href = '/login.html'; return; }
+        if (data.is_first_login) { window.location.href = '/change-password.html'; return; }
+      } catch (e) { window.location.href = '/login.html'; }
+    }
+
+    async function handleLogout() {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      window.location.href = '/login.html';
+    }
+
+    function openChangePasswordModal() {
+      document.getElementById('cpCurrent').value = '';
+      document.getElementById('cpNew').value = '';
+      document.getElementById('cpConfirm').value = '';
+      document.getElementById('cpMsg').style.display = 'none';
+      document.getElementById('changePasswordModal').classList.remove('hidden');
+    }
+
+    function closeChangePasswordModal() {
+      document.getElementById('changePasswordModal').classList.add('hidden');
+    }
+
+    async function handleChangePassword(e) {
+      e.preventDefault();
+      const current = document.getElementById('cpCurrent').value;
+      const newPw = document.getElementById('cpNew').value;
+      const confirm = document.getElementById('cpConfirm').value;
+      const msgEl = document.getElementById('cpMsg');
+      const btn = document.getElementById('cpBtn');
+      const btnText = document.getElementById('cpBtnText');
+
+      msgEl.style.display = 'none';
+      if (newPw !== confirm) { msgEl.textContent = 'New passwords do not match'; msgEl.style.display = 'block'; msgEl.style.cssText += 'background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);'; return; }
+      if (newPw.length < 6) { msgEl.textContent = 'Password must be at least 6 characters'; msgEl.style.display = 'block'; msgEl.style.cssText += 'background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);'; return; }
+
+      btn.disabled = true;
+      btnText.innerHTML = 'Saving...';
+
+      try {
+        const res = await fetch('/api/auth/change-password', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ current_password: current, new_password: newPw, confirm_password: confirm })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          msgEl.textContent = data.error || 'Failed to change password';
+          msgEl.style.display = 'block';
+          msgEl.style.cssText += 'background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);';
+        } else {
+          msgEl.textContent = 'Password changed successfully';
+          msgEl.style.display = 'block';
+          msgEl.style.cssText += 'background:rgba(34,197,94,0.1);color:#22c55e;border:1px solid rgba(34,197,94,0.2);';
+          setTimeout(() => closeChangePasswordModal(), 1000);
+        }
+      } catch (e) {
+        msgEl.textContent = 'Connection error. Please try again.';
+        msgEl.style.display = 'block';
+        msgEl.style.cssText += 'background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);';
+      }
+      btn.disabled = false;
+      btnText.textContent = 'Change Password';
+    }
 
 
     // =============================================================
@@ -1627,9 +1793,16 @@
     // =============================================================
     // API CONFIGURATION (Automatic Localhost / Production Detection)
     // =============================================================
-    const API = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-      ? window.location.origin
-      : 'https://attendance-production-fb0b.up.railway.app';
+    const API = '';
+
+    // ============================================================
+    // SKELETON HELPERS
+    // ============================================================
+    const MIN_SKELETON_MS = 600; // minimum shimmer display time
+
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
 
     function updateThemeIcon(theme) {
       const icon = document.getElementById('themeIcon');
@@ -1675,8 +1848,24 @@
     }
 
     async function autoLoadTeacherClass(teacherId) {
+      // Show shimmer skeletons immediately
+      showTeacherSkeletons();
+      const skeletonStart = Date.now();
+
+      async function revealAfterMinTime(fn, extraDelay = 0) {
+        const elapsed = Date.now() - skeletonStart;
+        const wait = Math.max(0, MIN_SKELETON_MS - elapsed) + extraDelay;
+        await delay(wait);
+        fn();
+      }
+
       try {
-        const teachers = await fetch(`${API}/api/teachers`).then(r => r.json());
+        const [teachers, classes, allStudents] = await Promise.all([
+          fetch('/api/teachers', { credentials: 'include' }).then(r => r.json()),
+          fetch('/api/classes', { credentials: 'include' }).then(r => r.json()),
+          fetch('/api/students', { credentials: 'include' }).then(r => r.json())
+        ]);
+
         const teacher = teachers.find(t => t.id === teacherId);
 
         if (!teacher) {
@@ -1685,48 +1874,53 @@
           return;
         }
 
-        const classes = await fetch(`${API}/api/classes`).then(r => r.json());
         const assignedClass = classes.find(c => c.id === teacher.class_id);
 
         if (!assignedClass) {
-          document.getElementById('teacherSelectionModal').classList.add('hidden');
-          document.body.style.overflow = '';
-          document.getElementById('studentList').innerHTML = `
-            <div style="text-align:center; padding:40px; color:var(--text-muted);">
-              <div style="font-size:2rem; margin-bottom:12px;">⚠️</div>
-              <div style="font-weight:700; font-size:1rem;">No class assigned</div>
-              <div style="font-size:0.85rem; margin-top:8px;">Please contact admin to assign you a class.</div>
-            </div>`;
-          document.getElementById('headerTeacherName').textContent = teacher.name;
+          await revealAfterMinTime(() => {
+            document.getElementById('teacherSelectionModal').classList.add('hidden');
+            document.body.style.overflow = '';
+            document.getElementById('studentList').innerHTML = `
+              <div style="text-align:center; padding:40px; color:var(--text-muted);">
+                <div style="font-size:2rem; margin-bottom:12px;">⚠️</div>
+                <div style="font-weight:700; font-size:1rem;">No class assigned</div>
+                <div style="font-size:0.85rem; margin-top:8px;">Please contact admin to assign you a class.</div>
+              </div>`;
+            document.getElementById('headerTeacherName').textContent = teacher.name;
+          });
           return;
         }
 
-        // Fetch students for this class
-        const allStudents = await fetch(`${API}/api/students`).then(r => r.json());
         const classStudents = allStudents.filter(s => s.class_id === assignedClass.id);
 
-        // Load teacher and class
-        currentTeacher = teacher;
-        currentClass = assignedClass;
-        students = classStudents;
-        
-        // Hide modal and update UI
-        document.getElementById('teacherSelectionModal').classList.add('hidden');
-        document.body.style.overflow = '';
-        document.getElementById('headerTeacherName').textContent = teacher.name;
-        document.getElementById('headerClassName').textContent = `Class ${assignedClass.name}`;
+        // Section 1 — Student list (honours MIN_SKELETON_MS)
+        await revealAfterMinTime(() => {
+          currentTeacher = teacher;
+          currentClass = assignedClass;
+          students = classStudents;
 
-        // Re-initialize with the loaded class students
-        attendanceState = {};
-        students.forEach(s => { attendanceState[s.id] = null; });
+          document.getElementById('teacherSelectionModal').classList.add('hidden');
+          document.body.style.overflow = '';
+          document.getElementById('headerTeacherName').textContent = teacher.name;
+          document.getElementById('headerClassName').textContent = `Class ${assignedClass.name}`;
 
-        renderStudentList();
-        updateCounts();
-        loadAttendance();
+          attendanceState = {};
+          students.forEach(s => { attendanceState[s.id] = null; });
+
+          renderStudentList();
+          updateCounts();
+          loadAttendance();
+          renderStats();
+        }, 0);
+
+        // Section 2 — Announcements (300ms stagger)
+        await delay(300);
         renderSchoolAnnouncements();
+
+        // Section 3 — Class content (300ms stagger)
+        await delay(300);
         renderClassAnnouncements();
         renderHomework();
-        renderStats();
 
         showToast(`👋 Welcome, ${teacher.name}`, 'success');
       } catch (e) {
@@ -1743,7 +1937,7 @@
       const btn = modal.querySelector('button');
       
       try {
-        const teachers = await fetch(`${API}/api/teachers`).then(r => r.json());
+        const teachers = await fetch('/api/teachers', { credentials: 'include' }).then(r => r.json());
 
         if (!Array.isArray(teachers) || teachers.length === 0) {
           dropdown.style.display = 'none';
@@ -1777,13 +1971,77 @@
       await autoLoadTeacherClass(teacherId);
     }
 
+    function showTeacherSkeletons() {
+      // Summary cards skeleton numbers
+      document.getElementById('countTotal').innerHTML = `<span class="skeleton-text skeleton-shimmer" style="width: 24px; height: 24px; display:inline-block; border-radius: 4px;"></span>`;
+      document.getElementById('countPresent').innerHTML = `<span class="skeleton-text skeleton-shimmer" style="width: 24px; height: 24px; display:inline-block; border-radius: 4px;"></span>`;
+      document.getElementById('countAbsent').innerHTML = `<span class="skeleton-text skeleton-shimmer" style="width: 24px; height: 24px; display:inline-block; border-radius: 4px;"></span>`;
+      document.getElementById('countLeave').innerHTML = `<span class="skeleton-text skeleton-shimmer" style="width: 24px; height: 24px; display:inline-block; border-radius: 4px;"></span>`;
+
+      // Student rows skeleton
+      const container = document.getElementById('studentList');
+      if (container) {
+        let html = '';
+        for (let i = 0; i < 6; i++) {
+          html += `
+            <div class="row-default flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-4 sm:p-5">
+              <div class="flex items-center gap-3 sm:gap-4">
+                <div class="skeleton-circle skeleton-shimmer" style="width: 40px; height: 40px; flex-shrink: 0;"></div>
+                <div>
+                  <div class="skeleton-text skeleton-shimmer" style="width: 130px; height: 14px; margin-bottom: 6px; display: block;"></div>
+                  <div class="skeleton-text skeleton-shimmer" style="width: 80px; height: 10px; display: block;"></div>
+                </div>
+              </div>
+              <div class="flex gap-2 sm:gap-3 ml-13 sm:ml-0" style="width: 220px;">
+                <div class="skeleton-text skeleton-shimmer" style="flex: 1; height: 38px; border-radius: 12px;"></div>
+                <div class="skeleton-text skeleton-shimmer" style="flex: 1; height: 38px; border-radius: 12px;"></div>
+                <div class="skeleton-text skeleton-shimmer" style="flex: 1; height: 38px; border-radius: 12px;"></div>
+              </div>
+            </div>`;
+        }
+        container.innerHTML = html;
+      }
+    }
+
+    function getAnnouncementCardSkeletonHtml(count = 2) {
+      let html = '<div class="space-y-3">';
+      for (let i = 0; i < count; i++) {
+        html += `
+          <div class="class-card-item bg-gray-50 border border-gray-100 rounded-lg p-3">
+            <div class="skeleton-text skeleton-shimmer" style="width: 70px; height: 12px; margin-bottom: 8px; display: block;"></div>
+            <div class="skeleton-text skeleton-shimmer" style="width: 90%; height: 12px; display: block;"></div>
+          </div>`;
+      }
+      html += '</div>';
+      return html;
+    }
+
     async function renderSchoolAnnouncements() {
       const container = document.getElementById('schoolAnnouncementsList');
       const container2 = document.getElementById('schoolAnnouncementsList2');
+      
+      const shimmerHtml = `
+        <div class="space-y-3">
+          <div class="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20">
+            <div class="skeleton-text skeleton-shimmer" style="width: 80px; height: 14px; margin-bottom: 8px; display: block;"></div>
+            <div class="skeleton-text skeleton-shimmer" style="width: 100%; height: 12px; display: block;"></div>
+          </div>
+          <div class="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20">
+            <div class="skeleton-text skeleton-shimmer" style="width: 80px; height: 14px; margin-bottom: 8px; display: block;"></div>
+            <div class="skeleton-text skeleton-shimmer" style="width: 90%; height: 12px; display: block;"></div>
+          </div>
+        </div>`;
+        
+      if (container) container.innerHTML = shimmerHtml;
+      if (container2) container2.innerHTML = shimmerHtml;
+
       let items = [];
       try {
-        items = await fetch(`${API}/api/announcements`).then(r => r.json());
-        items = items.filter(item => !item.class_id);
+        const [res] = await Promise.all([
+          fetch('/api/announcements', { credentials: 'include' }).then(r => r.json()),
+          new Promise(r => setTimeout(r, 600)) // ensure shimmer shows
+        ]);
+        items = res.filter(item => !item.class_id);
       } catch(e) {
         const errorHtml = '<div class="text-xs text-[rgba(255,255,255,0.6)] italic py-2 mt-2">School announcements failed to load</div>';
         if (container) container.innerHTML = errorHtml;
@@ -1822,8 +2080,9 @@
       }
       
       try {
-        const response = await fetch(`${API}/api/announcements`, {
+        const response = await fetch('/api/announcements', {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             title: 'Class Announcement',
@@ -1848,10 +2107,14 @@
     async function renderClassAnnouncements() {
       if (!currentTeacher) return;
       const container = document.getElementById('classAnnouncementsList');
-      let myItems = [];
+      if (container) container.innerHTML = getAnnouncementCardSkeletonHtml(2);
 
+      let myItems = [];
       try {
-        const items = await fetch(`${API}/api/announcements?class_id=${currentClass ? currentClass.id : ''}`).then(r => r.json());
+        const [items] = await Promise.all([
+          fetch(`/api/announcements?class_id=${currentClass ? currentClass.id : ''}`, { credentials: 'include' }).then(r => r.json()),
+          new Promise(r => setTimeout(r, 600))
+        ]);
         myItems = items.filter(item => Number(item.class_id) === Number(currentClass.id));
       } catch(e) {
         container.innerHTML = '<div class="text-xs text-gray-400 italic py-2">Announcements failed to load</div>';
@@ -1886,8 +2149,9 @@
       }
       
       try {
-        const response = await fetch(`${API}/api/homework`, {
+        const response = await fetch('/api/homework', {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             subject,
@@ -1966,10 +2230,15 @@
     async function renderHomework() {
       if (!currentTeacher) return;
       const container = document.getElementById('homeworkList');
+      if (container) container.innerHTML = getAnnouncementCardSkeletonHtml(2);
       let myItems = [];
 
       try {
-        myItems = await fetch(`${API}/api/homework?class_id=${currentClass ? currentClass.id : ''}`).then(r => r.json());
+        const [items] = await Promise.all([
+          fetch(`/api/homework?class_id=${currentClass ? currentClass.id : ''}`, { credentials: 'include' }).then(r => r.json()),
+          new Promise(r => setTimeout(r, 600))
+        ]);
+        myItems = items;
       } catch(e) {
         container.innerHTML = '<div class="text-xs text-gray-400 italic py-2">Homework failed to load</div>';
         return;
@@ -1996,67 +2265,87 @@
     }
 
     
+    let activeTabId = 'tab-attendance';
+
+    function switchTab(newTabId) {
+      if (activeTabId === newTabId) return;
+
+      // Hide all tabs
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+      // Show new tab
+      const newTab = document.getElementById(newTabId);
+      if (newTab) newTab.classList.add('active');
+      
+      const newBtn = document.querySelector(`.tab-btn[data-section="${newTabId}"]`);
+      if (newBtn) newBtn.classList.add('active');
+
+      activeTabId = newTabId;
+      history.replaceState(null, '', '#' + newTabId);
+
+      const submitBtn = document.getElementById('submitBtn');
+      if (submitBtn) {
+        if (newTabId === 'tab-attendance') {
+          submitBtn.classList.remove('hidden-tab');
+        } else {
+          submitBtn.classList.add('hidden-tab');
+        }
+      }
+    }
+
     function setupSectionTabs() {
       const tabs = Array.from(document.querySelectorAll('.tab-btn[data-section]'));
-      const sections = tabs
-        .map(tab => document.getElementById(tab.dataset.section))
-        .filter(Boolean);
-
       tabs.forEach(tab => {
         tab.addEventListener('click', event => {
           event.preventDefault();
-          const section = document.getElementById(tab.dataset.section);
-          if (!section) return;
-          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          history.replaceState(null, '', '#' + section.id);
+          switchTab(tab.dataset.section);
         });
       });
-
-      const observer = new IntersectionObserver(entries => {
-        const visible = entries
-          .filter(entry => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-
-        if (!visible) return;
-
-        tabs.forEach(tab => {
-          tab.classList.toggle('active', tab.dataset.section === visible.target.id);
-        });
-        
-        const submitBtn = document.getElementById('submitBtn');
-        if (submitBtn) {
-          if (visible.target.id === 'tab-attendance') {
-            submitBtn.classList.remove('hidden-tab');
-          } else {
-            submitBtn.classList.add('hidden-tab');
-          }
-        }
-      }, {
-        rootMargin: '-20% 0px -70% 0px',
-        threshold: [0.1, 0.25, 0.5]
-      });
-
-      sections.forEach(section => observer.observe(section));
+      
+      const hash = window.location.hash.substring(1);
+      if (hash && document.getElementById(hash)) {
+        switchTab(hash);
+      } else {
+        switchTab('tab-attendance');
+      }
     }
 
+    function hasUnsavedChanges() {
+      if (typeof attendanceState !== 'undefined' && attendanceState !== null) {
+        return Object.values(attendanceState).some(s => s !== null);
+      }
+      return false;
+    }
+
+    window.addEventListener('beforeunload', e => {
+      if (hasUnsavedChanges()) {
+        e.preventDefault();
+        e.returnValue = 'You have unmarked attendance changes. Are you sure you want to leave?';
+      }
+    });
+
     function init() {
-      setupSectionTabs();
-      // Load theme preference
-      loadTheme();
+      // Session check first
+      checkSession().then(() => {
+        setupSectionTabs();
+        // Load theme preference
+        loadTheme();
 
-      // Display today's date
-      const today = new Date();
-      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-      document.getElementById('dateDisplay').textContent = today.toLocaleDateString('en-US', options);
+        // Display today's date
+        const today = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('dateDisplay').textContent = today.toLocaleDateString('en-US', options);
 
-      // Render student list
-      renderStudentList();
+        // Render student list
+        renderStudentList();
 
-      // Trigger Teacher Selection Modal
-      initTeacherSelection();
+        // Trigger Teacher Selection Modal
+        initTeacherSelection();
 
-      // Restore saved attendance from localStorage (if exists for today)
-      loadAttendance();
+        // Restore saved attendance from localStorage (if exists for today)
+        loadAttendance();
+      });
     }
 
     // TODO: Future — Load class/section from URL params or user selection
