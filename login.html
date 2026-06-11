@@ -171,10 +171,6 @@ body {
 </div>
 
 <script>
-const API_BASE = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-  ? window.location.origin
-  : 'https://attendance-production-fb0b.up.railway.app';
-
 function toggleTheme() {
   const html = document.documentElement;
   const icon = document.getElementById('themeIcon');
@@ -205,6 +201,10 @@ async function parseJsonResponse(res) {
     throw new Error(res.ok ? 'Invalid server response' : `Server error (${res.status})`);
   }
 }
+
+const API_BASE = window.location.origin.includes('localhost')
+  ? window.location.origin
+  : 'https://attendance-production-fb0b.up.railway.app';
 
 async function handleLogin(e) {
   e.preventDefault();
