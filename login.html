@@ -202,6 +202,10 @@ async function parseJsonResponse(res) {
   }
 }
 
+const API_BASE = window.location.origin.includes('localhost')
+  ? window.location.origin
+  : 'https://attendance-production-fb0b.up.railway.app';
+
 async function handleLogin(e) {
   e.preventDefault();
   const fullId = document.getElementById('fullId').value.trim();
@@ -232,7 +236,7 @@ async function handleLogin(e) {
   btnText.innerHTML = '<span class="spinner"></span> Signing in...';
 
   try {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch(API_BASE + '/api/auth/login', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
