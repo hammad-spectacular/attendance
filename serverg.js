@@ -306,26 +306,26 @@ app.post('/api/auth/change-password', requireAuth(), async (req, res) => {
       [newHash, user_id]
     )
 
-    const token = jwt.sign(
-      {
-        user_id,
-        role,
-        tenant_id,
-        login_id: login_id || user.login_id,
-        is_first_login: false
-      },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRY }
-    )
+const token = jwt.sign(
+        {
+          user_id,
+          role,
+          tenant_id,
+          login_id,
+          is_first_login: false
+        },
+        JWT_SECRET,
+        { expiresIn: JWT_EXPIRY }
+      )
 
-    res.cookie('auth_token', token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none',
-      maxAge: 8 * 60 * 60 * 1000
-    })
+      res.cookie('auth_token', token, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        maxAge: 8 * 60 * 60 * 1000
+      })
 
-    res.json({ success: true, message: 'Password changed successfully' })
+      res.json({ success: true, message: 'Password changed successfully' })
   } catch (err) {
     console.error('Change password error:', err)
     res.status(500).json({ error: 'Server error' })
