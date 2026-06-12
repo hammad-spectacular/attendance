@@ -1,0 +1,9 @@
+{
+  "build": {
+    "builder": "NIXPACKS"
+  },
+  "deploy": {
+    "startCommand": "node serverg.js",
+    "restartPolicyType": "ON_FAILURE"
+  }
+}
