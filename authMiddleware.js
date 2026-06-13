@@ -5,6 +5,7 @@ function requireAuth(allowedRoles = []) {
     const token = req.cookies?.auth_token
 
     if (!token) {
+      console.debug('requireAuth: missing auth_token cookie')
       return res.status(401).json({ error: 'Unauthorized' })
     }
 
@@ -18,11 +19,13 @@ function requireAuth(allowedRoles = []) {
       }
 
       if (allowedRoles.length > 0 && !allowedRoles.includes(decoded.role)) {
+        console.debug('requireAuth: role not allowed', decoded.role)
         return res.status(403).json({ error: 'Forbidden' })
       }
 
       next()
     } catch (err) {
+      console.debug('requireAuth: token verification failed', err && err.message)
       return res.status(401).json({ error: 'Unauthorized' })
     }
   }
