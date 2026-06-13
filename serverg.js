@@ -148,6 +148,11 @@ async function createTables() {
     ALTER TABLE announcements ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(10);
   `)
 
+  // Fix existing admin login_id values that were stored as the full concatenated ID
+  await pool.query(`
+    UPDATE admins SET login_id = 'ADM' WHERE tenant_id = 'SUPER' AND login_id = 'SUPER-ADM'
+  `)
+
   console.log('Tables ready')
 }
 
@@ -175,19 +180,19 @@ function generateTempPassword() {
 // POST /api/auth/login
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { tenant_id, login_id, password } = req.body
+    const { password } = req.body
+    const full_id = req.body.full_id || req.body.login_id
+    const lastDash = full_id.lastIndexOf('-')
+    const tenant_id = full_id.substring(0, lastDash).toUpperCase()
+    const login_id = full_id.substring(lastDash + 1)
 
-    if (!tenant_id || !login_id || !password) {
+    if (!full_id || !password) {
       return res.status(400).json({ error: 'Full ID and Password are required' })
     }
 
-    const normalizedTenantId = tenant_id.toUpperCase()
-    const fullLoginId = `${normalizedTenantId}-${login_id}`
-
-    console.log('tenant_id received:', tenant_id)
-    console.log('login_id received:', login_id)
-    console.log('normalizedTenantId:', normalizedTenantId)
-    console.log('fullLoginId (querying this):', fullLoginId)
+    console.log('full_id received:', full_id)
+    console.log('tenant_id (split):', tenant_id)
+    console.log('login_id (split):', login_id)
 
     const result = await pool.query(`
       SELECT id, password_hash, role, is_first_login, is_frozen 
@@ -201,7 +206,7 @@ app.post('/api/auth/login', async (req, res) => {
       SELECT id, password_hash, role, is_first_login, FALSE as is_frozen 
       FROM admins 
       WHERE tenant_id = $1 AND login_id = $2
-    `, [normalizedTenantId, fullLoginId])
+    `, [tenant_id, login_id])
 
     console.log('query result rows:', result.rows.length)
     if (result.rows.length > 0) {
@@ -237,8 +242,8 @@ app.post('/api/auth/login', async (req, res) => {
       {
         user_id: user.id,
         role: user.role,
-        tenant_id: normalizedTenantId,
-        login_id: fullLoginId,
+        tenant_id: tenant_id,
+        login_id: login_id,
         is_first_login: user.is_first_login
       },
       JWT_SECRET,
