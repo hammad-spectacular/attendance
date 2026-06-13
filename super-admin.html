@@ -201,7 +201,7 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
       <input type="text" id="schoolCode" placeholder="e.g. HARV" maxlength="4" style="text-transform:uppercase;font-family:monospace;font-size:1.1rem;letter-spacing:4px;text-align:center;">
     </div>
     <div class="modal-actions">
-      <button class="btn primary" onclick="confirmApprove()">Approve</button>
+      <button class="btn primary" id="approveConfirmBtn" onclick="confirmApprove()"><span id="approveConfirmText">Approve</span></button>
       <button class="btn ghost" onclick="closeModal('approveModal')">Cancel</button>
     </div>
   </div>
@@ -290,6 +290,14 @@ function openApproveModal(id, name) {
   document.getElementById('approveSchoolName').value = name;
   document.getElementById('approveSchoolDisplay').textContent = name;
   document.getElementById('schoolCode').value = '';
+  // reset confirm button state
+  const confirmBtn = document.getElementById('approveConfirmBtn');
+  if (confirmBtn) {
+    confirmBtn.disabled = false;
+    const txt = document.getElementById('approveConfirmText');
+    if (txt) txt.textContent = 'Approve';
+    confirmBtn.removeAttribute('data-approved');
+  }
   openModal('approveModal');
 }
 
@@ -297,10 +305,16 @@ async function confirmApprove() {
   const request_id = document.getElementById('approveRequestId').value;
   const school_name = document.getElementById('approveSchoolName').value;
   const school_code = document.getElementById('schoolCode').value.trim().toUpperCase();
-
   if (!school_code || school_code.length !== 4) {
     showToast('⚠️ Enter a valid 4-letter code', 'warning');
     return;
+  }
+
+  const confirmBtn = document.getElementById('approveConfirmBtn');
+  const confirmText = document.getElementById('approveConfirmText');
+  if (confirmBtn) {
+    confirmBtn.disabled = true;
+    if (confirmText) confirmText.innerHTML = '<span class="spinner"></span> Approving...';
   }
 
   try {
@@ -309,20 +323,41 @@ async function confirmApprove() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ request_id, school_code, school_name })
     });
-    const data = await res.json();
+
+    let data = {};
+    try { data = await res.json(); } catch (e) { /* ignore parse errors */ }
 
     if (!res.ok) {
-      showToast('⚠️ ' + (data.error || 'Failed'), 'error');
+      // 400: show server-provided error; 500: specialized message for duplicate code
+      if (res.status === 400) {
+        showToast('⚠️ ' + (data.error || 'Bad request'), 'error');
+      } else if (res.status === 500) {
+        showToast('⚠️ This school code already exists. Please use a different code', 'error');
+      } else {
+        showToast('⚠️ ' + (data.error || 'Failed to approve'), 'error');
+      }
+      // allow retry for non-success
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        if (confirmText) confirmText.textContent = 'Approve';
+      }
       return;
     }
 
+    // Success: keep the confirm button disabled (do not re-enable)
+    if (confirmBtn) confirmBtn.setAttribute('data-approved', '1');
+
     closeModal('approveModal');
     document.getElementById('credentialDisplay').innerHTML =
-      '<div>Admin ID: <span>'+data.admin_id+'</span></div><div style="margin-top:8px;">Temp Password: <span>'+data.temp_password+'</span></div>';
+      '<div>Admin ID: <span>'+escapeHtml(data.admin_id)+'</span></div><div style="margin-top:8px;">Temp Password: <span>'+escapeHtml(data.temp_password)+'</span></div>';
     openModal('credentialsModal');
     showToast('✅ School approved successfully', 'success');
   } catch (e) {
     showToast('⚠️ Connection error', 'error');
+    if (confirmBtn) {
+      confirmBtn.disabled = false;
+      if (confirmText) confirmText.textContent = 'Approve';
+    }
   }
 }
 
