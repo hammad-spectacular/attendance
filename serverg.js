@@ -175,14 +175,38 @@ function generateTempPassword() {
 // POST /api/auth/login
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { tenant_id, login_id, password } = req.body
+    const { tenant_id, login_id, full_id, password } = req.body
 
-    if (!tenant_id || !login_id || !password) {
+    // Accept either `{ full_id, password }` (preferred) or `{ tenant_id, login_id, password }` for compatibility
+    if (!password || (!(full_id) && (!tenant_id || !login_id))) {
       return res.status(400).json({ error: 'Full ID and Password are required' })
     }
 
-    const normalizedTenantId = tenant_id.toUpperCase()
-    const fullLoginId = `${normalizedTenantId}-${login_id}`
+    let normalizedTenantId, fullLoginId
+
+    if (full_id) {
+      const fid = String(full_id).trim()
+      const lastDashIndex = fid.lastIndexOf('-')
+      if (lastDashIndex === -1) {
+        return res.status(400).json({ error: 'Invalid Full ID format' })
+      }
+      const tenantPart = fid.substring(0, lastDashIndex)
+      const loginPart = fid.substring(lastDashIndex + 1)
+      normalizedTenantId = tenantPart.toUpperCase()
+      fullLoginId = `${normalizedTenantId}-${loginPart}`
+
+      console.log('full_id received (raw):', full_id)
+      console.log('parsed tenant:', normalizedTenantId)
+      console.log('parsed login part:', loginPart)
+      console.log('fullLoginId (querying this):', fullLoginId)
+    } else {
+      normalizedTenantId = String(tenant_id).toUpperCase()
+      fullLoginId = `${normalizedTenantId}-${login_id}`
+      console.log('tenant_id received:', tenant_id)
+      console.log('login_id received:', login_id)
+      console.log('normalizedTenantId:', normalizedTenantId)
+      console.log('fullLoginId (querying this):', fullLoginId)
+    }
 
     const result = await pool.query(`
       SELECT id, password_hash, role, is_first_login, is_frozen 
@@ -197,6 +221,13 @@ app.post('/api/auth/login', async (req, res) => {
       FROM admins 
       WHERE tenant_id = $1 AND login_id = $2
     `, [normalizedTenantId, fullLoginId])
+
+    console.log('query result rows:', result.rows.length)
+    if (result.rows.length > 0) {
+      console.log('found user role:', result.rows[0].role)
+      console.log('password_hash from db:', result.rows[0].password_hash)
+      console.log('bcrypt result:', await bcrypt.compare(password, result.rows[0].password_hash))
+    }
 
     if (result.rows.length === 0) {
       return res.status(401).json({ error: 'Invalid Organization, ID, or Password' })
