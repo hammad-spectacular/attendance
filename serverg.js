@@ -180,19 +180,38 @@ function generateTempPassword() {
 // POST /api/auth/login
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { password } = req.body
-    const full_id = req.body.full_id || req.body.login_id
-    const lastDash = full_id.lastIndexOf('-')
-    const tenant_id = full_id.substring(0, lastDash).toUpperCase()
-    const login_id = full_id.substring(lastDash + 1)
+    const { tenant_id, login_id, full_id, password } = req.body
 
-    if (!full_id || !password) {
+    // Accept either `{ full_id, password }` (preferred) or `{ tenant_id, login_id, password }` for compatibility
+    if (!password || (!(full_id) && (!tenant_id || !login_id))) {
       return res.status(400).json({ error: 'Full ID and Password are required' })
     }
 
-    console.log('full_id received:', full_id)
-    console.log('tenant_id (split):', tenant_id)
-    console.log('login_id (split):', login_id)
+    let normalizedTenantId, fullLoginId
+
+    if (full_id) {
+      const fid = String(full_id).trim()
+      const lastDashIndex = fid.lastIndexOf('-')
+      if (lastDashIndex === -1) {
+        return res.status(400).json({ error: 'Invalid Full ID format' })
+      }
+      const tenantPart = fid.substring(0, lastDashIndex)
+      const loginPart = fid.substring(lastDashIndex + 1)
+      normalizedTenantId = tenantPart.toUpperCase()
+      fullLoginId = `${normalizedTenantId}-${loginPart}`
+
+      console.log('full_id received (raw):', full_id)
+      console.log('parsed tenant:', normalizedTenantId)
+      console.log('parsed login part:', loginPart)
+      console.log('fullLoginId (querying this):', fullLoginId)
+    } else {
+      normalizedTenantId = String(tenant_id).toUpperCase()
+      fullLoginId = `${normalizedTenantId}-${login_id}`
+      console.log('tenant_id received:', tenant_id)
+      console.log('login_id received:', login_id)
+      console.log('normalizedTenantId:', normalizedTenantId)
+      console.log('fullLoginId (querying this):', fullLoginId)
+    }
 
     const result = await pool.query(`
       SELECT id, password_hash, role, is_first_login, is_frozen 
@@ -206,7 +225,7 @@ app.post('/api/auth/login', async (req, res) => {
       SELECT id, password_hash, role, is_first_login, FALSE as is_frozen 
       FROM admins 
       WHERE tenant_id = $1 AND login_id = $2
-    `, [tenant_id, login_id])
+    `, [normalizedTenantId, full_id ? loginPart : login_id])
 
     console.log('query result rows:', result.rows.length)
     if (result.rows.length > 0) {
@@ -250,10 +269,11 @@ app.post('/api/auth/login', async (req, res) => {
       { expiresIn: JWT_EXPIRY }
     )
 
+    const isProd = process.env.NODE_ENV === 'production'
     res.cookie('auth_token', token, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'none',
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
       maxAge: 8 * 60 * 60 * 1000
     })
 
@@ -335,10 +355,11 @@ const token = jwt.sign(
         { expiresIn: JWT_EXPIRY }
       )
 
+      const isProd = process.env.NODE_ENV === 'production'
       res.cookie('auth_token', token, {
         httpOnly: true,
-        secure: true,
-        sameSite: 'none',
+        secure: isProd,
+        sameSite: isProd ? 'none' : 'lax',
         maxAge: 8 * 60 * 60 * 1000
       })
 
