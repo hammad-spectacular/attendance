@@ -228,10 +228,6 @@ async function handleLogin(e) {
     return;
   }
 
-  const lastDashIndex = fullId.lastIndexOf('-');
-  const tenant_id = fullId.substring(0, lastDashIndex).toUpperCase();
-  const login_id = fullId.substring(lastDashIndex + 1);
-
   btn.disabled = true;
   btnText.innerHTML = '<span class="spinner"></span> Signing in...';
 
@@ -240,7 +236,7 @@ async function handleLogin(e) {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tenant_id, login_id, password })
+      body: JSON.stringify({ full_id: fullId, password: password })
     });
     const data = await parseJsonResponse(res);
 
