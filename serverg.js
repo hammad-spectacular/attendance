@@ -523,20 +523,19 @@ app.post('/api/auth/approve-school', requireAuth(['super_admin']), async (req, r
       [code, school_name, contactEmail, 'active']
     )
 
-    const adminId = `${code}-ADM`
     const tempPassword = generateTempPassword()
     const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS)
 
     await pool.query(
       `INSERT INTO admins (login_id, password_hash, role, tenant_id, is_first_login)
        VALUES ($1, $2, 'admin', $3, true)`,
-      [adminId, passwordHash, code]
+      ['ADM', passwordHash, code]
     )
 
     console.log('Updating request_id:', request_id)
     await pool.query('UPDATE school_requests SET status = $1 WHERE id = $2', ['approved', request_id])
 
-    res.json({ success: true, admin_id: adminId, temp_password: tempPassword })
+    res.json({ success: true, admin_id: `${code}-ADM`, temp_password: tempPassword })
   } catch (err) {
     console.error('Approve school error:', err)
     res.status(500).json({ error: 'Server error' })
