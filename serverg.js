@@ -97,6 +97,7 @@ async function createTables() {
       id SERIAL PRIMARY KEY,
       school_code VARCHAR(4) UNIQUE NOT NULL,
       school_name VARCHAR(200) NOT NULL,
+      contact_email VARCHAR(200),
       status VARCHAR(20) DEFAULT 'active',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
@@ -146,6 +147,12 @@ async function createTables() {
     ALTER TABLE classes ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(10);
     ALTER TABLE homework ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(10);
     ALTER TABLE announcements ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(10);
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS contact_email VARCHAR(200);
+  `)
+
+  // Fix existing admin login_id values that were stored as the full concatenated ID
+  await pool.query(`
+    UPDATE admins SET login_id = 'ADM' WHERE tenant_id = 'SUPER' AND login_id = 'SUPER-ADM'
   `)
 
   console.log('Tables ready')
@@ -175,38 +182,19 @@ function generateTempPassword() {
 // POST /api/auth/login
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { tenant_id, login_id, full_id, password } = req.body
+    const { password } = req.body
+    const full_id = req.body.full_id || req.body.login_id
+    const lastDash = full_id.lastIndexOf('-')
+    const tenant_id = full_id.substring(0, lastDash).toUpperCase()
+    const login_id = full_id.substring(lastDash + 1)
 
-    // Accept either `{ full_id, password }` (preferred) or `{ tenant_id, login_id, password }` for compatibility
-    if (!password || (!(full_id) && (!tenant_id || !login_id))) {
+    if (!full_id || !password) {
       return res.status(400).json({ error: 'Full ID and Password are required' })
     }
 
-    let normalizedTenantId, fullLoginId
-
-    if (full_id) {
-      const fid = String(full_id).trim()
-      const lastDashIndex = fid.lastIndexOf('-')
-      if (lastDashIndex === -1) {
-        return res.status(400).json({ error: 'Invalid Full ID format' })
-      }
-      const tenantPart = fid.substring(0, lastDashIndex)
-      const loginPart = fid.substring(lastDashIndex + 1)
-      normalizedTenantId = tenantPart.toUpperCase()
-      fullLoginId = `${normalizedTenantId}-${loginPart}`
-
-      console.log('full_id received (raw):', full_id)
-      console.log('parsed tenant:', normalizedTenantId)
-      console.log('parsed login part:', loginPart)
-      console.log('fullLoginId (querying this):', fullLoginId)
-    } else {
-      normalizedTenantId = String(tenant_id).toUpperCase()
-      fullLoginId = `${normalizedTenantId}-${login_id}`
-      console.log('tenant_id received:', tenant_id)
-      console.log('login_id received:', login_id)
-      console.log('normalizedTenantId:', normalizedTenantId)
-      console.log('fullLoginId (querying this):', fullLoginId)
-    }
+    console.log('full_id received:', full_id)
+    console.log('tenant_id (split):', tenant_id)
+    console.log('login_id (split):', login_id)
 
     const result = await pool.query(`
       SELECT id, password_hash, role, is_first_login, is_frozen 
@@ -220,7 +208,7 @@ app.post('/api/auth/login', async (req, res) => {
       SELECT id, password_hash, role, is_first_login, FALSE as is_frozen 
       FROM admins 
       WHERE tenant_id = $1 AND login_id = $2
-    `, [normalizedTenantId, fullLoginId])
+    `, [tenant_id, login_id])
 
     console.log('query result rows:', result.rows.length)
     if (result.rows.length > 0) {
@@ -256,8 +244,8 @@ app.post('/api/auth/login', async (req, res) => {
       {
         user_id: user.id,
         role: user.role,
-        tenant_id: normalizedTenantId,
-        login_id: fullLoginId,
+        tenant_id: tenant_id,
+        login_id: login_id,
         is_first_login: user.is_first_login
       },
       JWT_SECRET,
@@ -278,6 +266,7 @@ app.post('/api/auth/login', async (req, res) => {
       is_first_login: user.is_first_login,
       redirect_url
     })
+
 
   } catch (err) {
     console.error('Login error:', err)
@@ -303,17 +292,23 @@ app.post('/api/auth/change-password', requireAuth(), async (req, res) => {
     }
 
     const { user_id, role, tenant_id, login_id } = req.user
-    let table = ''
+    let selectQuery = ''
+    let updateQuery = ''
 
-    if (role === 'super_admin' || role === 'admin') table = 'admins'
-    else if (role === 'teacher') table = 'teachers'
-    else if (role === 'student') table = 'students'
-    else return res.status(400).json({ error: 'Invalid role' })
+    if (role === 'super_admin' || role === 'admin') {
+      selectQuery = 'SELECT * FROM admins WHERE id = $1'
+      updateQuery = 'UPDATE admins SET password_hash = $1, is_first_login = false WHERE id = $2'
+    } else if (role === 'teacher') {
+      selectQuery = 'SELECT * FROM teachers WHERE id = $1'
+      updateQuery = 'UPDATE teachers SET password_hash = $1, is_first_login = false WHERE id = $2'
+    } else if (role === 'student') {
+      selectQuery = 'SELECT * FROM students WHERE id = $1'
+      updateQuery = 'UPDATE students SET password_hash = $1, is_first_login = false WHERE id = $2'
+    } else {
+      return res.status(400).json({ error: 'Invalid role' })
+    }
 
-    const result = await pool.query(
-      `SELECT * FROM ${table} WHERE id = $1`,
-      [user_id]
-    )
+    const result = await pool.query(selectQuery, [user_id])
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' })
@@ -333,10 +328,7 @@ app.post('/api/auth/change-password', requireAuth(), async (req, res) => {
 
     const newHash = await bcrypt.hash(new_password, BCRYPT_ROUNDS)
 
-    await pool.query(
-      `UPDATE ${table} SET password_hash = $1, is_first_login = false WHERE id = $2`,
-      [newHash, user_id]
-    )
+    await pool.query(updateQuery, [newHash, user_id])
 
 const token = jwt.sign(
         {
@@ -470,16 +462,21 @@ app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) =>
 // POST /api/auth/register-school
 app.post('/api/auth/register-school', async (req, res) => {
   try {
-    const { school_name, contact_person, contact_email, message } = req.body
+    const { school_name, contact_person, role, contact_email, message } = req.body
 
-    if (!school_name || !contact_person || !contact_email) {
-      return res.status(400).json({ error: 'School name, contact person, and contact email are required' })
+    const normalizedContactPerson = String(contact_person || '').trim()
+    const normalizedContactRole = String(role || '').trim()
+
+    if (!school_name || !normalizedContactPerson || !normalizedContactRole || !contact_email) {
+      return res.status(400).json({ error: 'School name, contact person, role, and email are required' })
     }
+
+    const contactPersonValue = `${normalizedContactPerson} (${normalizedContactRole})`
 
     await pool.query(
       `INSERT INTO school_requests (school_name, contact_person, contact_email, message, status)
        VALUES ($1, $2, $3, $4, 'pending')`,
-      [school_name, contact_person, contact_email, message || null]
+      [school_name, contactPersonValue, contact_email, message || null]
     )
 
     res.json({ success: true, message: 'Your request has been received. You will be contacted shortly.' })
@@ -503,14 +500,21 @@ app.post('/api/auth/approve-school', requireAuth(['super_admin']), async (req, r
       return res.status(400).json({ error: 'School code must be exactly 4 uppercase letters' })
     }
 
+    const requestResult = await pool.query('SELECT contact_email FROM school_requests WHERE id = $1', [request_id])
+    if (requestResult.rows.length === 0) {
+      return res.status(404).json({ error: 'School request not found' })
+    }
+
+    const contactEmail = requestResult.rows[0].contact_email
+
     const existing = await pool.query('SELECT id FROM organizations WHERE school_code = $1', [code])
     if (existing.rows.length > 0) {
       return res.status(400).json({ error: 'School code already taken' })
     }
 
     await pool.query(
-      'INSERT INTO organizations (school_code, school_name, status) VALUES ($1, $2, $3)',
-      [code, school_name, 'active']
+      'INSERT INTO organizations (school_code, school_name, contact_email, status) VALUES ($1, $2, $3, $4)',
+      [code, school_name, contactEmail, 'active']
     )
 
     const adminId = `${code}-ADM`
@@ -518,11 +522,12 @@ app.post('/api/auth/approve-school', requireAuth(['super_admin']), async (req, r
     const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS)
 
     await pool.query(
-      `INSERT INTO admins (login_id, name, password_hash, role, tenant_id, is_first_login)
-       VALUES ($1, $2, $3, 'admin', $4, true)`,
-      [adminId, `Admin (${school_name})`, passwordHash, code]
+      `INSERT INTO admins (login_id, password_hash, role, tenant_id, is_first_login)
+       VALUES ($1, $2, 'admin', $3, true)`,
+      [adminId, passwordHash, code]
     )
 
+    console.log('Updating request_id:', request_id)
     await pool.query('UPDATE school_requests SET status = $1 WHERE id = $2', ['approved', request_id])
 
     res.json({ success: true, admin_id: adminId, temp_password: tempPassword })
