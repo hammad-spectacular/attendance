@@ -72,15 +72,12 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
 .badge.approved { background:var(--success-bg); color:var(--success); }
 .badge.active { background:var(--success-bg); color:var(--success); }
 .badge.suspended { background:var(--danger-bg); color:var(--danger); }
-.btn-sm { padding:6px 14px; border-radius:8px; font-size:0.75rem; font-weight:600; font-family:'Inter',sans-serif; cursor:pointer; border:none; transition:all 0.2s ease; }
-.btn-sm.primary { background:var(--gradient); color:white; }
-.btn-sm.primary:hover { opacity:0.9; }
-.btn-sm.danger { background:var(--danger-bg); color:var(--danger); border:1px solid transparent; }
-.btn-sm.danger:hover { background:rgba(239,68,68,0.15); }
-.btn-sm.success { background:var(--success-bg); color:var(--success); }
-.btn-sm.success:hover { background:rgba(34,197,94,0.15); }
-.actions { display:flex; gap:6px; }
-
+  .btn-sm { padding:8px 16px; border-radius:10px; font-size:0.78rem; font-weight:700; font-family:'Inter',sans-serif; cursor:pointer; border:1px solid transparent; transition:all 0.2s ease; display:inline-flex; align-items:center; gap:8px; }
+  .btn-sm.primary { background:var(--gradient); color:white; }
+  .btn-sm.primary:hover { opacity:0.95; }
+  .btn-sm.danger { background:var(--danger); color:white; border-color:rgba(220,38,38,0.9); box-shadow:0 2px 10px rgba(239,68,68,0.18); }
+  .btn-sm.danger:hover { background:rgba(185,28,28,0.95); transform:translateY(-1px); }
+  .btn-sm.danger:focus { outline:none; box-shadow:0 0 0 3px rgba(239,68,68,0.25); }
 .empty-state { text-align:center; padding:30px 16px; color:var(--text-muted); }
 .empty-state .icon { font-size:2rem; margin-bottom:8px; opacity:0.6; }
 .empty-state .msg { font-size:0.82rem; font-weight:500; }
