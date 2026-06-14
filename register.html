@@ -64,6 +64,8 @@ body {
 }
 .form-group input:focus, .form-group textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79,70,229,0.15); }
 .form-group textarea { resize: vertical; min-height: 80px; }
+.button-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
+.button-row .btn { flex: 1 1 0; }
 .btn {
   width: 100%; padding: 13px; border: none; border-radius: 10px;
   background: var(--gradient); color: white;
@@ -75,6 +77,8 @@ body {
 .btn:hover { box-shadow: 0 6px 18px rgba(79,70,229,0.45); transform: translateY(-1px); }
 .btn:active { transform: translateY(0); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.btn.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); box-shadow: none; }
+.btn.secondary:hover { background: rgba(79,70,229,0.08); }
 .msg {
   padding: 14px; border-radius: 10px;
   font-size: 0.85rem; font-weight: 500; margin-top: 14px;
@@ -112,8 +116,12 @@ body {
       <input type="text" id="schoolName" placeholder="e.g. Harvard Academy" required>
     </div>
     <div class="form-group">
-      <label for="contactPerson">Contact Person Name</label>
-      <input type="text" id="contactPerson" placeholder="e.g. John Doe" required>
+      <label for="contactFullName">Your Full Name</label>
+      <input type="text" id="contactFullName" placeholder="e.g. John Doe" required>
+    </div>
+    <div class="form-group">
+      <label for="contactRole">Your Role</label>
+      <input type="text" id="contactRole" placeholder="e.g. Principal, Owner, Admin" required>
     </div>
     <div class="form-group">
       <label for="contactEmail">Contact Email</label>
@@ -126,9 +134,12 @@ body {
 
     <div class="msg" id="registerMsg"></div>
 
-    <button type="submit" class="btn" id="submitBtn">
-      <span id="btnText">Send Request</span>
-    </button>
+    <div class="button-row">
+      <button type="button" class="btn secondary" onclick="window.location.href='index.html'">Back</button>
+      <button type="submit" class="btn" id="submitBtn">
+        <span id="btnText">Send Request</span>
+      </button>
+    </div>
   </form>
 
   <div class="footer-link">
@@ -154,7 +165,8 @@ function toggleTheme() {
 async function handleRegister(e) {
   e.preventDefault();
   const schoolName = document.getElementById('schoolName').value.trim();
-  const contactPerson = document.getElementById('contactPerson').value.trim();
+  const contactName = document.getElementById('contactFullName').value.trim();
+  const contactRole = document.getElementById('contactRole').value.trim();
   const contactEmail = document.getElementById('contactEmail').value.trim();
   const message = document.getElementById('message').value.trim();
   const msgEl = document.getElementById('registerMsg');
@@ -170,7 +182,7 @@ async function handleRegister(e) {
     const res = await fetch('/api/auth/register-school', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ school_name: schoolName, contact_person: contactPerson, contact_email: contactEmail, message })
+      body: JSON.stringify({ school_name: schoolName, contact_name: contactName, contact_role: contactRole, contact_email: contactEmail, message })
     });
     const data = await res.json();
 

@@ -97,6 +97,7 @@ async function createTables() {
       id SERIAL PRIMARY KEY,
       school_code VARCHAR(4) UNIQUE NOT NULL,
       school_name VARCHAR(200) NOT NULL,
+      contact_email VARCHAR(200),
       status VARCHAR(20) DEFAULT 'active',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
@@ -146,6 +147,7 @@ async function createTables() {
     ALTER TABLE classes ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(10);
     ALTER TABLE homework ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(10);
     ALTER TABLE announcements ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(10);
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS contact_email VARCHAR(200);
   `)
 
   // Fix existing admin login_id values that were stored as the full concatenated ID
@@ -206,7 +208,7 @@ app.post('/api/auth/login', async (req, res) => {
       SELECT id, password_hash, role, is_first_login, FALSE as is_frozen 
       FROM admins 
       WHERE tenant_id = $1 AND login_id = $2
-    `, [tenant_id, login_id])
+    `, [normalizedTenantId, fullLoginId])
 
     console.log('query result rows:', result.rows.length)
     if (result.rows.length > 0) {
@@ -457,11 +459,16 @@ app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) =>
 // POST /api/auth/register-school
 app.post('/api/auth/register-school', async (req, res) => {
   try {
-    const { school_name, contact_person, contact_email, message } = req.body
+    const { school_name, contact_name, contact_role, contact_email, message } = req.body
 
-    if (!school_name || !contact_person || !contact_email) {
-      return res.status(400).json({ error: 'School name, contact person, and contact email are required' })
+    const normalizedContactName = String(contact_name || '').trim()
+    const normalizedContactRole = String(contact_role || '').trim()
+
+    if (!school_name || !normalizedContactName || !normalizedContactRole || !contact_email) {
+      return res.status(400).json({ error: 'School name, contact name, role, and email are required' })
     }
+
+    const contact_person = `${normalizedContactName} (${normalizedContactRole})`
 
     await pool.query(
       `INSERT INTO school_requests (school_name, contact_person, contact_email, message, status)
@@ -490,14 +497,21 @@ app.post('/api/auth/approve-school', requireAuth(['super_admin']), async (req, r
       return res.status(400).json({ error: 'School code must be exactly 4 uppercase letters' })
     }
 
+    const requestResult = await pool.query('SELECT contact_email FROM school_requests WHERE id = $1', [request_id])
+    if (requestResult.rows.length === 0) {
+      return res.status(404).json({ error: 'School request not found' })
+    }
+
+    const contactEmail = requestResult.rows[0].contact_email
+
     const existing = await pool.query('SELECT id FROM organizations WHERE school_code = $1', [code])
     if (existing.rows.length > 0) {
       return res.status(400).json({ error: 'School code already taken' })
     }
 
     await pool.query(
-      'INSERT INTO organizations (school_code, school_name, status) VALUES ($1, $2, $3)',
-      [code, school_name, 'active']
+      'INSERT INTO organizations (school_code, school_name, contact_email, status) VALUES ($1, $2, $3, $4)',
+      [code, school_name, contactEmail, 'active']
     )
 
     const adminId = `${code}-ADM`
