@@ -527,6 +527,7 @@ app.post('/api/auth/approve-school', requireAuth(['super_admin']), async (req, r
       [adminId, `Admin (${school_name})`, passwordHash, code]
     )
 
+    console.log('Updating request_id:', request_id)
     await pool.query('UPDATE school_requests SET status = $1 WHERE id = $2', ['approved', request_id])
 
     res.json({ success: true, admin_id: adminId, temp_password: tempPassword })
