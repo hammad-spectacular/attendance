@@ -292,17 +292,23 @@ app.post('/api/auth/change-password', requireAuth(), async (req, res) => {
     }
 
     const { user_id, role, tenant_id, login_id } = req.user
-    let table = ''
+    let selectQuery = ''
+    let updateQuery = ''
 
-    if (role === 'super_admin' || role === 'admin') table = 'admins'
-    else if (role === 'teacher') table = 'teachers'
-    else if (role === 'student') table = 'students'
-    else return res.status(400).json({ error: 'Invalid role' })
+    if (role === 'super_admin' || role === 'admin') {
+      selectQuery = 'SELECT * FROM admins WHERE id = $1'
+      updateQuery = 'UPDATE admins SET password_hash = $1, is_first_login = false WHERE id = $2'
+    } else if (role === 'teacher') {
+      selectQuery = 'SELECT * FROM teachers WHERE id = $1'
+      updateQuery = 'UPDATE teachers SET password_hash = $1, is_first_login = false WHERE id = $2'
+    } else if (role === 'student') {
+      selectQuery = 'SELECT * FROM students WHERE id = $1'
+      updateQuery = 'UPDATE students SET password_hash = $1, is_first_login = false WHERE id = $2'
+    } else {
+      return res.status(400).json({ error: 'Invalid role' })
+    }
 
-    const result = await pool.query(
-      `SELECT * FROM ${table} WHERE id = $1`,
-      [user_id]
-    )
+    const result = await pool.query(selectQuery, [user_id])
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' })
@@ -322,10 +328,7 @@ app.post('/api/auth/change-password', requireAuth(), async (req, res) => {
 
     const newHash = await bcrypt.hash(new_password, BCRYPT_ROUNDS)
 
-    await pool.query(
-      `UPDATE ${table} SET password_hash = $1, is_first_login = false WHERE id = $2`,
-      [newHash, user_id]
-    )
+    await pool.query(updateQuery, [newHash, user_id])
 
 const token = jwt.sign(
         {
