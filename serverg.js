@@ -462,21 +462,21 @@ app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) =>
 // POST /api/auth/register-school
 app.post('/api/auth/register-school', async (req, res) => {
   try {
-    const { school_name, contact_name, contact_role, contact_email, message } = req.body
+    const { school_name, contact_person, role, contact_email, message } = req.body
 
-    const normalizedContactName = String(contact_name || '').trim()
-    const normalizedContactRole = String(contact_role || '').trim()
+    const normalizedContactPerson = String(contact_person || '').trim()
+    const normalizedContactRole = String(role || '').trim()
 
-    if (!school_name || !normalizedContactName || !normalizedContactRole || !contact_email) {
-      return res.status(400).json({ error: 'School name, contact name, role, and email are required' })
+    if (!school_name || !normalizedContactPerson || !normalizedContactRole || !contact_email) {
+      return res.status(400).json({ error: 'School name, contact person, role, and email are required' })
     }
 
-    const contact_person = `${normalizedContactName} (${normalizedContactRole})`
+    const contactPersonValue = `${normalizedContactPerson} (${normalizedContactRole})`
 
     await pool.query(
       `INSERT INTO school_requests (school_name, contact_person, contact_email, message, status)
        VALUES ($1, $2, $3, $4, 'pending')`,
-      [school_name, contact_person, contact_email, message || null]
+      [school_name, contactPersonValue, contact_email, message || null]
     )
 
     res.json({ success: true, message: 'Your request has been received. You will be contacted shortly.' })
