@@ -208,7 +208,7 @@ app.post('/api/auth/login', async (req, res) => {
       SELECT id, password_hash, role, is_first_login, FALSE as is_frozen 
       FROM admins 
       WHERE tenant_id = $1 AND login_id = $2
-    `, [normalizedTenantId, fullLoginId])
+    `, [tenant_id, login_id])
 
     console.log('query result rows:', result.rows.length)
     if (result.rows.length > 0) {
