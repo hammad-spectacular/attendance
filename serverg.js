@@ -359,7 +359,13 @@ const token = jwt.sign(
 
 // POST /api/auth/logout
 app.post('/api/auth/logout', (req, res) => {
-  res.clearCookie('auth_token')
+  const isProd = process.env.NODE_ENV === 'production'
+  res.clearCookie('auth_token', {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
+    path: '/'
+  })
   return res.status(200).json({ success: true })
 })
 
