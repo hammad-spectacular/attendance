@@ -522,9 +522,9 @@ app.post('/api/auth/approve-school', requireAuth(['super_admin']), async (req, r
     const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS)
 
     await pool.query(
-      `INSERT INTO admins (login_id, name, password_hash, role, tenant_id, is_first_login)
-       VALUES ($1, $2, $3, 'admin', $4, true)`,
-      [adminId, `Admin (${school_name})`, passwordHash, code]
+      `INSERT INTO admins (login_id, password_hash, role, tenant_id, is_first_login)
+       VALUES ($1, $2, 'admin', $3, true)`,
+      [adminId, passwordHash, code]
     )
 
     console.log('Updating request_id:', request_id)
