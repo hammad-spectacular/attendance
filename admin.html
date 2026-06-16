@@ -2092,8 +2092,15 @@
           body: JSON.stringify({ teacher_id: teacherId ? parseInt(teacherId) : null })
         });
         if (!response.ok) throw new Error('Failed to update teacher assignment');
+        
+        const tid = teacherId ? parseInt(teacherId) : null;
+        window.appData.teachers.forEach(t => {
+          if (tid !== null && t.id === tid) t.class_id = classId;
+          else if (t.class_id === classId) t.class_id = null;
+        });
+        renderClasses();
+        
         showToast('✅ Teacher assignment updated', 'success');
-        await reloadAllData(false, true); // force fetch to get updated data
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       }
@@ -2145,10 +2152,12 @@
           headers: { 'Content-Type': 'application/json', ...authHeader() },
           body: JSON.stringify({ name, section: section || null })
         });
-        if (!response.ok) throw new Error('Failed to create class');
+        const newClass = await response.json();
+        window.appData.classes.push(newClass);
+        renderClasses();
+        populateClassDropdown(window.appData.classes);
         
         toggleAddClass();
-        await reloadAllData();
         showToast('✅ Class created successfully', 'success');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -2290,9 +2299,11 @@
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Failed to add teacher');
 
+        window.appData.teachers.push(data.teacher);
+        renderTeachers();
+
         clearTeacherForm();
         toggleAddTeacher();
-        await reloadAllData();
         alert(`Teacher created!\n\nTeacher ID: ${data.teacher_id}\nTemp Password: ${data.temp_password}\n\nCopy this now — it will not be shown again.`);
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -2304,7 +2315,8 @@
       try {
         const response = await fetch(`/api/teachers/${id}`, { method: 'DELETE', headers: authHeader() });
         if (!response.ok) throw new Error('Failed to delete teacher');
-        await reloadAllData();
+        window.appData.teachers = window.appData.teachers.filter(t => t.id !== id);
+        renderTeachers();
         showToast('🗑️ Teacher removed', 'info');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -2498,8 +2510,10 @@
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Failed to save student');
 
+        window.appData.students.push(data.student);
+        filterStudents();
+
         toggleAddStudent();
-        await reloadAllData();
         alert(`Student created!\n\nStudent ID: ${data.student_id}\nTemp Password: ${data.temp_password}\n\nCopy this now — it will not be shown again.`);
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -2511,7 +2525,8 @@
       try {
         const response = await fetch(`/api/students/${id}`, { method: 'DELETE', headers: authHeader() });
         if (!response.ok) throw new Error('Failed to delete student');
-        await reloadAllData();
+        window.appData.students = window.appData.students.filter(s => s.id !== id);
+        filterStudents();
         showToast('🗑️ Student removed', 'info');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -3478,9 +3493,13 @@
         });
 
         if (!response.ok) throw new Error('Failed to update teacher');
+        
+        const updatedTeacher = await response.json();
+        const idx = window.appData.teachers.findIndex(t => t.id === id);
+        if (idx !== -1) window.appData.teachers[idx] = updatedTeacher;
+        renderTeachers();
 
         closeEditTeacherModal();
-        await reloadAllData();
         showToast('✅ Teacher updated successfully', 'success');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -3537,9 +3556,13 @@
         });
 
         if (!response.ok) throw new Error('Failed to update student');
+        
+        const updatedStudent = await response.json();
+        const idx = window.appData.students.findIndex(s => s.id === id);
+        if (idx !== -1) window.appData.students[idx] = updatedStudent;
+        filterStudents();
 
         closeEditStudentModal();
-        await reloadAllData();
         showToast('✅ Student updated successfully', 'success');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -3743,24 +3766,34 @@
       try {
         if (activeTabId === 'tab-teachers') {
           for (let [id, data] of dirtyState['tab-teachers']) {
-            await fetch(`/api/teachers/${id}`, {
+            const response = await fetch(`/api/teachers/${id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json', ...authHeader() },
               body: JSON.stringify(data.current)
             });
+            if (response.ok) {
+              const updated = await response.json();
+              const idx = window.appData.teachers.findIndex(t => t.id === id);
+              if (idx !== -1) window.appData.teachers[idx] = updated;
+            }
           }
           dirtyState['tab-teachers'].clear();
-          await reloadAllData(false, true); // force fetch
+          renderTeachers();
         } else if (activeTabId === 'tab-students') {
           for (let [id, data] of dirtyState['tab-students']) {
-            await fetch(`/api/students/${id}`, {
+            const response = await fetch(`/api/students/${id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json', ...authHeader() },
               body: JSON.stringify(data.current)
             });
+            if (response.ok) {
+              const updated = await response.json();
+              const idx = window.appData.students.findIndex(s => s.id === id);
+              if (idx !== -1) window.appData.students[idx] = updated;
+            }
           }
           dirtyState['tab-students'].clear();
-          await reloadAllData(false, true); // force fetch
+          filterStudents();
         }
         
         showToast('✅ All changes saved successfully', 'success');

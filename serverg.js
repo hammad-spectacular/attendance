@@ -437,13 +437,13 @@ app.post('/api/auth/create-teacher', requireAuth(['admin']), async (req, res) =>
     const tempPassword = generateTempPassword()
     const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS)
 
-    await pool.query(
+    const result = await pool.query(
       `INSERT INTO teachers (name, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login)
-       VALUES ($1, $2, $3, $4, $5, 'teacher', $6, true)`,
+       VALUES ($1, $2, $3, $4, $5, 'teacher', $6, true) RETURNING *`,
       [name, phone || null, class_id || null, shortId, passwordHash, tenant_id]
     )
 
-    res.json({ success: true, teacher_id: teacherId, temp_password: tempPassword })
+    res.json({ success: true, teacher_id: teacherId, temp_password: tempPassword, teacher: result.rows[0] })
   } catch (err) {
     console.error('Create teacher error:', err)
     res.status(500).json({ error: 'Server error' })
@@ -476,13 +476,13 @@ app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) =>
     const tempPassword = generateTempPassword()
     const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS)
 
-    await pool.query(
+    const result = await pool.query(
       `INSERT INTO students (name, roll_no, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login)
-       VALUES ($1, $2, $3, $4, $5, $6, 'student', $7, true)`,
+       VALUES ($1, $2, $3, $4, $5, $6, 'student', $7, true) RETURNING *`,
       [name, roll_no || null, phone || null, class_id || null, shortId, passwordHash, tenant_id]
     )
 
-    res.json({ success: true, student_id: studentId, temp_password: tempPassword })
+    res.json({ success: true, student_id: studentId, temp_password: tempPassword, student: result.rows[0] })
   } catch (err) {
     console.error('Create student error:', err)
     res.status(500).json({ error: 'Server error' })
