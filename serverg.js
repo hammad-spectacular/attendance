@@ -362,7 +362,10 @@ const token = jwt.sign(
         maxAge: 8 * 60 * 60 * 1000
       })
 
-      res.json({ success: true, token, message: 'Password changed successfully' })
+      const redirectMap = { super_admin: '/super-admin.html', admin: '/admin.html', teacher: '/teacher.html', student: '/student.html' }
+      const redirect_url = redirectMap[role] || '/'
+
+      res.json({ success: true, token, redirect_url, message: 'Password changed successfully' })
   } catch (err) {
     console.error('Change password error:', err)
     res.status(500).json({ error: 'Server error' })
