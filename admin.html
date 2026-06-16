@@ -425,8 +425,42 @@
       padding: 28px 20px 60px;
     }
 
+    .modal-actions .btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .modal-actions .btn.primary {
+      background: var(--gradient);
+      color: white;
+    }
+    
+    .modal-actions .btn.primary:hover {
+      opacity: 0.9;
+    }
+    
+    .modal-actions .btn.ghost {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    
+    .modal-actions .btn.ghost:hover {
+      background: var(--bg-card-hover);
+    }
+    
+    .credential-box { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:14px; margin:12px 0; font-family:monospace; font-size:0.9rem; }
+    .credential-box span { font-weight:700; color:var(--primary-light); }
+    .warning-text { font-size:0.78rem; color:var(--danger); font-weight:600; margin-top:8px; }
+
     /* ================================
-       SECTION CARD
+       UTILITY CLASSES
        ================================ */
     .section-card {
       background: var(--bg-card);
@@ -1640,8 +1674,60 @@
     </div>
   </div>
 
+  <!-- Credentials Modal -->
+  <div class="modal" id="credentialsModal">
+    <div class="modal-card">
+      <h3><i class="fas fa-key"></i> Teacher/Student Credentials</h3>
+      <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Share these credentials with the user:</p>
+      <div class="credential-box" id="credentialDisplay"></div>
+      <p class="warning-text">⚠️ Copy these now. They will not be shown again.</p>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="closeCredentialsModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ======================== JAVASCRIPT ======================== -->
   <script>
+    let credentialsDoneCallback = null;
+
+    function showCredentialsModal(loginId, tempPassword, onDone) {
+      const display = document.getElementById('credentialDisplay');
+      display.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div>Login ID: <span id="credLoginId" style="user-select:all;">${escapeHtml(loginId)}</span></div>
+          <button class="btn btn-ghost btn-sm" style="padding:4px 8px; font-size:0.75rem;" onclick="copyCred('credLoginId', this)">Copy</button>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>Temp Password: <span id="credTempPassword" style="user-select:all;">${escapeHtml(tempPassword)}</span></div>
+          <button class="btn btn-ghost btn-sm" style="padding:4px 8px; font-size:0.75rem;" onclick="copyCred('credTempPassword', this)">Copy</button>
+        </div>
+      `;
+      credentialsDoneCallback = onDone;
+      document.getElementById('credentialsModal').classList.add('open');
+    }
+
+    function closeCredentialsModal() {
+      document.getElementById('credentialsModal').classList.remove('open');
+      if (credentialsDoneCallback) {
+        credentialsDoneCallback();
+        credentialsDoneCallback = null;
+      }
+    }
+
+    function copyCred(elementId, btn) {
+      const text = document.getElementById(elementId).innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const originalText = btn.innerText;
+        btn.innerText = 'Copied!';
+        btn.style.color = 'var(--success)';
+        setTimeout(() => {
+          btn.innerText = 'Copy';
+          btn.style.color = '';
+        }, 2000);
+      });
+    }
+
     // =============================================================
     // API CONFIGURATION (Automatic Localhost / Production Detection)
     // =============================================================
@@ -2315,11 +2401,12 @@
         if (!response.ok) throw new Error(data.error || 'Failed to add teacher');
 
         window.appData.teachers.push(data.teacher);
-        renderTeachers();
 
         clearTeacherForm();
         toggleAddTeacher();
-        alert(`Teacher created!\n\nTeacher ID: ${data.teacher_id}\nTemp Password: ${data.temp_password}\n\nCopy this now — it will not be shown again.`);
+        showCredentialsModal(data.teacher_id, data.temp_password, () => {
+          renderTeachers();
+        });
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       }
@@ -2526,10 +2613,11 @@
         if (!response.ok) throw new Error(data.error || 'Failed to save student');
 
         window.appData.students.push(data.student);
-        filterStudents();
 
         toggleAddStudent();
-        alert(`Student created!\n\nStudent ID: ${data.student_id}\nTemp Password: ${data.temp_password}\n\nCopy this now — it will not be shown again.`);
+        showCredentialsModal(data.student_id, data.temp_password, () => {
+          filterStudents();
+        });
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       }
