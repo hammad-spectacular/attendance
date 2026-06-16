@@ -78,12 +78,14 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
 .badge.approved { background:var(--success-bg); color:var(--success); }
 .badge.active { background:var(--success-bg); color:var(--success); }
 .badge.suspended { background:var(--danger-bg); color:var(--danger); }
-  .btn-sm { padding:8px 16px; border-radius:10px; font-size:0.78rem; font-weight:700; font-family:'Inter',sans-serif; cursor:pointer; border:1px solid transparent; transition:all 0.2s ease; display:inline-flex; align-items:center; gap:8px; }
-  .btn-sm.primary { background:var(--gradient); color:white; }
-  .btn-sm.primary:hover { opacity:0.95; }
-  .btn-sm.danger { background:var(--danger); color:white; border-color:rgba(220,38,38,0.9); box-shadow:0 2px 10px rgba(239,68,68,0.18); }
-  .btn-sm.danger:hover { background:rgba(185,28,28,0.95); transform:translateY(-1px); }
-  .btn-sm.danger:focus { outline:none; box-shadow:0 0 0 3px rgba(239,68,68,0.25); }
+.btn-sm { padding:8px 16px; border-radius:10px; font-size:0.78rem; font-weight:700; font-family:'Inter',sans-serif; cursor:pointer; border:1px solid transparent; transition:all 0.2s ease; display:inline-flex; align-items:center; gap:8px; }
+.btn-sm.primary { background:var(--gradient); color:white; }
+.btn-sm.primary:hover { opacity:0.95; }
+.btn-sm.danger { background:var(--danger); color:white; border-color:rgba(220,38,38,0.9); box-shadow:0 2px 10px rgba(239,68,68,0.18); }
+.btn-sm.danger:hover { background:rgba(185,28,28,0.95); transform:translateY(-1px); }
+.btn-sm.danger:focus { outline:none; box-shadow:0 0 0 3px rgba(239,68,68,0.25); }
+.btn-sm.success { background:var(--success); color:white; }
+.btn-sm.success:hover { opacity:0.9; }
 .empty-state { text-align:center; padding:30px 16px; color:var(--text-muted); }
 .empty-state .icon { font-size:2rem; margin-bottom:8px; opacity:0.6; }
 .empty-state .msg { font-size:0.82rem; font-weight:500; }
@@ -254,6 +256,12 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
 <script>
 let currentRole = 'super_admin';
 
+// ── Auth helper ──────────────────────────────────────────────
+function authHeader() {
+  const token = localStorage.getItem('auth_token');
+  return token ? { 'Authorization': 'Bearer ' + token } : {};
+}
+
 function toggleTheme() {
   const html = document.documentElement;
   const icon = document.getElementById('themeIcon');
@@ -300,33 +308,21 @@ async function confirmApprove() {
   const request_id = document.getElementById('approveRequestId').value;
   const school_name = document.getElementById('approveSchoolName').value;
   const school_code = document.getElementById('schoolCode').value.trim().toUpperCase();
-
-  if (!school_code || school_code.length !== 4) {
-    showToast('⚠️ Enter a valid 4-letter code', 'warning');
-    return;
-  }
-
+  if (!school_code || school_code.length !== 4) { showToast('⚠️ Enter a valid 4-letter code', 'warning'); return; }
   try {
     const res = await fetch('/api/auth/approve-school', {
-      credentials: 'include',
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
       body: JSON.stringify({ request_id, school_code, school_name })
     });
     const data = await res.json();
-
-    if (!res.ok) {
-      showToast('⚠️ ' + (data.error || 'Failed'), 'error');
-      return;
-    }
-
+    if (!res.ok) { showToast('⚠️ ' + (data.error || 'Failed'), 'error'); return; }
     closeModal('approveModal');
     document.getElementById('credentialDisplay').innerHTML =
       '<div>Admin ID: <span>'+data.admin_id+'</span></div><div style="margin-top:8px;">Temp Password: <span>'+data.temp_password+'</span></div>';
     openModal('credentialsModal');
     showToast('✅ School approved successfully', 'success');
-  } catch (e) {
-    showToast('⚠️ Connection error', 'error');
-  }
+  } catch (e) { showToast('⚠️ Connection error', 'error'); }
 }
 
 // Reject school
@@ -334,8 +330,8 @@ async function rejectSchool(id) {
   if (!confirm('Reject this request?')) return;
   try {
     const res = await fetch('/api/auth/reject-school', {
-      credentials: 'include',
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
       body: JSON.stringify({ request_id: id })
     });
     if (res.ok) { showToast('Request rejected', 'info'); fetchPendingRequests(); }
@@ -347,8 +343,8 @@ async function suspendSchool(id) {
   if (!confirm('Suspend this school?')) return;
   try {
     const res = await fetch('/api/auth/suspend-school', {
-      credentials: 'include',
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
       body: JSON.stringify({ school_id: id })
     });
     if (res.ok) { showToast('School suspended', 'info'); fetchActiveSchools(); fetchSuspendedSchools(); }
@@ -360,25 +356,33 @@ async function reactivateSchool(id) {
   if (!confirm('Reactivate this school?')) return;
   try {
     const res = await fetch('/api/auth/reactivate-school', {
-      credentials: 'include',
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
       body: JSON.stringify({ school_id: id })
     });
     if (res.ok) { showToast('School reactivated', 'success'); fetchActiveSchools(); fetchSuspendedSchools(); }
   } catch(e) { showToast('⚠️ Error', 'error'); }
 }
 
+function escapeHtml(str) {
+  if (!str) return '';
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
 // Fetch data
 async function fetchPendingRequests() {
   const wrap = document.getElementById('pendingRequestsTableWrap');
   try {
-    const res = await fetch('/api/auth/pending-requests', { credentials: 'include' });
+    const res = await fetch('/api/auth/pending-requests', { headers: authHeader() });
     if (!res.ok) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🔒</div><div class="msg">Access denied</div></div>'; return; }
     const data = await res.json();
     if (data.length === 0) { wrap.innerHTML = '<div class="empty-state"><div class="icon">📭</div><div class="msg">No pending requests</div></div>'; return; }
     let html = '<table class="data-table"><thead><tr><th>School</th><th>Contact</th><th>Email</th><th>Message</th><th>Date</th><th class="actions-col">Actions</th></tr></thead><tbody>';
     data.forEach(r => {
-      html += '<tr><td>'+escapeHtml(r.school_name)+'</td><td>'+escapeHtml(r.contact_person)+'</td><td>'+escapeHtml(r.contact_email)+'</td><td style="font-size:0.75rem;">'+(r.message ? escapeHtml(r.message) : '—')+'</td><td style="font-size:0.75rem;">'+new Date(r.created_at).toLocaleDateString()+'</td><td class="actions-col"><div class="actions"><button class="btn-sm primary" onclick="openApproveModal('+r.id+',\''+escapeHtml(r.school_name).replace(/'/g,"\\'")+'\')"><i class="fas fa-check"></i> Approve</button><button class="btn-sm danger" onclick="rejectSchool('+r.id+')"><i class="fas fa-times"></i></button></div></td></tr>';
+      const safeName = escapeHtml(r.school_name);
+      html += `<tr><td>${safeName}</td><td>${escapeHtml(r.contact_person)}</td><td>${escapeHtml(r.contact_email)}</td><td style="font-size:0.75rem;">${r.message ? escapeHtml(r.message) : '—'}</td><td style="font-size:0.75rem;">${new Date(r.created_at).toLocaleDateString()}</td><td class="actions-col"><div class="actions"><button class="btn-sm primary" onclick="openApproveModal(${r.id}, '${safeName.replace(/'/g,"\\'")}')"><i class="fas fa-check"></i> Approve</button><button class="btn-sm danger" onclick="rejectSchool(${r.id})"><i class="fas fa-times"></i></button></div></td></tr>`;
     });
     html += '</tbody></table>';
     wrap.innerHTML = html;
@@ -388,13 +392,13 @@ async function fetchPendingRequests() {
 async function fetchActiveSchools() {
   const wrap = document.getElementById('activeSchoolsTableWrap');
   try {
-    const res = await fetch('/api/auth/active-schools', { credentials: 'include' });
+    const res = await fetch('/api/auth/active-schools', { headers: authHeader() });
     if (!res.ok) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🔒</div><div class="msg">Access denied</div></div>'; return; }
     const data = await res.json();
     if (data.length === 0) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🏫</div><div class="msg">No active schools</div></div>'; return; }
     let html = '<table class="data-table"><thead><tr><th>Code</th><th>School Name</th><th>Status</th><th>Created</th><th class="actions-col">Actions</th></tr></thead><tbody>';
     data.forEach(s => {
-      html += '<tr><td><span class="badge" style="background:var(--badge-bg);color:var(--badge-text);font-family:monospace;">'+escapeHtml(s.school_code)+'</span></td><td>'+escapeHtml(s.school_name)+'</td><td><span class="badge active">Active</span></td><td style="font-size:0.75rem;">'+new Date(s.created_at).toLocaleDateString()+'</td><td class="actions-col"><div class="actions"><button class="btn-sm danger" onclick="suspendSchool('+s.id+')"><i class="fas fa-ban"></i> Suspend</button></div></td></tr>';
+      html += `<tr><td><span class="badge" style="background:var(--badge-bg);color:var(--badge-text);font-family:monospace;">${escapeHtml(s.school_code)}</span></td><td>${escapeHtml(s.school_name)}</td><td><span class="badge active">Active</span></td><td style="font-size:0.75rem;">${new Date(s.created_at).toLocaleDateString()}</td><td class="actions-col"><div class="actions"><button class="btn-sm danger" onclick="suspendSchool(${s.id})"><i class="fas fa-ban"></i> Suspend</button></div></td></tr>`;
     });
     html += '</tbody></table>';
     wrap.innerHTML = html;
@@ -404,13 +408,13 @@ async function fetchActiveSchools() {
 async function fetchSuspendedSchools() {
   const wrap = document.getElementById('suspendedSchoolsTableWrap');
   try {
-    const res = await fetch('/api/auth/suspended-schools', { credentials: 'include' });
+    const res = await fetch('/api/auth/suspended-schools', { headers: authHeader() });
     if (!res.ok) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🔒</div><div class="msg">Access denied</div></div>'; return; }
     const data = await res.json();
     if (data.length === 0) { wrap.innerHTML = '<div class="empty-state"><div class="icon">✅</div><div class="msg">No suspended schools</div></div>'; return; }
     let html = '<table class="data-table"><thead><tr><th>Code</th><th>School Name</th><th>Status</th><th>Created</th><th class="actions-col">Actions</th></tr></thead><tbody>';
     data.forEach(s => {
-      html += '<tr><td><span class="badge" style="background:var(--badge-bg);color:var(--badge-text);font-family:monospace;">'+escapeHtml(s.school_code)+'</span></td><td>'+escapeHtml(s.school_name)+'</td><td><span class="badge suspended">Suspended</span></td><td style="font-size:0.75rem;">'+new Date(s.created_at).toLocaleDateString()+'</td><td class="actions-col"><div class="actions"><button class="btn-sm success" onclick="reactivateSchool('+s.id+')"><i class="fas fa-undo"></i> Reactivate</button></div></td></tr>';
+      html += `<tr><td><span class="badge" style="background:var(--badge-bg);color:var(--badge-text);font-family:monospace;">${escapeHtml(s.school_code)}</span></td><td>${escapeHtml(s.school_name)}</td><td><span class="badge suspended">Suspended</span></td><td style="font-size:0.75rem;">${new Date(s.created_at).toLocaleDateString()}</td><td class="actions-col"><div class="actions"><button class="btn-sm success" onclick="reactivateSchool(${s.id})"><i class="fas fa-undo"></i> Reactivate</button></div></td></tr>`;
     });
     html += '</tbody></table>';
     wrap.innerHTML = html;
@@ -440,16 +444,16 @@ async function handleChangePassword(e) {
   if (newPw.length < 6) { msgEl.textContent = 'Min 6 characters'; msgEl.style.display = 'block'; msgEl.style.color = '#ef4444'; return; }
 
   btn.disabled = true; btnText.innerHTML = '<span class="spinner"></span> Saving...';
-
   try {
     const res = await fetch('/api/auth/change-password', {
-      credentials: 'include',
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
       body: JSON.stringify({ current_password: current, new_password: newPw, confirm_password: confirm })
     });
     const data = await res.json();
     if (!res.ok) { msgEl.textContent = data.error || 'Failed'; msgEl.style.display = 'block'; msgEl.style.color = '#ef4444'; }
     else {
+      if (data.token) localStorage.setItem('auth_token', data.token);
       msgEl.textContent = 'Password changed successfully'; msgEl.style.display = 'block'; msgEl.style.color = '#22c55e';
       setTimeout(() => closeModal('changePasswordModal'), 1000);
     }
@@ -459,24 +463,25 @@ async function handleChangePassword(e) {
 
 // Logout
 async function handleLogout() {
-  await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-  window.location.href = '/login.html';
+  localStorage.removeItem('auth_token');
+  await fetch('/api/auth/logout', { method: 'POST' });
+  window.location.href = '/index.html';
 }
 
 // Session check
 async function checkSession() {
+  const token = localStorage.getItem('auth_token');
+  if (!token) { window.location.href = '/index.html'; return; }
   try {
-    const res = await fetch('/api/auth/me', { credentials: 'include' });
-    if (!res.ok) { window.location.href = '/login.html'; return; }
+    const res = await fetch('/api/auth/me', { headers: authHeader() });
+    if (!res.ok) { localStorage.removeItem('auth_token'); window.location.href = '/index.html'; return; }
     const data = await res.json();
     currentRole = data.role;
-    if (data.role !== 'super_admin') { window.location.href = '/login.html'; return; }
+    if (data.role !== 'super_admin') { window.location.href = '/index.html'; return; }
     if (data.is_first_login) { window.location.href = '/change-password.html'; return; }
     fetchPendingRequests();
-  } catch(e) { window.location.href = '/login.html'; }
+  } catch(e) { window.location.href = '/index.html'; }
 }
-
-function escapeHtml(str) { if (!str) return ''; const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
 
 (function() {
   const saved = localStorage.getItem('attendance-theme') || 'dark';

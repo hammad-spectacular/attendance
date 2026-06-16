@@ -708,7 +708,12 @@
     function redirectToLogin() {
       if (isRedirecting) return;
       isRedirecting = true;
-      window.location.href = '/login.html';
+      window.location.href = '/index.html';
+    }
+
+    function authHeader() {
+      const token = localStorage.getItem('auth_token');
+      return token ? { 'Authorization': 'Bearer ' + token } : {};
     }
 
     const state = {
@@ -763,7 +768,7 @@
     }
 
     async function fetchJson(url) {
-      const response = await fetch(url, { credentials: 'include' });
+      const response = await fetch(url, { headers: authHeader() });
       if (response.status === 401) {
         redirectToLogin();
         throw new Error('Session expired');
@@ -773,18 +778,26 @@
     }
 
     async function checkSession() {
-      const res = await fetch('/api/auth/me', { credentials: 'include' });
-      if (!res.ok) { redirectToLogin(); return false; }
-      const data = await res.json();
-      if (data.role !== 'student') { window.location.href = '/login.html'; return false; }
-      if (data.is_first_login) { window.location.href = '/change-password.html'; return false; }
-      sessionUser = data;
-      return true;
+      const token = localStorage.getItem('auth_token');
+      if (!token) { window.location.href = '/index.html'; return false; }
+      try {
+        const res = await fetch('/api/auth/me', { headers: authHeader() });
+        if (!res.ok) { localStorage.removeItem('auth_token'); window.location.href = '/index.html'; return false; }
+        const data = await res.json();
+        if (data.role !== 'student') { window.location.href = '/index.html'; return false; }
+        if (data.is_first_login) { window.location.href = '/change-password.html'; return false; }
+        sessionUser = data;
+        return true;
+      } catch (e) {
+        window.location.href = '/index.html';
+        return false;
+      }
     }
 
     async function handleLogout() {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-      window.location.href = '/login.html';
+      localStorage.removeItem('auth_token');
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/index.html';
     }
 
     function openChangePasswordModal() {
@@ -799,8 +812,7 @@
       e.preventDefault();
       const res = await fetch('/api/auth/change-password', {
         method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify({
           current_password: document.getElementById('cpCurrent').value,
           new_password: document.getElementById('cpNew').value,
@@ -814,6 +826,7 @@
         msgEl.textContent = data.error || 'Failed to change password';
         msgEl.style.color = 'var(--danger)';
       } else {
+        if (data.token) localStorage.setItem('auth_token', data.token);
         msgEl.textContent = 'Password changed successfully';
         msgEl.style.color = 'var(--success)';
         setTimeout(closeChangePasswordModal, 1000);

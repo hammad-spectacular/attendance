@@ -155,6 +155,17 @@ async function createTables() {
     UPDATE admins SET login_id = 'ADM' WHERE tenant_id = 'SUPER' AND login_id = 'SUPER-ADM'
   `)
 
+  // Fix existing teacher/student login_id values that were stored with full concatenated IDs (e.g. 'APSC-T001' -> 'T001')
+  await pool.query(`
+    UPDATE teachers 
+    SET login_id = SUBSTRING(login_id FROM POSITION('-' IN login_id) + 1)
+    WHERE login_id LIKE '%-%';
+
+    UPDATE students 
+    SET login_id = SUBSTRING(login_id FROM POSITION('-' IN login_id) + 1)
+    WHERE login_id LIKE '%-%';
+  `)
+
   console.log('Tables ready')
 }
 
@@ -262,6 +273,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     return res.status(200).json({
       success: true,
+      token,
       role: user.role,
       is_first_login: user.is_first_login,
       redirect_url
@@ -350,7 +362,7 @@ const token = jwt.sign(
         maxAge: 8 * 60 * 60 * 1000
       })
 
-      res.json({ success: true, message: 'Password changed successfully' })
+      res.json({ success: true, token, message: 'Password changed successfully' })
   } catch (err) {
     console.error('Change password error:', err)
     res.status(500).json({ error: 'Server error' })
@@ -372,7 +384,15 @@ app.post('/api/auth/logout', (req, res) => {
 // GET /api/auth/me
 app.get('/api/auth/me', async (req, res) => {
   try {
-    const token = req.cookies.auth_token
+    // Read from Authorization header (primary) or cookie (fallback)
+    let token = null
+    const authHeader = req.headers['authorization']
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.slice(7)
+    } else if (req.cookies?.auth_token) {
+      token = req.cookies.auth_token
+    }
+
     if (!token) {
       return res.status(401).json({ error: 'Not authenticated' })
     }
@@ -400,25 +420,27 @@ app.post('/api/auth/create-teacher', requireAuth(['admin']), async (req, res) =>
     const tenant_id = req.user.tenant_id
 
     const highestResult = await pool.query(
-      `SELECT login_id FROM teachers WHERE tenant_id = $1 AND login_id LIKE $2 ORDER BY login_id DESC LIMIT 1`,
+      `SELECT login_id FROM teachers WHERE tenant_id = $1 AND (login_id LIKE 'T%' OR login_id LIKE $2) ORDER BY login_id DESC LIMIT 1`,
       [tenant_id, `${tenant_id}-T%`]
     )
 
     let nextNum = 1
     if (highestResult.rows.length > 0) {
       const lastId = highestResult.rows[0].login_id
-      const numPart = parseInt(lastId.replace(`${tenant_id}-T`, ''), 10)
+      const match = lastId.match(/\d+$/)
+      const numPart = match ? parseInt(match[0], 10) : NaN
       if (!isNaN(numPart)) nextNum = numPart + 1
     }
 
-    const teacherId = `${tenant_id}-T${String(nextNum).padStart(3, '0')}`
+    const shortId = `T${String(nextNum).padStart(3, '0')}`
+    const teacherId = `${tenant_id}-${shortId}`
     const tempPassword = generateTempPassword()
     const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS)
 
     await pool.query(
       `INSERT INTO teachers (name, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login)
        VALUES ($1, $2, $3, $4, $5, 'teacher', $6, true)`,
-      [name, phone || null, class_id || null, teacherId, passwordHash, tenant_id]
+      [name, phone || null, class_id || null, shortId, passwordHash, tenant_id]
     )
 
     res.json({ success: true, teacher_id: teacherId, temp_password: tempPassword })
@@ -437,25 +459,27 @@ app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) =>
     const tenant_id = req.user.tenant_id
 
     const highestResult = await pool.query(
-      `SELECT login_id FROM students WHERE tenant_id = $1 AND login_id LIKE $2 ORDER BY login_id DESC LIMIT 1`,
+      `SELECT login_id FROM students WHERE tenant_id = $1 AND (login_id LIKE 'S%' OR login_id LIKE $2) ORDER BY login_id DESC LIMIT 1`,
       [tenant_id, `${tenant_id}-S%`]
     )
 
     let nextNum = 1
     if (highestResult.rows.length > 0) {
       const lastId = highestResult.rows[0].login_id
-      const numPart = parseInt(lastId.replace(`${tenant_id}-S`, ''), 10)
+      const match = lastId.match(/\d+$/)
+      const numPart = match ? parseInt(match[0], 10) : NaN
       if (!isNaN(numPart)) nextNum = numPart + 1
     }
 
-    const studentId = `${tenant_id}-S${String(nextNum).padStart(3, '0')}`
+    const shortId = `S${String(nextNum).padStart(3, '0')}`
+    const studentId = `${tenant_id}-${shortId}`
     const tempPassword = generateTempPassword()
     const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS)
 
     await pool.query(
       `INSERT INTO students (name, roll_no, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login)
        VALUES ($1, $2, $3, $4, $5, $6, 'student', $7, true)`,
-      [name, roll_no || null, phone || null, class_id || null, studentId, passwordHash, tenant_id]
+      [name, roll_no || null, phone || null, class_id || null, shortId, passwordHash, tenant_id]
     )
 
     res.json({ success: true, student_id: studentId, temp_password: tempPassword })

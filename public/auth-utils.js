@@ -11,16 +11,20 @@ async function parseJsonResponse(res) {
 }
 
 async function apiFetch(url, options = {}) {
+  const token = localStorage.getItem('auth_token');
+  const authHeaders = token ? { 'Authorization': 'Bearer ' + token } : {};
+
   const res = await fetch(`${API_BASE}${url}`, {
-    credentials: 'include',
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...authHeaders,
       ...(options.headers || {})
     }
   });
 
   if (res.status === 401 && !window.location.pathname.includes('login.html')) {
+    localStorage.removeItem('auth_token');
     window.location.href = '/login.html?expired=1';
     throw new Error('Session expired');
   }
