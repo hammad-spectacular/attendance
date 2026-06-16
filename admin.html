@@ -2242,6 +2242,21 @@
     let addTeacherOpen = false;
 
     async function toggleAddTeacher() {
+      if (!addTeacherOpen) {
+        try {
+          const response = await fetch('/api/classes', { headers: authHeader() });
+          const classes = await response.json();
+          if (classes.length === 0) {
+            showToast('You need to create at least one class before adding teachers. Go to the Classes tab to add a class first.', 'warning');
+            switchTab('tab-classes');
+            return;
+          }
+          window.appData.classes = classes;
+        } catch (err) {
+          console.error('Failed to fetch classes before adding teacher:', err);
+        }
+      }
+
       addTeacherOpen = !addTeacherOpen;
       const form = document.getElementById('addTeacherForm');
       const btn = document.getElementById('addTeacherToggleBtn');
