@@ -1647,6 +1647,16 @@
     // =============================================================
     const API = '';
 
+    // =============================================================
+    // AUTH REDIRECT GUARD — prevents simultaneous redirect chaos
+    // =============================================================
+    let isRedirecting = false;
+    function redirectToLogin() {
+      if (isRedirecting) return;
+      isRedirecting = true;
+      window.location.href = '/login.html';
+    }
+
     // Local storage keys for features that remain frontend-only (like announcements)
     const KEYS = {
       announcements: 'schoolAnnouncements',
@@ -1758,10 +1768,10 @@
       try {
         window.appData.attendanceLoadError = '';
         const [teachers, classes, students, rawAttendance] = await Promise.all([
-          fetch('/api/teachers', { credentials: 'include' }).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); }),
-          fetch('/api/classes', { credentials: 'include' }).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); }),
-          fetch('/api/students', { credentials: 'include' }).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); }),
-          fetch('', { credentials: 'include' }).then(r => { if(r.status===401) window.location.href='/login.html'; if (!r.ok) throw new Error('Attendance failed to load');
+          fetch('/api/teachers', { credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
+          fetch('/api/classes', { credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
+          fetch('/api/students', { credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
+          fetch('', { credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); if (!r.ok) throw new Error('Attendance failed to load');
             return r.json();
           }).catch(err => {
             window.appData.attendanceLoadError = err.message || 'Attendance failed to load';
@@ -2905,7 +2915,7 @@
       let announcements = [];
 
       try {
-        announcements = await fetch(`/api/announcements?t=${Date.now()}`, { credentials: 'include' }).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
+        announcements = await fetch(`/api/announcements?t=${Date.now()}`, { credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); });
         announcements = announcements.filter(a => !a.class_id);
       } catch (err) {
         container.innerHTML = `

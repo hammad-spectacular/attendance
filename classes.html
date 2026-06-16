@@ -902,6 +902,16 @@
       : 'https://attendance-production-fb0b.up.railway.app';
 
     // =============================================================
+    // AUTH REDIRECT GUARD — prevents simultaneous redirect chaos
+    // =============================================================
+    let isRedirecting = false;
+    function redirectToLogin() {
+      if (isRedirecting) return;
+      isRedirecting = true;
+      window.location.href = '/login.html';
+    }
+
+    // =============================================================
     // UTILITY
     // =============================================================
     function escapeHtml(text) {
@@ -981,9 +991,9 @@
       const subtitle = document.getElementById('classCountSubtitle');
 
       try {
-        const classes = await fetch(`${API}/api/classes`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
-        const students = await fetch(`${API}/api/students`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
-        const teachers = await fetch(`${API}/api/teachers`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
+        const classes = await fetch(`${API}/api/classes`).then(r => { if(r.status===401) redirectToLogin(); return r.json(); });
+        const students = await fetch(`${API}/api/students`).then(r => { if(r.status===401) redirectToLogin(); return r.json(); });
+        const teachers = await fetch(`${API}/api/teachers`).then(r => { if(r.status===401) redirectToLogin(); return r.json(); });
 
         subtitle.textContent = `${classes.length} class${classes.length !== 1 ? 'es' : ''} created`;
 
@@ -1145,7 +1155,7 @@
 
     async function openEditClassModal(classId) {
       try {
-        const classes = await fetch(`${API}/api/classes`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
+        const classes = await fetch(`${API}/api/classes`).then(r => { if(r.status===401) redirectToLogin(); return r.json(); });
         const cls = classes.find(c => c.id === classId);
         if (!cls) return;
 
@@ -1253,7 +1263,7 @@
 
     async function openEditStudentModal(studentId) {
       try {
-        const students = await fetch(`${API}/api/students`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
+        const students = await fetch(`${API}/api/students`).then(r => { if(r.status===401) redirectToLogin(); return r.json(); });
         const student = students.find(s => s.id === studentId);
         if (!student) return;
 

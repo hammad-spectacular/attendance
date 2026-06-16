@@ -1631,6 +1631,16 @@
       ? window.location.origin
       : 'https://attendance-production-fb0b.up.railway.app';
 
+    // =============================================================
+    // AUTH REDIRECT GUARD — prevents simultaneous redirect chaos
+    // =============================================================
+    let isRedirecting = false;
+    function redirectToLogin() {
+      if (isRedirecting) return;
+      isRedirecting = true;
+      window.location.href = '/login.html';
+    }
+
     function updateThemeIcon(theme) {
       const icon = document.getElementById('themeIcon');
       if (icon) icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
@@ -1676,7 +1686,7 @@
 
     async function autoLoadTeacherClass(teacherId) {
       try {
-        const teachers = await fetch(`${API}/api/teachers`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
+        const teachers = await fetch(`${API}/api/teachers`).then(r => { if(r.status===401) redirectToLogin(); return r.json(); });
         const teacher = teachers.find(t => t.id === teacherId);
 
         if (!teacher) {
@@ -1685,7 +1695,7 @@
           return;
         }
 
-        const classes = await fetch(`${API}/api/classes`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
+        const classes = await fetch(`${API}/api/classes`).then(r => { if(r.status===401) redirectToLogin(); return r.json(); });
         const assignedClass = classes.find(c => c.id === teacher.class_id);
 
         if (!assignedClass) {
@@ -1702,7 +1712,7 @@
         }
 
         // Fetch students for this class
-        const allStudents = await fetch(`${API}/api/students`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
+        const allStudents = await fetch(`${API}/api/students`).then(r => { if(r.status===401) redirectToLogin(); return r.json(); });
         const classStudents = allStudents.filter(s => s.class_id === assignedClass.id);
 
         // Load teacher and class
@@ -1743,7 +1753,7 @@
       const btn = modal.querySelector('button');
       
       try {
-        const teachers = await fetch(`${API}/api/teachers`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
+        const teachers = await fetch(`${API}/api/teachers`).then(r => { if(r.status===401) redirectToLogin(); return r.json(); });
 
         if (!Array.isArray(teachers) || teachers.length === 0) {
           dropdown.style.display = 'none';
@@ -1782,7 +1792,7 @@
       const container2 = document.getElementById('schoolAnnouncementsList2');
       let items = [];
       try {
-        items = await fetch(`${API}/api/announcements`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
+        items = await fetch(`${API}/api/announcements`).then(r => { if(r.status===401) redirectToLogin(); return r.json(); });
         items = items.filter(item => !item.class_id);
       } catch(e) {
         const errorHtml = '<div class="text-xs text-[rgba(255,255,255,0.6)] italic py-2 mt-2">School announcements failed to load</div>';
@@ -1851,7 +1861,7 @@
       let myItems = [];
 
       try {
-        const items = await fetch(`${API}/api/announcements?class_id=${currentClass ? currentClass.id : ''}`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
+        const items = await fetch(`${API}/api/announcements?class_id=${currentClass ? currentClass.id : ''}`).then(r => { if(r.status===401) redirectToLogin(); return r.json(); });
         myItems = items.filter(item => Number(item.class_id) === Number(currentClass.id));
       } catch(e) {
         container.innerHTML = '<div class="text-xs text-gray-400 italic py-2">Announcements failed to load</div>';
@@ -1969,7 +1979,7 @@
       let myItems = [];
 
       try {
-        myItems = await fetch(`${API}/api/homework?class_id=${currentClass ? currentClass.id : ''}`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
+        myItems = await fetch(`${API}/api/homework?class_id=${currentClass ? currentClass.id : ''}`).then(r => { if(r.status===401) redirectToLogin(); return r.json(); });
       } catch(e) {
         container.innerHTML = '<div class="text-xs text-gray-400 italic py-2">Homework failed to load</div>';
         return;

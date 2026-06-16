@@ -1122,6 +1122,16 @@
       ? window.location.origin
       : 'https://attendance-production-fb0b.up.railway.app';
 
+    // =============================================================
+    // AUTH REDIRECT GUARD — prevents simultaneous redirect chaos
+    // =============================================================
+    let isRedirecting = false;
+    function redirectToLogin() {
+      if (isRedirecting) return;
+      isRedirecting = true;
+      window.location.href = '/login.html';
+    }
+
     // Local storage keys for features that remain frontend-only (like announcements)
     const KEYS = {
       announcements: 'schoolAnnouncements',
@@ -1194,10 +1204,10 @@
     async function reloadAllData(isInitial = false) {
       try {
         const [teachers, classes, students, rawAttendance] = await Promise.all([
-          fetch(`${API}/api/teachers`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); }),
-          fetch(`${API}/api/classes`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); }),
-          fetch(`${API}/api/students`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); }),
-          fetch(`${API}/api/attendance/all`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); }).catch(() => [])
+          fetch(`${API}/api/teachers`).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
+          fetch(`${API}/api/classes`).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
+          fetch(`${API}/api/students`).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
+          fetch(`${API}/api/attendance/all`).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }).catch(() => [])
         ]);
 
         window.appData.teachers = teachers;
@@ -1966,7 +1976,7 @@
       let announcements = [];
 
       try {
-        announcements = await fetch(`${API}/api/announcements`).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
+        announcements = await fetch(`${API}/api/announcements`).then(r => { if(r.status===401) redirectToLogin(); return r.json(); });
         announcements = announcements.filter(a => !a.class_id);
       } catch (err) {
         container.innerHTML = `

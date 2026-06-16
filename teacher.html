@@ -1704,11 +1704,11 @@
     async function checkSession() {
       try {
         const res = await fetch('/api/auth/me', { credentials: 'include' });
-        if (!res.ok) { window.location.href = '/login.html'; return; }
+        if (!res.ok) { redirectToLogin(); return; }
         const data = await res.json();
         if (data.role !== 'teacher') { window.location.href = '/login.html'; return; }
         if (data.is_first_login) { window.location.href = '/change-password.html'; return; }
-      } catch (e) { window.location.href = '/login.html'; }
+      } catch (e) { redirectToLogin(); }
     }
 
     async function handleLogout() {
@@ -1795,6 +1795,16 @@
     // =============================================================
     const API = '';
 
+    // =============================================================
+    // AUTH REDIRECT GUARD — prevents simultaneous redirect chaos
+    // =============================================================
+    let isRedirecting = false;
+    function redirectToLogin() {
+      if (isRedirecting) return;
+      isRedirecting = true;
+      window.location.href = '/login.html';
+    }
+
     // ============================================================
     // SKELETON HELPERS
     // ============================================================
@@ -1861,9 +1871,9 @@
 
       try {
         const [teachers, classes, allStudents] = await Promise.all([
-          fetch('/api/teachers', { credentials: 'include' }).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); }),
-          fetch('/api/classes', { credentials: 'include' }).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); }),
-          fetch('/api/students', { credentials: 'include' }).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); })
+          fetch('/api/teachers', { credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
+          fetch('/api/classes', { credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
+          fetch('/api/students', { credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); })
         ]);
 
         const teacher = teachers.find(t => t.id === teacherId);
@@ -1937,7 +1947,7 @@
       const btn = modal.querySelector('button');
       
       try {
-        const teachers = await fetch('/api/teachers', { credentials: 'include' }).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
+        const teachers = await fetch('/api/teachers', { credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); });
 
         if (!Array.isArray(teachers) || teachers.length === 0) {
           dropdown.style.display = 'none';
@@ -2038,7 +2048,7 @@
       let items = [];
       try {
         const [res] = await Promise.all([
-          fetch('/api/announcements', { credentials: 'include' }).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); }),
+          fetch('/api/announcements', { credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
           new Promise(r => setTimeout(r, 600)) // ensure shimmer shows
         ]);
         items = res.filter(item => !item.class_id);
@@ -2112,7 +2122,7 @@
       let myItems = [];
       try {
         const [items] = await Promise.all([
-          fetch(`/api/announcements?class_id=${currentClass ? currentClass.id : ''}`, { credentials: 'include' }).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); }),
+          fetch(`/api/announcements?class_id=${currentClass ? currentClass.id : ''}`, { credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
           new Promise(r => setTimeout(r, 600))
         ]);
         myItems = items.filter(item => Number(item.class_id) === Number(currentClass.id));
@@ -2235,7 +2245,7 @@
 
       try {
         const [items] = await Promise.all([
-          fetch(`/api/homework?class_id=${currentClass ? currentClass.id : ''}`, { credentials: 'include' }).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); }),
+          fetch(`/api/homework?class_id=${currentClass ? currentClass.id : ''}`, { credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
           new Promise(r => setTimeout(r, 600))
         ]);
         myItems = items;

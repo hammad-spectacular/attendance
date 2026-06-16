@@ -67,6 +67,12 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
 .data-table tbody tr { transition:background 0.2s ease; }
 .data-table tbody tr:hover { background:var(--table-row-hover); }
 .data-table tbody td { padding:12px 14px; border-bottom:1px solid var(--border); color:var(--text-secondary); vertical-align:middle; }
+.data-table thead th.actions-col,
+.data-table tbody td.actions-col { text-align:center; width:120px; background:rgba(79,70,229,0.04); }
+[data-theme="dark"] .data-table thead th.actions-col,
+[data-theme="dark"] .data-table tbody td.actions-col { background:rgba(79,70,229,0.06); }
+.data-table tbody td.actions-col { border-left:1px dashed var(--border); }
+.actions { display:flex; align-items:center; justify-content:center; gap:6px; }
 .badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:8px; font-size:0.72rem; font-weight:600; white-space:nowrap; }
 .badge.pending { background:var(--warning-bg); color:var(--warning); }
 .badge.approved { background:var(--success-bg); color:var(--success); }
@@ -370,9 +376,9 @@ async function fetchPendingRequests() {
     if (!res.ok) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🔒</div><div class="msg">Access denied</div></div>'; return; }
     const data = await res.json();
     if (data.length === 0) { wrap.innerHTML = '<div class="empty-state"><div class="icon">📭</div><div class="msg">No pending requests</div></div>'; return; }
-    let html = '<table class="data-table"><thead><tr><th>School</th><th>Contact</th><th>Email</th><th>Message</th><th>Date</th><th>Actions</th></tr></thead><tbody>';
+    let html = '<table class="data-table"><thead><tr><th>School</th><th>Contact</th><th>Email</th><th>Message</th><th>Date</th><th class="actions-col">Actions</th></tr></thead><tbody>';
     data.forEach(r => {
-      html += '<tr><td>'+escapeHtml(r.school_name)+'</td><td>'+escapeHtml(r.contact_person)+'</td><td>'+escapeHtml(r.contact_email)+'</td><td style="font-size:0.75rem;">'+(r.message ? escapeHtml(r.message) : '—')+'</td><td style="font-size:0.75rem;">'+new Date(r.created_at).toLocaleDateString()+'</td><td><div class="actions"><button class="btn-sm primary" onclick="openApproveModal('+r.id+',\''+escapeHtml(r.school_name).replace(/'/g,"\\'")+'\')"><i class="fas fa-check"></i> Approve</button><button class="btn-sm danger" onclick="rejectSchool('+r.id+')"><i class="fas fa-times"></i></button></div></td></tr>';
+      html += '<tr><td>'+escapeHtml(r.school_name)+'</td><td>'+escapeHtml(r.contact_person)+'</td><td>'+escapeHtml(r.contact_email)+'</td><td style="font-size:0.75rem;">'+(r.message ? escapeHtml(r.message) : '—')+'</td><td style="font-size:0.75rem;">'+new Date(r.created_at).toLocaleDateString()+'</td><td class="actions-col"><div class="actions"><button class="btn-sm primary" onclick="openApproveModal('+r.id+',\''+escapeHtml(r.school_name).replace(/'/g,"\\'")+'\')"><i class="fas fa-check"></i> Approve</button><button class="btn-sm danger" onclick="rejectSchool('+r.id+')"><i class="fas fa-times"></i></button></div></td></tr>';
     });
     html += '</tbody></table>';
     wrap.innerHTML = html;
@@ -386,9 +392,9 @@ async function fetchActiveSchools() {
     if (!res.ok) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🔒</div><div class="msg">Access denied</div></div>'; return; }
     const data = await res.json();
     if (data.length === 0) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🏫</div><div class="msg">No active schools</div></div>'; return; }
-    let html = '<table class="data-table"><thead><tr><th>Code</th><th>School Name</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
+    let html = '<table class="data-table"><thead><tr><th>Code</th><th>School Name</th><th>Status</th><th>Created</th><th class="actions-col">Actions</th></tr></thead><tbody>';
     data.forEach(s => {
-      html += '<tr><td><span class="badge" style="background:var(--badge-bg);color:var(--badge-text);font-family:monospace;">'+escapeHtml(s.school_code)+'</span></td><td>'+escapeHtml(s.school_name)+'</td><td><span class="badge active">Active</span></td><td style="font-size:0.75rem;">'+new Date(s.created_at).toLocaleDateString()+'</td><td><button class="btn-sm danger" onclick="suspendSchool('+s.id+')"><i class="fas fa-ban"></i> Suspend</button></td></tr>';
+      html += '<tr><td><span class="badge" style="background:var(--badge-bg);color:var(--badge-text);font-family:monospace;">'+escapeHtml(s.school_code)+'</span></td><td>'+escapeHtml(s.school_name)+'</td><td><span class="badge active">Active</span></td><td style="font-size:0.75rem;">'+new Date(s.created_at).toLocaleDateString()+'</td><td class="actions-col"><div class="actions"><button class="btn-sm danger" onclick="suspendSchool('+s.id+')"><i class="fas fa-ban"></i> Suspend</button></div></td></tr>';
     });
     html += '</tbody></table>';
     wrap.innerHTML = html;
@@ -402,9 +408,9 @@ async function fetchSuspendedSchools() {
     if (!res.ok) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🔒</div><div class="msg">Access denied</div></div>'; return; }
     const data = await res.json();
     if (data.length === 0) { wrap.innerHTML = '<div class="empty-state"><div class="icon">✅</div><div class="msg">No suspended schools</div></div>'; return; }
-    let html = '<table class="data-table"><thead><tr><th>Code</th><th>School Name</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
+    let html = '<table class="data-table"><thead><tr><th>Code</th><th>School Name</th><th>Status</th><th>Created</th><th class="actions-col">Actions</th></tr></thead><tbody>';
     data.forEach(s => {
-      html += '<tr><td><span class="badge" style="background:var(--badge-bg);color:var(--badge-text);font-family:monospace;">'+escapeHtml(s.school_code)+'</span></td><td>'+escapeHtml(s.school_name)+'</td><td><span class="badge suspended">Suspended</span></td><td style="font-size:0.75rem;">'+new Date(s.created_at).toLocaleDateString()+'</td><td><button class="btn-sm success" onclick="reactivateSchool('+s.id+')"><i class="fas fa-undo"></i> Reactivate</button></td></tr>';
+      html += '<tr><td><span class="badge" style="background:var(--badge-bg);color:var(--badge-text);font-family:monospace;">'+escapeHtml(s.school_code)+'</span></td><td>'+escapeHtml(s.school_name)+'</td><td><span class="badge suspended">Suspended</span></td><td style="font-size:0.75rem;">'+new Date(s.created_at).toLocaleDateString()+'</td><td class="actions-col"><div class="actions"><button class="btn-sm success" onclick="reactivateSchool('+s.id+')"><i class="fas fa-undo"></i> Reactivate</button></div></td></tr>';
     });
     html += '</tbody></table>';
     wrap.innerHTML = html;
