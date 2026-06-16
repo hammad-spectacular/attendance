@@ -458,14 +458,6 @@
     .class-card-item { background-color: var(--bg) !important; border-color: var(--border) !important; }
     .class-card-item .item-text { color: var(--text) !important; }
     
-    [data-theme="dark"] #teacherSelectionModal > div { background-color: var(--bg-card) !important; color: var(--text) !important; }
-    [data-theme="dark"] #teacherSelectionModal h2 { color: var(--text) !important; }
-    [data-theme="dark"] #teacherSelectionModal select { background-color: var(--bg) !important; border-color: var(--border) !important; color: var(--text) !important; }
-
-    /* Hide teacher modal on direct link */
-    #teacherSelectionModal.hidden {
-      display: none !important;
-    }
 
     /* Dark mode tab nav */
     [data-theme="dark"] .tab-nav { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3); }
@@ -1860,7 +1852,6 @@
 
         if (!assignedClass) {
           await revealAfterMinTime(() => {
-            document.getElementById('teacherSelectionModal').classList.add('hidden');
             document.body.style.overflow = '';
             document.getElementById('studentList').innerHTML = `
               <div style="text-align:center; padding:40px; color:var(--text-muted);">
@@ -1881,7 +1872,6 @@
           currentClass = assignedClass;
           students = classStudents;
 
-          document.getElementById('teacherSelectionModal').classList.add('hidden');
           document.body.style.overflow = '';
           document.getElementById('headerTeacherName').textContent = teacher.name;
           document.getElementById('headerClassName').textContent = `Class ${assignedClass.name}`;

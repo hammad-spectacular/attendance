@@ -98,6 +98,8 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
 .credential-box { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:14px; margin:12px 0; font-family:monospace; font-size:0.9rem; }
 .credential-box span { font-weight:700; color:var(--primary-light); }
 .warning-text { font-size:0.78rem; color:var(--danger); font-weight:600; margin-top:8px; }
+.btn-ghost { padding:6px 12px; border-radius:8px; background:transparent; color:var(--text-muted); border:1px solid var(--border); font-size:0.75rem; font-weight:600; font-family:'Inter',sans-serif; cursor:pointer; transition:all 0.2s ease; }
+.btn-ghost:hover { background:var(--bg-card-hover); color:var(--primary-light); }
 .modal-actions { display:flex; gap:8px; margin-top:16px; }
 .modal-actions .btn { flex:1; padding:10px; border:none; border-radius:10px; font-weight:600; font-family:'Inter',sans-serif; cursor:pointer; transition:all 0.2s ease; }
 .modal-actions .btn.primary { background:var(--gradient); color:white; }
@@ -318,8 +320,16 @@ async function confirmApprove() {
     const data = await res.json();
     if (!res.ok) { showToast('⚠️ ' + (data.error || 'Failed'), 'error'); return; }
     closeModal('approveModal');
-    document.getElementById('credentialDisplay').innerHTML =
-      '<div>Admin ID: <span>'+data.admin_id+'</span></div><div style="margin-top:8px;">Temp Password: <span>'+data.temp_password+'</span></div>';
+    document.getElementById('credentialDisplay').innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <div>Admin ID: <span id="credAdminId" style="user-select:all; font-weight:700; color:var(--primary-light);">${escapeHtml(data.admin_id)}</span></div>
+        <button class="btn-ghost" style="padding:4px 8px; font-size:0.75rem;" onclick="copyCred('credAdminId', this)">Copy</button>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>Temp Password: <span id="credTempPassword" style="user-select:all; font-weight:700; color:var(--primary-light);">${escapeHtml(data.temp_password)}</span></div>
+        <button class="btn-ghost" style="padding:4px 8px; font-size:0.75rem;" onclick="copyCred('credTempPassword', this)">Copy</button>
+      </div>
+    `;
     openModal('credentialsModal');
     showToast('✅ School approved successfully', 'success');
   } catch (e) { showToast('⚠️ Connection error', 'error'); }
@@ -369,6 +379,19 @@ function escapeHtml(str) {
   const d = document.createElement('div');
   d.textContent = str;
   return d.innerHTML;
+}
+
+function copyCred(elementId, btn) {
+  const text = document.getElementById(elementId).innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const originalText = btn.innerText;
+    btn.innerText = 'Copied!';
+    btn.style.color = 'var(--success)';
+    setTimeout(() => {
+      btn.innerText = 'Copy';
+      btn.style.color = '';
+    }, 2000);
+  });
 }
 
 // Fetch data
