@@ -425,8 +425,42 @@
       padding: 28px 20px 60px;
     }
 
+    .modal-actions .btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .modal-actions .btn.primary {
+      background: var(--gradient);
+      color: white;
+    }
+    
+    .modal-actions .btn.primary:hover {
+      opacity: 0.9;
+    }
+    
+    .modal-actions .btn.ghost {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    
+    .modal-actions .btn.ghost:hover {
+      background: var(--bg-card-hover);
+    }
+    
+    .credential-box { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:14px; margin:12px 0; font-family:monospace; font-size:0.9rem; }
+    .credential-box span { font-weight:700; color:var(--primary-light); }
+    .warning-text { font-size:0.78rem; color:var(--danger); font-weight:600; margin-top:8px; }
+
     /* ================================
-       SECTION CARD
+       UTILITY CLASSES
        ================================ */
     .section-card {
       background: var(--bg-card);
@@ -752,30 +786,60 @@
       flex: 1;
     }
 
-    .announcement-delete {
+
+    .announcement-delete,
+    .btn-delete {
       width: 28px;
       height: 28px;
+      padding: 0;
       border-radius: 8px;
-      border: none;
-      background: var(--danger-bg);
+      border: 1px solid rgba(239, 68, 68, 0.18);
+      background: rgba(239, 68, 68, 0.06);
       color: var(--danger);
       cursor: pointer;
       font-size: 0.72rem;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      transition: all 0.2s ease;
-      opacity: 0;
+      line-height: 1;
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
     }
 
-    .announcement-item:hover .announcement-delete {
-      opacity: 1;
+    .announcement-delete:hover,
+    .btn-delete:hover {
+      background: rgba(239, 68, 68, 0.14);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #dc2626;
+      transform: scale(1.08);
     }
 
-    .announcement-delete:hover {
-      background: rgba(239, 68, 68, 0.2);
-      transform: scale(1.1);
+    .announcement-delete:active,
+    .btn-delete:active {
+      transform: scale(0.96);
+    }
+
+    .announcement-delete:disabled,
+    .btn-delete:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,0.35);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
 
     /* ================================
@@ -791,6 +855,14 @@
     .action-buttons button {
       padding: 8px 12px;
       font-size: 1rem;
+    }
+
+    .action-buttons .btn-edit,
+    .action-buttons .btn-delete {
+      padding: 0;
+      width: 28px;
+      height: 28px;
+      font-size: 0.72rem;
     }
 
     /* ================================
@@ -1640,8 +1712,61 @@
     </div>
   </div>
 
+  <!-- Credentials Modal -->
+  <div class="modal" id="credentialsModal">
+    <div class="modal-card">
+      <h3><i class="fas fa-key"></i> Teacher/Student Credentials</h3>
+      <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Share these credentials with the user:</p>
+      <div class="credential-box" id="credentialDisplay"></div>
+      <p class="warning-text">⚠️ Copy these now. They will not be shown again.</p>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="closeCredentialsModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ======================== JAVASCRIPT ======================== -->
+  <script src="/auth-utils.js"></script>
   <script>
+    let credentialsDoneCallback = null;
+
+    function showCredentialsModal(loginId, tempPassword, onDone) {
+      const display = document.getElementById('credentialDisplay');
+      display.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div>Login ID: <span id="credLoginId" style="user-select:all;">${escapeHtml(loginId)}</span></div>
+          <button class="btn btn-ghost btn-sm" style="padding:4px 8px; font-size:0.75rem;" onclick="copyCred('credLoginId', this)">Copy</button>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>Temp Password: <span id="credTempPassword" style="user-select:all;">${escapeHtml(tempPassword)}</span></div>
+          <button class="btn btn-ghost btn-sm" style="padding:4px 8px; font-size:0.75rem;" onclick="copyCred('credTempPassword', this)">Copy</button>
+        </div>
+      `;
+      credentialsDoneCallback = onDone;
+      document.getElementById('credentialsModal').classList.add('open');
+    }
+
+    function closeCredentialsModal() {
+      document.getElementById('credentialsModal').classList.remove('open');
+      if (credentialsDoneCallback) {
+        credentialsDoneCallback();
+        credentialsDoneCallback = null;
+      }
+    }
+
+    function copyCred(elementId, btn) {
+      const text = document.getElementById(elementId).innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const originalText = btn.innerText;
+        btn.innerText = 'Copied!';
+        btn.style.color = 'var(--success)';
+        setTimeout(() => {
+          btn.innerText = 'Copy';
+          btn.style.color = '';
+        }, 2000);
+      });
+    }
+
     // =============================================================
     // API CONFIGURATION (Automatic Localhost / Production Detection)
     // =============================================================
@@ -1758,10 +1883,11 @@
       try {
         window.appData.attendanceLoadError = '';
         const [teachers, classes, students, rawAttendance] = await Promise.all([
-          fetch('/api/teachers', { credentials: 'include' }).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); }),
-          fetch('/api/classes', { credentials: 'include' }).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); }),
-          fetch('/api/students', { credentials: 'include' }).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); }),
-          fetch('', { credentials: 'include' }).then(r => { if(r.status===401) window.location.href='/login.html'; if (!r.ok) throw new Error('Attendance failed to load');
+          apiFetch('/api/teachers').then(r => r.json()),
+          apiFetch('/api/classes').then(r => r.json()),
+          apiFetch('/api/students').then(r => r.json()),
+          apiFetch('/api/attendance/all').then(r => {
+            if (!r.ok) throw new Error('Attendance failed to load');
             return r.json();
           }).catch(err => {
             window.appData.attendanceLoadError = err.message || 'Attendance failed to load';
@@ -2076,15 +2202,21 @@
       }
 
       try {
-        const response = await fetch(`/api/classes/${classId}/assign-teacher`, {
-          credentials: 'include',
+        const response = await apiFetch(`/api/classes/${classId}/assign-teacher`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ teacher_id: teacherId ? parseInt(teacherId) : null })
         });
         if (!response.ok) throw new Error('Failed to update teacher assignment');
+        
+        const tid = teacherId ? parseInt(teacherId) : null;
+        window.appData.teachers.forEach(t => {
+          if (tid !== null && t.id === tid) t.class_id = classId;
+          else if (t.class_id === classId) t.class_id = null;
+        });
+        renderClasses();
+        
         showToast('✅ Teacher assignment updated', 'success');
-        await reloadAllData(false, true); // force fetch to get updated data
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       }
@@ -2124,26 +2256,30 @@
     async function saveClass() {
       const name = document.getElementById('className').value.trim();
       const section = document.getElementById('classSection').value.trim();
+      const btn = document.querySelector('#addClassForm .btn-primary, button[onclick="saveClass()"]');
 
       if (!name) {
         showToast('⚠️ Please enter a class name', 'warning');
         return;
       }
 
+      setButtonLoading(btn, true, '<i class="fas fa-spinner fa-spin"></i> Creating...');
+
       try {
-        const response = await fetch('/api/classes', {
-          credentials: 'include',
+        const response = await apiFetch('/api/classes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, section: section || null })
         });
         if (!response.ok) throw new Error('Failed to create class');
-        
+
         toggleAddClass();
-        await reloadAllData();
+        await reloadAllData(false, true);
         showToast('✅ Class created successfully', 'success');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
+      } finally {
+        setButtonLoading(btn, false);
       }
     }
 
@@ -2225,6 +2361,27 @@
     let addTeacherOpen = false;
 
     async function toggleAddTeacher() {
+      if (!addTeacherOpen) {
+        const cached = window.appData?.classes || [];
+        if (cached.length === 0) {
+          try {
+            const response = await apiFetch('/api/classes');
+            const classes = await response.json();
+            window.appData.classes = classes;
+            if (classes.length === 0) {
+              showToast('Add a class first.', 'warning');
+              switchTab('tab-classes');
+              return;
+            }
+          } catch (err) {
+            console.error('Failed to fetch classes before adding teacher:', err);
+            showToast('Add a class first.', 'warning');
+            switchTab('tab-classes');
+            return;
+          }
+        }
+      }
+
       addTeacherOpen = !addTeacherOpen;
       const form = document.getElementById('addTeacherForm');
       const btn = document.getElementById('addTeacherToggleBtn');
@@ -2261,10 +2418,16 @@
       const name = document.getElementById('teacherName').value.trim();
       const classId = parseInt(document.getElementById('teacherClass').value);
       const phone = document.getElementById('teacherPhone').value.trim();
+      const btn = document.querySelector('#addTeacherForm .btn-primary, button[onclick="saveTeacher()"]');
 
       if (!name) {
         showToast('⚠️ Please enter teacher name', 'warning');
         document.getElementById('teacherName').focus();
+        return;
+      }
+      if (window.appData.classes.length === 0) {
+        showToast('Add a class first before adding a teacher.', 'warning');
+        switchTab('tab-classes');
         return;
       }
       if (phone && !/^[0-9]{11}$/.test(phone)) {
@@ -2273,10 +2436,11 @@
         return;
       }
 
+      setButtonLoading(btn, true, '<i class="fas fa-spinner fa-spin"></i> Creating...');
+
       try {
-        const response = await fetch('/api/auth/create-teacher', {
+        const response = await apiFetch('/api/auth/create-teacher', {
           method: 'POST',
-          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, phone: phone || null, class_id: classId || null })
         });
@@ -2285,22 +2449,25 @@
 
         clearTeacherForm();
         toggleAddTeacher();
-        await reloadAllData();
-        alert(`Teacher created!\n\nTeacher ID: ${data.teacher_id}\nTemp Password: ${data.temp_password}\n\nCopy this now — it will not be shown again.`);
+        showCredentialsModal(data.teacher_id, data.temp_password, async () => {
+          await reloadAllData(false, true);
+        });
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
+      } finally {
+        setButtonLoading(btn, false);
       }
     }
 
     async function deleteTeacher(id) {
       if (!confirm('Remove this teacher?')) return;
       try {
-        const response = await fetch(`/api/teachers/${id}`, { method: 'DELETE', credentials: 'include' });
+        const response = await apiFetch(`/api/teachers/${id}`, { method: 'DELETE' });
         if (!response.ok) throw new Error('Failed to delete teacher');
-        await reloadAllData();
-        showToast('🗑️ Teacher removed', 'info');
+        await reloadAllData(false, true);
+        showToast('Teacher removed', 'info');
       } catch (err) {
-        showToast(`❌ Error: ${err.message}`, 'error');
+        showToast(`Error: ${err.message}`, 'error');
       }
     }
 
@@ -2423,8 +2590,8 @@
                 <button onclick="openEditTeacherModal(${t.id})" class="btn-edit" title="Edit in modal">
                   <i class="fas fa-expand"></i>
                 </button>
-                <button onclick="deleteTeacher(${t.id})" class="announcement-delete" style="opacity:1;" title="Remove teacher" aria-label="Delete">
-                  <i class="fas fa-trash-alt"></i><span style="position: absolute; left: -9999px;">Delete</span>
+                <button onclick="deleteTeacher(${t.id})" class="btn-delete" title="Remove teacher" aria-label="Delete teacher">
+                  <i class="fas fa-trash-alt" aria-hidden="true"></i>
                 </button>
               </div>
             </td>
@@ -2462,6 +2629,7 @@
       const name = document.getElementById('studentName').value.trim();
       const rollNo = document.getElementById('studentRoll').value.trim();
       const phone = document.getElementById('studentPhone').value.trim();
+      const btn = document.querySelector('#addStudentForm .btn-primary, button[onclick="saveStudent()"]');
 
       if (!name) {
         showToast('⚠️ Please enter student name', 'warning');
@@ -2477,10 +2645,11 @@
         return;
       }
 
+      setButtonLoading(btn, true, '<i class="fas fa-spinner fa-spin"></i> Creating...');
+
       try {
-        const response = await fetch('/api/auth/create-student', {
+        const response = await apiFetch('/api/auth/create-student', {
           method: 'POST',
-          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name,
@@ -2493,22 +2662,25 @@
         if (!response.ok) throw new Error(data.error || 'Failed to save student');
 
         toggleAddStudent();
-        await reloadAllData();
-        alert(`Student created!\n\nStudent ID: ${data.student_id}\nTemp Password: ${data.temp_password}\n\nCopy this now — it will not be shown again.`);
+        showCredentialsModal(data.student_id, data.temp_password, async () => {
+          await reloadAllData(false, true);
+        });
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
+      } finally {
+        setButtonLoading(btn, false);
       }
     }
 
     async function deleteStudent(id) {
       if (!confirm('Remove this student?')) return;
       try {
-        const response = await fetch(`/api/students/${id}`, { method: 'DELETE', credentials: 'include' });
+        const response = await apiFetch(`/api/students/${id}`, { method: 'DELETE' });
         if (!response.ok) throw new Error('Failed to delete student');
-        await reloadAllData();
-        showToast('🗑️ Student removed', 'info');
+        await reloadAllData(false, true);
+        showToast('Student removed', 'info');
       } catch (err) {
-        showToast(`❌ Error: ${err.message}`, 'error');
+        showToast(`Error: ${err.message}`, 'error');
       }
     }
 
@@ -2623,8 +2795,8 @@
                 <button onclick="openEditStudentModal(${s.id})" class="btn-edit" title="Edit in modal">
                   <i class="fas fa-expand"></i>
                 </button>
-                <button class="announcement-delete" style="opacity:1;" onclick="deleteStudent(${s.id})" title="Remove Student" aria-label="Delete">
-                  <i class="fas fa-trash"></i><span style="position: absolute; left: -9999px;">Delete</span>
+                <button class="btn-delete" onclick="deleteStudent(${s.id})" title="Remove student" aria-label="Delete student">
+                  <i class="fas fa-trash-alt" aria-hidden="true"></i>
                 </button>
               </div>
             </td>
@@ -2860,86 +3032,18 @@
     }
 
     // =============================================================
-    // SCHOOL ANNOUNCEMENTS
+    // SCHOOL ANNOUNCEMENTS (see saveAnnouncement below in audit section)
     // =============================================================
-    async function saveAnnouncement() {
-      const textarea = document.getElementById('announcementText');
-      const message = textarea.value.trim();
-
-      if (!message) {
-        showToast('⚠️ Please type an announcement', 'warning');
-        textarea.focus();
-        return;
-      }
-
-      const response = await fetch('/api/announcements', {
-        credentials: 'include',
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: 'School Announcement',
-          message: message,
-          author: 'Admin'
-        })
-      });
-
-      if (!response.ok) throw new Error('Failed to save announcement');
-
-      textarea.value = '';
-      renderAnnouncements();
-      showToast('📢 Announcement saved', 'success');
-    }
 
     async function deleteAnnouncement(id) {
-      const response = await fetch(`/api/announcements/${id}`, { method: 'DELETE', credentials: 'include' });
+      if (!confirm('Remove this announcement?')) return;
+      const response = await apiFetch(`/api/announcements/${id}`, { method: 'DELETE' });
       if (!response.ok) {
         showToast('Failed to remove announcement', 'error');
         return;
       }
-      await renderAnnouncements();
-      showToast('🗑️ Announcement removed', 'info');
-    }
-
-    async function renderAnnouncements() {
-      const container = document.getElementById('announcementsList');
-      let announcements = [];
-
-      try {
-        announcements = await fetch(`/api/announcements?t=${Date.now()}`, { credentials: 'include' }).then(r => { if(r.status===401) window.location.href='/login.html'; return r.json(); });
-        announcements = announcements.filter(a => !a.class_id);
-      } catch (err) {
-        container.innerHTML = `
-          <div class="empty-state" style="padding:24px 0;">
-            <div class="icon">!</div>
-            <div class="msg">Announcements failed to load</div>
-            <div class="sub">${escapeHtml(err.message)}</div>
-          </div>`;
-        return;
-      }
-
-      if (announcements.length === 0) {
-        container.innerHTML = `
-          <div class="empty-state" style="padding:24px 0;">
-            <div class="icon">📢</div>
-            <div class="msg">No announcements yet</div>
-            <div class="sub">Post your first announcement above</div>
-          </div>`;
-        return;
-      }
-
-      let html = '<ul class="announcement-list">';
-      announcements.forEach((a, i) => {
-        html += `
-          <li class="announcement-item" style="animation-delay:${i * 0.05}s;">
-            <span class="announcement-date">${escapeHtml(new Date(a.created_at).toLocaleDateString('en-CA'))}</span>
-            <span class="announcement-msg">${escapeHtml(a.message)}</span>
-            <button class="announcement-delete" onclick="deleteAnnouncement(${a.id})" title="Delete announcement">
-              <i class="fas fa-times"></i>
-            </button>
-          </li>`;
-      });
-      html += '</ul>';
-      container.innerHTML = html;
+      await reloadAllData(false, true);
+      showToast('Announcement removed', 'success');
     }
 
     function getFilteredAttendanceRecords() {
@@ -3205,8 +3309,7 @@
       button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
 
       try {
-        const response = await fetch('/api/announcements', {
-        credentials: 'include',
+        const response = await apiFetch('/api/announcements', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -3219,8 +3322,8 @@
         if (!response.ok) throw new Error('Failed to save announcement');
 
         textarea.value = '';
-        button.innerHTML = '<i class="fas fa-check"></i> Updated';
-        await renderAnnouncements();
+        button.innerHTML = '<i class="fas fa-check"></i> Saved';
+        await reloadAllData(false, true);
         showToast('Announcement saved', 'success');
       } catch (err) {
         showToast(`Error: ${err.message}`, 'error');
@@ -3238,7 +3341,7 @@
       let announcements = [];
 
       try {
-        announcements = await fetch(`/api/announcements?t=${Date.now()}`, { credentials: 'include' }).then(r => {
+        announcements = await apiFetch(`/api/announcements?t=${Date.now()}`).then(r => {
           if (!r.ok) throw new Error('Announcements failed to load');
           return r.json();
         });
@@ -3299,9 +3402,11 @@
             <td style="text-align:center;"><span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(item.class_name || 'School-wide')}</span></td>
             <td style="text-align:center; color:var(--text-secondary);">${escapeHtml(date)}</td>
             <td style="text-align:right;">
-              <button class="announcement-delete" style="opacity:1;" onclick="deleteAnnouncement(${item.id})" title="Delete / take down announcement">
-                <i class="fas fa-times"></i>
-              </button>
+              <div class="action-buttons" style="justify-content:flex-end;">
+                <button type="button" class="btn-delete" onclick="deleteAnnouncement(${item.id})" title="Delete announcement" aria-label="Delete announcement">
+                  <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                </button>
+              </div>
             </td>
           </tr>`;
       });
@@ -3314,18 +3419,16 @@
     // SESSION CHECK + AUTH
     // =============================================================
     async function checkSession() {
-      try {
-        const res = await fetch('/api/auth/me', { credentials: 'include' });
-        if (!res.ok) { window.location.href = '/login.html'; return; }
-        const data = await res.json();
-        if (data.role !== 'admin' && data.role !== 'super_admin') { window.location.href = '/login.html'; return; }
-        if (data.is_first_login) { window.location.href = '/change-password.html'; return; }
-      } catch (e) { window.location.href = '/login.html'; }
+      const session = await refreshSession();
+      if (!session) { redirectToLogin(); return; }
+      if (session.role !== 'admin' && session.role !== 'super_admin') { window.location.href = '/index.html'; return; }
+      if (session.is_first_login) { window.location.href = '/change-password.html'; return; }
     }
 
     async function handleLogout() {
+      localStorage.removeItem('auth_token');
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-      window.location.href = '/login.html';
+      window.location.href = '/index.html';
     }
 
     // Change Password Modal
@@ -3358,9 +3461,8 @@
       btnText.innerHTML = '<span class="spinner"></span> Saving...';
 
       try {
-        const res = await fetch('/api/auth/change-password', {
+        const res = await apiFetch('/api/auth/change-password', {
           method: 'POST',
-          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ current_password: current, new_password: newPw, confirm_password: confirm })
         });
@@ -3371,6 +3473,7 @@
           msgEl.style.display = 'block';
           msgEl.style.cssText += 'background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);';
         } else {
+          if (data.token) localStorage.setItem('auth_token', data.token);
           msgEl.textContent = 'Password changed successfully';
           msgEl.style.display = 'block';
           msgEl.style.cssText += 'background:rgba(34,197,94,0.1);color:#22c55e;border:1px solid rgba(34,197,94,0.2);';
@@ -3391,18 +3494,8 @@
 
 
     // =============================================================
-    // INITIALIZATION
+    // INITIALIZATION — bootstrapped from DOMContentLoaded
     // =============================================================
-    function init() {
-      checkSession().then(() => {
-        loadTheme();
-        renderTeachers();
-        renderStudents();
-        renderAttendance();
-        renderStats();
-        renderAnnouncements();
-      });
-    }
 
     // =============================================================
     // TAB ROUTING & SWITCHING
@@ -3459,17 +3552,20 @@
       }
 
       try {
-        const response = await fetch(`/api/teachers/${id}`, {
-          credentials: 'include',
+        const response = await apiFetch(`/api/teachers/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, phone: phone || null, class_id: classId || null })
         });
 
         if (!response.ok) throw new Error('Failed to update teacher');
+        
+        const updatedTeacher = await response.json();
+        const idx = window.appData.teachers.findIndex(t => t.id === id);
+        if (idx !== -1) window.appData.teachers[idx] = updatedTeacher;
+        renderTeachers();
 
         closeEditTeacherModal();
-        await reloadAllData();
         showToast('✅ Teacher updated successfully', 'success');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -3519,17 +3615,20 @@
       const classId = existing ? existing.class_id : null;
 
       try {
-        const response = await fetch(`/api/students/${id}`, {
-          credentials: 'include',
+        const response = await apiFetch(`/api/students/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, roll_no: rollNo, phone: phone || null, class_id: classId })
         });
 
         if (!response.ok) throw new Error('Failed to update student');
+        
+        const updatedStudent = await response.json();
+        const idx = window.appData.students.findIndex(s => s.id === id);
+        if (idx !== -1) window.appData.students[idx] = updatedStudent;
+        filterStudents();
 
         closeEditStudentModal();
-        await reloadAllData();
         showToast('✅ Student updated successfully', 'success');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -3733,26 +3832,34 @@
       try {
         if (activeTabId === 'tab-teachers') {
           for (let [id, data] of dirtyState['tab-teachers']) {
-            await fetch(`/api/teachers/${id}`, {
-              credentials: 'include',
+            const response = await apiFetch(`/api/teachers/${id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(data.current)
             });
+            if (response.ok) {
+              const updated = await response.json();
+              const idx = window.appData.teachers.findIndex(t => t.id === id);
+              if (idx !== -1) window.appData.teachers[idx] = updated;
+            }
           }
           dirtyState['tab-teachers'].clear();
-          await reloadAllData(false, true); // force fetch
+          renderTeachers();
         } else if (activeTabId === 'tab-students') {
           for (let [id, data] of dirtyState['tab-students']) {
-            await fetch(`/api/students/${id}`, {
-              credentials: 'include',
+            const response = await apiFetch(`/api/students/${id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(data.current)
             });
+            if (response.ok) {
+              const updated = await response.json();
+              const idx = window.appData.students.findIndex(s => s.id === id);
+              if (idx !== -1) window.appData.students[idx] = updated;
+            }
           }
           dirtyState['tab-students'].clear();
-          await reloadAllData(false, true); // force fetch
+          filterStudents();
         }
         
         showToast('✅ All changes saved successfully', 'success');
@@ -3809,8 +3916,10 @@
       setupModalDismiss('editStudentModal', closeEditStudentModal);
       setupModalDismiss('absenteeModal', closeAbsenteeModal);
 
-      // Perform parallel SQL loading on start
-      reloadAllData(true);
+      checkSession().then(() => {
+        startSessionKeepAlive();
+        reloadAllData(true);
+      });
 
       // Universal phone validation visual feedback
       document.querySelectorAll('.form-input[type="tel"]').forEach(input => {
