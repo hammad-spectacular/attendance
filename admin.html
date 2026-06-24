@@ -786,6 +786,7 @@
       flex: 1;
     }
 
+
     .announcement-delete {
       width: 28px;
       height: 28px;
@@ -800,11 +801,12 @@
       justify-content: center;
       flex-shrink: 0;
       transition: all 0.2s ease;
-      opacity: 0;
+      opacity: 1; /* Make delete button visible by default for admins (fix mobile where :hover doesn't apply) */
     }
 
+    /* Keep the hover scale effect but do not hide the button on touch devices */
     .announcement-item:hover .announcement-delete {
-      opacity: 1;
+      transform: scale(1.05);
     }
 
     .announcement-delete:hover {

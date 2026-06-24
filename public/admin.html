@@ -538,12 +538,7 @@
       flex-shrink: 0;
       margin-top: 1px;
     }
-    .announcement-msg {
-      font-size: 0.85rem;
-      color: var(--text);
-      line-height: 1.45;
-      flex: 1;
-    }
+
     .announcement-delete {
       width: 28px;
       height: 28px;
@@ -558,6 +553,12 @@
       justify-content: center;
       flex-shrink: 0;
       transition: all 0.2s ease;
+      opacity: 1; /* Visible by default for admin UI */
+    }
+
+    .announcement-item:hover .announcement-delete {
+      transform: scale(1.05);
+    }
       opacity: 0;
     }
     .announcement-item:hover .announcement-delete {
