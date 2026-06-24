@@ -1,29 +1,74 @@
-const API_BASE = '';
+let isRedirecting = false;
 
-async function parseJsonResponse(res) {
-  const text = await res.text();
-  if (!text) return {};
+function authHeader() {
+  const token = localStorage.getItem('auth_token');
+  return token ? { Authorization: 'Bearer ' + token } : {};
+}
+
+function setAuthToken(token) {
+  if (token) localStorage.setItem('auth_token', token);
+}
+
+function redirectToLogin() {
+  if (isRedirecting) return;
+  isRedirecting = true;
+  localStorage.removeItem('auth_token');
+  window.location.href = '/index.html';
+}
+
+async function refreshSession() {
   try {
-    return JSON.parse(text);
+    const res = await fetch('/api/auth/me', {
+      credentials: 'include',
+      headers: authHeader()
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.token) setAuthToken(data.token);
+    return data;
   } catch {
-    throw new Error(res.ok ? 'Invalid server response' : `Server error (${res.status})`);
+    return null;
   }
 }
 
 async function apiFetch(url, options = {}) {
-  const res = await fetch(`${API_BASE}${url}`, {
+  const doFetch = () => fetch(url, {
     credentials: 'include',
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...authHeader(),
       ...(options.headers || {})
     }
   });
 
-  if (res.status === 401 && !window.location.pathname.includes('login.html')) {
-    window.location.href = '/login.html?expired=1';
-    throw new Error('Session expired');
+  let res = await doFetch();
+  if (res.status === 401) {
+    const session = await refreshSession();
+    if (!session) {
+      redirectToLogin();
+      return res;
+    }
+    res = await doFetch();
+    if (res.status === 401) redirectToLogin();
   }
 
   return res;
+}
+
+function startSessionKeepAlive(intervalMs = 10 * 60 * 1000) {
+  refreshSession();
+  setInterval(refreshSession, intervalMs);
+}
+
+function setButtonLoading(btn, loading, loadingHtml) {
+  if (!btn) return;
+  if (loading) {
+    if (!btn.dataset.originalHtml) btn.dataset.originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = loadingHtml || '<i class="fas fa-spinner fa-spin"></i> Saving...';
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = btn.dataset.originalHtml || btn.innerHTML;
+    delete btn.dataset.originalHtml;
+  }
 }
