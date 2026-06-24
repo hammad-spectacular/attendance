@@ -788,20 +788,19 @@
 
 
     .announcement-delete {
-      width: 28px;
-      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
       border-radius: 8px;
       border: none;
       background: var(--danger-bg);
       color: var(--danger);
       cursor: pointer;
-      font-size: 0.72rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      transition: all 0.2s ease;
-      opacity: 1; /* Make delete button visible by default for admins (fix mobile where :hover doesn't apply) */
+      font-size: 0.85rem;
+      line-height: 1;
+      transition: all 0.12s ease;
+      opacity: 1; /* Visible by default for admins and teachers */
     }
 
     /* Keep the hover scale effect but do not hide the button on touch devices */
@@ -3058,8 +3057,10 @@
           <li class="announcement-item" style="animation-delay:${i * 0.05}s;">
             <span class="announcement-date">${escapeHtml(new Date(a.created_at).toLocaleDateString('en-CA'))}</span>
             <span class="announcement-msg">${escapeHtml(a.message)}</span>
-            <button class="announcement-delete" onclick="deleteAnnouncement(${a.id})" title="Delete announcement">
-              <i class="fas fa-times"></i>
+            <button class="announcement-delete" onclick="deleteAnnouncement(${a.id})" title="Delete announcement" aria-label="Delete announcement">
+              <i class="fas fa-trash-alt" aria-hidden="true"></i>
+              <span class="sr-only">Delete</span>
+              <span style="font-weight:700; margin-left:2px;">Delete</span>
             </button>
           </li>`;
       });
@@ -3423,8 +3424,9 @@
             <td style="text-align:center;"><span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(item.class_name || 'School-wide')}</span></td>
             <td style="text-align:center; color:var(--text-secondary);">${escapeHtml(date)}</td>
             <td style="text-align:right;">
-              <button class="announcement-delete" style="opacity:1;" onclick="deleteAnnouncement(${item.id})" title="Delete / take down announcement">
-                <i class="fas fa-times"></i>
+              <button class="announcement-delete" style="opacity:1;" onclick="deleteAnnouncement(${item.id})" title="Delete / take down announcement" aria-label="Delete announcement">
+                <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                <span style="font-weight:700; margin-left:6px;">Delete</span>
               </button>
             </td>
           </tr>`;

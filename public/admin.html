@@ -540,29 +540,23 @@
     }
 
     .announcement-delete {
-      width: 28px;
-      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
       border-radius: 8px;
       border: none;
       background: var(--danger-bg);
       color: var(--danger);
       cursor: pointer;
-      font-size: 0.72rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      transition: all 0.2s ease;
+      font-size: 0.85rem;
+      line-height: 1;
+      transition: all 0.12s ease;
       opacity: 1; /* Visible by default for admin UI */
     }
 
     .announcement-item:hover .announcement-delete {
       transform: scale(1.05);
-    }
-      opacity: 0;
-    }
-    .announcement-item:hover .announcement-delete {
-      opacity: 1;
     }
     .announcement-delete:hover {
       background: rgba(239, 68, 68, 0.2);
@@ -2010,8 +2004,9 @@
           <li class="announcement-item" style="animation-delay:${i * 0.05}s;">
             <span class="announcement-date">${escapeHtml(new Date(a.created_at).toLocaleDateString('en-CA'))}</span>
             <span class="announcement-msg">${escapeHtml(a.message)}</span>
-            <button class="announcement-delete" onclick="deleteAnnouncement(${a.id})" title="Delete announcement">
-              <i class="fas fa-times"></i>
+            <button class="announcement-delete" onclick="deleteAnnouncement(${a.id})" title="Delete announcement" aria-label="Delete announcement">
+              <i class="fas fa-trash-alt" aria-hidden="true"></i>
+              <span style="font-weight:700; margin-left:4px;">Delete</span>
             </button>
           </li>`;
       });
