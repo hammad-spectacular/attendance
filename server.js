@@ -10,6 +10,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 }) // THEN load db — now DATABASE_URL exists
 const app = express()
+const { requireAuth } = require('./authMiddleware')
 
 app.use(cors({
   origin: ['https://theeye-beta.vercel.app', 'http://localhost:3000'],
@@ -470,14 +471,19 @@ app.get('/api/announcements', async (req, res) => {
   }
 })
 
-app.post('/api/announcements', async (req, res) => {
+// Create announcement: only authenticated users (teachers/admins) can post. Server will set teacher_id/author from token where appropriate.
+app.post('/api/announcements', requireAuth(), async (req, res) => {
   try {
-    const { title, message, class_id, teacher_id, author } = req.body
+    const { title, message, class_id } = req.body
     if (!message) return res.status(400).json({ error: 'Announcement message is required' })
+
+    // Prefer authoritative values from token over client-supplied values
+    const teacherId = req.user && req.user.role === 'teacher' ? req.user.user_id : null
+    const author = req.user ? req.user.role : (req.body.author || null)
 
     const result = await pool.query(
       'INSERT INTO announcements (title, message, class_id, teacher_id, author) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [title || null, message, class_id || null, teacher_id || null, author || null]
+      [title || null, message, class_id || null, teacherId, author || null]
     )
     res.json(result.rows[0])
   } catch (err) {
@@ -485,10 +491,27 @@ app.post('/api/announcements', async (req, res) => {
   }
 })
 
-app.delete('/api/announcements/:id', async (req, res) => {
+// Delete announcement: must be authenticated. Admins can delete any; teachers can delete only their own announcements.
+app.delete('/api/announcements/:id', requireAuth(), async (req, res) => {
   try {
-    await pool.query('DELETE FROM announcements WHERE id = $1', [req.params.id])
-    res.json({ success: true })
+    const id = req.params.id
+    const existing = await pool.query('SELECT * FROM announcements WHERE id = $1', [id])
+    if (existing.rows.length === 0) return res.status(404).json({ error: 'Announcement not found' })
+    const ann = existing.rows[0]
+
+    // Allow admins to delete any announcement
+    if (req.user && req.user.role && req.user.role === 'admin') {
+      await pool.query('DELETE FROM announcements WHERE id = $1', [id])
+      return res.json({ success: true })
+    }
+
+    // Allow teachers to delete only their own announcements
+    if (req.user && req.user.role === 'teacher' && ann.teacher_id && Number(ann.teacher_id) === Number(req.user.user_id)) {
+      await pool.query('DELETE FROM announcements WHERE id = $1', [id])
+      return res.json({ success: true })
+    }
+
+    return res.status(403).json({ error: 'Forbidden' })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

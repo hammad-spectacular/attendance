@@ -1935,6 +1935,11 @@
     // =============================================================
     // SCHOOL ANNOUNCEMENTS
     // =============================================================
+    function authHeader() {
+      const token = localStorage.getItem('auth_token');
+      return token ? { 'Authorization': 'Bearer ' + token } : {};
+    }
+
     async function saveAnnouncement() {
       const textarea = document.getElementById('announcementText');
       const message = textarea.value.trim();
@@ -1947,7 +1952,7 @@
 
       const response = await fetch(`${API}/api/announcements`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify({
           title: 'School Announcement',
           message: message,
@@ -1963,7 +1968,7 @@
     }
 
     async function deleteAnnouncement(id) {
-      const response = await fetch(`${API}/api/announcements/${id}`, { method: 'DELETE' });
+      const response = await fetch(`${API}/api/announcements/${id}`, { method: 'DELETE', headers: authHeader() });
       if (!response.ok) {
         showToast('Failed to remove announcement', 'error');
         return;
