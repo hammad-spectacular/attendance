@@ -347,7 +347,7 @@
 
     .info-value {
       color: var(--text);
-      font-size: 0.95rem;
+      font-size: 0.82rem;
       font-weight: 700;
       word-break: break-word;
     }
@@ -694,6 +694,7 @@
     </div>
   </div>
 
+  <script src="/auth-utils.js"></script>
   <script>
     // =============================================================
     // API CONFIGURATION (Automatic Localhost / Production Detection)
@@ -753,28 +754,24 @@
     }
 
     async function fetchJson(url) {
-      const response = await fetch(url, { credentials: 'include' });
-      if (response.status === 401) {
-        window.location.href = '/login.html?expired=1';
-        throw new Error('Session expired');
-      }
+      const response = await apiFetch(url);
       if (!response.ok) throw new Error(`Request failed (${response.status})`);
       return response.json();
     }
 
     async function checkSession() {
-      const res = await fetch('/api/auth/me', { credentials: 'include' });
-      if (!res.ok) { window.location.href = '/login.html'; return false; }
-      const data = await res.json();
-      if (data.role !== 'student') { window.location.href = '/login.html'; return false; }
+      const data = await refreshSession();
+      if (!data) { redirectToLogin(); return false; }
+      if (data.role !== 'student') { window.location.href = '/index.html'; return false; }
       if (data.is_first_login) { window.location.href = '/change-password.html'; return false; }
       sessionUser = data;
       return true;
     }
 
     async function handleLogout() {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-      window.location.href = '/login.html';
+      localStorage.removeItem('auth_token');
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/index.html';
     }
 
     function openChangePasswordModal() {
@@ -787,9 +784,8 @@
 
     async function handleChangePassword(e) {
       e.preventDefault();
-      const res = await fetch('/api/auth/change-password', {
+      const res = await apiFetch('/api/auth/change-password', {
         method: 'POST',
-        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           current_password: document.getElementById('cpCurrent').value,
@@ -804,6 +800,7 @@
         msgEl.textContent = data.error || 'Failed to change password';
         msgEl.style.color = 'var(--danger)';
       } else {
+        if (data.token) localStorage.setItem('auth_token', data.token);
         msgEl.textContent = 'Password changed successfully';
         msgEl.style.color = 'var(--success)';
         setTimeout(closeChangePasswordModal, 1000);
@@ -1206,7 +1203,10 @@
     window.addEventListener('DOMContentLoaded', async () => {
       setupSectionTabs();
       const ok = await checkSession();
-      if (ok) loadPortal();
+      if (ok) {
+        startSessionKeepAlive();
+        loadPortal();
+      }
     });
   </script>
 </body>
