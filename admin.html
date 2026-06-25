@@ -927,11 +927,11 @@
     /* ================================
        EDIT MODAL & REGULAR MODAL
        ================================ */
-    .modal,
-    .edit-modal {
+    .modal {
       position: fixed;
-      inset: 0;
-      z-index: 100;
+      top: 0; left: 0; right: 0; bottom: 0;
+      width: 100vw; height: 100vh;
+      z-index: 9999;
       display: none;
       align-items: center;
       justify-content: center;
@@ -940,9 +940,25 @@
       animation: fadeIn 0.2s ease-out;
     }
 
-    .modal.open,
+    .modal.open {
+      display: flex !important;
+    }
+
+    .edit-modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      width: 100vw; height: 100vh;
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      animation: fadeIn 0.2s ease-out;
+    }
+
     .edit-modal.open {
-      display: flex;
+      display: flex !important;
     }
 
     .modal-card {
@@ -1739,18 +1755,6 @@
   </div>
 
 
-  <!-- Credentials Modal -->
-  <div class="modal" id="credentialsModal">
-    <div class="modal-card">
-      <h3><i class="fas fa-key"></i> Teacher/Student Credentials</h3>
-      <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Share these credentials with the user:</p>
-      <div class="credential-box" id="credentialDisplay"></div>
-      <p class="warning-text">⚠️ Copy these now. They will not be shown again.</p>
-      <div class="modal-actions">
-        <button class="btn btn-primary" onclick="closeCredentialsModal()">Done</button>
-      </div>
-    </div>
-  </div>
 
   <!-- ======================== JAVASCRIPT ======================== -->
   <script src="/auth-utils.js"></script>
@@ -3999,6 +4003,19 @@
 
   <!-- Anti-inspect protection -->
   <script src="anti-inspect.js"></script>
+
+  <!-- Credentials Modal -->
+  <div class="modal" id="credentialsModal">
+    <div class="modal-card">
+      <h3><i class="fas fa-key"></i> Teacher/Student Credentials</h3>
+      <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Share these credentials with the user:</p>
+      <div class="credential-box" id="credentialDisplay"></div>
+      <p class="warning-text">⚠️ Copy these now. They will not be shown again.</p>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="closeCredentialsModal()">Done</button>
+      </div>
+    </div>
+  </div>
 
 </body>
 
