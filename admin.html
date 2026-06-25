@@ -1359,8 +1359,6 @@
             </div>
           </div>
 
-          <!-- Inline Credentials Container -->
-          <div id="teacherInlineCredentials" style="display:none; margin-bottom: 20px;"></div>
 
           <!-- Teachers Table -->
           <div id="teachersTableWrap">
@@ -1430,8 +1428,6 @@
             </div>
           </div>
 
-          <!-- Inline Credentials Container -->
-          <div id="studentInlineCredentials" style="display:none; margin-bottom: 20px;"></div>
 
           <!-- Students Table Wrap -->
           <div id="studentsTableWrap">
@@ -1743,50 +1739,45 @@
   </div>
 
 
+  <!-- Credentials Modal -->
+  <div class="modal" id="credentialsModal">
+    <div class="modal-card">
+      <h3><i class="fas fa-key"></i> Teacher/Student Credentials</h3>
+      <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Share these credentials with the user:</p>
+      <div class="credential-box" id="credentialDisplay"></div>
+      <p class="warning-text">⚠️ Copy these now. They will not be shown again.</p>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="closeCredentialsModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ======================== JAVASCRIPT ======================== -->
   <script src="/auth-utils.js"></script>
   <script>
-    let currentInlineCredentialsDoneCallback = null;
-    let currentInlineCredentialsContainerId = null;
+    let credentialsDoneCallback = null;
 
-    function showInlineCredentials(containerId, roleName, loginId, tempPassword, onDone) {
-      const container = document.getElementById(containerId);
-      container.innerHTML = `
-        <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:20px; box-shadow:var(--shadow-md); border-left: 4px solid var(--primary);">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
-            <div>
-              <h4 style="margin:0; font-size:1.1rem; color:var(--text);"><i class="fas fa-key" style="color:var(--primary); margin-right:8px;"></i>${escapeHtml(roleName)} Credentials</h4>
-              <p style="margin:4px 0 0; font-size:0.85rem; color:var(--text-secondary);">Share these credentials with the user immediately.</p>
-            </div>
-          </div>
-          <div class="credential-box" style="margin-top:0;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-              <div>Login ID: <span id="${containerId}_credLoginId" style="user-select:all;">${escapeHtml(loginId)}</span></div>
-              <button class="btn btn-ghost btn-sm" style="padding:4px 8px; font-size:0.75rem;" onclick="copyCred('${containerId}_credLoginId', this)">Copy</button>
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <div>Temp Password: <span id="${containerId}_credTempPassword" style="user-select:all;">${escapeHtml(tempPassword)}</span></div>
-              <button class="btn btn-ghost btn-sm" style="padding:4px 8px; font-size:0.75rem;" onclick="copyCred('${containerId}_credTempPassword', this)">Copy</button>
-            </div>
-          </div>
-          <p class="warning-text" style="margin-bottom:16px;">⚠️ Copy these now. They will not be shown again.</p>
-          <button class="btn btn-primary" onclick="closeInlineCredentials()">Done</button>
+    function showCredentialsModal(loginId, tempPassword, onDone) {
+      const display = document.getElementById('credentialDisplay');
+      display.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div>Login ID: <span id="credLoginId" style="user-select:all;">${escapeHtml(loginId)}</span></div>
+          <button class="btn btn-ghost btn-sm" style="padding:4px 8px; font-size:0.75rem;" onclick="copyCred('credLoginId', this)">Copy</button>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>Temp Password: <span id="credTempPassword" style="user-select:all;">${escapeHtml(tempPassword)}</span></div>
+          <button class="btn btn-ghost btn-sm" style="padding:4px 8px; font-size:0.75rem;" onclick="copyCred('credTempPassword', this)">Copy</button>
         </div>
       `;
-      container.style.display = 'block';
-      currentInlineCredentialsDoneCallback = onDone;
-      currentInlineCredentialsContainerId = containerId;
+      credentialsDoneCallback = onDone;
+      document.getElementById('credentialsModal').classList.add('open');
     }
 
-    function closeInlineCredentials() {
-      if (currentInlineCredentialsContainerId) {
-        document.getElementById(currentInlineCredentialsContainerId).style.display = 'none';
-        document.getElementById(currentInlineCredentialsContainerId).innerHTML = '';
-        currentInlineCredentialsContainerId = null;
-      }
-      if (currentInlineCredentialsDoneCallback) {
-        currentInlineCredentialsDoneCallback();
-        currentInlineCredentialsDoneCallback = null;
+    function closeCredentialsModal() {
+      document.getElementById('credentialsModal').classList.remove('open');
+      if (credentialsDoneCallback) {
+        credentialsDoneCallback();
+        credentialsDoneCallback = null;
       }
     }
 
@@ -2698,7 +2689,7 @@
         if (!response.ok) throw new Error(data.error || 'Failed to save student');
 
         toggleAddStudent();
-        showInlineCredentials('studentInlineCredentials', 'Student', data.student_id, data.temp_password, async () => {
+        showCredentialsModal(data.student_id, data.temp_password, async () => {
           await reloadAllData(false, true);
         });
       } catch (err) {
