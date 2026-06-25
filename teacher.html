@@ -417,8 +417,17 @@
     }
 
     /* Hide submit button on non-attendance tabs */
-    #submitBtn.hidden-tab {
-      display: none;
+    .student-phone-sub {
+      font-size: 0.68rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: 0.02em;
+      color: var(--text-muted);
+    }
+
+    #saveAnnouncementBtn.loading,
+    #saveHomeworkBtn.loading {
+      opacity: 0.85;
+      pointer-events: none;
     }
 
     /* SMS Overlay */
@@ -717,7 +726,7 @@
         <div class="mb-3">
           <textarea id="classAnnouncementText" class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 focus:border-blue-500 outline-none text-sm text-gray-700 resize-y min-h-[70px]" placeholder="Type class announcement..."></textarea>
         </div>
-        <button onclick="saveClassAnnouncement()" class="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 font-600 text-sm rounded-xl transition-colors mb-4 border border-blue-100 cursor-pointer">
+        <button id="saveAnnouncementBtn" onclick="saveClassAnnouncement()" class="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 font-600 text-sm rounded-xl transition-colors mb-4 border border-blue-100 cursor-pointer">
           Save Announcement
         </button>
         
@@ -741,7 +750,7 @@
           <input type="text" id="homeworkSubject" class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 focus:border-blue-500 outline-none text-sm text-gray-700" placeholder="Subject (e.g. Math)">
           <textarea id="homeworkTask" class="w-full px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 focus:border-blue-500 outline-none text-sm text-gray-700 resize-y min-h-[60px]" placeholder="Task (e.g. Ch 3 exercises)"></textarea>
         </div>
-        <button onclick="saveHomework()" class="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-600 text-sm rounded-xl transition-colors mb-4 border border-indigo-100 cursor-pointer">
+        <button id="saveHomeworkBtn" onclick="saveHomework()" class="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-600 text-sm rounded-xl transition-colors mb-4 border border-indigo-100 cursor-pointer">
           Save Homework
         </button>
         
@@ -876,6 +885,7 @@
   </div>
 
   <!-- ======================== JAVASCRIPT ======================== -->
+  <script src="/auth-utils.js"></script>
   <script>
     // =============================================================
     // DATA LAYER
@@ -1184,7 +1194,7 @@
                   <i class="fas fa-gear"></i>
                 </button>
               </div>
-              <div class="text-xs text-gray-400 font-500">${student.rollNo} · <span>${student.phone}</span></div>
+              <div class="text-xs text-gray-400 font-500">${student.rollNo}${student.phone ? ` · <span class="student-phone-sub">${student.phone}</span>` : ''}</div>
             </div>
           </div>
           <div class="flex gap-2 sm:gap-3 ml-13 sm:ml-0">
@@ -1382,10 +1392,13 @@
       // 5. Show pending overlay — "⏳ Sending messages…"
       showSmsOverlay('pending');
 
+      const submitBtn = document.getElementById('submitBtn');
+      setButtonLoading(submitBtn, true, '<i class="fas fa-spinner fa-spin"></i> Submitting...');
+
       // 6. Send to Express server
-      fetch('/api/attendance/submit', {
+      apiFetch('/api/attendance/submit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeader() },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           date: today,
           class_id: currentClass ? currentClass.id : null,
@@ -1398,16 +1411,19 @@
           }))
         })
       })
-        .then(response => response.json())
+        .then(response => {
+          if (!response.ok) throw new Error('Submit failed');
+          return response.json();
+        })
         .then(data => {
           console.log('✅ Server response:', data);
-          // Stage 2: Show success — "✅ SMS sent to X parents"
           showSmsOverlay('success', absentCount);
         })
         .catch(error => {
           console.error('❌ Server error:', error);
           showSmsOverlay('error');
-        });
+        })
+        .finally(() => setButtonLoading(submitBtn, false));
 
       // Update UI panels if applicable
       if (typeof savedPanelOpen !== 'undefined' && savedPanelOpen && typeof renderSavedRecords === 'function') {
@@ -1576,6 +1592,7 @@
     }
 
 
+
     // =============================================================
     // SMS OVERLAY FEEDBACK
     // =============================================================
@@ -1659,27 +1676,39 @@
     // =============================================================
     // SESSION CHECK + AUTH
     // =============================================================
-    function authHeader() {
-      const token = localStorage.getItem('auth_token');
-      return token ? { 'Authorization': 'Bearer ' + token } : {};
+    async function checkSession() {
+      const data = await refreshSession();
+      if (!data) { redirectToLogin(); return null; }
+      if (data.role !== 'teacher') { window.location.href = '/index.html'; return null; }
+      window._isFirstLogin = data.is_first_login;
+      window._loggedInUserId = data.user_id;
+      if (data.is_first_login) { showPasswordWarningBanner(); }
+      return data;
     }
 
-    async function checkSession() {
-      const token = localStorage.getItem('auth_token');
-      if (!token) { redirectToLogin(); return null; }
-      try {
-        const res = await fetch('/api/auth/me', { headers: authHeader() });
-        if (!res.ok) { localStorage.removeItem('auth_token'); redirectToLogin(); return null; }
-        const data = await res.json();
-        if (data.role !== 'teacher') { window.location.href = '/index.html'; return null; }
-        if (data.is_first_login) { window.location.href = '/change-password.html'; return null; }
-        return data;
-      } catch (e) { redirectToLogin(); return null; }
+    function showPasswordWarningBanner() {
+      if (document.getElementById('pwBanner')) return;
+      const banner = document.createElement('div');
+      banner.id = 'pwBanner';
+      banner.style.cssText = 'position:sticky;top:0;z-index:10000;display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 24px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:600;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,0.15);flex-wrap:wrap;';
+      banner.innerHTML = '<span style="flex:1;min-width:200px;text-align:center;"><i class="fas fa-exclamation-triangle" style="margin-right:8px;"></i>You are using a default password. Please change it for security.</span>'
+        + '<button onclick="openChangePasswordModal()" style="padding:6px 18px;border:2px solid #fff;border-radius:6px;background:transparent;color:#fff;font-weight:700;cursor:pointer;transition:all .2s;font-size:13px;" onmouseover="this.style.background=\'#fff\';this.style.color=\'#d97706\'" onmouseout="this.style.background=\'transparent\';this.style.color=\'#fff\'">Change Password</button>'
+        + '<button onclick="dismissPasswordBanner()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;padding:0 4px;opacity:0.8;" title="Dismiss">&times;</button>';
+      document.body.insertBefore(banner, document.body.firstChild);
+    }
+
+    function hidePasswordWarningBanner() {
+      const b = document.getElementById('pwBanner');
+      if (b) b.remove();
+    }
+
+    function dismissPasswordBanner() {
+      hidePasswordWarningBanner();
     }
 
     async function handleLogout() {
       localStorage.removeItem('auth_token');
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
       window.location.href = '/index.html';
     }
 
@@ -1712,9 +1741,9 @@
       btnText.innerHTML = 'Saving...';
 
       try {
-        const res = await fetch('/api/auth/change-password', {
+        const res = await apiFetch('/api/auth/change-password', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ current_password: current, new_password: newPw, confirm_password: confirm })
         });
         const data = await res.json();
@@ -1725,6 +1754,8 @@
           msgEl.style.cssText += 'background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);';
         } else {
           if (data.token) localStorage.setItem('auth_token', data.token);
+          window._isFirstLogin = false;
+          hidePasswordWarningBanner();
           msgEl.textContent = 'Password changed successfully';
           msgEl.style.display = 'block';
           msgEl.style.cssText += 'background:rgba(34,197,94,0.1);color:#22c55e;border:1px solid rgba(34,197,94,0.2);';
@@ -1761,16 +1792,6 @@
     // API CONFIGURATION (Automatic Localhost / Production Detection)
     // =============================================================
     const API = '';
-
-    // =============================================================
-    // AUTH REDIRECT GUARD — prevents simultaneous redirect chaos
-    // =============================================================
-    let isRedirecting = false;
-    function redirectToLogin() {
-      if (isRedirecting) return;
-      isRedirecting = true;
-      window.location.href = '/index.html';
-    }
 
     // ============================================================
     // SKELETON HELPERS
@@ -1811,6 +1832,30 @@
       return urlParams.get(param);
     }
 
+    async function initTeacherSelection() {
+      try {
+        const me = await refreshSession();
+        if (!me || !me.user_id) { redirectToLogin(); return; }
+
+        const teachers = await apiFetch('/api/teachers').then(r => r.json());
+        const teacher = teachers.find(t => t.id === me.user_id);
+
+        if (!teacher) {
+          showToast('❌ Teacher profile not found. Contact admin.', 'error');
+          return;
+        }
+
+        await autoLoadTeacherClass(teacher.id);
+
+        if (window._isFirstLogin) {
+          showPasswordWarningBanner();
+        }
+      } catch (e) {
+        console.error('initTeacherSelection error:', e);
+        redirectToLogin();
+      }
+    }
+
     async function autoLoadTeacherClass(teacherId) {
       // Show shimmer skeletons immediately
       showTeacherSkeletons();
@@ -1825,9 +1870,9 @@
 
       try {
         const [teachers, classes, allStudents] = await Promise.all([
-          fetch('/api/teachers', { headers: authHeader() }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
-          fetch('/api/classes', { headers: authHeader() }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
-          fetch('/api/students', { headers: authHeader() }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); })
+          apiFetch('/api/teachers').then(r => r.json()),
+          apiFetch('/api/classes').then(r => r.json()),
+          apiFetch('/api/students').then(r => r.json())
         ]);
 
         const teacher = teachers.find(t => t.id === teacherId);
@@ -1957,7 +2002,7 @@
       let items = [];
       try {
         const [res] = await Promise.all([
-          fetch('/api/announcements', { headers: authHeader() }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
+          apiFetch('/api/announcements').then(r => r.json()),
           new Promise(r => setTimeout(r, 600)) // ensure shimmer shows
         ]);
         items = res.filter(item => !item.class_id);
@@ -1993,15 +2038,18 @@
     async function saveClassAnnouncement() {
       if (!currentTeacher) return;
       const text = document.getElementById('classAnnouncementText').value.trim();
+      const btn = document.getElementById('saveAnnouncementBtn');
       if (!text) {
         showToast('⚠️ Enter an announcement', 'warning');
         return;
       }
-      
+
+      setButtonLoading(btn, true, '<i class="fas fa-spinner fa-spin"></i> Saving...');
+
       try {
-        const response = await fetch('/api/announcements', {
+        const response = await apiFetch('/api/announcements', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             title: 'Class Announcement',
             message: text,
@@ -2012,13 +2060,14 @@
         });
 
         if (!response.ok) throw new Error('Failed to save announcement');
-      
-      
-      document.getElementById('classAnnouncementText').value = '';
-      showToast('📢 Class Announcement saved', 'success');
-      renderClassAnnouncements();
+
+        document.getElementById('classAnnouncementText').value = '';
+        showToast('📢 Class Announcement saved', 'success');
+        renderClassAnnouncements();
       } catch (err) {
         showToast(`Error: ${err.message}`, 'error');
+      } finally {
+        setButtonLoading(btn, false);
       }
     }
 
@@ -2030,7 +2079,7 @@
       let myItems = [];
       try {
         const [items] = await Promise.all([
-          fetch(`/api/announcements?class_id=${currentClass ? currentClass.id : ''}`, { headers: authHeader() }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
+          apiFetch(`/api/announcements?class_id=${currentClass ? currentClass.id : ''}`).then(r => r.json()),
           new Promise(r => setTimeout(r, 600))
         ]);
         myItems = items.filter(item => Number(item.class_id) === Number(currentClass.id));
@@ -2060,16 +2109,19 @@
       if (!currentTeacher) return;
       const subject = document.getElementById('homeworkSubject').value.trim();
       const task = document.getElementById('homeworkTask').value.trim();
+      const btn = document.getElementById('saveHomeworkBtn');
       
       if (!subject || !task) {
         showToast('⚠️ Please enter subject and task', 'warning');
         return;
       }
+
+      setButtonLoading(btn, true, '<i class="fas fa-spinner fa-spin"></i> Saving...');
       
       try {
-        const response = await fetch('/api/homework', {
+        const response = await apiFetch('/api/homework', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             subject,
             task,
@@ -2080,13 +2132,14 @@
 
         if (!response.ok) throw new Error('Failed to save homework');
       
-      
-      document.getElementById('homeworkSubject').value = '';
-      document.getElementById('homeworkTask').value = '';
-      showToast('📚 Homework saved', 'success');
-      renderHomework();
+        document.getElementById('homeworkSubject').value = '';
+        document.getElementById('homeworkTask').value = '';
+        showToast('📚 Homework saved', 'success');
+        renderHomework();
       } catch (err) {
         showToast(`Error: ${err.message}`, 'error');
+      } finally {
+        setButtonLoading(btn, false);
       }
     }
 
@@ -2152,7 +2205,7 @@
 
       try {
         const [items] = await Promise.all([
-          fetch(`/api/homework?class_id=${currentClass ? currentClass.id : ''}`, { headers: authHeader() }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
+          apiFetch(`/api/homework?class_id=${currentClass ? currentClass.id : ''}`).then(r => r.json()),
           new Promise(r => setTimeout(r, 600))
         ]);
         myItems = items;
@@ -2246,6 +2299,7 @@
       // Session check first
       checkSession().then((sessionData) => {
         if (!sessionData) return;
+        startSessionKeepAlive();
         setupSectionTabs();
         // Load theme preference
         loadTheme();
@@ -2258,8 +2312,8 @@
         // Render student list
         renderStudentList();
 
-        // Auto load the current teacher's class
-        autoLoadTeacherClass(sessionData.user_id);
+        // Auto load the logged-in teacher's class from session
+        initTeacherSelection();
 
         // Restore saved attendance from localStorage (if exists for today)
         loadAttendance();

@@ -694,27 +694,13 @@
     </div>
   </div>
 
+  <script src="/auth-utils.js"></script>
   <script>
     // =============================================================
     // API CONFIGURATION (Automatic Localhost / Production Detection)
     // =============================================================
     const API = '';
     let sessionUser = null;
-
-    // =============================================================
-    // AUTH REDIRECT GUARD — prevents simultaneous redirect chaos
-    // =============================================================
-    let isRedirecting = false;
-    function redirectToLogin() {
-      if (isRedirecting) return;
-      isRedirecting = true;
-      window.location.href = '/index.html';
-    }
-
-    function authHeader() {
-      const token = localStorage.getItem('auth_token');
-      return token ? { 'Authorization': 'Bearer ' + token } : {};
-    }
 
     const state = {
       student: null,
@@ -768,30 +754,39 @@
     }
 
     async function fetchJson(url) {
-      const response = await fetch(url, { headers: authHeader() });
-      if (response.status === 401) {
-        redirectToLogin();
-        throw new Error('Session expired');
-      }
+      const response = await apiFetch(url);
       if (!response.ok) throw new Error(`Request failed (${response.status})`);
       return response.json();
     }
 
     async function checkSession() {
-      const token = localStorage.getItem('auth_token');
-      if (!token) { window.location.href = '/index.html'; return false; }
-      try {
-        const res = await fetch('/api/auth/me', { headers: authHeader() });
-        if (!res.ok) { localStorage.removeItem('auth_token'); window.location.href = '/index.html'; return false; }
-        const data = await res.json();
-        if (data.role !== 'student') { window.location.href = '/index.html'; return false; }
-        if (data.is_first_login) { window.location.href = '/change-password.html'; return false; }
-        sessionUser = data;
-        return true;
-      } catch (e) {
-        window.location.href = '/index.html';
-        return false;
-      }
+      const data = await refreshSession();
+      if (!data) { redirectToLogin(); return false; }
+      if (data.role !== 'student') { window.location.href = '/index.html'; return false; }
+      window._isFirstLogin = data.is_first_login;
+      if (data.is_first_login) { showPasswordWarningBanner(); }
+      sessionUser = data;
+      return true;
+    }
+
+    function showPasswordWarningBanner() {
+      if (document.getElementById('pwBanner')) return;
+      const banner = document.createElement('div');
+      banner.id = 'pwBanner';
+      banner.style.cssText = 'position:sticky;top:0;z-index:10000;display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 24px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:600;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,0.15);flex-wrap:wrap;';
+      banner.innerHTML = '<span style="flex:1;min-width:200px;text-align:center;"><i class="fas fa-exclamation-triangle" style="margin-right:8px;"></i>You are using a default password. Please change it for security.</span>'
+        + '<button onclick="openChangePasswordModal()" style="padding:6px 18px;border:2px solid #fff;border-radius:6px;background:transparent;color:#fff;font-weight:700;cursor:pointer;transition:all .2s;font-size:13px;" onmouseover="this.style.background=\'#fff\';this.style.color=\'#d97706\'" onmouseout="this.style.background=\'transparent\';this.style.color=\'#fff\'">Change Password</button>'
+        + '<button onclick="dismissPasswordBanner()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;padding:0 4px;opacity:0.8;" title="Dismiss">&times;</button>';
+      document.body.insertBefore(banner, document.body.firstChild);
+    }
+
+    function hidePasswordWarningBanner() {
+      const b = document.getElementById('pwBanner');
+      if (b) b.remove();
+    }
+
+    function dismissPasswordBanner() {
+      hidePasswordWarningBanner();
     }
 
     async function handleLogout() {
@@ -810,9 +805,9 @@
 
     async function handleChangePassword(e) {
       e.preventDefault();
-      const res = await fetch('/api/auth/change-password', {
+      const res = await apiFetch('/api/auth/change-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeader() },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           current_password: document.getElementById('cpCurrent').value,
           new_password: document.getElementById('cpNew').value,
@@ -827,6 +822,8 @@
         msgEl.style.color = 'var(--danger)';
       } else {
         if (data.token) localStorage.setItem('auth_token', data.token);
+        window._isFirstLogin = false;
+        hidePasswordWarningBanner();
         msgEl.textContent = 'Password changed successfully';
         msgEl.style.color = 'var(--success)';
         setTimeout(closeChangePasswordModal, 1000);
@@ -1229,7 +1226,10 @@
     window.addEventListener('DOMContentLoaded', async () => {
       setupSectionTabs();
       const ok = await checkSession();
-      if (ok) loadPortal();
+      if (ok) {
+        startSessionKeepAlive();
+        loadPortal();
+      }
     });
   </script>
 </body>

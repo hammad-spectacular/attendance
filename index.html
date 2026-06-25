@@ -293,13 +293,8 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
       return;
     }
 
-    if (data.is_first_login) {
-      if (data.token) localStorage.setItem('auth_token', data.token);
-      window.location.href = '/change-password.html';
-    } else {
-      if (data.token) localStorage.setItem('auth_token', data.token);
-      window.location.href = data.redirect_url || '/';
-    }
+    if (data.token) localStorage.setItem('auth_token', data.token);
+    window.location.href = data.redirect_url || '/';
   } catch (err) {
     errorEl.textContent = 'Connection error. Please check your internet and try again.';
     errorEl.classList.add('show');

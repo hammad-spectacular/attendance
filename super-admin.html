@@ -276,6 +276,12 @@ function toggleTheme() {
 function switchTab(name) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  
+  // Close any open modals on tab switch to prevent bleeding
+  closeModal('credentialsModal');
+  closeModal('approveModal');
+  closeModal('changePasswordModal');
+
   const tc = document.getElementById('tab-'+name);
   if (tc) tc.classList.add('active');
   const tb = document.querySelector(`.tab-btn[data-tab="${name}"]`);
@@ -477,6 +483,8 @@ async function handleChangePassword(e) {
     if (!res.ok) { msgEl.textContent = data.error || 'Failed'; msgEl.style.display = 'block'; msgEl.style.color = '#ef4444'; }
     else {
       if (data.token) localStorage.setItem('auth_token', data.token);
+      window._isFirstLogin = false;
+      hidePasswordWarningBanner();
       msgEl.textContent = 'Password changed successfully'; msgEl.style.display = 'block'; msgEl.style.color = '#22c55e';
       setTimeout(() => closeModal('changePasswordModal'), 1000);
     }
@@ -501,9 +509,30 @@ async function checkSession() {
     const data = await res.json();
     currentRole = data.role;
     if (data.role !== 'super_admin') { window.location.href = '/index.html'; return; }
-    if (data.is_first_login) { window.location.href = '/change-password.html'; return; }
+    window._isFirstLogin = data.is_first_login;
+    if (data.is_first_login) { showPasswordWarningBanner(); }
     fetchPendingRequests();
   } catch(e) { window.location.href = '/index.html'; }
+}
+
+function showPasswordWarningBanner() {
+  if (document.getElementById('pwBanner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'pwBanner';
+  banner.style.cssText = 'position:sticky;top:0;z-index:10000;display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 24px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:600;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,0.15);flex-wrap:wrap;';
+  banner.innerHTML = '<span style="flex:1;min-width:200px;text-align:center;"><i class="fas fa-exclamation-triangle" style="margin-right:8px;"></i>You are using a default password. Please change it for security.</span>'
+    + '<button onclick="openModal(\'changePasswordModal\')" style="padding:6px 18px;border:2px solid #fff;border-radius:6px;background:transparent;color:#fff;font-weight:700;cursor:pointer;transition:all .2s;font-size:13px;" onmouseover="this.style.background=\'#fff\';this.style.color=\'#d97706\'" onmouseout="this.style.background=\'transparent\';this.style.color=\'#fff\'">Change Password</button>'
+    + '<button onclick="dismissPasswordBanner()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;padding:0 4px;opacity:0.8;" title="Dismiss">&times;</button>';
+  document.body.insertBefore(banner, document.body.firstChild);
+}
+
+function hidePasswordWarningBanner() {
+  const b = document.getElementById('pwBanner');
+  if (b) b.remove();
+}
+
+function dismissPasswordBanner() {
+  hidePasswordWarningBanner();
 }
 
 (function() {
