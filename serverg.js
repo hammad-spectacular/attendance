@@ -20,17 +20,23 @@ app.use(cors({
 app.use(express.json())
 app.use(cookieParser())
 
+app.use(express.static('public'))
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'))
 })
+
+// Catch-all for .html pages — only matches paths that look like page names,
+// NOT API routes. API routes (all start with /api/) are defined after this
+// section and take precedence because Express matches in definition order.
 app.get('/:page.html', (req, res, next) => {
+  // Skip API routes — they are handled by their own route handlers below
+  if (req.params.page.startsWith('api/')) return next();
   const safePage = req.params.page.replace(/[^a-zA-Z0-9-_]/g, '');
   res.sendFile(path.join(__dirname, `${safePage}.html`), (err) => {
     if (err) next();
   });
 })
-
-app.use(express.static('public'))
 
 // ============================================
 // CREATE TABLES ON STARTUP
@@ -387,7 +393,6 @@ app.post('/api/auth/logout', (req, res) => {
 // GET /api/auth/me
 app.get('/api/auth/me', async (req, res) => {
   try {
-    // Read from Authorization header (primary) or cookie (fallback)
     let token = null
     const authHeader = req.headers['authorization']
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -401,12 +406,50 @@ app.get('/api/auth/me', async (req, res) => {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET)
+
+    let table = ''
+    if (decoded.role === 'super_admin' || decoded.role === 'admin') table = 'admins'
+    else if (decoded.role === 'teacher') table = 'teachers'
+    else if (decoded.role === 'student') table = 'students'
+
+    let is_first_login = decoded.is_first_login
+    if (table) {
+      const result = await pool.query(
+        `SELECT is_first_login FROM ${table} WHERE id = $1`,
+        [decoded.user_id]
+      )
+      if (result.rows.length > 0) {
+        is_first_login = result.rows[0].is_first_login
+      }
+    }
+
+    const freshToken = jwt.sign(
+      {
+        user_id: decoded.user_id,
+        role: decoded.role,
+        tenant_id: decoded.tenant_id,
+        login_id: decoded.login_id,
+        is_first_login
+      },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRY }
+    )
+
+    res.cookie('auth_token', freshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      path: '/',
+      maxAge: 8 * 60 * 60 * 1000
+    })
+
     return res.status(200).json({
       user_id: decoded.user_id,
       role: decoded.role,
       tenant_id: decoded.tenant_id,
       login_id: decoded.login_id,
-      is_first_login: decoded.is_first_login
+      is_first_login,
+      token: freshToken
     })
 
   } catch (err) {

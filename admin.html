@@ -1763,13 +1763,28 @@
 
     function showCredentialsModal(loginId, tempPassword, onDone) {
       const display = document.getElementById('credentialDisplay');
+
+      // Defensive: if credentials are missing, show an error state instead of a blank box
+      if (!loginId || !tempPassword) {
+        display.innerHTML = `
+          <div style="text-align:center; padding:8px 0;">
+            <div style="font-size:1.5rem; margin-bottom:8px;">⚠️</div>
+            <div style="color:var(--danger); font-size:0.85rem; font-weight:600;">Credentials not received from server</div>
+            <div style="color:var(--text-muted); font-size:0.78rem; margin-top:4px;">Please try saving again or contact support.</div>
+          </div>
+        `;
+        credentialsDoneCallback = onDone;
+        document.getElementById('credentialsModal').classList.add('open');
+        return;
+      }
+
       display.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <div>Login ID: <span id="credLoginId" style="user-select:all;">${escapeHtml(loginId)}</span></div>
+          <div>Login ID: <span id="credLoginId" style="user-select:all; font-weight:700; color:var(--primary-light);">${escapeHtml(loginId)}</span></div>
           <button class="btn btn-ghost btn-sm" style="padding:4px 8px; font-size:0.75rem;" onclick="copyCred('credLoginId', this)">Copy</button>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <div>Temp Password: <span id="credTempPassword" style="user-select:all;">${escapeHtml(tempPassword)}</span></div>
+          <div>Temp Password: <span id="credTempPassword" style="user-select:all; font-weight:700; color:var(--primary-light);">${escapeHtml(tempPassword)}</span></div>
           <button class="btn btn-ghost btn-sm" style="padding:4px 8px; font-size:0.75rem;" onclick="copyCred('credTempPassword', this)">Copy</button>
         </div>
       `;
@@ -2478,6 +2493,11 @@
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Failed to add teacher');
 
+        // Validate credentials were returned before showing the modal
+        if (!data.teacher_id || !data.temp_password) {
+          throw new Error('Server did not return credentials. Please try again.');
+        }
+
         clearTeacherForm();
         toggleAddTeacher();
         showCredentialsModal(data.teacher_id, data.temp_password, async () => {
@@ -2691,6 +2711,11 @@
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Failed to save student');
+
+        // Validate credentials were returned before showing the modal
+        if (!data.student_id || !data.temp_password) {
+          throw new Error('Server did not return credentials. Please try again.');
+        }
 
         toggleAddStudent();
         showCredentialsModal(data.student_id, data.temp_password, async () => {
