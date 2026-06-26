@@ -1416,7 +1416,7 @@
             <div class="credential-box" id="teacherCredentialDisplay"></div>
             <p class="warning-text">⚠️ Copy these now. They will not be shown again.</p>
             <div class="modal-actions">
-              <button class="btn btn-primary" id="teacherCredentialsDoneBtn" onclick="closeCredentialsPanel('teacher')">Done</button>
+              <button class="btn btn-primary" id="teacherCredentialsDoneBtn" onclick="closeCredentialsModal()">Done</button>
             </div>
           </div>
 
@@ -1479,20 +1479,6 @@
                 <i class="fas fa-check"></i> Save Student
               </button>
               <button class="btn btn-ghost" onclick="toggleAddStudent()">Cancel</button>
-            </div>
-          </div>
-
-          <div class="credentials-panel" id="studentCredentialsPanel" aria-live="polite">
-            <div class="credentials-panel-header">
-              <div>
-                <div class="credentials-panel-title"><i class="fas fa-key"></i> Student Credentials</div>
-                <div class="credentials-panel-subtitle">Give these to the student. Press Done after noting them down.</div>
-              </div>
-            </div>
-            <div class="credential-box" id="studentCredentialDisplay"></div>
-            <p class="warning-text">⚠️ Copy these now. They will not be shown again.</p>
-            <div class="modal-actions">
-              <button class="btn btn-primary" id="studentCredentialsDoneBtn" onclick="closeCredentialsPanel('student')">Done</button>
             </div>
           </div>
 
@@ -1821,6 +1807,21 @@
     </div>
   </div>
 
+  <!-- ======================== CREDENTIALS MODAL ======================== -->
+  <div class="edit-modal" id="credentialsModal">
+    <div class="edit-modal-card">
+      <div class="edit-modal-header">
+        <h3><i class="fas fa-key" style="color:var(--primary);"></i> <span id="credentialsModalTitle">Credentials</span></h3>
+        <button class="edit-modal-close" onclick="closeCredentialsModal()" aria-label="Close credentials modal"><i class="fas fa-times"></i></button>
+      </div>
+      <div id="credentialsModalBody"></div>
+      <p class="warning-text" style="margin-bottom:12px;">⚠️ After pressing OK, these credentials will not be shown again.</p>
+      <button class="btn btn-primary" id="credentialsModalDoneBtn" onclick="closeCredentialsModal()" style="width:100%;justify-content:center;">
+        OK, I have noted these down
+      </button>
+    </div>
+  </div>
+
 
 
   <!-- ======================== JAVASCRIPT ======================== -->
@@ -1831,44 +1832,57 @@
 
     function showCredentialsPanel(loginId, tempPassword, userType = 'user', onDone) {
       const type = userType === 'student' ? 'student' : 'teacher';
-      const panel = document.getElementById(`${type}CredentialsPanel`);
-      const display = document.getElementById(`${type}CredentialDisplay`);
-      const doneBtn = document.getElementById(`${type}CredentialsDoneBtn`);
+      const modal = document.getElementById('credentialsModal');
+      const title = document.getElementById('credentialsModalTitle');
+      const body = document.getElementById('credentialsModalBody');
+      const doneBtn = document.getElementById('credentialsModalDoneBtn');
 
-      closeCredentialsPanel(type === 'student' ? 'teacher' : 'student', false);
+      title.textContent = type === 'student' ? 'Student Credentials' : 'Teacher Credentials';
 
-      // Defensive: if credentials are missing, show an error state instead of a blank box
+      credentialsDoneCallback = onDone;
+      activeCredentialsType = type;
+
       if (!loginId || !tempPassword) {
-        display.innerHTML = `
+        body.innerHTML = `
           <div style="text-align:center; padding:8px 0;">
             <div style="font-size:1.5rem; margin-bottom:8px;">⚠️</div>
             <div style="color:var(--danger); font-size:0.85rem; font-weight:600;">Credentials not received from server</div>
             <div style="color:var(--text-muted); font-size:0.78rem; margin-top:4px;">Please try saving again or contact support.</div>
           </div>
         `;
-        credentialsDoneCallback = onDone;
-        activeCredentialsType = type;
-        panel.classList.add('open');
-        panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        modal.classList.add('open');
         doneBtn.focus();
         return;
       }
 
-      display.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <div>Login ID: <span id="${type}CredLoginId" style="user-select:all; font-weight:700; color:var(--primary-light);">${escapeHtml(loginId)}</span></div>
-          <button class="btn btn-ghost btn-sm" style="padding:4px 8px; font-size:0.75rem;" onclick="copyCred('${type}CredLoginId', this)">Copy</button>
-        </div>
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <div>Temp Password: <span id="${type}CredTempPassword" style="user-select:all; font-weight:700; color:var(--primary-light);">${escapeHtml(tempPassword)}</span></div>
-          <button class="btn btn-ghost btn-sm" style="padding:4px 8px; font-size:0.75rem;" onclick="copyCred('${type}CredTempPassword', this)">Copy</button>
+      body.innerHTML = `
+        <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:16px;">Share these with the ${type}. They must change their password on first login.</p>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;font-family:monospace;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <span style="color:var(--text-secondary);font-size:0.82rem;">Login ID:</span>
+            <strong id="${type}CredLoginId" style="user-select:all;color:var(--primary-light);font-size:1rem;">${escapeHtml(loginId)}</strong>
+            <button class="btn btn-ghost btn-sm" style="padding:4px 8px;font-size:0.75rem;" onclick="copyCred('${type}CredLoginId', this)">Copy</button>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text-secondary);font-size:0.82rem;">Password:</span>
+            <strong id="${type}CredTempPassword" style="user-select:all;color:var(--primary-light);font-size:1rem;">${escapeHtml(tempPassword)}</strong>
+            <button class="btn btn-ghost btn-sm" style="padding:4px 8px;font-size:0.75rem;" onclick="copyCred('${type}CredTempPassword', this)">Copy</button>
+          </div>
         </div>
       `;
-      credentialsDoneCallback = onDone;
-      activeCredentialsType = type;
-      panel.classList.add('open');
-      panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      modal.classList.add('open');
       doneBtn.focus();
+    }
+
+    function closeCredentialsModal() {
+      const modal = document.getElementById('credentialsModal');
+      modal.classList.remove('open');
+      document.getElementById('credentialsModalBody').innerHTML = '';
+      if (credentialsDoneCallback) {
+        credentialsDoneCallback();
+        credentialsDoneCallback = null;
+      }
+      activeCredentialsType = null;
     }
 
     function upsertStudentInCache(student) {
@@ -1881,19 +1895,6 @@
       }
     }
 
-    function closeCredentialsPanel(type = activeCredentialsType, runCallback = true) {
-      if (!type) return;
-      const panel = document.getElementById(`${type}CredentialsPanel`);
-      const display = document.getElementById(`${type}CredentialDisplay`);
-      if (panel) panel.classList.remove('open');
-      if (display) display.innerHTML = '';
-      if (activeCredentialsType === type) activeCredentialsType = null;
-
-      if (!runCallback) return;
-      if (credentialsDoneCallback) {
-        credentialsDoneCallback();
-        credentialsDoneCallback = null;
-      }
     }
 
     function copyCred(elementId, btn) {
@@ -2836,10 +2837,7 @@
         // 4. Show success
         showToast('✅ Student saved successfully', 'success');
 
-        // 5. Show credentials panel
-        toggleAddStudent();
-        filterStudents();
-        showToast('✅ Student saved successfully', 'success');
+        // 5. Show credentials modal
         showCredentialsPanel(data.student_id, data.temp_password, 'student', async () => {
           await reloadAllData(false, true);
         });
