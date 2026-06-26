@@ -2825,13 +2825,11 @@
           throw new Error('Server did not return credentials. Please try again.');
         }
 
-        if (data.student) upsertStudentInCache(data.student);
-        filterStudents();
         toggleAddStudent();
-        btn.innerHTML = '<i class="fas fa-check"></i> Saved';
-        if (btn) btn.dataset.originalHtml = btn.innerHTML;
         showToast('✅ Student saved successfully', 'success');
-        showCredentialsPanel(data.student_id, data.temp_password, 'student');
+        showCredentialsPanel(data.student_id, data.temp_password, 'student', async () => {
+          await reloadAllData(false, true);
+        });
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       } finally {
