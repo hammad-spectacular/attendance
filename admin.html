@@ -1482,20 +1482,6 @@
             </div>
           </div>
 
-          <div class="credentials-panel" id="studentCredentialsPanel" aria-live="polite">
-            <div class="credentials-panel-header">
-              <div>
-                <div class="credentials-panel-title"><i class="fas fa-key"></i> Student Credentials</div>
-                <div class="credentials-panel-subtitle">Give these credentials to the student. After taking the password, press Done.</div>
-              </div>
-            </div>
-            <div class="credential-box" id="studentCredentialDisplay"></div>
-            <p class="warning-text">⚠️ Copy these now. They will not be shown again.</p>
-            <div class="modal-actions">
-              <button class="btn btn-primary" id="studentCredentialsDoneBtn" onclick="closeCredentialsPanel('student')">Done</button>
-            </div>
-          </div>
-
           <!-- Search & Filter Controls -->
           <div class="search-filter-container" style="display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
             <div style="flex:1; min-width:240px; position:relative;">
@@ -1515,6 +1501,20 @@
           <!-- Students Table Wrap -->
           <div id="studentsTableWrap">
             <!-- Rendered by JS -->
+          </div>
+
+          <div class="credentials-panel" id="studentCredentialsPanel" aria-live="polite">
+            <div class="credentials-panel-header">
+              <div>
+                <div class="credentials-panel-title"><i class="fas fa-key"></i> Student Credentials</div>
+                <div class="credentials-panel-subtitle">Give these credentials to the student. After taking the password, press Done.</div>
+              </div>
+            </div>
+            <div class="credential-box" id="studentCredentialDisplay"></div>
+            <p class="warning-text">⚠️ Copy these now. They will not be shown again.</p>
+            <div class="modal-actions">
+              <button class="btn btn-primary" id="studentCredentialsDoneBtn" onclick="closeCredentialsPanel('student')">Done</button>
+            </div>
           </div>
         </div>
       </div>
@@ -2842,8 +2842,10 @@
         });
 
         setTimeout(() => {
-          document.getElementById('studentsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 100);
+          const panel = document.getElementById('studentCredentialsPanel');
+          panel.style.scrollMarginTop = '100px';
+          panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 200);
 
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
