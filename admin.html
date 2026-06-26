@@ -1502,20 +1502,6 @@
           <div id="studentsTableWrap">
             <!-- Rendered by JS -->
           </div>
-
-          <div class="credentials-panel" id="studentCredentialsPanel" aria-live="polite">
-            <div class="credentials-panel-header">
-              <div>
-                <div class="credentials-panel-title"><i class="fas fa-key"></i> Student Credentials</div>
-                <div class="credentials-panel-subtitle">Give these credentials to the student. After taking the password, press Done.</div>
-              </div>
-            </div>
-            <div class="credential-box" id="studentCredentialDisplay"></div>
-            <p class="warning-text">⚠️ Copy these now. They will not be shown again.</p>
-            <div class="modal-actions">
-              <button class="btn btn-primary" id="studentCredentialsDoneBtn" onclick="closeCredentialsPanel('student')">Done</button>
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -2836,16 +2822,33 @@
         // 4. Show success
         showToast('✅ Student saved successfully', 'success');
 
-        // 5. Show credentials panel and scroll to TOP of section
-        showCredentialsPanel(data.student_id, data.temp_password, 'student', async () => {
-          await reloadAllData(false, true);
-        });
-
-        setTimeout(() => {
-          const panel = document.getElementById('studentCredentialsPanel');
-          panel.style.scrollMarginTop = '100px';
-          panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 200);
+        // 5. Show credentials in a modal popup
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);';
+        modal.innerHTML = `
+          <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:28px 24px;width:90%;max-width:420px;box-shadow:var(--shadow-lg);">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+              <i class="fas fa-key" style="color:var(--primary);font-size:1.2rem;"></i>
+              <h3 style="font-size:1.1rem;font-weight:800;color:var(--text);">Student Credentials</h3>
+            </div>
+            <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:16px;">Share these with the student. They must change their password on first login.</p>
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;font-family:monospace;margin-bottom:8px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <span style="color:var(--text-secondary);font-size:0.82rem;">Login ID:</span>
+                <strong style="color:var(--primary-light);font-size:1rem;">${data.student_id}</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="color:var(--text-secondary);font-size:0.82rem;">Password:</span>
+                <strong style="color:var(--primary-light);font-size:1rem;">${data.temp_password}</strong>
+              </div>
+            </div>
+            <p style="font-size:0.78rem;color:var(--danger);font-weight:600;margin-bottom:16px;">⚠️ After pressing OK, these credentials will not be shown again.</p>
+            <button onclick="this.closest('[style*=fixed]').remove();reloadAllData(false,true);" style="width:100%;padding:12px;background:var(--gradient);color:white;border:none;border-radius:10px;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:'Inter',sans-serif;">
+              OK, I have noted these down
+            </button>
+          </div>
+        `;
+        document.body.appendChild(modal);
 
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
