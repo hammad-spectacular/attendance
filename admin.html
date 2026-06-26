@@ -2820,19 +2820,31 @@
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Failed to save student');
 
-        // Validate credentials were returned before showing the modal
         if (!data.student_id || !data.temp_password) {
           throw new Error('Server did not return credentials. Please try again.');
         }
 
+        // 1. Add student to cache immediately
+        if (data.student) upsertStudentInCache(data.student);
+
+        // 2. Close form
         toggleAddStudent();
+
+        // 3. Re-render table immediately so student appears
+        filterStudents();
+
+        // 4. Show success
         showToast('✅ Student saved successfully', 'success');
+
+        // 5. Show credentials panel and scroll to TOP of section
         showCredentialsPanel(data.student_id, data.temp_password, 'student', async () => {
           await reloadAllData(false, true);
         });
+
         setTimeout(() => {
-          document.getElementById('studentCredentialsPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 300);
+          document.getElementById('studentsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       } finally {
