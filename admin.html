@@ -1871,6 +1871,16 @@
       doneBtn.focus();
     }
 
+    function upsertStudentInCache(student) {
+      if (!student || !student.id) return;
+      const existingIndex = window.appData.students.findIndex(s => String(s.id) === String(student.id));
+      if (existingIndex === -1) {
+        window.appData.students.push(student);
+      } else {
+        window.appData.students[existingIndex] = student;
+      }
+    }
+
     function closeCredentialsPanel(type = activeCredentialsType, runCallback = true) {
       if (!type) return;
       const panel = document.getElementById(`${type}CredentialsPanel`);
@@ -2804,11 +2814,17 @@
           throw new Error('Server did not return credentials. Please try again.');
         }
 
+        upsertStudentInCache(data.student);
+        const searchInput = document.getElementById('studentSearchInput');
+        const classFilter = document.getElementById('studentClassFilter');
+        if (searchInput) searchInput.value = '';
+        if (classFilter) classFilter.value = '';
+        filterStudents();
+        btn.innerHTML = '<i class="fas fa-check"></i> Saved';
+        showToast('✅ Student saved successfully', 'success');
+        await delay(450);
         toggleAddStudent();
-        showCredentialsPanel(data.student_id, data.temp_password, 'student', async () => {
-          await reloadAllData(false, true);
-          if (activeTabId !== 'tab-students') switchTab('tab-students', false);
-        });
+        showCredentialsPanel(data.student_id, data.temp_password, 'student');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       } finally {
