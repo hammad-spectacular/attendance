@@ -2827,11 +2827,10 @@
 
         if (data.student) upsertStudentInCache(data.student);
         filterStudents();
+        toggleAddStudent();
         btn.innerHTML = '<i class="fas fa-check"></i> Saved';
         if (btn) btn.dataset.originalHtml = btn.innerHTML;
         showToast('✅ Student saved successfully', 'success');
-        await delay(450);
-        toggleAddStudent();
         showCredentialsPanel(data.student_id, data.temp_password, 'student');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
