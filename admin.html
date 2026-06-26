@@ -2814,7 +2814,7 @@
           throw new Error('Server did not return credentials. Please try again.');
         }
 
-        upsertStudentInCache(data.student);
+        if (data.student) upsertStudentInCache(data.student);
         const searchInput = document.getElementById('studentSearchInput');
         const classFilter = document.getElementById('studentClassFilter');
         if (searchInput) searchInput.value = '';
@@ -2824,7 +2824,9 @@
         showToast('✅ Student saved successfully', 'success');
         await delay(450);
         toggleAddStudent();
-        showCredentialsPanel(data.student_id, data.temp_password, 'student');
+        showCredentialsPanel(data.student_id, data.temp_password, 'student', async () => {
+          await reloadAllData(false, true);
+        });
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       } finally {
