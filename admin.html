@@ -2419,6 +2419,8 @@
         toggleAddClass();
         window.appData.classes.push(createdClass);
         renderClasses();
+        btn.innerHTML = '<i class="fas fa-check"></i> Created';
+        if (btn) btn.dataset.originalHtml = btn.innerHTML;
         showToast('✅ Class created successfully', 'success');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -2604,6 +2606,9 @@
           else window.appData.teachers[idx] = data.teacher;
         }
         renderTeachers();
+        btn.innerHTML = '<i class="fas fa-check"></i> Created';
+        if (btn) btn.dataset.originalHtml = btn.innerHTML;
+        showToast('✅ Teacher created successfully', 'success');
         showCredentialsPanel(data.teacher_id, data.temp_password, 'teacher');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -2823,6 +2828,7 @@
         if (data.student) upsertStudentInCache(data.student);
         filterStudents();
         btn.innerHTML = '<i class="fas fa-check"></i> Saved';
+        if (btn) btn.dataset.originalHtml = btn.innerHTML;
         showToast('✅ Student saved successfully', 'success');
         await delay(450);
         toggleAddStudent();
