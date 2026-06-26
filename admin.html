@@ -2814,12 +2814,6 @@
           throw new Error('Server did not return credentials. Please try again.');
         }
 
-        if (data.student) upsertStudentInCache(data.student);
-        const searchInput = document.getElementById('studentSearchInput');
-        const classFilter = document.getElementById('studentClassFilter');
-        if (searchInput) searchInput.value = '';
-        if (classFilter) classFilter.value = '';
-        filterStudents();
         btn.innerHTML = '<i class="fas fa-check"></i> Saved';
         showToast('✅ Student saved successfully', 'success');
         await delay(450);
