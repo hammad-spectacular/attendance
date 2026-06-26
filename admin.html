@@ -2830,6 +2830,9 @@
         showCredentialsPanel(data.student_id, data.temp_password, 'student', async () => {
           await reloadAllData(false, true);
         });
+        setTimeout(() => {
+          document.getElementById('studentCredentialsPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       } finally {
