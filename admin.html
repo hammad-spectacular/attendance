@@ -2414,12 +2414,11 @@
           body: JSON.stringify({ name, section: section || null })
         });
         if (!response.ok) throw new Error('Failed to create class');
+        const createdClass = await response.json();
 
         toggleAddClass();
-        apiFetch('/api/classes').then(r => r.json()).then(freshClasses => {
-          window.appData.classes = freshClasses;
-          renderClasses();
-        }).catch(() => {});
+        window.appData.classes.push(createdClass);
+        renderClasses();
         showToast('✅ Class created successfully', 'success');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -2599,10 +2598,12 @@
 
         clearTeacherForm();
         toggleAddTeacher();
-        apiFetch('/api/teachers').then(r => r.json()).then(freshTeachers => {
-          window.appData.teachers = freshTeachers;
-          renderTeachers();
-        }).catch(() => {});
+        if (data.teacher) {
+          const idx = window.appData.teachers.findIndex(t => String(t.id) === String(data.teacher.id));
+          if (idx === -1) window.appData.teachers.push(data.teacher);
+          else window.appData.teachers[idx] = data.teacher;
+        }
+        renderTeachers();
         showCredentialsPanel(data.teacher_id, data.temp_password, 'teacher');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -2616,10 +2617,8 @@
       try {
         const response = await apiFetch(`/api/teachers/${id}`, { method: 'DELETE' });
         if (!response.ok) throw new Error('Failed to delete teacher');
-        apiFetch('/api/teachers').then(r => r.json()).then(freshTeachers => {
-          window.appData.teachers = freshTeachers;
-          renderTeachers();
-        }).catch(() => {});
+        window.appData.teachers = window.appData.teachers.filter(t => Number(t.id) !== Number(id));
+        renderTeachers();
         showToast('Teacher removed', 'info');
       } catch (err) {
         showToast(`Error: ${err.message}`, 'error');
@@ -2821,14 +2820,8 @@
           throw new Error('Server did not return credentials. Please try again.');
         }
 
-        // Background refresh — non-blocking so toast/credentials show instantly
-        apiFetch('/api/students').then(r => r.json()).then(freshStudents => {
-          window.appData.students = freshStudents.map(s => {
-            if (s.name && s.name.includes('.')) s.name = s.name.replace(/\./g, ' ');
-            return s;
-          });
-          filterStudents();
-        }).catch(() => {});
+        if (data.student) upsertStudentInCache(data.student);
+        filterStudents();
         btn.innerHTML = '<i class="fas fa-check"></i> Saved';
         showToast('✅ Student saved successfully', 'success');
         await delay(450);
@@ -2846,13 +2839,8 @@
       try {
         const response = await apiFetch(`/api/students/${id}`, { method: 'DELETE' });
         if (!response.ok) throw new Error('Failed to delete student');
-        apiFetch('/api/students').then(r => r.json()).then(freshStudents => {
-          window.appData.students = freshStudents.map(s => {
-            if (s.name && s.name.includes('.')) s.name = s.name.replace(/\./g, ' ');
-            return s;
-          });
-          filterStudents();
-        }).catch(() => {});
+        window.appData.students = window.appData.students.filter(s => Number(s.id) !== Number(id));
+        filterStudents();
         showToast('Student removed', 'info');
       } catch (err) {
         showToast(`Error: ${err.message}`, 'error');
@@ -3217,10 +3205,8 @@
         showToast('Failed to remove announcement', 'error');
         return;
       }
-      apiFetch('/api/announcements').then(r => r.json()).then(fresh => {
-        window.appData.announcements = fresh;
-        renderAnnouncements();
-      }).catch(() => {});
+      window.appData.announcements = window.appData.announcements.filter(a => Number(a.id) !== Number(id));
+      renderAnnouncements();
       showToast('Announcement removed', 'success');
     }
 
@@ -3498,13 +3484,12 @@
         });
 
         if (!response.ok) throw new Error('Failed to save announcement');
+        const createdAnnouncement = await response.json();
 
         textarea.value = '';
         button.innerHTML = '<i class="fas fa-check"></i> Saved';
-        apiFetch('/api/announcements').then(r => r.json()).then(fresh => {
-          window.appData.announcements = fresh;
-          renderAnnouncements();
-        }).catch(() => {});
+        window.appData.announcements.push(createdAnnouncement);
+        renderAnnouncements();
         showToast('Announcement saved', 'success');
       } catch (err) {
         showToast(`Error: ${err.message}`, 'error');
