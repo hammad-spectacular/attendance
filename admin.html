@@ -455,6 +455,45 @@
       background: var(--bg-card-hover);
     }
     
+    .credentials-panel {
+      display: none;
+      background: linear-gradient(135deg, rgba(79, 70, 229, 0.08), rgba(14, 165, 233, 0.08));
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--primary);
+      border-radius: 12px;
+      padding: 16px;
+      margin: 0 0 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .credentials-panel.open {
+      display: block;
+    }
+
+    .credentials-panel-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .credentials-panel-title {
+      color: var(--text);
+      font-size: 0.95rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 3px;
+    }
+
+    .credentials-panel-subtitle {
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      line-height: 1.4;
+    }
+
     .credential-box { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:14px; margin:12px 0; font-family:monospace; font-size:0.9rem; }
     .credential-box span { font-weight:700; color:var(--primary-light); }
     .warning-text { font-size:0.78rem; color:var(--danger); font-weight:600; margin-top:8px; }
@@ -1367,6 +1406,20 @@
             </div>
           </div>
 
+          <div class="credentials-panel" id="teacherCredentialsPanel" aria-live="polite">
+            <div class="credentials-panel-header">
+              <div>
+                <div class="credentials-panel-title"><i class="fas fa-key"></i> Teacher Credentials</div>
+                <div class="credentials-panel-subtitle">Give these credentials to the teacher. After taking the password, press Done.</div>
+              </div>
+            </div>
+            <div class="credential-box" id="teacherCredentialDisplay"></div>
+            <p class="warning-text">⚠️ Copy these now. They will not be shown again.</p>
+            <div class="modal-actions">
+              <button class="btn btn-primary" id="teacherCredentialsDoneBtn" onclick="closeCredentialsPanel('teacher')">Done</button>
+            </div>
+          </div>
+
           <!-- Search & Filter Controls -->
           <div class="search-filter-container" style="display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
             <div style="flex:1; min-width:240px; position:relative;">
@@ -1426,6 +1479,20 @@
                 <i class="fas fa-check"></i> Save Student
               </button>
               <button class="btn btn-ghost" onclick="toggleAddStudent()">Cancel</button>
+            </div>
+          </div>
+
+          <div class="credentials-panel" id="studentCredentialsPanel" aria-live="polite">
+            <div class="credentials-panel-header">
+              <div>
+                <div class="credentials-panel-title"><i class="fas fa-key"></i> Student Credentials</div>
+                <div class="credentials-panel-subtitle">Give these credentials to the student. After taking the password, press Done.</div>
+              </div>
+            </div>
+            <div class="credential-box" id="studentCredentialDisplay"></div>
+            <p class="warning-text">⚠️ Copy these now. They will not be shown again.</p>
+            <div class="modal-actions">
+              <button class="btn btn-primary" id="studentCredentialsDoneBtn" onclick="closeCredentialsPanel('student')">Done</button>
             </div>
           </div>
 
@@ -1760,9 +1827,15 @@
   <script src="/auth-utils.js"></script>
   <script>
     let credentialsDoneCallback = null;
+    let activeCredentialsType = null;
 
-    function showCredentialsModal(loginId, tempPassword, onDone) {
-      const display = document.getElementById('credentialDisplay');
+    function showCredentialsPanel(loginId, tempPassword, userType = 'user', onDone) {
+      const type = userType === 'student' ? 'student' : 'teacher';
+      const panel = document.getElementById(`${type}CredentialsPanel`);
+      const display = document.getElementById(`${type}CredentialDisplay`);
+      const doneBtn = document.getElementById(`${type}CredentialsDoneBtn`);
+
+      closeCredentialsPanel(type === 'student' ? 'teacher' : 'student', false);
 
       // Defensive: if credentials are missing, show an error state instead of a blank box
       if (!loginId || !tempPassword) {
@@ -1774,26 +1847,39 @@
           </div>
         `;
         credentialsDoneCallback = onDone;
-        document.getElementById('credentialsModal').classList.add('open');
+        activeCredentialsType = type;
+        panel.classList.add('open');
+        panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        doneBtn.focus();
         return;
       }
 
       display.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <div>Login ID: <span id="credLoginId" style="user-select:all; font-weight:700; color:var(--primary-light);">${escapeHtml(loginId)}</span></div>
-          <button class="btn btn-ghost btn-sm" style="padding:4px 8px; font-size:0.75rem;" onclick="copyCred('credLoginId', this)">Copy</button>
+          <div>Login ID: <span id="${type}CredLoginId" style="user-select:all; font-weight:700; color:var(--primary-light);">${escapeHtml(loginId)}</span></div>
+          <button class="btn btn-ghost btn-sm" style="padding:4px 8px; font-size:0.75rem;" onclick="copyCred('${type}CredLoginId', this)">Copy</button>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <div>Temp Password: <span id="credTempPassword" style="user-select:all; font-weight:700; color:var(--primary-light);">${escapeHtml(tempPassword)}</span></div>
-          <button class="btn btn-ghost btn-sm" style="padding:4px 8px; font-size:0.75rem;" onclick="copyCred('credTempPassword', this)">Copy</button>
+          <div>Temp Password: <span id="${type}CredTempPassword" style="user-select:all; font-weight:700; color:var(--primary-light);">${escapeHtml(tempPassword)}</span></div>
+          <button class="btn btn-ghost btn-sm" style="padding:4px 8px; font-size:0.75rem;" onclick="copyCred('${type}CredTempPassword', this)">Copy</button>
         </div>
       `;
       credentialsDoneCallback = onDone;
-      document.getElementById('credentialsModal').classList.add('open');
+      activeCredentialsType = type;
+      panel.classList.add('open');
+      panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      doneBtn.focus();
     }
 
-    function closeCredentialsModal() {
-      document.getElementById('credentialsModal').classList.remove('open');
+    function closeCredentialsPanel(type = activeCredentialsType, runCallback = true) {
+      if (!type) return;
+      const panel = document.getElementById(`${type}CredentialsPanel`);
+      const display = document.getElementById(`${type}CredentialDisplay`);
+      if (panel) panel.classList.remove('open');
+      if (display) display.innerHTML = '';
+      if (activeCredentialsType === type) activeCredentialsType = null;
+
+      if (!runCallback) return;
       if (credentialsDoneCallback) {
         credentialsDoneCallback();
         credentialsDoneCallback = null;
@@ -2500,8 +2586,9 @@
 
         clearTeacherForm();
         toggleAddTeacher();
-        showCredentialsModal(data.teacher_id, data.temp_password, async () => {
+        showCredentialsPanel(data.teacher_id, data.temp_password, 'teacher', async () => {
           await reloadAllData(false, true);
+          if (activeTabId !== 'tab-teachers') switchTab('tab-teachers', false);
         });
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -2718,8 +2805,9 @@
         }
 
         toggleAddStudent();
-        showCredentialsModal(data.student_id, data.temp_password, async () => {
+        showCredentialsPanel(data.student_id, data.temp_password, 'student', async () => {
           await reloadAllData(false, true);
+          if (activeTabId !== 'tab-students') switchTab('tab-students', false);
         });
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -3845,9 +3933,6 @@
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
 
-      // Close credentials modal to clear state and isolate tabs
-      closeCredentialsModal();
-
       // Close other modals if they are open
       if (typeof closeEditTeacherModal === 'function') closeEditTeacherModal();
       if (typeof closeEditStudentModal === 'function') closeEditStudentModal();
@@ -3872,6 +3957,12 @@
         } else if (newTabId === 'tab-teachers') {
           const inp = document.getElementById('teacherSearchInput');
           if (inp) { inp.value = ''; filterTeachers(); }
+        } else if (newTabId === 'tab-students') {
+          const searchInput = document.getElementById('studentSearchInput');
+          const classFilter = document.getElementById('studentClassFilter');
+          if (searchInput) searchInput.value = '';
+          if (classFilter) classFilter.value = '';
+          filterStudents();
         }
       }
       
@@ -4028,19 +4119,6 @@
 
   <!-- Anti-inspect protection -->
   <script src="anti-inspect.js"></script>
-
-  <!-- Credentials Modal -->
-  <div class="modal" id="credentialsModal">
-    <div class="modal-card">
-      <h3><i class="fas fa-key"></i> Teacher/Student Credentials</h3>
-      <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Share these credentials with the user:</p>
-      <div class="credential-box" id="credentialDisplay"></div>
-      <p class="warning-text">⚠️ Copy these now. They will not be shown again.</p>
-      <div class="modal-actions">
-        <button class="btn btn-primary" onclick="closeCredentialsModal()">Done</button>
-      </div>
-    </div>
-  </div>
 
 </body>
 
