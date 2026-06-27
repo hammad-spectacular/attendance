@@ -1895,8 +1895,6 @@
       }
     }
 
-    }
-
     function copyCred(elementId, btn) {
       const text = document.getElementById(elementId).innerText;
       navigator.clipboard.writeText(text).then(() => {
@@ -4131,6 +4129,7 @@
       setupModalDismiss('editTeacherModal', closeEditTeacherModal);
       setupModalDismiss('editStudentModal', closeEditStudentModal);
       setupModalDismiss('absenteeModal', closeAbsenteeModal);
+      setupModalDismiss('credentialsModal', closeCredentialsModal);
 
       checkSession().then(() => {
         startSessionKeepAlive();
