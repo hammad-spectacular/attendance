@@ -1909,9 +1909,9 @@
     }
 
     // =============================================================
-    // API CONFIGURATION (Automatic Localhost / Production Detection)
+    // LOCAL STORAGE KEYS
     // =============================================================
-    const API = '';
+    // API_BASE is provided by auth-utils.js (loaded before this script)
 
     // Local storage keys for features that remain frontend-only (like announcements)
     const KEYS = {
@@ -3627,7 +3627,9 @@
 
     async function handleLogout() {
       localStorage.removeItem('auth_token');
-      await fetch(API + '/api/auth/logout', { method: 'POST', credentials: 'include' });
+      try {
+        await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      } catch(e) { /* ignore network errors, still redirect */ }
       window.location.href = '/index.html';
     }
 

@@ -255,6 +255,7 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
 
 <div class="toast-container" id="toastContainer"></div>
 
+<script src="/auth-utils.js"></script>
 <script>
 let currentRole = 'super_admin';
 
@@ -318,7 +319,7 @@ async function confirmApprove() {
   const school_code = document.getElementById('schoolCode').value.trim().toUpperCase();
   if (!school_code || school_code.length !== 4) { showToast('⚠️ Enter a valid 4-letter code', 'warning'); return; }
   try {
-    const res = await fetch(API + '/api/auth/approve-school', {
+    const res = await fetch(API_BASE + '/api/auth/approve-school', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeader() },
       body: JSON.stringify({ request_id, school_code, school_name })
@@ -345,7 +346,7 @@ async function confirmApprove() {
 async function rejectSchool(id) {
   if (!confirm('Reject this request?')) return;
   try {
-    const res = await fetch(API + '/api/auth/reject-school', {
+    const res = await fetch(API_BASE + '/api/auth/reject-school', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeader() },
       body: JSON.stringify({ request_id: id })
@@ -358,7 +359,7 @@ async function rejectSchool(id) {
 async function suspendSchool(id) {
   if (!confirm('Suspend this school?')) return;
   try {
-    const res = await fetch(API + '/api/auth/suspend-school', {
+    const res = await fetch(API_BASE + '/api/auth/suspend-school', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeader() },
       body: JSON.stringify({ school_id: id })
@@ -371,7 +372,7 @@ async function suspendSchool(id) {
 async function reactivateSchool(id) {
   if (!confirm('Reactivate this school?')) return;
   try {
-    const res = await fetch(API + '/api/auth/reactivate-school', {
+    const res = await fetch(API_BASE + '/api/auth/reactivate-school', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeader() },
       body: JSON.stringify({ school_id: id })
@@ -404,7 +405,7 @@ function copyCred(elementId, btn) {
 async function fetchPendingRequests() {
   const wrap = document.getElementById('pendingRequestsTableWrap');
   try {
-    const res = await fetch(API + '/api/auth/pending-requests', { headers: authHeader() });
+    const res = await fetch(API_BASE + '/api/auth/pending-requests', { headers: authHeader() });
     if (!res.ok) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🔒</div><div class="msg">Access denied</div></div>'; return; }
     const data = await res.json();
     if (data.length === 0) { wrap.innerHTML = '<div class="empty-state"><div class="icon">📭</div><div class="msg">No pending requests</div></div>'; return; }
@@ -421,7 +422,7 @@ async function fetchPendingRequests() {
 async function fetchActiveSchools() {
   const wrap = document.getElementById('activeSchoolsTableWrap');
   try {
-    const res = await fetch(API + '/api/auth/active-schools', { headers: authHeader() });
+    const res = await fetch(API_BASE + '/api/auth/active-schools', { headers: authHeader() });
     if (!res.ok) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🔒</div><div class="msg">Access denied</div></div>'; return; }
     const data = await res.json();
     if (data.length === 0) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🏫</div><div class="msg">No active schools</div></div>'; return; }
@@ -437,7 +438,7 @@ async function fetchActiveSchools() {
 async function fetchSuspendedSchools() {
   const wrap = document.getElementById('suspendedSchoolsTableWrap');
   try {
-    const res = await fetch(API + '/api/auth/suspended-schools', { headers: authHeader() });
+    const res = await fetch(API_BASE + '/api/auth/suspended-schools', { headers: authHeader() });
     if (!res.ok) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🔒</div><div class="msg">Access denied</div></div>'; return; }
     const data = await res.json();
     if (data.length === 0) { wrap.innerHTML = '<div class="empty-state"><div class="icon">✅</div><div class="msg">No suspended schools</div></div>'; return; }
@@ -474,7 +475,7 @@ async function handleChangePassword(e) {
 
   btn.disabled = true; btnText.innerHTML = '<span class="spinner"></span> Saving...';
   try {
-    const res = await fetch(API + '/api/auth/change-password', {
+    const res = await fetch(API_BASE + '/api/auth/change-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeader() },
       body: JSON.stringify({ current_password: current, new_password: newPw, confirm_password: confirm })
@@ -495,7 +496,9 @@ async function handleChangePassword(e) {
 // Logout
 async function handleLogout() {
   localStorage.removeItem('auth_token');
-  await fetch(API + '/api/auth/logout', { method: 'POST' });
+  try {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+  } catch(e) { /* ignore network errors, still redirect */ }
   window.location.href = '/index.html';
 }
 
@@ -504,7 +507,7 @@ async function checkSession() {
   const token = localStorage.getItem('auth_token');
   if (!token) { window.location.href = '/index.html'; return; }
   try {
-    const res = await fetch(API + '/api/auth/me', { headers: authHeader() });
+    const res = await fetch(API_BASE + '/api/auth/me', { headers: authHeader() });
     if (!res.ok) { localStorage.removeItem('auth_token'); window.location.href = '/index.html'; return; }
     const data = await res.json();
     currentRole = data.role;

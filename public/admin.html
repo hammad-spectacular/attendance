@@ -1113,7 +1113,7 @@
     // =============================================================
     // API CONFIGURATION (Automatic Localhost / Production Detection)
     // =============================================================
-    const API = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+    const API_BASE = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
       ? window.location.origin
       : 'https://attendance-production-fb0b.up.railway.app';
 
@@ -1200,10 +1200,10 @@
     async function reloadAllData(isInitial = false) {
       try {
         const [teachers, classes, students, rawAttendance] = await Promise.all([
-          fetch(`${API}/api/teachers`, { headers: authHeader(), credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
-          fetch(`${API}/api/classes`, { headers: authHeader(), credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
-          fetch(`${API}/api/students`, { headers: authHeader(), credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
-          fetch(`${API}/api/attendance/all`, { headers: authHeader(), credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }).catch(() => [])
+          fetch(`${API_BASE}/api/teachers`, { headers: authHeader(), credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
+          fetch(`${API_BASE}/api/classes`, { headers: authHeader(), credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
+          fetch(`${API_BASE}/api/students`, { headers: authHeader(), credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
+          fetch(`${API_BASE}/api/attendance/all`, { headers: authHeader(), credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }).catch(() => [])
         ]);
 
         window.appData.teachers = teachers;
@@ -1378,7 +1378,7 @@
 
     async function assignTeacherInline(classId, teacherId) {
       try {
-        const response = await fetch(`${API}/api/classes/${classId}/assign-teacher`, {
+        const response = await fetch(`${API_BASE}/api/classes/${classId}/assign-teacher`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeader() },
           credentials: 'include',
@@ -1456,7 +1456,7 @@
       }
 
       try {
-        const response = await fetch(`${API}/api/teachers`, {
+        const response = await fetch(`${API_BASE}/api/teachers`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeader() },
           credentials: 'include',
@@ -1477,7 +1477,7 @@
     async function deleteTeacher(id) {
       if (!confirm('Remove this teacher?')) return;
       try {
-        const response = await fetch(`${API}/api/teachers/${id}`, { method: 'DELETE', headers: authHeader(), credentials: 'include' });
+        const response = await fetch(`${API_BASE}/api/teachers/${id}`, { method: 'DELETE', headers: authHeader(), credentials: 'include' });
         if (!response.ok) throw new Error('Failed to delete teacher');
         await reloadAllData();
         showToast('🗑️ Teacher removed', 'info');
@@ -1583,7 +1583,7 @@
       }
 
       try {
-        const response = await fetch(`${API}/api/students`, {
+        const response = await fetch(`${API_BASE}/api/students`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeader() },
           credentials: 'include',
@@ -1608,7 +1608,7 @@
     async function deleteStudent(id) {
       if (!confirm('Remove this student?')) return;
       try {
-        const response = await fetch(`${API}/api/students/${id}`, { method: 'DELETE', headers: authHeader(), credentials: 'include' });
+        const response = await fetch(`${API_BASE}/api/students/${id}`, { method: 'DELETE', headers: authHeader(), credentials: 'include' });
         if (!response.ok) throw new Error('Failed to delete student');
         await reloadAllData();
         showToast('🗑️ Student removed', 'info');
@@ -1938,6 +1938,41 @@
       return token ? { 'Authorization': 'Bearer ' + token } : {};
     }
 
+    // ── Session check (matches super-admin.html pattern) ──────────────
+    let isRedirecting = false;
+    function redirectToLogin() {
+      if (isRedirecting) return;
+      isRedirecting = true;
+      localStorage.removeItem('auth_token');
+      window.location.href = '/index.html';
+    }
+
+    async function checkSession() {
+      const token = localStorage.getItem('auth_token');
+      if (!token) { window.location.href = '/index.html'; return; }
+      try {
+        const res = await fetch(API_BASE + '/api/auth/me', {
+          credentials: 'include',
+          headers: authHeader()
+        });
+        if (!res.ok) { localStorage.removeItem('auth_token'); window.location.href = '/index.html'; return; }
+        const data = await res.json();
+        if (data.token) localStorage.setItem('auth_token', data.token);
+        window._isFirstLogin = data.is_first_login;
+        if (data.is_first_login) showPasswordWarningBanner();
+      } catch(e) { window.location.href = '/index.html'; }
+    }
+
+    function showPasswordWarningBanner() {
+      if (document.getElementById('pwBanner')) return;
+      const banner = document.createElement('div');
+      banner.id = 'pwBanner';
+      banner.style.cssText = 'position:sticky;top:0;z-index:10000;display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 24px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:600;font-size:14px;';
+      banner.innerHTML = '<span><i class="fas fa-exclamation-triangle"></i> Default password detected. Please change it.</span>'
+        + '<button onclick="openChangePasswordModal()" style="padding:6px 14px;border:2px solid #fff;border-radius:6px;background:transparent;color:#fff;font-weight:700;cursor:pointer;">Change Password</button>';
+      document.body.insertBefore(banner, document.body.firstChild);
+    }
+
     async function saveAnnouncement() {
       const textarea = document.getElementById('announcementText');
       const message = textarea.value.trim();
@@ -1948,7 +1983,7 @@
         return;
       }
 
-      const response = await fetch(`${API}/api/announcements`, {
+      const response = await fetch(`${API_BASE}/api/announcements`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
         credentials: 'include',
@@ -1967,7 +2002,7 @@
     }
 
     async function deleteAnnouncement(id) {
-      const response = await fetch(`${API}/api/announcements/${id}`, { method: 'DELETE', headers: authHeader(), credentials: 'include' });
+      const response = await fetch(`${API_BASE}/api/announcements/${id}`, { method: 'DELETE', headers: authHeader(), credentials: 'include' });
       if (!response.ok) {
         showToast('Failed to remove announcement', 'error');
         return;
@@ -1981,7 +2016,7 @@
       let announcements = [];
 
       try {
-        announcements = await fetch(`${API}/api/announcements`, { headers: authHeader(), credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); });
+        announcements = await fetch(`${API_BASE}/api/announcements`, { headers: authHeader(), credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); });
         announcements = announcements.filter(a => !a.class_id);
       } catch (err) {
         container.innerHTML = `
@@ -2090,7 +2125,7 @@
       }
 
       try {
-        const response = await fetch(`${API}/api/teachers/${id}`, {
+        const response = await fetch(`${API_BASE}/api/teachers/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', ...authHeader() },
           credentials: 'include',
@@ -2150,7 +2185,7 @@
       const classId = existing ? existing.class_id : null;
 
       try {
-        const response = await fetch(`${API}/api/students/${id}`, {
+        const response = await fetch(`${API_BASE}/api/students/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', ...authHeader() },
           credentials: 'include',
@@ -2266,8 +2301,10 @@
       setupModalDismiss('editStudentModal', closeEditStudentModal);
       setupModalDismiss('absenteeModal', closeAbsenteeModal);
 
-      // Perform parallel SQL loading on start
-      reloadAllData(true);
+      // Verify session before loading data
+      checkSession().then(() => {
+        reloadAllData(true);
+      });
 
       // Universal phone validation visual feedback
       document.querySelectorAll('.form-input[type="tel"]').forEach(input => {
