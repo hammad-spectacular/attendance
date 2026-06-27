@@ -28,6 +28,7 @@ function requireAuth(allowedRoles = []) {
       }
 
       if (allowedRoles.length > 0 && !allowedRoles.includes(decoded.role)) {
+        console.log('403 triggered - decoded.role:', decoded.role, 'allowedRoles:', allowedRoles)
         return res.status(403).json({ error: 'Forbidden' })
       }
 
