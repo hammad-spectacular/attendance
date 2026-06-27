@@ -17,7 +17,7 @@ function requireAuth(allowedRoles = []) {
     }
 
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-change-me')
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'theEye_Secret_2024_xK9mP2qR7vN')
       req.user = {
         user_id: decoded.user_id,
         role: decoded.role,
