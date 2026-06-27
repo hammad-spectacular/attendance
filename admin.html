@@ -3627,7 +3627,7 @@
 
     async function handleLogout() {
       localStorage.removeItem('auth_token');
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      await fetch(API + '/api/auth/logout', { method: 'POST', credentials: 'include' });
       window.location.href = '/index.html';
     }
 

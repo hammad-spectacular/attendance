@@ -1,3 +1,7 @@
+const API_BASE = window.location.origin.includes('localhost') && window.location.port === '3000'
+  ? window.location.origin
+  : 'https://attendance-production-fb0b.up.railway.app';
+
 let isRedirecting = false;
 
 function authHeader() {
@@ -18,7 +22,7 @@ function redirectToLogin() {
 
 async function refreshSession() {
   try {
-    const res = await fetch('/api/auth/me', {
+    const res = await fetch(API_BASE + '/api/auth/me', {
       credentials: 'include',
       headers: authHeader()
     });
@@ -32,7 +36,8 @@ async function refreshSession() {
 }
 
 async function apiFetch(url, options = {}) {
-  const doFetch = () => fetch(url, {
+  const fullUrl = url.startsWith('/api') ? API_BASE + url : url;
+  const doFetch = () => fetch(fullUrl, {
     credentials: 'include',
     ...options,
     headers: {
