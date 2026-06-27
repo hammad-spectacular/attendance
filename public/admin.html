@@ -1124,7 +1124,8 @@
     function redirectToLogin() {
       if (isRedirecting) return;
       isRedirecting = true;
-      window.location.href = '/login.html';
+      localStorage.removeItem('auth_token');
+      window.location.href = '/index.html';
     }
 
     // Local storage keys for features that remain frontend-only (like announcements)
@@ -1199,10 +1200,10 @@
     async function reloadAllData(isInitial = false) {
       try {
         const [teachers, classes, students, rawAttendance] = await Promise.all([
-          fetch(`${API}/api/teachers`).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
-          fetch(`${API}/api/classes`).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
-          fetch(`${API}/api/students`).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
-          fetch(`${API}/api/attendance/all`).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }).catch(() => [])
+          fetch(`${API}/api/teachers`, { headers: authHeader(), credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
+          fetch(`${API}/api/classes`, { headers: authHeader(), credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
+          fetch(`${API}/api/students`, { headers: authHeader(), credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
+          fetch(`${API}/api/attendance/all`, { headers: authHeader(), credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }).catch(() => [])
         ]);
 
         window.appData.teachers = teachers;
@@ -1379,7 +1380,8 @@
       try {
         const response = await fetch(`${API}/api/classes/${classId}/assign-teacher`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          credentials: 'include',
           body: JSON.stringify({ teacher_id: teacherId ? parseInt(teacherId) : null })
         });
         if (!response.ok) throw new Error('Failed to update teacher assignment');
@@ -1456,7 +1458,8 @@
       try {
         const response = await fetch(`${API}/api/teachers`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          credentials: 'include',
           body: JSON.stringify({ name, phone: phone || null, class_id: classId || null })
         });
 
@@ -1474,7 +1477,7 @@
     async function deleteTeacher(id) {
       if (!confirm('Remove this teacher?')) return;
       try {
-        const response = await fetch(`${API}/api/teachers/${id}`, { method: 'DELETE' });
+        const response = await fetch(`${API}/api/teachers/${id}`, { method: 'DELETE', headers: authHeader(), credentials: 'include' });
         if (!response.ok) throw new Error('Failed to delete teacher');
         await reloadAllData();
         showToast('🗑️ Teacher removed', 'info');
@@ -1582,7 +1585,8 @@
       try {
         const response = await fetch(`${API}/api/students`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          credentials: 'include',
           body: JSON.stringify({
             name,
             roll_no: rollNo,
@@ -1604,7 +1608,7 @@
     async function deleteStudent(id) {
       if (!confirm('Remove this student?')) return;
       try {
-        const response = await fetch(`${API}/api/students/${id}`, { method: 'DELETE' });
+        const response = await fetch(`${API}/api/students/${id}`, { method: 'DELETE', headers: authHeader(), credentials: 'include' });
         if (!response.ok) throw new Error('Failed to delete student');
         await reloadAllData();
         showToast('🗑️ Student removed', 'info');
@@ -1947,6 +1951,7 @@
       const response = await fetch(`${API}/api/announcements`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
+        credentials: 'include',
         body: JSON.stringify({
           title: 'School Announcement',
           message: message,
@@ -1962,7 +1967,7 @@
     }
 
     async function deleteAnnouncement(id) {
-      const response = await fetch(`${API}/api/announcements/${id}`, { method: 'DELETE', headers: authHeader() });
+      const response = await fetch(`${API}/api/announcements/${id}`, { method: 'DELETE', headers: authHeader(), credentials: 'include' });
       if (!response.ok) {
         showToast('Failed to remove announcement', 'error');
         return;
@@ -1976,7 +1981,7 @@
       let announcements = [];
 
       try {
-        announcements = await fetch(`${API}/api/announcements`).then(r => { if(r.status===401) redirectToLogin(); return r.json(); });
+        announcements = await fetch(`${API}/api/announcements`, { headers: authHeader(), credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); });
         announcements = announcements.filter(a => !a.class_id);
       } catch (err) {
         container.innerHTML = `
@@ -2087,7 +2092,8 @@
       try {
         const response = await fetch(`${API}/api/teachers/${id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          credentials: 'include',
           body: JSON.stringify({ name, phone: phone || null, class_id: classId || null })
         });
 
@@ -2146,7 +2152,8 @@
       try {
         const response = await fetch(`${API}/api/students/${id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          credentials: 'include',
           body: JSON.stringify({ name, roll_no: rollNo, phone: phone || null, class_id: classId })
         });
 
