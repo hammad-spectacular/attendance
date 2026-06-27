@@ -9,7 +9,7 @@ require('dotenv').config()
 const { requireAuth } = require('./authMiddleware')
 
 const app = express()
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-me'
+const JWT_SECRET = process.env.JWT_SECRET || 'theEye_Secret_2024_xK9mP2qR7vN'
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_SALT_ROUNDS || '12')
 const JWT_EXPIRY = '8h'
 
@@ -453,10 +453,8 @@ app.get('/api/auth/me', async (req, res) => {
     })
 
     return res.status(200).json({
-      user_id: decoded.user_id,
+      id: decoded.user_id,
       role: decoded.role,
-      tenant_id: decoded.tenant_id,
-      login_id: decoded.login_id,
       is_first_login,
       token: freshToken
     })
