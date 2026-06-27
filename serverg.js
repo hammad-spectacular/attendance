@@ -9,7 +9,8 @@ require('dotenv').config()
 const { requireAuth } = require('./authMiddleware')
 
 const app = express()
-const JWT_SECRET = process.env.JWT_SECRET || 'theEye_Secret_2024_xK9mP2qR7vN'
+const JWT_SECRET = process.env.JWT_SECRET
+console.log('JWT_SECRET loaded:', JWT_SECRET ? 'YES' : 'MISSING')
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_SALT_ROUNDS || '12')
 const JWT_EXPIRY = '8h'
 
