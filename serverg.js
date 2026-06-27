@@ -414,6 +414,7 @@ app.get('/api/auth/me', async (req, res) => {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET)
+    console.log('DEBUG /api/auth/me - decoded role:', decoded.role, 'user_id:', decoded.user_id)
 
     let table = ''
     if (decoded.role === 'super_admin' || decoded.role === 'admin') table = 'admins'
