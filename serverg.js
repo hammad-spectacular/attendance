@@ -165,7 +165,7 @@ async function createTables() {
   await pool.query(`
     UPDATE admins 
     SET login_id = SUBSTRING(login_id FROM POSITION('-' IN login_id) + 1)
-    WHERE login_id LIKE '%-%' AND tenant_id != 'SUPER';
+    WHERE login_id LIKE '%-%';
   `)
 
   // Fix existing teacher/student login_id values that were stored with full concatenated IDs (e.g. 'APSC-T001' -> 'T001')
@@ -237,6 +237,7 @@ app.post('/api/auth/login', async (req, res) => {
     console.log('query result rows:', result.rows.length)
     if (result.rows.length > 0) {
       console.log('found user role:', result.rows[0].role)
+      console.log('found user id:', result.rows[0].id)
       console.log('password_hash from db:', result.rows[0].password_hash)
       console.log('bcrypt result:', await bcrypt.compare(password, result.rows[0].password_hash))
     }
