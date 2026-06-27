@@ -161,6 +161,13 @@ async function createTables() {
     UPDATE admins SET login_id = 'ADM' WHERE tenant_id = 'SUPER' AND login_id = 'SUPER-ADM'
   `)
 
+  // Fix existing regular admin login_id values that were stored with full concatenated IDs (e.g. 'HARV-ADM' -> 'ADM')
+  await pool.query(`
+    UPDATE admins 
+    SET login_id = SUBSTRING(login_id FROM POSITION('-' IN login_id) + 1)
+    WHERE login_id LIKE '%-%' AND tenant_id != 'SUPER';
+  `)
+
   // Fix existing teacher/student login_id values that were stored with full concatenated IDs (e.g. 'APSC-T001' -> 'T001')
   await pool.query(`
     UPDATE teachers 
