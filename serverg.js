@@ -175,14 +175,16 @@ async function createTables() {
   `)
   await pool.query(`
     DO $$ BEGIN
-      ALTER TABLE admins ADD CONSTRAINT admins_tenant_login_key UNIQUE (tenant_id, login_id);
-    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-    DO $$ BEGIN
-      ALTER TABLE teachers ADD CONSTRAINT teachers_tenant_login_key UNIQUE (tenant_id, login_id);
-    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-    DO $$ BEGIN
-      ALTER TABLE students ADD CONSTRAINT students_tenant_login_key UNIQUE (tenant_id, login_id);
-    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'admins_tenant_login_key') THEN
+        ALTER TABLE admins ADD CONSTRAINT admins_tenant_login_key UNIQUE (tenant_id, login_id);
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'teachers_tenant_login_key') THEN
+        ALTER TABLE teachers ADD CONSTRAINT teachers_tenant_login_key UNIQUE (tenant_id, login_id);
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'students_tenant_login_key') THEN
+        ALTER TABLE students ADD CONSTRAINT students_tenant_login_key UNIQUE (tenant_id, login_id);
+      END IF;
+    END $$;
   `)
 
   console.log('Tables ready')
