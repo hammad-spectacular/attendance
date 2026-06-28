@@ -1,4 +1,4 @@
-const API_BASE = window.location.origin.includes('localhost') && window.location.port === '3000'
+const API_BASE = window.location.origin.includes('localhost')
   ? window.location.origin
   : 'https://attendance-production-fb0b.up.railway.app';
 
