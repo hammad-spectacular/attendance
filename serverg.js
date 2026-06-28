@@ -166,6 +166,25 @@ async function createTables() {
     WHERE login_id LIKE '%-%';
   `)
 
+  // Make login_id unique PER organization (tenant) instead of globally, so
+  // different schools can reuse the same ids (e.g. ADM / T001 / S001).
+  await pool.query(`
+    ALTER TABLE admins   DROP CONSTRAINT IF EXISTS admins_login_id_key;
+    ALTER TABLE teachers DROP CONSTRAINT IF EXISTS teachers_login_id_key;
+    ALTER TABLE students DROP CONSTRAINT IF EXISTS students_login_id_key;
+  `)
+  await pool.query(`
+    DO $$ BEGIN
+      ALTER TABLE admins ADD CONSTRAINT admins_tenant_login_key UNIQUE (tenant_id, login_id);
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+    DO $$ BEGIN
+      ALTER TABLE teachers ADD CONSTRAINT teachers_tenant_login_key UNIQUE (tenant_id, login_id);
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+    DO $$ BEGIN
+      ALTER TABLE students ADD CONSTRAINT students_tenant_login_key UNIQUE (tenant_id, login_id);
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+  `)
+
   console.log('Tables ready')
 }
 
@@ -194,18 +213,18 @@ function generateTempPassword() {
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { password } = req.body
-    const full_id = req.body.full_id || req.body.login_id
-    const lastDash = full_id.lastIndexOf('-')
-    const tenant_id = full_id.substring(0, lastDash).toUpperCase()
-    const login_id = full_id.substring(lastDash + 1)
+    const full_id = (req.body.full_id || req.body.login_id || '').trim()
 
     if (!full_id || !password) {
       return res.status(400).json({ error: 'Full ID and Password are required' })
     }
 
-    console.log('full_id received:', full_id)
-    console.log('tenant_id (split):', tenant_id)
-    console.log('login_id (split):', login_id)
+    const lastDash = full_id.lastIndexOf('-')
+    if (lastDash === -1) {
+      return res.status(401).json({ error: 'Invalid Organization, ID, or Password' })
+    }
+    const tenant_id = full_id.substring(0, lastDash).toUpperCase()
+    const login_id = full_id.substring(lastDash + 1).toUpperCase()
 
     const result = await pool.query(`
       SELECT id, password_hash, role, is_first_login, is_frozen 
@@ -220,13 +239,6 @@ app.post('/api/auth/login', async (req, res) => {
       FROM admins 
       WHERE tenant_id = $1 AND login_id = $2
     `, [tenant_id, login_id])
-
-    console.log('query result rows:', result.rows.length)
-    if (result.rows.length > 0) {
-      console.log('found user role:', result.rows[0].role)
-      console.log('password_hash from db:', result.rows[0].password_hash)
-      console.log('bcrypt result:', await bcrypt.compare(password, result.rows[0].password_hash))
-    }
 
     if (result.rows.length === 0) {
       return res.status(401).json({ error: 'Invalid Organization, ID, or Password' })
