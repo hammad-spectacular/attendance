@@ -1827,6 +1827,43 @@
   <!-- ======================== JAVASCRIPT ======================== -->
   <script src="/auth-utils.js"></script>
   <script>
+    // Lightweight toast helper. Self-contained and never throws so it can't
+    // block follow-up logic (e.g. showing the credentials panel).
+    function showToast(message, type = 'info') {
+      try {
+        let container = document.getElementById('toastContainer');
+        if (!container) {
+          container = document.createElement('div');
+          container.className = 'toast-container';
+          container.id = 'toastContainer';
+          document.body.appendChild(container);
+        }
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+      } catch (e) {
+        console.log('toast:', message);
+      }
+    }
+
+    // Fallback only if auth-utils.js did not provide setButtonLoading.
+    if (typeof window.setButtonLoading !== 'function') {
+      window.setButtonLoading = function (btn, isLoading, loadingHtml) {
+        if (!btn) return;
+        if (isLoading) {
+          if (!btn.dataset.originalHtml) btn.dataset.originalHtml = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML = loadingHtml || 'Loading...';
+        } else {
+          btn.disabled = false;
+          btn.innerHTML = btn.dataset.originalHtml || btn.innerHTML;
+          delete btn.dataset.originalHtml;
+        }
+      };
+    }
+
     let credentialsDoneCallback = null;
     let activeCredentialsType = null;
 
@@ -2607,8 +2644,8 @@
         renderTeachers();
         btn.innerHTML = '<i class="fas fa-check"></i> Created';
         if (btn) btn.dataset.originalHtml = btn.innerHTML;
-        showToast('✅ Teacher created successfully', 'success');
         showCredentialsPanel(data.teacher_id, data.temp_password, 'teacher');
+        showToast('✅ Teacher created successfully', 'success');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       } finally {
@@ -2832,13 +2869,13 @@
         // 3. Re-render table immediately so student appears
         filterStudents();
 
-        // 4. Show success
-        showToast('✅ Student saved successfully', 'success');
-
-        // 5. Show credentials modal
+        // 4. Show credentials modal first so a toast error can never block it
         showCredentialsPanel(data.student_id, data.temp_password, 'student', async () => {
           await reloadAllData(false, true);
         });
+
+        // 5. Show success
+        showToast('✅ Student saved successfully', 'success');
 
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
