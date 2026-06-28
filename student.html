@@ -699,7 +699,9 @@
     // =============================================================
     // API CONFIGURATION (Automatic Localhost / Production Detection)
     // =============================================================
-    const API = '';
+    const API = window.location.origin.includes('localhost')
+      ? window.location.origin
+      : 'https://attendance-production-fb0b.up.railway.app';
     let sessionUser = null;
 
     const state = {
