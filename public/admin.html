@@ -1,18 +1,21 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
+
 <head>
   <script>
     // Execute immediately to prevent theme flickering (FOUC)
-    (function() {
-      const savedTheme = localStorage.getItem('attendance-theme') || 'dark';
+    (function () {
+      const savedTheme = localStorage.getItem('attendance-theme') || 'dark'; // v3
       document.documentElement.setAttribute('data-theme', savedTheme);
     })();
   </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Dashboard — The Eye</title>
-  <meta name="description" content="Admin dashboard for The Eye School Management System. Manage teachers, view attendance, and post announcements.">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <title>Admin Dashboard — The Eye v2</title>
+  <meta name="description"
+    content="Admin dashboard for The Eye School Management System. Manage teachers, view attendance, and post announcements.">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     /* ================================
@@ -37,14 +40,15 @@
       --danger-bg: rgba(239, 68, 68, 0.08);
       --warning: #f59e0b;
       --warning-bg: rgba(245, 158, 11, 0.08);
-      --shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
-      --shadow-lg: 0 10px 25px -5px rgba(0,0,0,0.4);
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
       --gradient: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
       --table-row-hover: rgba(79, 70, 229, 0.06);
-      --table-stripe: rgba(255,255,255,0.02);
+      --table-stripe: rgba(255, 255, 255, 0.02);
       --badge-bg: rgba(79, 70, 229, 0.12);
       --badge-text: #a5b4fc;
     }
+
     [data-theme="light"] {
       --bg: #f1f5f9;
       --bg-card: #ffffff;
@@ -64,16 +68,20 @@
       --danger-bg: rgba(239, 68, 68, 0.06);
       --warning: #d97706;
       --warning-bg: rgba(245, 158, 11, 0.06);
-      --shadow: 0 4px 6px -1px rgba(0,0,0,0.07);
-      --shadow-lg: 0 10px 25px -5px rgba(0,0,0,0.1);
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
+      --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
       --gradient: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
       --table-row-hover: rgba(79, 70, 229, 0.04);
-      --table-stripe: rgba(0,0,0,0.015);
+      --table-stripe: rgba(0, 0, 0, 0.015);
       --badge-bg: rgba(79, 70, 229, 0.08);
       --badge-text: #4f46e5;
     }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
     body {
       font-family: 'Inter', sans-serif;
@@ -85,7 +93,9 @@
     }
 
     @keyframes spin {
-      to { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
 
     /* ================================
@@ -98,17 +108,19 @@
       top: 0;
       z-index: 30;
       overflow: hidden;
-      box-shadow: 0 4px 20px rgba(79,70,229,0.3);
+      box-shadow: 0 4px 20px rgba(79, 70, 229, 0.3);
       animation: headerSlideDown 0.5s ease-out;
     }
+
     .header::before {
       content: '';
       position: absolute;
       inset: 0;
-      background: radial-gradient(ellipse at 30% 50%, rgba(255,255,255,0.08) 0%, transparent 60%),
-                  radial-gradient(ellipse at 70% 50%, rgba(255,255,255,0.05) 0%, transparent 60%);
+      background: radial-gradient(ellipse at 30% 50%, rgba(255, 255, 255, 0.08) 0%, transparent 60%),
+        radial-gradient(ellipse at 70% 50%, rgba(255, 255, 255, 0.05) 0%, transparent 60%);
       pointer-events: none;
     }
+
     .header-inner {
       position: relative;
       z-index: 1;
@@ -119,17 +131,19 @@
       justify-content: space-between;
       padding: 0 20px;
     }
+
     .header-left {
       display: flex;
       align-items: center;
       gap: 14px;
     }
+
     .back-btn {
       width: 40px;
       height: 40px;
       border-radius: 12px;
-      border: 2px solid rgba(255,255,255,0.25);
-      background: rgba(255,255,255,0.1);
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.1);
       color: white;
       font-size: 0.9rem;
       cursor: pointer;
@@ -141,11 +155,13 @@
       text-decoration: none;
       flex-shrink: 0;
     }
+
     .back-btn:hover {
-      background: rgba(255,255,255,0.2);
-      border-color: rgba(255,255,255,0.5);
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.5);
       transform: scale(1.06);
     }
+
     .header-title strong {
       display: block;
       font-size: 1.25rem;
@@ -154,23 +170,26 @@
       letter-spacing: -0.5px;
       line-height: 1.2;
     }
+
     .header-title span {
       font-size: 0.72rem;
-      color: rgba(255,255,255,0.65);
+      color: rgba(255, 255, 255, 0.65);
       font-weight: 400;
       letter-spacing: 0.3px;
     }
+
     .header-right {
       display: flex;
       align-items: center;
       gap: 10px;
     }
+
     .theme-toggle {
       width: 40px;
       height: 40px;
       border-radius: 50%;
-      border: 2px solid rgba(255,255,255,0.25);
-      background: rgba(255,255,255,0.1);
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.1);
       color: white;
       font-size: 0.9rem;
       cursor: pointer;
@@ -180,9 +199,10 @@
       transition: all 0.3s ease;
       backdrop-filter: blur(10px);
     }
+
     .theme-toggle:hover {
-      background: rgba(255,255,255,0.2);
-      border-color: rgba(255,255,255,0.5);
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.5);
       transform: scale(1.06);
     }
 
@@ -200,15 +220,20 @@
       -webkit-overflow-scrolling: touch;
       white-space: nowrap;
     }
+
     .tab-nav::-webkit-scrollbar {
       display: none;
     }
+
     .tab-nav {
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
-    [data-theme="dark"] .tab-nav { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3); }
-    
+
+    [data-theme="dark"] .tab-nav {
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+    }
+
     .tab-nav-inner {
       max-width: 960px;
       margin: 0 auto;
@@ -219,6 +244,7 @@
       padding-bottom: 0.5rem;
       width: max-content;
     }
+
     .tab-btn {
       padding: 0.65rem 1.5rem;
       font-weight: 600;
@@ -236,22 +262,159 @@
       white-space: nowrap;
       flex-shrink: 0;
     }
+
     .tab-btn:hover {
       color: var(--primary);
       background: var(--bg-card-hover);
       border-color: var(--border);
     }
+
     .tab-btn.active {
       color: #fff;
       background: var(--gradient);
       border-color: var(--primary);
       box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
     }
+
     .tab-content {
-      scroll-margin-top: 150px;
-      margin-bottom: 32px;
+      display: none;
+      animation: fadeInUp 0.3s ease-out both;
     }
-    
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* ================================
+       DIRTY ROW HIGHLIGHT
+       ================================ */
+    .row-dirty {
+      background: rgba(245, 158, 11, 0.10) !important;
+    }
+
+    .row-dirty td {
+      border-bottom-color: rgba(245, 158, 11, 0.25) !important;
+    }
+
+    .inline-edit-input {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 0.82rem;
+      color: var(--text);
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .inline-edit-input:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
+
+    /* ================================
+       STICKY SAVE BAR
+       ================================ */
+    .save-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: var(--bg-card);
+      border-top: 2px solid var(--warning);
+      box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.25);
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      padding: 12px 20px;
+    }
+
+    .save-bar.visible {
+      transform: translateY(0);
+    }
+
+    .save-bar-inner {
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .save-bar-msg {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--warning);
+    }
+
+    .save-bar-msg i {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .save-bar-actions {
+      display: flex;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .btn-discard {
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text-secondary);
+      transition: all 0.2s ease;
+    }
+
+    .btn-discard:hover {
+      background: var(--bg-card-hover);
+      color: var(--text);
+    }
+
+    .btn-save-all {
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      background: var(--warning);
+      color: #fff;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 10px rgba(245, 158, 11, 0.35);
+    }
+
+    .btn-save-all:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+
+    .btn-save-all:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* push page content up when save bar is visible */
+    body.savebar-open .main {
+      padding-bottom: 90px;
+    }
+
 
     /* ================================
        MAIN CONTAINER
@@ -262,8 +425,81 @@
       padding: 28px 20px 60px;
     }
 
+    .modal-actions .btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .modal-actions .btn.primary {
+      background: var(--gradient);
+      color: white;
+    }
+    
+    .modal-actions .btn.primary:hover {
+      opacity: 0.9;
+    }
+    
+    .modal-actions .btn.ghost {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    
+    .modal-actions .btn.ghost:hover {
+      background: var(--bg-card-hover);
+    }
+    
+    .credentials-panel {
+      display: none;
+      background: linear-gradient(135deg, rgba(79, 70, 229, 0.08), rgba(14, 165, 233, 0.08));
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--primary);
+      border-radius: 12px;
+      padding: 16px;
+      margin: 0 0 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .credentials-panel.open {
+      display: block;
+    }
+
+    .credentials-panel-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .credentials-panel-title {
+      color: var(--text);
+      font-size: 0.95rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 3px;
+    }
+
+    .credentials-panel-subtitle {
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      line-height: 1.4;
+    }
+
+    .credential-box { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:14px; margin:12px 0; font-family:monospace; font-size:0.9rem; }
+    .credential-box span { font-weight:700; color:var(--primary-light); }
+    .warning-text { font-size:0.78rem; color:var(--danger); font-weight:600; margin-top:8px; }
+
     /* ================================
-       SECTION CARD
+       UTILITY CLASSES
        ================================ */
     .section-card {
       background: var(--bg-card);
@@ -274,9 +510,18 @@
       overflow: hidden;
       animation: fadeInUp 0.5s ease-out both;
     }
-    .section-card:nth-child(1) { animation-delay: 0.05s; }
-    .section-card:nth-child(2) { animation-delay: 0.15s; }
-    .section-card:nth-child(3) { animation-delay: 0.25s; }
+
+    .section-card:nth-child(1) {
+      animation-delay: 0.05s;
+    }
+
+    .section-card:nth-child(2) {
+      animation-delay: 0.15s;
+    }
+
+    .section-card:nth-child(3) {
+      animation-delay: 0.25s;
+    }
 
     .section-header {
       padding: 18px 22px;
@@ -287,11 +532,13 @@
       gap: 12px;
       flex-wrap: wrap;
     }
+
     .section-header-left {
       display: flex;
       align-items: center;
       gap: 12px;
     }
+
     .section-icon {
       width: 40px;
       height: 40px;
@@ -302,24 +549,29 @@
       font-size: 1rem;
       flex-shrink: 0;
     }
+
     .section-icon.purple {
       background: var(--badge-bg);
       color: var(--badge-text);
     }
+
     .section-icon.green {
       background: var(--success-bg);
       color: var(--success);
     }
+
     .section-icon.amber {
       background: var(--warning-bg);
       color: var(--warning);
     }
+
     .section-title {
       font-size: 1rem;
       font-weight: 700;
       color: var(--text);
       line-height: 1.2;
     }
+
     .section-subtitle {
       font-size: 0.72rem;
       color: var(--text-muted);
@@ -339,6 +591,7 @@
       border-spacing: 0;
       font-size: 0.82rem;
     }
+
     .data-table thead th {
       padding: 10px 14px;
       font-size: 0.68rem;
@@ -349,18 +602,23 @@
       border-bottom: 1px solid var(--border);
       white-space: nowrap;
     }
+
     .data-table tbody tr {
       transition: background 0.2s ease;
     }
+
     .data-table tbody tr:hover {
       background: var(--table-row-hover);
     }
+
     .data-table tbody tr:nth-child(even) {
       background: var(--table-stripe);
     }
+
     .data-table tbody tr:nth-child(even):hover {
       background: var(--table-row-hover);
     }
+
     .data-table tbody td {
       padding: 11px 14px;
       border-bottom: 1px solid var(--border);
@@ -373,15 +631,18 @@
       padding: 30px 16px;
       color: var(--text-muted);
     }
+
     .empty-state .icon {
       font-size: 2rem;
       margin-bottom: 8px;
       opacity: 0.6;
     }
+
     .empty-state .msg {
       font-size: 0.82rem;
       font-weight: 500;
     }
+
     .empty-state .sub {
       font-size: 0.72rem;
       margin-top: 4px;
@@ -399,10 +660,12 @@
       font-weight: 600;
       white-space: nowrap;
     }
+
     .badge.present {
       background: var(--success-bg);
       color: var(--success);
     }
+
     .badge.absent {
       background: var(--danger-bg);
       color: var(--danger);
@@ -414,6 +677,7 @@
     .form-group {
       margin-bottom: 14px;
     }
+
     .form-label {
       display: block;
       font-size: 0.75rem;
@@ -423,6 +687,7 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
+
     .form-input,
     .form-textarea {
       width: 100%;
@@ -436,15 +701,18 @@
       transition: border-color 0.25s ease, box-shadow 0.25s ease;
       outline: none;
     }
+
     .form-input:focus,
     .form-textarea:focus {
       border-color: var(--border-focus);
       box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
     }
+
     .form-input::placeholder,
     .form-textarea::placeholder {
       color: var(--text-muted);
     }
+
     .form-textarea {
       resize: vertical;
       min-height: 80px;
@@ -454,6 +722,7 @@
       display: flex;
       gap: 12px;
     }
+
     .form-row .form-group {
       flex: 1;
     }
@@ -474,31 +743,38 @@
       transition: all 0.25s ease;
       letter-spacing: 0.2px;
     }
+
     .btn-primary {
       background: var(--gradient);
       color: white;
-      box-shadow: 0 4px 12px rgba(79,70,229,0.3);
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
     }
+
     .btn-primary:hover {
-      box-shadow: 0 6px 18px rgba(79,70,229,0.45);
+      box-shadow: 0 6px 18px rgba(79, 70, 229, 0.45);
       transform: translateY(-1px);
     }
+
     .btn-primary:active {
       transform: translateY(0);
     }
+
     .btn-danger {
       background: var(--danger-bg);
       color: var(--danger);
       border: 1px solid transparent;
     }
+
     .btn-danger:hover {
       background: rgba(239, 68, 68, 0.15);
     }
+
     .btn-ghost {
       background: transparent;
       color: var(--text-muted);
       border: 1px solid var(--border);
     }
+
     .btn-ghost:hover {
       background: var(--bg-card-hover);
       color: var(--text-secondary);
@@ -511,6 +787,7 @@
       list-style: none;
       margin-top: 16px;
     }
+
     .announcement-item {
       display: flex;
       align-items: flex-start;
@@ -523,10 +800,12 @@
       transition: transform 0.2s ease, box-shadow 0.2s ease;
       animation: fadeInUp 0.3s ease-out both;
     }
+
     .announcement-item:hover {
       transform: translateX(3px);
       box-shadow: var(--shadow);
     }
+
     .announcement-date {
       font-size: 0.68rem;
       font-weight: 600;
@@ -539,28 +818,67 @@
       margin-top: 1px;
     }
 
-    .announcement-delete {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 10px;
-      border-radius: 8px;
-      border: none;
-      background: var(--danger-bg);
-      color: var(--danger);
-      cursor: pointer;
+    .announcement-msg {
       font-size: 0.85rem;
-      line-height: 1;
-      transition: all 0.12s ease;
-      opacity: 1; /* Visible by default for admin UI */
+      color: var(--text);
+      line-height: 1.45;
+      flex: 1;
     }
 
-    .announcement-item:hover .announcement-delete {
-      transform: scale(1.05);
+
+    .announcement-delete,
+    .btn-delete {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border-radius: 8px;
+      border: 1px solid rgba(239, 68, 68, 0.18);
+      background: rgba(239, 68, 68, 0.06);
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 0.72rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      line-height: 1;
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
     }
-    .announcement-delete:hover {
-      background: rgba(239, 68, 68, 0.2);
-      transform: scale(1.1);
+
+    .announcement-delete:hover,
+    .btn-delete:hover {
+      background: rgba(239, 68, 68, 0.14);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #dc2626;
+      transform: scale(1.08);
+    }
+
+    .announcement-delete:active,
+    .btn-delete:active {
+      transform: scale(0.96);
+    }
+
+    .announcement-delete:disabled,
+    .btn-delete:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,0.35);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
 
     /* ================================
@@ -572,9 +890,18 @@
       justify-content: flex-end;
       align-items: center;
     }
+
     .action-buttons button {
       padding: 8px 12px;
       font-size: 1rem;
+    }
+
+    .action-buttons .btn-edit,
+    .action-buttons .btn-delete {
+      padding: 0;
+      width: 28px;
+      height: 28px;
+      font-size: 0.72rem;
     }
 
     /* ================================
@@ -589,6 +916,7 @@
       display: none;
       animation: fadeInUp 0.3s ease-out;
     }
+
     .add-teacher-form.open {
       display: block;
     }
@@ -607,38 +935,96 @@
       align-items: flex-end;
       pointer-events: none;
     }
+
     .toast {
       padding: 12px 20px;
       border-radius: 12px;
       font-size: 0.82rem;
       font-weight: 600;
       color: white;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
       animation: toastIn 0.35s ease-out, toastOut 0.35s ease-in 2.5s forwards;
       pointer-events: auto;
     }
-    .toast.success { background: #059669; }
-    .toast.info { background: #475569; }
-    .toast.error { background: #dc2626; }
-    .toast.warning { background: #d97706; }
+
+    .toast.success {
+      background: #059669;
+    }
+
+    .toast.info {
+      background: #475569;
+    }
+
+    .toast.error {
+      background: #dc2626;
+    }
+
+    .toast.warning {
+      background: #d97706;
+    }
 
     /* ================================
-       EDIT MODAL
+       EDIT MODAL & REGULAR MODAL
        ================================ */
-    .edit-modal {
+    .modal {
       position: fixed;
-      inset: 0;
-      z-index: 100;
+      top: 0; left: 0; right: 0; bottom: 0;
+      width: 100vw; height: 100vh;
+      z-index: 9999;
       display: none;
       align-items: center;
       justify-content: center;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0, 0, 0, 0.5);
       backdrop-filter: blur(4px);
       animation: fadeIn 0.2s ease-out;
     }
-    .edit-modal.open {
-      display: flex;
+
+    .modal.open {
+      display: flex !important;
     }
+
+    .edit-modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      width: 100vw; height: 100vh;
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    .edit-modal.open {
+      display: flex !important;
+    }
+
+    .modal-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 24px;
+      width: 90%;
+      max-width: 440px;
+      box-shadow: var(--shadow-lg);
+      animation: modalSlideIn 0.3s ease-out;
+    }
+
+    .modal-card h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
+    }
+
+    .modal-card h3 i {
+      color: var(--primary);
+    }
+
     .edit-modal-card {
       background: var(--bg-card);
       border: 1px solid var(--border);
@@ -649,17 +1035,20 @@
       box-shadow: var(--shadow-lg);
       animation: modalSlideIn 0.3s ease-out;
     }
+
     .edit-modal-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       margin-bottom: 20px;
     }
+
     .edit-modal-header h3 {
       font-size: 1.1rem;
       font-weight: 700;
       color: var(--text);
     }
+
     .edit-modal-close {
       width: 32px;
       height: 32px;
@@ -674,16 +1063,19 @@
       justify-content: center;
       transition: all 0.2s ease;
     }
+
     .edit-modal-close:hover {
       background: var(--danger-bg);
       color: var(--danger);
       border-color: var(--danger);
     }
+
     .edit-modal-actions {
       display: flex;
       gap: 8px;
       margin-top: 16px;
     }
+
     .edit-modal-actions .btn {
       flex: 1;
     }
@@ -703,6 +1095,7 @@
       justify-content: center;
       transition: all 0.2s ease;
     }
+
     .btn-edit:hover {
       background: rgba(79, 70, 229, 0.2);
       transform: scale(1.1);
@@ -716,9 +1109,11 @@
       border-radius: 10px;
       border: 1px solid var(--border);
     }
+
     .absentee-row.absent {
       background: var(--danger-bg);
     }
+
     .absentee-row.leave {
       background: var(--warning-bg);
     }
@@ -727,56 +1122,190 @@
        RESPONSIVE
        ================================ */
     @media (max-width: 640px) {
-      .header { padding: 16px; }
-      .header-title strong { font-size: 1.1rem; }
-      .main { padding: 16px 14px 50px; }
-      .section-header { padding: 14px 16px; }
-      .section-body { padding: 14px 16px; }
-      .form-row { flex-direction: column; gap: 0; }
-      .data-table { font-size: 0.75rem; }
-      .data-table thead th { padding: 8px 10px; font-size: 0.62rem; }
-      .data-table tbody td { padding: 9px 10px; }
-      .section-title { font-size: 0.9rem; }
-      .tab-nav-inner { padding-left: 14px; padding-right: 14px; gap: 0.35rem; }
-      .tab-btn { padding: 0.55rem 1rem; font-size: 0.82rem; }
-      .edit-modal-card { padding: 20px; }
+      .header {
+        padding: 16px;
+      }
+
+      .header-title strong {
+        font-size: 1.1rem;
+      }
+
+      .main {
+        padding: 16px 14px 50px;
+      }
+
+      .section-header {
+        padding: 14px 16px;
+      }
+
+      .section-body {
+        padding: 14px 16px;
+      }
+
+      .form-row {
+        flex-direction: column;
+        gap: 0;
+      }
+
+      .data-table {
+        font-size: 0.75rem;
+      }
+
+      .data-table thead th {
+        padding: 8px 10px;
+        font-size: 0.62rem;
+      }
+
+      .data-table tbody td {
+        padding: 9px 10px;
+      }
+
+      .section-title {
+        font-size: 0.9rem;
+      }
+
+      .tab-nav-inner {
+        padding-left: 14px;
+        padding-right: 14px;
+        gap: 0.35rem;
+      }
+
+      .tab-btn {
+        padding: 0.55rem 1rem;
+        font-size: 0.82rem;
+      }
+
+      .edit-modal-card {
+        padding: 20px;
+      }
     }
 
     /* ================================
        ANIMATIONS
        ================================ */
     @keyframes headerSlideDown {
-      from { opacity: 0; transform: translateY(-20px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
+
     @keyframes fadeInUp {
-      from { opacity: 0; transform: translateY(16px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
+
     @keyframes toastIn {
-      from { opacity: 0; transform: translateY(20px) scale(0.95); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
+      from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
     }
+
     @keyframes toastOut {
-      from { opacity: 1; transform: translateY(0); }
-      to { opacity: 0; transform: translateY(-10px); }
+      from {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      to {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
     }
+
     @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
     }
+
     @keyframes modalSlideIn {
-      from { opacity: 0; transform: scale(0.95) translateY(-10px); }
-      to { opacity: 1; transform: scale(1) translateY(0); }
+      from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    /* ================================
+       SKELETON SHIMMER LOADERS
+       ================================ */
+    @keyframes skeleton-shimmer {
+      0% {
+        background-position: -200% 0;
+      }
+
+      100% {
+        background-position: 200% 0;
+      }
+    }
+
+    .skeleton-shimmer {
+      background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
+      background-size: 200% 100%;
+      animation: skeleton-shimmer 1.6s infinite linear;
+      border-color: transparent !important;
+    }
+
+    [data-theme="light"] .skeleton-shimmer {
+      background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+      background-size: 200% 100%;
+    }
+
+    .skeleton-text {
+      height: 12px;
+      border-radius: 4px;
+      background-color: var(--border);
+      display: inline-block;
+      opacity: 0.6;
+    }
+
+    .skeleton-circle {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background-color: var(--border);
+      display: inline-block;
+      opacity: 0.6;
     }
   </style>
 </head>
+
 <body>
 
   <!-- ======================== LOADING OVERLAY ======================== -->
-  <div id="loadingOverlay" style="position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(8px); transition: opacity 0.4s ease;">
+  <div id="loadingOverlay"
+    style="position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: none; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(8px); transition: opacity 0.4s ease;">
     <div style="text-align: center;">
-      <div class="loader-spinner" style="width: 50px; height: 50px; border: 4px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
+      <div class="loader-spinner"
+        style="width: 50px; height: 50px; border: 4px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;">
+      </div>
       <div style="font-weight: 700; font-size: 1.1rem; color: var(--text); margin-bottom: 8px;">Loading Database</div>
       <div style="font-size: 0.8rem; color: var(--text-secondary);">Connecting to The Eye System...</div>
     </div>
@@ -795,6 +1324,8 @@
         </div>
       </div>
       <div class="header-right">
+        <button class="btn" onclick="openChangePasswordModal()" style="padding:8px 14px;font-size:0.75rem;background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.25);color:white;border-radius:10px;font-weight:600;cursor:pointer;transition:all 0.3s ease;font-family:'Inter',sans-serif;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'"><i class="fas fa-key"></i> Change Password</button>
+        <button class="btn" onclick="handleLogout()" style="padding:8px 14px;font-size:0.75rem;background:rgba(239,68,68,0.2);border:2px solid rgba(239,68,68,0.3);color:white;border-radius:10px;font-weight:600;cursor:pointer;transition:all 0.3s ease;font-family:'Inter',sans-serif;" onmouseover="this.style.background='rgba(239,68,68,0.35)'" onmouseout="this.style.background='rgba(239,68,68,0.2)'"><i class="fas fa-sign-out-alt"></i> Logout</button>
         <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
           <i class="fas fa-moon" id="themeIcon"></i>
         </button>
@@ -805,13 +1336,13 @@
   <!-- ======================== TAB NAVIGATION ======================== -->
   <nav class="tab-nav">
     <div class="tab-nav-inner">
-      <a href="#tab-teachers" class="tab-btn" data-section="tab-teachers">
+      <a href="#tab-teachers" class="tab-btn active" data-section="tab-teachers">
         <i class="fas fa-chalkboard-user"></i>Teachers
       </a>
       <a href="#tab-students" class="tab-btn" data-section="tab-students">
         <i class="fas fa-user-graduate"></i>Students
       </a>
-      <a href="./classes.html" class="tab-btn" style="text-decoration:none; cursor:pointer;">
+      <a href="#tab-classes" class="tab-btn" data-section="tab-classes">
         <i class="fas fa-book"></i>Classes
       </a>
       <a href="#tab-attendance" class="tab-btn" data-section="tab-attendance">
@@ -830,27 +1361,7 @@
   <div class="main">
 
     <!-- ==================== TEACHERS TAB ==================== -->
-    <div id="tab-teachers" class="tab-content">
-      <!-- Classes Section -->
-      <div class="section-card" id="classesSection">
-        <div class="section-header">
-          <div class="section-header-left">
-            <div class="section-icon purple" style="background: rgba(34, 197, 94, 0.12); color: #22c55e;"><i class="fas fa-book"></i></div>
-            <div>
-              <div class="section-title">Classes & Teachers</div>
-              <div class="section-subtitle">View assigned teachers and share links</div>
-            </div>
-          </div>
-          <a href="./classes.html" class="btn btn-primary" style="text-decoration:none;">
-            <i class="fas fa-cog"></i> Manage Classes
-          </a>
-        </div>
-        <div class="section-body">
-          <div id="classesTableWrap">
-            <!-- Rendered by JS -->
-          </div>
-        </div>
-      </div>
+    <div id="tab-teachers" class="tab-content active">
 
       <!-- Teachers List Section -->
       <div class="section-card" id="teachersSection">
@@ -883,7 +1394,8 @@
               </div>
               <div class="form-group">
                 <label class="form-label" for="teacherPhone">Contact</label>
-                <input class="form-input" type="tel" id="teacherPhone" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits (e.g., 03001234567)" required>
+                <input class="form-input" type="tel" id="teacherPhone" placeholder="03001234567" pattern="[0-9]{11}"
+                  title="11 digits (e.g., 03001234567)" required>
               </div>
             </div>
             <div style="display:flex; gap:8px; margin-top:4px;">
@@ -893,6 +1405,29 @@
               <button class="btn btn-ghost" onclick="toggleAddTeacher()">Cancel</button>
             </div>
           </div>
+
+          <div class="credentials-panel" id="teacherCredentialsPanel" aria-live="polite">
+            <div class="credentials-panel-header">
+              <div>
+                <div class="credentials-panel-title"><i class="fas fa-key"></i> Teacher Credentials</div>
+                <div class="credentials-panel-subtitle">Give these credentials to the teacher. After taking the password, press Done.</div>
+              </div>
+            </div>
+            <div class="credential-box" id="teacherCredentialDisplay"></div>
+            <p class="warning-text">⚠️ Copy these now. They will not be shown again.</p>
+            <div class="modal-actions">
+              <button class="btn btn-primary" id="teacherCredentialsDoneBtn" onclick="closeCredentialsModal()">Done</button>
+            </div>
+          </div>
+
+          <!-- Search & Filter Controls -->
+          <div class="search-filter-container" style="display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:240px; position:relative;">
+              <input type="text" id="teacherSearchInput" class="form-input"
+                placeholder="🔍 Search teachers by name or phone..." oninput="filterTeachers()">
+            </div>
+          </div>
+
 
           <!-- Teachers Table -->
           <div id="teachersTableWrap">
@@ -907,13 +1442,15 @@
       <div class="section-card" id="studentsSection">
         <div class="section-header">
           <div class="section-header-left">
-            <div class="section-icon purple" style="background: rgba(14, 165, 233, 0.12); color: #0ea5e9;"><i class="fas fa-user-graduate"></i></div>
+            <div class="section-icon purple" style="background: rgba(14, 165, 233, 0.12); color: #0ea5e9;"><i
+                class="fas fa-user-graduate"></i></div>
             <div>
               <div class="section-title">Students</div>
               <div class="section-subtitle">Manage enrolled students</div>
             </div>
           </div>
-          <button class="btn btn-primary" onclick="toggleAddStudent()" id="addStudentToggleBtn" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
+          <button class="btn btn-primary" onclick="toggleAddStudent()" id="addStudentToggleBtn"
+            style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
             <i class="fas fa-plus"></i> Add Student
           </button>
         </div>
@@ -932,11 +1469,13 @@
               </div>
               <div class="form-group">
                 <label class="form-label" for="studentPhone">Contact</label>
-                <input class="form-input" type="tel" id="studentPhone" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits (e.g., 03001234567)" required>
+                <input class="form-input" type="tel" id="studentPhone" placeholder="03001234567" pattern="[0-9]{11}"
+                  title="11 digits (e.g., 03001234567)" required>
               </div>
             </div>
             <div style="display:flex; gap:8px; margin-top:4px;">
-              <button class="btn btn-primary" onclick="saveStudent()" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
+              <button class="btn btn-primary" onclick="saveStudent()"
+                style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
                 <i class="fas fa-check"></i> Save Student
               </button>
               <button class="btn btn-ghost" onclick="toggleAddStudent()">Cancel</button>
@@ -946,20 +1485,91 @@
           <!-- Search & Filter Controls -->
           <div class="search-filter-container" style="display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
             <div style="flex:1; min-width:240px; position:relative;">
-              <input type="text" id="studentSearchInput" class="form-input" placeholder="🔍 Search by name or roll number..." oninput="filterStudents()">
+              <input type="text" id="studentSearchInput" class="form-input"
+                placeholder="🔍 Search by name or roll number..." oninput="filterStudents()">
             </div>
             <div style="width:200px; min-width:150px;">
-              <select id="studentClassFilter" class="form-input" onchange="filterStudents()" aria-label="Filter students by class">
+              <select id="studentClassFilter" class="form-input" onchange="filterStudents()"
+                aria-label="Filter students by class">
                 <option value="">All Classes</option>
                 <option value="unassigned">Unassigned</option>
               </select>
             </div>
           </div>
 
+
           <!-- Students Table Wrap -->
           <div id="studentsTableWrap">
             <!-- Rendered by JS -->
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== CLASSES TAB ==================== -->
+    <div id="tab-classes" class="tab-content">
+      <div class="section-card" id="classesSection">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-icon purple" style="background: rgba(34, 197, 94, 0.12); color: #22c55e;"><i class="fas fa-book"></i></div>
+            <div>
+              <div class="section-title">Classes &amp; Teacher Assignment</div>
+              <div class="section-subtitle">View enrolled students and assign teachers per class</div>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="toggleAddClass()" id="addClassToggleBtn">
+            <i class="fas fa-plus"></i> Add Class
+          </button>
+        </div>
+        <div class="section-body">
+          
+          <!-- Add Class Form (hidden initially) -->
+          <div class="add-teacher-form" id="addClassForm">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="className">Class Name</label>
+                <input class="form-input" type="text" id="className" placeholder="e.g. 10th Grade">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="classSection">Section (Optional)</label>
+                <input class="form-input" type="text" id="classSection" placeholder="e.g. A">
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:4px;">
+              <button class="btn btn-primary" onclick="saveClass()">
+                <i class="fas fa-check"></i> Save Class
+              </button>
+              <button class="btn btn-ghost" onclick="toggleAddClass()">Cancel</button>
+            </div>
+          </div>
+
+          <!-- FULL LIST VIEW -->
+          <div id="classesFullListView">
+            <!-- Search & Filter Controls -->
+            <div class="search-filter-container" style="display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
+              <div style="flex:1; min-width:240px; position:relative;">
+                <input type="text" id="classesSearchInput" class="form-input"
+                  placeholder="🔍 Search classes by name or assigned teacher..." oninput="filterClasses()">
+              </div>
+            </div>
+
+            <div id="classesTableWrap">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+
+          <!-- ISOLATED EDIT VIEW -->
+          <div id="classesIsolatedView" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-ghost" onclick="closeClassIsolation()">
+                <i class="fas fa-arrow-left"></i> Back to all classes
+              </button>
+            </div>
+            <div id="isolatedClassContent">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -975,11 +1585,23 @@
               <div class="section-subtitle">View submitted attendance and absent students</div>
             </div>
           </div>
-          <button class="btn btn-danger" onclick="clearAttendanceHistory()" title="Clear all attendance data" style="font-size:0.75rem; padding:8px 14px;">
-            <i class="fas fa-trash-alt"></i> Clear
-          </button>
         </div>
         <div class="section-body" style="padding:0;">
+          <div style="padding: 16px; border-bottom: 1px solid var(--border);">
+            <div class="search-filter-container" style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+              <div style="flex:1; min-width:240px; position:relative;">
+                <input type="text" id="attendanceSearchInput" class="form-input"
+                  placeholder="Search by student name..." oninput="filterAttendance()">
+              </div>
+              <input type="month" id="attendanceMonthFilter" class="form-input" style="max-width:180px;" onchange="filterAttendance()">
+              <select id="attendanceClassFilter" class="form-input" style="max-width:220px;" onchange="filterAttendance()">
+                <option value="">All Classes</option>
+              </select>
+              <button class="btn btn-ghost" onclick="exportAttendanceCsv()" title="Export filtered records">
+                <i class="fas fa-file-csv"></i> Export CSV
+              </button>
+            </div>
+          </div>
           <div id="attendanceTableWrap">
             <!-- Rendered by JS -->
           </div>
@@ -992,7 +1614,8 @@
       <div class="section-card" id="statsSection">
         <div class="section-header">
           <div class="section-header-left">
-            <div class="section-icon green" style="background: rgba(34, 197, 94, 0.12); color: #22c55e;"><i class="fas fa-chart-bar"></i></div>
+            <div class="section-icon green" style="background: rgba(34, 197, 94, 0.12); color: #22c55e;"><i
+                class="fas fa-chart-bar"></i></div>
             <div>
               <div class="section-title">Student Attendance Stats</div>
               <div class="section-subtitle">Overall attendance percentage across all recorded days</div>
@@ -1000,6 +1623,18 @@
           </div>
         </div>
         <div class="section-body" style="padding:0;">
+          <div style="padding: 16px; border-bottom: 1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+            <div id="statsClassHeader">
+              <div style="font-size: 1.1rem; font-weight: 700; color: var(--text);">Overall Leaderboard</div>
+              <div style="font-size: 0.85rem; color: var(--text-secondary);">Filter by class or teacher to view top students</div>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <input type="text" id="statsSearchInput" class="form-input" style="min-width:220px;" placeholder="Search class or teacher..." oninput="renderStats()">
+              <select id="statsClassSelect" class="form-input" style="max-width: 250px;" onchange="renderStats()">
+                <option value="">All Classes</option>
+              </select>
+            </div>
+          </div>
           <div id="statsTableWrap">
             <!-- Rendered by JS -->
           </div>
@@ -1022,11 +1657,24 @@
         <div class="section-body">
           <div class="form-group">
             <label class="form-label" for="announcementText">New Announcement</label>
-            <textarea class="form-textarea" id="announcementText" placeholder="Type your announcement here..." rows="3"></textarea>
+            <textarea class="form-textarea" id="announcementText" placeholder="Type your announcement here..."
+              rows="3" onkeydown="handleAnnouncementKeydown(event)"></textarea>
           </div>
           <button class="btn btn-primary" onclick="saveAnnouncement()" id="saveAnnouncementBtn">
             <i class="fas fa-paper-plane"></i> Save Announcement
           </button>
+
+          <div style="margin-top:22px; padding-top:18px; border-top:1px solid var(--border);">
+            <div style="font-size:1rem; font-weight:800; color:var(--text); margin-bottom:10px;">All Announcements Audit Log</div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+              <input type="text" id="announcementAuditSearch" class="form-input" style="flex:1; min-width:240px;" placeholder="Search teacher, class, date, or text..." oninput="renderAnnouncements()">
+              <select id="announcementTypeFilter" class="form-input" style="max-width:210px;" onchange="renderAnnouncements()">
+                <option value="">All Posts</option>
+                <option value="school">School-wide</option>
+                <option value="class">Teacher class posts</option>
+              </select>
+            </div>
+          </div>
 
           <!-- Saved Announcements List -->
           <div id="announcementsList">
@@ -1038,6 +1686,22 @@
 
   </div>
 
+  <!-- ======================== STICKY SAVE BAR ======================== -->
+  <div class="save-bar" id="savebar">
+    <div class="save-bar-inner">
+      <span class="save-bar-msg">
+        <i class="fas fa-circle-dot"></i>
+        <span id="savebarLabel">You have unsaved changes</span>
+      </span>
+      <div class="save-bar-actions">
+        <button class="btn-discard" onclick="discardTabChanges()" id="savebarDiscardBtn">Discard</button>
+        <button class="btn-save-all" onclick="saveTabChanges()" id="savebarSaveBtn">
+          <i class="fas fa-floppy-disk"></i> Save All Changes
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast container -->
   <div class="toast-container" id="toastContainer"></div>
 
@@ -1046,7 +1710,8 @@
     <div class="edit-modal-card">
       <div class="edit-modal-header">
         <h3><i class="fas fa-pen" style="margin-right:8px; color:var(--primary);"></i>Edit Teacher</h3>
-        <button class="edit-modal-close" onclick="closeEditTeacherModal()" aria-label="Close edit teacher modal"><i class="fas fa-times"></i></button>
+        <button class="edit-modal-close" onclick="closeEditTeacherModal()" aria-label="Close edit teacher modal"><i
+            class="fas fa-times"></i></button>
       </div>
       <input type="hidden" id="editTeacherIndex" aria-label="Hidden teacher index">
       <div class="form-group">
@@ -1061,7 +1726,8 @@
       </div>
       <div class="form-group">
         <label class="form-label" for="editTeacherPhone">Contact</label>
-        <input class="form-input" type="tel" id="editTeacherPhone" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits (e.g., 03001234567)" required>
+        <input class="form-input" type="tel" id="editTeacherPhone" placeholder="03001234567" pattern="[0-9]{11}"
+          title="11 digits (e.g., 03001234567)" required>
       </div>
       <div class="edit-modal-actions">
         <button class="btn btn-primary" onclick="saveEditTeacher()"><i class="fas fa-check"></i> Save</button>
@@ -1075,7 +1741,8 @@
     <div class="edit-modal-card">
       <div class="edit-modal-header">
         <h3><i class="fas fa-pen" style="margin-right:8px; color:var(--primary);"></i>Edit Student</h3>
-        <button class="edit-modal-close" onclick="closeEditStudentModal()" aria-label="Close edit student modal"><i class="fas fa-times"></i></button>
+        <button class="edit-modal-close" onclick="closeEditStudentModal()" aria-label="Close edit student modal"><i
+            class="fas fa-times"></i></button>
       </div>
       <input type="hidden" id="editStudentId" aria-label="Hidden student ID">
       <div class="form-group">
@@ -1088,10 +1755,13 @@
       </div>
       <div class="form-group">
         <label class="form-label" for="editStudentPhone">Contact</label>
-        <input class="form-input" type="tel" id="editStudentPhone" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits (e.g., 03001234567)" required>
+        <input class="form-input" type="tel" id="editStudentPhone" placeholder="03001234567" pattern="[0-9]{11}"
+          title="11 digits (e.g., 03001234567)" required>
       </div>
       <div class="edit-modal-actions">
-        <button class="btn btn-primary" onclick="saveEditStudent()" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);"><i class="fas fa-check"></i> Save</button>
+        <button class="btn btn-primary" onclick="saveEditStudent()"
+          style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);"><i class="fas fa-check"></i>
+          Save</button>
         <button class="btn btn-ghost" onclick="closeEditStudentModal()">Cancel</button>
       </div>
     </div>
@@ -1102,31 +1772,146 @@
     <div class="edit-modal-card" style="max-width:480px;">
       <div class="edit-modal-header">
         <h3 id="absenteeModalTitle" style="font-size:0.95rem;"><i class="fas fa-clipboard-check" style="margin-right:8px; color:var(--primary);"></i>Absent Students</h3>
-        <button class="edit-modal-close" onclick="closeAbsenteeModal()" aria-label="Close absentee modal"><i class="fas fa-times"></i></button>
+        <button class="edit-modal-close" onclick="closeAbsenteeModal()"><i class="fas fa-times"></i></button>
       </div>
       <div id="absenteeList" style="max-height:400px;overflow-y:auto;"></div>
     </div>
   </div>
 
+  <!-- ======================== CHANGE PASSWORD MODAL ======================== -->
+  <div class="edit-modal" id="changePasswordModal">
+    <div class="edit-modal-card">
+      <div class="edit-modal-header">
+        <h3><i class="fas fa-key" style="margin-right:8px; color:var(--primary);"></i>Change Password</h3>
+        <button class="edit-modal-close" onclick="closeChangePasswordModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <form id="changePwdForm" onsubmit="handleChangePassword(event)">
+        <div class="form-group">
+          <label class="form-label" for="cpCurrent">Current Password</label>
+          <input class="form-input" type="password" id="cpCurrent" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="cpNew">New Password</label>
+          <input class="form-input" type="password" id="cpNew" required minlength="6">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="cpConfirm">Confirm New Password</label>
+          <input class="form-input" type="password" id="cpConfirm" required>
+        </div>
+        <div id="cpMsg" style="padding:10px;border-radius:10px;font-size:0.8rem;font-weight:500;display:none;margin-bottom:10px;"></div>
+        <div class="edit-modal-actions">
+          <button type="submit" class="btn btn-primary" id="cpBtn" style="flex:1;justify-content:center;"><span id="cpBtnText">Change Password</span></button>
+          <button type="button" class="btn btn-ghost" onclick="closeChangePasswordModal()" style="flex:1;justify-content:center;">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================== CREDENTIALS MODAL ======================== -->
+  <div class="edit-modal" id="credentialsModal">
+    <div class="edit-modal-card">
+      <div class="edit-modal-header">
+        <h3><i class="fas fa-key" style="color:var(--primary);"></i> <span id="credentialsModalTitle">Credentials</span></h3>
+        <button class="edit-modal-close" onclick="closeCredentialsModal()" aria-label="Close credentials modal"><i class="fas fa-times"></i></button>
+      </div>
+      <div id="credentialsModalBody"></div>
+      <p class="warning-text" style="margin-bottom:12px;">⚠️ After pressing OK, these credentials will not be shown again.</p>
+      <button class="btn btn-primary" id="credentialsModalDoneBtn" onclick="closeCredentialsModal()" style="width:100%;justify-content:center;">
+        OK, I have noted these down
+      </button>
+    </div>
+  </div>
+
+
+
   <!-- ======================== JAVASCRIPT ======================== -->
+  <script src="/auth-utils.js"></script>
   <script>
-    // =============================================================
-    // API CONFIGURATION (Automatic Localhost / Production Detection)
-    // =============================================================
-    const API_BASE = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-      ? window.location.origin
-      : 'https://attendance-production-fb0b.up.railway.app';
+    let credentialsDoneCallback = null;
+    let activeCredentialsType = null;
+
+    function showCredentialsPanel(loginId, tempPassword, userType = 'user', onDone) {
+      const type = userType === 'student' ? 'student' : 'teacher';
+      const modal = document.getElementById('credentialsModal');
+      const title = document.getElementById('credentialsModalTitle');
+      const body = document.getElementById('credentialsModalBody');
+      const doneBtn = document.getElementById('credentialsModalDoneBtn');
+
+      title.textContent = type === 'student' ? 'Student Credentials' : 'Teacher Credentials';
+
+      credentialsDoneCallback = onDone;
+      activeCredentialsType = type;
+
+      if (!loginId || !tempPassword) {
+        body.innerHTML = `
+          <div style="text-align:center; padding:8px 0;">
+            <div style="font-size:1.5rem; margin-bottom:8px;">⚠️</div>
+            <div style="color:var(--danger); font-size:0.85rem; font-weight:600;">Credentials not received from server</div>
+            <div style="color:var(--text-muted); font-size:0.78rem; margin-top:4px;">Please try saving again or contact support.</div>
+          </div>
+        `;
+        modal.classList.add('open');
+        doneBtn.focus();
+        return;
+      }
+
+      body.innerHTML = `
+        <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:16px;">Share these with the ${type}. They must change their password on first login.</p>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;font-family:monospace;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <span style="color:var(--text-secondary);font-size:0.82rem;">Login ID:</span>
+            <strong id="${type}CredLoginId" style="user-select:all;color:var(--primary-light);font-size:1rem;">${escapeHtml(loginId)}</strong>
+            <button class="btn btn-ghost btn-sm" style="padding:4px 8px;font-size:0.75rem;" onclick="copyCred('${type}CredLoginId', this)">Copy</button>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text-secondary);font-size:0.82rem;">Password:</span>
+            <strong id="${type}CredTempPassword" style="user-select:all;color:var(--primary-light);font-size:1rem;">${escapeHtml(tempPassword)}</strong>
+            <button class="btn btn-ghost btn-sm" style="padding:4px 8px;font-size:0.75rem;" onclick="copyCred('${type}CredTempPassword', this)">Copy</button>
+          </div>
+        </div>
+      `;
+      modal.classList.add('open');
+      doneBtn.focus();
+    }
+
+    function closeCredentialsModal() {
+      const modal = document.getElementById('credentialsModal');
+      modal.classList.remove('open');
+      document.getElementById('credentialsModalBody').innerHTML = '';
+      if (credentialsDoneCallback) {
+        credentialsDoneCallback();
+        credentialsDoneCallback = null;
+      }
+      activeCredentialsType = null;
+    }
+
+    function upsertStudentInCache(student) {
+      if (!student || !student.id) return;
+      const existingIndex = window.appData.students.findIndex(s => String(s.id) === String(student.id));
+      if (existingIndex === -1) {
+        window.appData.students.push(student);
+      } else {
+        window.appData.students[existingIndex] = student;
+      }
+    }
+
+    function copyCred(elementId, btn) {
+      const text = document.getElementById(elementId).innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const originalText = btn.innerText;
+        btn.innerText = 'Copied!';
+        btn.style.color = 'var(--success)';
+        setTimeout(() => {
+          btn.innerText = 'Copy';
+          btn.style.color = '';
+        }, 2000);
+      });
+    }
 
     // =============================================================
-    // AUTH REDIRECT GUARD — prevents simultaneous redirect chaos
+    // LOCAL STORAGE KEYS
     // =============================================================
-    let isRedirecting = false;
-    function redirectToLogin() {
-      if (isRedirecting) return;
-      isRedirecting = true;
-      localStorage.removeItem('auth_token');
-      window.location.href = '/index.html';
-    }
+    // API_BASE is provided by auth-utils.js (loaded before this script)
 
     // Local storage keys for features that remain frontend-only (like announcements)
     const KEYS = {
@@ -1139,7 +1924,8 @@
       teachers: [],
       students: [],
       classes: [],
-      attendance: []
+      attendance: [],
+      attendanceLoadError: ''
     };
 
     // =============================================================
@@ -1169,6 +1955,18 @@
       return div.innerHTML;
     }
 
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.remove();
+      }, 3000);
+    }
+
     // =============================================================
     // THEME TOGGLE
     // =============================================================
@@ -1195,20 +1993,64 @@
     }
 
     // =============================================================
-    // DATA FETCHING & PARALLEL LOADING (Option A)
+    // DATA FETCHING & PARALLEL LOADING
     // =============================================================
-    async function reloadAllData(isInitial = false) {
+    const MIN_SKELETON_MS = 600; // minimum shimmer display time
+
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // Cache state
+    let isDataLoaded = false;
+    let activeTabId = 'tab-teachers';
+    
+    // Dirty tracking
+    const dirtyState = {
+      'tab-teachers': new Map(), // id -> { original, current }
+      'tab-students': new Map()  // id -> { original, current }
+    };
+
+    function hasAnyDirtyChanges() {
+      return dirtyState['tab-teachers'].size > 0 || dirtyState['tab-students'].size > 0;
+    }
+
+    async function reloadAllData(isInitial = false, forceFetch = false) {
+      if (isDataLoaded && !forceFetch) {
+        // Data is already loaded, just re-render current tab
+        renderCurrentTab();
+        return;
+      }
+
+      // Show high-fidelity shimmer skeletons immediately
+      showAdminSkeletons();
+      const skeletonStart = Date.now();
+
+      async function revealAfterMinTime(fn, extraDelay = 0) {
+        const elapsed = Date.now() - skeletonStart;
+        const wait = Math.max(0, MIN_SKELETON_MS - elapsed) + extraDelay;
+        await delay(wait);
+        fn();
+      }
+
       try {
+        window.appData.attendanceLoadError = '';
         const [teachers, classes, students, rawAttendance] = await Promise.all([
-          fetch(`${API_BASE}/api/teachers`, { headers: authHeader(), credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
-          fetch(`${API_BASE}/api/classes`, { headers: authHeader(), credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
-          fetch(`${API_BASE}/api/students`, { headers: authHeader(), credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }),
-          fetch(`${API_BASE}/api/attendance/all`, { headers: authHeader(), credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); }).catch(() => [])
+          apiFetch('/api/teachers').then(r => r.json()),
+          apiFetch('/api/classes').then(r => r.json()),
+          apiFetch('/api/students').then(r => r.json()),
+          apiFetch('/api/attendance/all').then(r => {
+            if (!r.ok) throw new Error('Attendance failed to load');
+            return r.json();
+          }).catch(err => {
+            window.appData.attendanceLoadError = err.message || 'Attendance failed to load';
+            return [];
+          })
         ]);
 
         window.appData.teachers = teachers;
         window.appData.classes = classes;
-        
+
         // Clean and Seed duplicates / inconsistencies in fallback lists if DB empty
         if (students.length === 0) {
           window.appData.students = [];
@@ -1221,20 +2063,29 @@
             return s;
           });
         }
-        
-        window.appData.attendance = groupAttendanceRecords(rawAttendance);
 
-        // Populate dashboard components
-        await populateClassDropdown(classes);
-        renderClasses();
-        renderTeachers();
-        filterStudents(); // calls renderStudents with current search/filter
-        renderAttendance();
-        renderStats();
-        renderAnnouncements();
+        window.appData.attendance = groupAttendanceRecords(rawAttendance);
+        isDataLoaded = true;
+
+        // Populate dropdowns used globally
+        populateClassDropdown(classes);
+
+        // Staggered section reveals with min skeleton time
+        await revealAfterMinTime(() => {
+          renderCurrentTab();
+        }, 0);
+
+        // Also pre-render other non-visible tabs quietly after a slight delay
+        setTimeout(() => {
+          if (activeTabId !== 'tab-classes') renderClasses();
+          if (activeTabId !== 'tab-teachers') renderTeachers();
+          if (activeTabId !== 'tab-students') filterStudents();
+          if (activeTabId !== 'tab-attendance') renderAttendance();
+          if (activeTabId !== 'tab-stats') renderStats();
+          if (activeTabId !== 'tab-announcements') renderAnnouncements();
+        }, 500);
 
         if (isInitial) {
-          // Fade out global loader overlay
           const loader = document.getElementById('loadingOverlay');
           if (loader) {
             loader.style.opacity = '0';
@@ -1247,18 +2098,85 @@
         if (isInitial) {
           const loader = document.getElementById('loadingOverlay');
           if (loader) {
+            loader.style.display = 'flex';
+            loader.style.opacity = '1';
             loader.innerHTML = `
               <div style="text-align: center; color: var(--danger); padding: 24px; max-width: 400px; background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border); box-shadow: var(--shadow-lg);">
                 <div style="font-size: 2.5rem; margin-bottom: 12px;">⚠️</div>
                 <div style="font-weight: 700; font-size: 1.2rem; margin-bottom: 8px; color: var(--text);">Database Connection Failed</div>
                 <div style="font-size: 0.82rem; margin-bottom: 20px; color: var(--text-secondary); line-height: 1.5;">${escapeHtml(err.message)}</div>
                 <button onclick="location.reload()" class="btn btn-primary" style="width: 100%;">
-                  <i class="fas fa-redo"></i> Retry Connection
+                   <i class="fas fa-redo"></i> Retry Connection
                 </button>
               </div>`;
           }
         }
       }
+    }
+
+    function renderCurrentTab() {
+      if (activeTabId === 'tab-classes') renderClasses();
+      else if (activeTabId === 'tab-teachers') renderTeachers();
+      else if (activeTabId === 'tab-students') filterStudents();
+      else if (activeTabId === 'tab-attendance') renderAttendance();
+      else if (activeTabId === 'tab-stats') renderStats();
+      else if (activeTabId === 'tab-announcements') renderAnnouncements();
+      updateSaveBar();
+    }
+
+    function showAdminSkeletons() {
+      document.getElementById('classesTableWrap').innerHTML = getTableSkeletonHtml(5, 4);
+      document.getElementById('teachersTableWrap').innerHTML = getTableSkeletonHtml(5, 5);
+      document.getElementById('studentsTableWrap').innerHTML = getTableSkeletonHtml(6, 6);
+      document.getElementById('attendanceTableWrap').innerHTML = getTableSkeletonHtml(7, 5);
+      document.getElementById('statsTableWrap').innerHTML = getTableSkeletonHtml(7, 5);
+      document.getElementById('announcementsList').innerHTML = getAnnouncementsSkeletonHtml(3);
+    }
+
+    function getTableSkeletonHtml(cols = 4, rows = 5) {
+      let html = `
+        <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>`;
+      for (let i = 0; i < cols; i++) {
+        html += `<th><div class="skeleton-text skeleton-shimmer" style="width: 70px; height: 12px; display: inline-block;"></div></th>`;
+      }
+      html += `</tr>
+          </thead>
+          <tbody>`;
+      for (let r = 0; r < rows; r++) {
+        html += `<tr>`;
+        for (let c = 0; c < cols; c++) {
+          const width = 45 + Math.floor(Math.random() * 50);
+          if (c === 0 && cols > 4) { // Render round avatar skeleton in first column sometimes
+            html += `<td>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div class="skeleton-circle skeleton-shimmer" style="width:24px; height:24px; flex-shrink:0;"></div>
+                <div class="skeleton-text skeleton-shimmer" style="width: ${width}px; height: 12px;"></div>
+              </div>
+            </td>`;
+          } else {
+            html += `<td><div class="skeleton-text skeleton-shimmer" style="width: ${width}px; height: 12px;"></div></td>`;
+          }
+        }
+        html += `</tr>`;
+      }
+      html += `</tbody></table></div>`;
+      return html;
+    }
+
+    function getAnnouncementsSkeletonHtml(count = 3) {
+      let html = '<ul class="announcement-list">';
+      for (let i = 0; i < count; i++) {
+        html += `
+          <li class="announcement-item" style="opacity: 0.85;">
+            <div class="skeleton-text skeleton-shimmer" style="width: 80px; height: 20px; border-radius: 6px; margin-right: 12px; flex-shrink:0;"></div>
+            <div class="skeleton-text skeleton-shimmer" style="flex:1; height: 14px; border-radius: 4px;"></div>
+          </li>`;
+      }
+      html += '</ul>';
+      return html;
     }
 
     function groupAttendanceRecords(flatRecords) {
@@ -1296,12 +2214,59 @@
       return Object.values(groups).sort((a, b) => b.date.localeCompare(a.date));
     }
 
+    function groupAttendanceRecords(flatRecords) {
+      return (flatRecords || []).map(row => {
+        let dateStr = row.date;
+        if (dateStr && String(dateStr).includes('T')) {
+          dateStr = String(dateStr).split('T')[0];
+        } else if (dateStr) {
+          dateStr = new Date(dateStr).toLocaleDateString('en-CA');
+        }
+
+        const classObj = row.class_id
+          ? window.appData.classes.find(c => String(c.id) === String(row.class_id))
+          : window.appData.classes.find(c => c.name === row.class_name);
+        const assignedTeacher = classObj
+          ? window.appData.teachers.find(t => String(t.class_id) === String(classObj.id))
+          : null;
+
+        return {
+          id: row.id,
+          studentId: row.student_id,
+          studentName: row.name || 'Unknown Student',
+          rollNo: row.roll_no || '',
+          phone: row.phone || '',
+          classId: row.class_id || (classObj ? classObj.id : ''),
+          className: row.class_name || (classObj ? classObj.name : ''),
+          date: dateStr || '',
+          month: dateStr ? dateStr.slice(0, 7) : '',
+          status: row.status || '',
+          markedBy: row.marked_by || (assignedTeacher ? assignedTeacher.name : 'Unknown'),
+          markedById: row.marked_by_id || (assignedTeacher ? assignedTeacher.id : ''),
+          createdAt: row.created_at || ''
+        };
+      }).sort((a, b) => (b.date || '').localeCompare(a.date || '') || a.studentName.localeCompare(b.studentName));
+    }
+
     // =============================================================
     // CLASSES SECTION & INLINE ASSIGNMENT
     // =============================================================
-    function renderClasses() {
+    function filterClasses() {
+      const query = document.getElementById('classesSearchInput')?.value.toLowerCase().trim() || '';
+      let filtered = window.appData.classes;
+      if (query) {
+        filtered = filtered.filter(c => {
+          const assigned = window.appData.teachers.find(t => t.class_id === c.id);
+          return (c.name && c.name.toLowerCase().includes(query)) ||
+                 (assigned && assigned.name && assigned.name.toLowerCase().includes(query));
+        });
+      }
+      renderClasses(filtered);
+    }
+
+    function renderClasses(classesList) {
       const wrap = document.getElementById('classesTableWrap');
-      const classes = window.appData.classes;
+      const classes = classesList || window.appData.classes;
       const teachers = window.appData.teachers;
       const students = window.appData.students;
 
@@ -1309,8 +2274,7 @@
         wrap.innerHTML = `
           <div class="empty-state">
             <div class="icon">📚</div>
-            <div class="msg">No classes created yet</div>
-            <div class="sub">Go to Classes page to create classes and assign teachers</div>
+            <div class="msg">No classes found</div>
           </div>`;
         return;
       }
@@ -1352,9 +2316,12 @@
             <td style="text-align:left;">
               <select class="form-input" style="padding: 5px 8px; font-size: 0.8rem; height: auto; width: 100%; max-width: 170px;" onchange="assignTeacherInline(${cls.id}, this.value)" aria-label="Assign teacher inline">
                 <option value="">-- Unassigned --</option>
-                ${teachers
-                  .map(t => `<option value="${t.id}" ${t.class_id === cls.id ? 'selected' : ''}>${escapeHtml(t.name)}</option>`)
-                  .join('')}
+                ${teachers.map(t => {
+                  const isAssignedToThis = t.class_id === cls.id;
+                  const isUnassigned = !t.class_id;
+                  const suggestLabel = isUnassigned ? ' (★ Suggested)' : '';
+                  return `<option value="${t.id}" ${isAssignedToThis ? 'selected' : ''}>${escapeHtml(t.name)}${suggestLabel}</option>`;
+                }).join('')}
               </select>
             </td>
             <td style="text-align:right;">
@@ -1364,9 +2331,9 @@
                     <i class="fas fa-link"></i>
                   </button>
                 ` : ''}
-                <a href="./classes.html" class="btn-edit" title="Manage Class Details" style="text-decoration:none;">
+                <button onclick="openClassIsolation(${cls.id})" class="btn-edit" title="Edit Class Details" style="border:none;">
                   <i class="fas fa-pen"></i>
-                </a>
+                </button>
               </div>
             </td>
           </tr>`;
@@ -1377,16 +2344,32 @@
     }
 
     async function assignTeacherInline(classId, teacherId) {
+      if (teacherId) {
+        const tid = parseInt(teacherId);
+        const conflict = window.appData.teachers.some(t => t.id === tid && t.class_id !== null && t.class_id !== classId);
+        if (conflict) {
+          showToast(`⚠️ This teacher is already assigned to another class.`, 'error');
+          renderClasses(); // reset the UI
+          return;
+        }
+      }
+
       try {
-        const response = await fetch(`${API_BASE}/api/classes/${classId}/assign-teacher`, {
+        const response = await apiFetch(`/api/classes/${classId}/assign-teacher`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeader() },
-          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ teacher_id: teacherId ? parseInt(teacherId) : null })
         });
         if (!response.ok) throw new Error('Failed to update teacher assignment');
+        
+        const tid = teacherId ? parseInt(teacherId) : null;
+        window.appData.teachers.forEach(t => {
+          if (tid !== null && t.id === tid) t.class_id = classId;
+          else if (t.class_id === classId) t.class_id = null;
+        });
+        renderClasses();
+        
         showToast('✅ Teacher assignment updated', 'success');
-        await reloadAllData();
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       }
@@ -1402,11 +2385,160 @@
     }
 
     // =============================================================
+    // CLASSES ISOLATION & ADD CLASS
+    // =============================================================
+    let addClassOpen = false;
+
+    function toggleAddClass() {
+      addClassOpen = !addClassOpen;
+      const form = document.getElementById('addClassForm');
+      const btn = document.getElementById('addClassToggleBtn');
+
+      if (addClassOpen) {
+        form.classList.add('open');
+        btn.innerHTML = '<i class="fas fa-times"></i> Cancel';
+        document.getElementById('className').focus();
+      } else {
+        form.classList.remove('open');
+        btn.innerHTML = '<i class="fas fa-plus"></i> Add Class';
+        document.getElementById('className').value = '';
+        document.getElementById('classSection').value = '';
+      }
+    }
+
+    async function saveClass() {
+      const name = document.getElementById('className').value.trim();
+      const section = document.getElementById('classSection').value.trim();
+      const btn = document.querySelector('#addClassForm .btn-primary, button[onclick="saveClass()"]');
+
+      if (!name) {
+        showToast('⚠️ Please enter a class name', 'warning');
+        return;
+      }
+
+      setButtonLoading(btn, true, '<i class="fas fa-spinner fa-spin"></i> Creating...');
+
+      try {
+        const response = await apiFetch('/api/classes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, section: section || null })
+        });
+        if (!response.ok) throw new Error('Failed to create class');
+        const createdClass = await response.json();
+
+        toggleAddClass();
+        window.appData.classes.push(createdClass);
+        renderClasses();
+        btn.innerHTML = '<i class="fas fa-check"></i> Created';
+        if (btn) btn.dataset.originalHtml = btn.innerHTML;
+        showToast('✅ Class created successfully', 'success');
+      } catch (err) {
+        showToast(`❌ Error: ${err.message}`, 'error');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    function openClassIsolation(classId) {
+      const cls = window.appData.classes.find(c => c.id === classId);
+      if (!cls) return;
+
+      document.getElementById('classesFullListView').style.display = 'none';
+      const isolatedView = document.getElementById('classesIsolatedView');
+      isolatedView.style.display = 'block';
+      isolatedView.classList.add('active'); // trigger animation if we want
+
+      const teachers = window.appData.teachers;
+      const assignedTeacher = teachers.find(t => t.class_id === cls.id);
+      
+      const classStudents = window.appData.students.filter(s => s.class_id === cls.id);
+
+      const content = document.getElementById('isolatedClassContent');
+      content.innerHTML = `
+        <div style="background: var(--bg-card-hover); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px;">
+          <h2 style="margin-bottom: 12px; font-size: 1.25rem;">${escapeHtml(cls.name)} ${cls.section ? `<span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(cls.section)}</span>` : ''}</h2>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Assigned Teacher</label>
+              <select class="form-input" style="max-width: 300px;" onchange="assignTeacherInline(${cls.id}, this.value)">
+                <option value="">-- Unassigned --</option>
+                ${teachers.map(t => {
+                  const isAssignedToThis = t.class_id === cls.id;
+                  const isUnassigned = !t.class_id;
+                  const suggestLabel = isUnassigned ? ' (★ Suggested)' : '';
+                  return `<option value="${t.id}" ${isAssignedToThis ? 'selected' : ''}>${escapeHtml(t.name)}${suggestLabel}</option>`;
+                }).join('')}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="font-size: 1rem; margin-bottom: 12px;">Enrolled Students (${classStudents.length})</h3>
+        ${classStudents.length === 0 ? `<div class="empty-state"><div class="msg">No students in this class</div></div>` : `
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width:50px;">#</th>
+                <th style="text-align:left;">Name</th>
+                <th style="text-align:left;">Roll No</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${classStudents.map((s, i) => `
+                <tr>
+                  <td>${i + 1}</td>
+                  <td style="text-align:left;"><strong>${escapeHtml(s.name)}</strong></td>
+                  <td style="text-align:left;">${escapeHtml(s.roll_no)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        `}
+      `;
+    }
+
+    function closeClassIsolation() {
+      document.getElementById('classesIsolatedView').style.display = 'none';
+      document.getElementById('classesFullListView').style.display = 'block';
+      // Reset search filter so it shows all classes
+      const searchInput = document.getElementById('classesSearchInput');
+      if (searchInput && searchInput.value) {
+        searchInput.value = '';
+        filterClasses();
+      }
+    }
+
+    // =============================================================
     // TEACHERS CRUD & ALIGNMENT
     // =============================================================
     let addTeacherOpen = false;
 
     async function toggleAddTeacher() {
+      if (!addTeacherOpen) {
+        const cached = window.appData?.classes || [];
+        if (cached.length === 0) {
+          try {
+            const response = await apiFetch('/api/classes');
+            const classes = await response.json();
+            window.appData.classes = classes;
+            if (classes.length === 0) {
+              showToast('Add a class first.', 'warning');
+              switchTab('tab-classes');
+              return;
+            }
+          } catch (err) {
+            console.error('Failed to fetch classes before adding teacher:', err);
+            showToast('Add a class first.', 'warning');
+            switchTab('tab-classes');
+            return;
+          }
+        }
+      }
+
       addTeacherOpen = !addTeacherOpen;
       const form = document.getElementById('addTeacherForm');
       const btn = document.getElementById('addTeacherToggleBtn');
@@ -1443,10 +2575,16 @@
       const name = document.getElementById('teacherName').value.trim();
       const classId = parseInt(document.getElementById('teacherClass').value);
       const phone = document.getElementById('teacherPhone').value.trim();
+      const btn = document.querySelector('#addTeacherForm .btn-primary, button[onclick="saveTeacher()"]');
 
       if (!name) {
         showToast('⚠️ Please enter teacher name', 'warning');
         document.getElementById('teacherName').focus();
+        return;
+      }
+      if (window.appData.classes.length === 0) {
+        showToast('Add a class first before adding a teacher.', 'warning');
+        switchTab('tab-classes');
         return;
       }
       if (phone && !/^[0-9]{11}$/.test(phone)) {
@@ -1455,47 +2593,128 @@
         return;
       }
 
+      setButtonLoading(btn, true, '<i class="fas fa-spinner fa-spin"></i> Creating...');
+
       try {
-        const response = await fetch(`${API_BASE}/api/teachers`, {
+        const response = await apiFetch('/api/auth/create-teacher', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeader() },
-          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, phone: phone || null, class_id: classId || null })
         });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to add teacher');
 
-        if (!response.ok) throw new Error('Failed to add teacher');
+        // Validate credentials were returned before showing the modal
+        if (!data.teacher_id || !data.temp_password) {
+          throw new Error('Server did not return credentials. Please try again.');
+        }
 
         clearTeacherForm();
         toggleAddTeacher();
-        await reloadAllData();
-        showToast('✅ Teacher added successfully', 'success');
+        if (data.teacher) {
+          const idx = window.appData.teachers.findIndex(t => String(t.id) === String(data.teacher.id));
+          if (idx === -1) window.appData.teachers.push(data.teacher);
+          else window.appData.teachers[idx] = data.teacher;
+        }
+        renderTeachers();
+        btn.innerHTML = '<i class="fas fa-check"></i> Created';
+        if (btn) btn.dataset.originalHtml = btn.innerHTML;
+        showToast('✅ Teacher created successfully', 'success');
+        showCredentialsPanel(data.teacher_id, data.temp_password, 'teacher');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
+      } finally {
+        setButtonLoading(btn, false);
       }
     }
 
     async function deleteTeacher(id) {
       if (!confirm('Remove this teacher?')) return;
       try {
-        const response = await fetch(`${API_BASE}/api/teachers/${id}`, { method: 'DELETE', headers: authHeader(), credentials: 'include' });
+        const response = await apiFetch(`/api/teachers/${id}`, { method: 'DELETE' });
         if (!response.ok) throw new Error('Failed to delete teacher');
-        await reloadAllData();
-        showToast('🗑️ Teacher removed', 'info');
+        window.appData.teachers = window.appData.teachers.filter(t => Number(t.id) !== Number(id));
+        renderTeachers();
+        showToast('Teacher removed', 'info');
       } catch (err) {
-        showToast(`❌ Error: ${err.message}`, 'error');
+        showToast(`Error: ${err.message}`, 'error');
       }
     }
 
-    function renderTeachers() {
+    function markDirty(tabId, id, field, value) {
+      // VALIDATION: "dont a teacher to be given class twice"
+      // If we are modifying a teacher's class_id
+      if (tabId === 'tab-teachers' && field === 'class_id' && value !== null) {
+        // Check if ANY other teacher already has this class_id assigned (either in original data or in dirty state)
+        const conflictInCache = window.appData.teachers.some(t => t.class_id === value && t.id !== id);
+        let conflictInDirty = false;
+        
+        for (let [otherId, otherData] of dirtyState['tab-teachers'].entries()) {
+          if (otherId !== id && otherData.current.class_id === value) {
+            conflictInDirty = true;
+          }
+        }
+
+        if (conflictInCache || conflictInDirty) {
+          const cls = window.appData.classes.find(c => c.id === value);
+          const clsName = cls ? cls.name : 'this class';
+          showToast(`Another teacher is already assigned to ${clsName}. A class can only have one teacher.`, 'error');
+          
+          // Revert the UI select element back to its previous value
+          const tr = document.getElementById(`row-tab-teachers-${id}`);
+          if (tr) {
+            const select = tr.querySelector('select');
+            if (select) {
+              const previousValue = dirtyState[tabId]?.get(id)?.current?.class_id || 
+                                   window.appData.teachers.find(t => t.id === id)?.class_id || '';
+              select.value = previousValue;
+            }
+          }
+          return; // Block the change
+        }
+      }
+
+      if (!dirtyState[tabId].has(id)) {
+        let original;
+        if (tabId === 'tab-teachers') original = window.appData.teachers.find(t => t.id === id);
+        if (tabId === 'tab-students') original = window.appData.students.find(s => s.id === id);
+        
+        dirtyState[tabId].set(id, {
+          original: { ...original },
+          current: { ...original }
+        });
+      }
+      
+      dirtyState[tabId].get(id).current[field] = value;
+      
+      const tr = document.getElementById(`row-${tabId}-${id}`);
+      if (tr) tr.classList.add('row-dirty');
+      
+      updateSaveBar();
+    }
+
+    function filterTeachers() {
+      const query = document.getElementById('teacherSearchInput')?.value.toLowerCase().trim() || '';
+      let filtered = window.appData.teachers;
+      if (query) {
+        filtered = filtered.filter(t => 
+          (t.name && t.name.toLowerCase().includes(query)) ||
+          (t.phone && t.phone.toLowerCase().includes(query))
+        );
+      }
+      renderTeachers(filtered);
+    }
+
+    function renderTeachers(teachersList) {
       const wrap = document.getElementById('teachersTableWrap');
-      const teachers = window.appData.teachers;
+      const teachers = teachersList || window.appData.teachers;
+      const classes = window.appData.classes;
 
       if (!teachers || teachers.length === 0) {
         wrap.innerHTML = `
           <div class="empty-state">
             <div class="icon">👨‍🏫</div>
-            <div class="msg">No teachers added yet</div>
-            <div class="sub">Click "Add Teacher" to register one</div>
+            <div class="msg">No matching teachers found</div>
           </div>`;
         return;
       }
@@ -1507,7 +2726,7 @@
             <tr>
               <th style="width:50px; text-align:left;">#</th>
               <th style="text-align:left;">Name</th>
-              <th style="text-align:center; width:120px;">Class</th>
+              <th style="text-align:center; width:150px;">Class</th>
               <th style="text-align:center; width:180px;">Contact</th>
               <th style="width:120px; text-align:right;">Actions</th>
             </tr>
@@ -1515,21 +2734,34 @@
           <tbody>`;
 
       teachers.forEach((t, i) => {
+        const dirtyData = dirtyState['tab-teachers'].get(t.id)?.current || t;
+        const isDirty = dirtyState['tab-teachers'].has(t.id);
+        
         html += `
-          <tr>
+          <tr id="row-tab-teachers-${t.id}" class="${isDirty ? 'row-dirty' : ''}">
             <td style="color:var(--text-muted); font-weight:500; text-align:left;">${i + 1}</td>
-            <td style="text-align:left;"><strong>${escapeHtml(t.name)}</strong></td>
-            <td style="text-align:center;">
-              <span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(t.class_name || '—')}</span>
+            <td style="text-align:left;">
+              <input type="text" class="inline-edit-input" value="${escapeHtml(dirtyData.name)}" oninput="markDirty('tab-teachers', ${t.id}, 'name', this.value)" style="font-weight:bold;">
             </td>
-            <td style="text-align:center; font-family:monospace; letter-spacing:0.3px;">${escapeHtml(t.phone || '—')}</td>
+            <td style="text-align:center; position:relative;">
+              <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
+                <select class="inline-edit-input" style="text-align:center; max-width:120px;" onchange="markDirty('tab-teachers', ${t.id}, 'class_id', this.value ? parseInt(this.value) : null)">
+                  <option value="">-- Unassigned --</option>
+                  ${classes.map(c => `<option value="${c.id}" ${dirtyData.class_id === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
+                </select>
+                ${dirtyData.class_id ? `<button onclick="jumpToClass(${dirtyData.class_id})" title="Jump to this class in Classes Tab" style="background:transparent; border:none; color:var(--primary); cursor:pointer;"><i class="fas fa-external-link-alt"></i></button>` : ''}
+              </div>
+            </td>
+            <td style="text-align:center;">
+              <input type="tel" class="inline-edit-input" style="text-align:center; font-family:monospace; letter-spacing:0.3px;" value="${escapeHtml(dirtyData.phone || '')}" placeholder="—" oninput="markDirty('tab-teachers', ${t.id}, 'phone', this.value)">
+            </td>
             <td style="text-align:right;">
               <div class="action-buttons" style="justify-content: flex-end;">
-                <button onclick="openEditTeacherModal(${t.id})" class="btn-edit" title="Edit teacher details">
-                  <i class="fas fa-pen"></i>
+                <button onclick="openEditTeacherModal(${t.id})" class="btn-edit" title="Edit in modal">
+                  <i class="fas fa-expand"></i>
                 </button>
-                <button onclick="deleteTeacher(${t.id})" class="announcement-delete" style="opacity:1;" title="Remove teacher" aria-label="Delete">
-                  <i class="fas fa-trash-alt"></i><span style="position: absolute; left: -9999px;">Delete</span>
+                <button onclick="deleteTeacher(${t.id})" class="btn-delete" title="Remove teacher" aria-label="Delete teacher">
+                  <i class="fas fa-trash-alt" aria-hidden="true"></i>
                 </button>
               </div>
             </td>
@@ -1567,6 +2799,7 @@
       const name = document.getElementById('studentName').value.trim();
       const rollNo = document.getElementById('studentRoll').value.trim();
       const phone = document.getElementById('studentPhone').value.trim();
+      const btn = document.querySelector('#addStudentForm .btn-primary, button[onclick="saveStudent()"]');
 
       if (!name) {
         showToast('⚠️ Please enter student name', 'warning');
@@ -1582,38 +2815,63 @@
         return;
       }
 
+      setButtonLoading(btn, true, '<i class="fas fa-spinner fa-spin"></i> Creating...');
+
       try {
-        const response = await fetch(`${API_BASE}/api/students`, {
+        const response = await apiFetch('/api/auth/create-student', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeader() },
-          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name,
             roll_no: rollNo,
             phone: phone || null,
-            class_id: null // initially unassigned
+            class_id: null
           })
         });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to save student');
 
-        if (!response.ok) throw new Error('Failed to save student');
+        if (!data.student_id || !data.temp_password) {
+          throw new Error('Server did not return credentials. Please try again.');
+        }
 
+        // 1. Add student to cache immediately
+        if (data.student) upsertStudentInCache(data.student);
+
+        // 2. Close form
         toggleAddStudent();
-        await reloadAllData();
-        showToast('✅ Student added successfully', 'success');
+
+        // 3. Re-render table immediately so student appears
+        filterStudents();
+
+        // 4. Show success
+        showToast('✅ Student saved successfully', 'success');
+
+        console.log('Credentials received:', data.student_id, data.temp_password)
+        console.log('Modal element exists:', !!document.getElementById('credentialsModal'))
+
+        // 5. Show credentials modal
+        showCredentialsPanel(data.student_id, data.temp_password, 'student', async () => {
+          await reloadAllData(false, true);
+        });
+
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
+      } finally {
+        setButtonLoading(btn, false);
       }
     }
 
     async function deleteStudent(id) {
       if (!confirm('Remove this student?')) return;
       try {
-        const response = await fetch(`${API_BASE}/api/students/${id}`, { method: 'DELETE', headers: authHeader(), credentials: 'include' });
+        const response = await apiFetch(`/api/students/${id}`, { method: 'DELETE' });
         if (!response.ok) throw new Error('Failed to delete student');
-        await reloadAllData();
-        showToast('🗑️ Student removed', 'info');
+        window.appData.students = window.appData.students.filter(s => Number(s.id) !== Number(id));
+        filterStudents();
+        showToast('Student removed', 'info');
       } catch (err) {
-        showToast(`❌ Error: ${err.message}`, 'error');
+        showToast(`Error: ${err.message}`, 'error');
       }
     }
 
@@ -1643,6 +2901,32 @@
       renderStudentTable(filtered);
     }
 
+    function getClassCapacity(classId) {
+      const cls = window.appData.classes.find(c => c.id === classId);
+      return cls?.max_capacity || 30; // fallback capacity
+    }
+    
+    function getEnrolledCount(classId) {
+      return window.appData.students.filter(s => s.class_id === classId).length;
+    }
+
+    function getStudentClassOptionsHtml(currentClassId) {
+      const classes = window.appData.classes;
+      return classes.map(c => {
+        const capacity = getClassCapacity(c.id);
+        const enrolled = getEnrolledCount(c.id);
+        
+        const isCurrentClass = currentClassId === c.id;
+        const isFull = !isCurrentClass && enrolled >= capacity;
+        
+        const disabledAttr = isFull ? 'disabled' : '';
+        const capacityLabel = isFull ? ` (Full - ${enrolled}/${capacity})` : '';
+        const selected = isCurrentClass ? 'selected' : '';
+        
+        return `<option value="${c.id}" ${disabledAttr} ${selected}>${escapeHtml(c.name)}${capacityLabel}</option>`;
+      }).join('');
+    }
+
     function renderStudentTable(students) {
       const wrap = document.getElementById('studentsTableWrap');
       const classes = window.appData.classes;
@@ -1666,36 +2950,44 @@
               <th style="text-align:left;">Name</th>
               <th style="text-align:center; width:120px;">Roll No</th>
               <th style="text-align:center; width:150px;">Class</th>
-              <th style="text-align:center; width:180px;">Contact</th>
-              <th style="width:120px; text-align:right;">Actions</th>
+              <th style="text-align:center; width:150px;">Contact</th>
+              <th style="width:100px; text-align:right;">Actions</th>
             </tr>
           </thead>
           <tbody>`;
 
       students.forEach((s) => {
-        const clsObj = classes.find(c => c.id === s.class_id);
-        const className = clsObj ? clsObj.name : 'Unassigned';
+        const dirtyData = dirtyState['tab-students'].get(s.id)?.current || s;
+        const isDirty = dirtyState['tab-students'].has(s.id);
 
         html += `
-          <tr>
+          <tr id="row-tab-students-${s.id}" class="${isDirty ? 'row-dirty' : ''}">
             <td style="color:var(--text-muted); font-size:0.75rem; text-align:left;">#${s.id}</td>
-            <td style="text-align:left;"><strong>${escapeHtml(s.name)}</strong></td>
-            <td style="text-align:center;">
-              <span class="badge" style="background:var(--bg); border:1px solid var(--border); color:var(--text-secondary);">${escapeHtml(s.roll_no || '—')}</span>
+            <td style="text-align:left;">
+              <input type="text" class="inline-edit-input" value="${escapeHtml(dirtyData.name)}" oninput="markDirty('tab-students', ${s.id}, 'name', this.value)" style="font-weight:bold;">
             </td>
             <td style="text-align:center;">
-              <span class="badge" style="background:${clsObj ? 'var(--badge-bg)' : 'var(--danger-bg)'}; color:${clsObj ? 'var(--badge-text)' : 'var(--danger)'};">
-                ${escapeHtml(className)}
-              </span>
+              <input type="text" class="inline-edit-input" style="text-align:center;" value="${escapeHtml(dirtyData.roll_no || '')}" placeholder="—" oninput="markDirty('tab-students', ${s.id}, 'roll_no', this.value)">
             </td>
-            <td style="text-align:center; font-family:monospace; letter-spacing:0.3px;">${escapeHtml(s.phone || '—')}</td>
+            <td style="text-align:center;">
+              <select class="inline-edit-input" style="text-align:center;" onchange="markDirty('tab-students', ${s.id}, 'class_id', this.value ? parseInt(this.value) : null)">
+                <option value="">-- Unassigned --</option>
+                ${getStudentClassOptionsHtml(dirtyData.class_id)}
+              </select>
+            </td>
+            <td style="text-align:center;">
+              <input type="tel" class="inline-edit-input" style="text-align:center; font-family:monospace; letter-spacing:0.3px;" value="${escapeHtml(dirtyData.phone || '')}" placeholder="—" oninput="markDirty('tab-students', ${s.id}, 'phone', this.value)">
+            </td>
             <td style="text-align:right;">
               <div class="action-buttons" style="justify-content: flex-end;">
-                <button onclick="openEditStudentModal(${s.id})" class="btn-edit" title="Edit student details">
-                  <i class="fas fa-pen"></i>
+                <button onclick="markDirty('tab-students', ${s.id}, 'is_frozen', ${!dirtyData.is_frozen})" class="btn-edit" title="${dirtyData.is_frozen ? 'Unfreeze Account' : 'Freeze Account'}" style="background: ${dirtyData.is_frozen ? 'var(--danger-bg)' : 'var(--warning-bg)'}; color: ${dirtyData.is_frozen ? 'var(--danger)' : 'var(--warning)'}; border: none;">
+                  <i class="fas ${dirtyData.is_frozen ? 'fa-lock' : 'fa-lock-open'}"></i>
                 </button>
-                <button class="announcement-delete" style="opacity:1;" onclick="deleteStudent(${s.id})" title="Remove Student" aria-label="Delete">
-                  <i class="fas fa-trash"></i><span style="position: absolute; left: -9999px;">Delete</span>
+                <button onclick="openEditStudentModal(${s.id})" class="btn-edit" title="Edit in modal">
+                  <i class="fas fa-expand"></i>
+                </button>
+                <button class="btn-delete" onclick="deleteStudent(${s.id})" title="Remove student" aria-label="Delete student">
+                  <i class="fas fa-trash-alt" aria-hidden="true"></i>
                 </button>
               </div>
             </td>
@@ -1931,93 +3223,322 @@
     }
 
     // =============================================================
-    // SCHOOL ANNOUNCEMENTS
+    // SCHOOL ANNOUNCEMENTS (see saveAnnouncement below in audit section)
     // =============================================================
-    function authHeader() {
-      const token = localStorage.getItem('auth_token');
-      return token ? { 'Authorization': 'Bearer ' + token } : {};
-    }
-
-    // ── Session check (matches super-admin.html pattern) ──────────────
-    let isRedirecting = false;
-    function redirectToLogin() {
-      if (isRedirecting) return;
-      isRedirecting = true;
-      localStorage.removeItem('auth_token');
-      window.location.href = '/index.html';
-    }
-
-    async function checkSession() {
-      const token = localStorage.getItem('auth_token');
-      if (!token) { window.location.href = '/index.html'; return; }
-      try {
-        const res = await fetch(API_BASE + '/api/auth/me', {
-          credentials: 'include',
-          headers: authHeader()
-        });
-        if (!res.ok) { localStorage.removeItem('auth_token'); window.location.href = '/index.html'; return; }
-        const data = await res.json();
-        if (data.token) localStorage.setItem('auth_token', data.token);
-        window._isFirstLogin = data.is_first_login;
-        if (data.is_first_login) showPasswordWarningBanner();
-      } catch(e) { window.location.href = '/index.html'; }
-    }
-
-    function showPasswordWarningBanner() {
-      if (document.getElementById('pwBanner')) return;
-      const banner = document.createElement('div');
-      banner.id = 'pwBanner';
-      banner.style.cssText = 'position:sticky;top:0;z-index:10000;display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 24px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:600;font-size:14px;';
-      banner.innerHTML = '<span><i class="fas fa-exclamation-triangle"></i> Default password detected. Please change it.</span>'
-        + '<button onclick="openChangePasswordModal()" style="padding:6px 14px;border:2px solid #fff;border-radius:6px;background:transparent;color:#fff;font-weight:700;cursor:pointer;">Change Password</button>';
-      document.body.insertBefore(banner, document.body.firstChild);
-    }
-
-    async function saveAnnouncement() {
-      const textarea = document.getElementById('announcementText');
-      const message = textarea.value.trim();
-
-      if (!message) {
-        showToast('⚠️ Please type an announcement', 'warning');
-        textarea.focus();
-        return;
-      }
-
-      const response = await fetch(`${API_BASE}/api/announcements`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeader() },
-        credentials: 'include',
-        body: JSON.stringify({
-          title: 'School Announcement',
-          message: message,
-          author: 'Admin'
-        })
-      });
-
-      if (!response.ok) throw new Error('Failed to save announcement');
-
-      textarea.value = '';
-      renderAnnouncements();
-      showToast('📢 Announcement saved', 'success');
-    }
 
     async function deleteAnnouncement(id) {
-      const response = await fetch(`${API_BASE}/api/announcements/${id}`, { method: 'DELETE', headers: authHeader(), credentials: 'include' });
+      if (!confirm('Remove this announcement?')) return;
+      const response = await apiFetch(`/api/announcements/${id}`, { method: 'DELETE' });
       if (!response.ok) {
         showToast('Failed to remove announcement', 'error');
         return;
       }
-      await renderAnnouncements();
-      showToast('🗑️ Announcement removed', 'info');
+      window.appData.announcements = window.appData.announcements.filter(a => Number(a.id) !== Number(id));
+      renderAnnouncements();
+      showToast('Announcement removed', 'success');
+    }
+
+    function getFilteredAttendanceRecords() {
+      const records = window.appData.attendance || [];
+      const search = (document.getElementById('attendanceSearchInput')?.value || '').toLowerCase().trim();
+      const monthInput = document.getElementById('attendanceMonthFilter');
+      const classFilter = document.getElementById('attendanceClassFilter')?.value || '';
+
+      if (monthInput && !monthInput.value) {
+        monthInput.value = new Date().toISOString().slice(0, 7);
+      }
+      const month = monthInput?.value || '';
+
+      return records.filter(record => {
+        const matchesSearch = !search || (record.studentName || '').toLowerCase().includes(search);
+        const matchesMonth = !month || record.month === month;
+        const matchesClass = !classFilter || String(record.classId) === String(classFilter);
+        return matchesSearch && matchesMonth && matchesClass;
+      });
+    }
+
+    function filterAttendance() {
+      renderAttendance();
+    }
+
+    function renderAttendance() {
+      const wrap = document.getElementById('attendanceTableWrap');
+      if (!wrap) return;
+
+      if (window.appData.attendanceLoadError) {
+        wrap.innerHTML = `
+          <div class="empty-state" style="padding:36px 16px;">
+            <div class="icon">!</div>
+            <div class="msg">Attendance failed to load</div>
+            <div class="sub">${escapeHtml(window.appData.attendanceLoadError)}</div>
+          </div>`;
+        return;
+      }
+
+      const allRecords = window.appData.attendance || [];
+      const records = getFilteredAttendanceRecords();
+
+      if (allRecords.length === 0) {
+        wrap.innerHTML = `
+          <div class="empty-state" style="padding:36px 16px;">
+            <div class="icon"><i class="fas fa-clipboard-list"></i></div>
+            <div class="msg">No attendance records found</div>
+            <div class="sub">Records appear here after teachers submit attendance</div>
+          </div>`;
+        return;
+      }
+
+      if (records.length === 0) {
+        wrap.innerHTML = `
+          <div class="empty-state" style="padding:36px 16px;">
+            <div class="icon"><i class="fas fa-search"></i></div>
+            <div class="msg">No matching attendance records found</div>
+            <div class="sub">Try another student name, month, or class</div>
+          </div>`;
+        return;
+      }
+
+      let html = `
+        <div style="padding:12px 18px; color:var(--text-secondary); font-size:0.82rem; border-bottom:1px solid var(--border);">
+          Showing <strong style="color:var(--text);">${records.length}</strong> read-only record${records.length === 1 ? '' : 's'}
+        </div>
+        <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="text-align:left;">Student Name</th>
+              <th style="text-align:center; width:130px;">Class</th>
+              <th style="text-align:center; width:130px;">Date</th>
+              <th style="text-align:center; width:120px;">Status</th>
+              <th style="text-align:left;">Marked By</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+      records.forEach(record => {
+        const status = record.status || '';
+        const statusLower = status.toLowerCase();
+        let rowBg = 'transparent';
+        let badgeClass = '';
+        if (statusLower === 'present') {
+          rowBg = 'rgba(34,197,94,0.08)';
+          badgeClass = 'present';
+        } else if (statusLower === 'absent') {
+          rowBg = 'rgba(239,68,68,0.08)';
+          badgeClass = 'absent';
+        } else if (statusLower === 'leave') {
+          rowBg = 'rgba(245,158,11,0.10)';
+        }
+
+        html += `
+          <tr style="background:${rowBg};">
+            <td style="text-align:left; font-weight:700;">
+              ${escapeHtml(record.studentName)}
+              ${record.rollNo ? `<div style="font-size:0.72rem; color:var(--text-secondary); font-weight:500;">Roll No: ${escapeHtml(record.rollNo)}</div>` : ''}
+            </td>
+            <td style="text-align:center;"><span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(record.className || '-')}</span></td>
+            <td style="text-align:center; color:var(--text-secondary); font-weight:600;">${escapeHtml(record.date || '-')}</td>
+            <td style="text-align:center;"><span class="badge ${badgeClass}" style="${statusLower === 'leave' ? 'background:rgba(245,158,11,0.14); color:#b45309;' : ''}">${escapeHtml(status || '-')}</span></td>
+            <td style="text-align:left; color:var(--text-secondary);">${escapeHtml(record.markedBy || 'Unknown')}</td>
+          </tr>`;
+      });
+
+      html += '</tbody></table></div>';
+      wrap.innerHTML = html;
+    }
+
+    function escapeCsvValue(value) {
+      const text = String(value ?? '');
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+
+    function exportAttendanceCsv() {
+      const records = getFilteredAttendanceRecords();
+      if (records.length === 0) {
+        showToast('No attendance records to export', 'warning');
+        return;
+      }
+
+      const rows = [
+        ['Student Name', 'Class', 'Date', 'Status', 'Marked By', 'Roll No', 'Phone'],
+        ...records.map(r => [r.studentName, r.className, r.date, r.status, r.markedBy, r.rollNo, r.phone])
+      ];
+      const csv = rows.map(row => row.map(escapeCsvValue).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const month = document.getElementById('attendanceMonthFilter')?.value || 'all';
+      link.href = url;
+      link.download = `attendance-${month}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      showToast('Attendance CSV exported', 'success');
+    }
+
+    function getStatsFilteredRecords() {
+      const classId = document.getElementById('statsClassSelect')?.value || '';
+      const search = (document.getElementById('statsSearchInput')?.value || '').toLowerCase().trim();
+      return (window.appData.attendance || []).filter(record => {
+        const matchesClass = !classId || String(record.classId) === String(classId);
+        const haystack = `${record.className || ''} ${record.markedBy || ''}`.toLowerCase();
+        const matchesSearch = !search || haystack.includes(search);
+        return matchesClass && matchesSearch;
+      });
+    }
+
+    function renderStats() {
+      const wrap = document.getElementById('statsTableWrap');
+      if (!wrap) return;
+      const allRecords = window.appData.attendance || [];
+      const records = getStatsFilteredRecords();
+      const selectedClass = document.getElementById('statsClassSelect')?.value || '';
+
+      if (allRecords.length === 0) {
+        wrap.innerHTML = `
+          <div class="empty-state" style="padding:36px 16px;">
+            <div class="icon"><i class="fas fa-chart-bar"></i></div>
+            <div class="msg">No attendance data yet</div>
+            <div class="sub">Stats appear after teachers submit attendance</div>
+          </div>`;
+        return;
+      }
+
+      if (records.length === 0) {
+        wrap.innerHTML = `
+          <div class="empty-state" style="padding:36px 16px;">
+            <div class="icon"><i class="fas fa-search"></i></div>
+            <div class="msg">${selectedClass ? 'No attendance data yet for this class' : 'No matching attendance stats found'}</div>
+            <div class="sub">Try another class or teacher search</div>
+          </div>`;
+        return;
+      }
+
+      const studentMap = {};
+      records.forEach(record => {
+        const key = record.studentId || record.studentName;
+        if (!studentMap[key]) {
+          studentMap[key] = {
+            id: key,
+            name: record.studentName,
+            rollNo: record.rollNo || '-',
+            className: record.className || '-',
+            present: 0,
+            absent: 0,
+            leave: 0,
+            total: 0
+          };
+        }
+        studentMap[key].total++;
+        if (record.status === 'Present') studentMap[key].present++;
+        else if (record.status === 'Absent') studentMap[key].absent++;
+        else if (record.status === 'Leave') studentMap[key].leave++;
+      });
+
+      const students = Object.values(studentMap).map(s => ({
+        ...s,
+        percentage: s.total > 0 ? Math.round((s.present / s.total) * 100) : 0
+      })).sort((a, b) => b.percentage - a.percentage || b.present - a.present || a.name.localeCompare(b.name));
+
+      let html = `<div style="padding:16px 22px;"><div style="font-size:0.75rem; color:var(--text-muted);">Attendance records counted: <strong style="color:var(--text);">${records.length}</strong></div></div>`;
+      html += `
+        <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width:70px; text-align:left;">Rank</th>
+              <th style="text-align:left;">Name</th>
+              <th style="text-align:center; width:130px;">Class</th>
+              <th style="text-align:center; width:100px;">Present</th>
+              <th style="text-align:center; width:100px;">Absent</th>
+              <th style="text-align:center; width:100px;">Leave</th>
+              <th style="width:120px; text-align:right;">Attendance %</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+      students.forEach((s, i) => {
+        const rank = i === 0 ? '1st' : i === 1 ? '2nd' : i === 2 ? '3rd' : String(i + 1);
+        const rankStyle = i < 3 ? 'font-weight:900; color:var(--success);' : 'color:var(--text-muted);';
+        const pctColor = s.percentage >= 80 ? '#22c55e' : s.percentage >= 60 ? '#f59e0b' : '#dc2626';
+        html += `
+          <tr>
+            <td style="text-align:left; ${rankStyle}">${rank}</td>
+            <td style="text-align:left;"><strong>${escapeHtml(s.name)}</strong><div style="font-size:0.72rem; color:var(--text-secondary);">Roll No: ${escapeHtml(s.rollNo)}</div></td>
+            <td style="text-align:center;"><span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(s.className)}</span></td>
+            <td style="text-align:center;"><span class="badge present">${s.present}</span></td>
+            <td style="text-align:center;"><span class="badge absent">${s.absent}</span></td>
+            <td style="text-align:center; color:var(--text-secondary);">${s.leave || '-'}</td>
+            <td style="text-align:right; font-weight:800; color:${pctColor};">${s.percentage}%</td>
+          </tr>`;
+      });
+
+      html += '</tbody></table></div>';
+      wrap.innerHTML = html;
+    }
+
+    function handleAnnouncementKeydown(event) {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        saveAnnouncement();
+      }
+    }
+
+    async function saveAnnouncement() {
+      const textarea = document.getElementById('announcementText');
+      const button = document.getElementById('saveAnnouncementBtn');
+      const message = textarea.value.trim();
+
+      if (!message) {
+        showToast('Please type an announcement', 'warning');
+        textarea.focus();
+        return;
+      }
+
+      const originalHtml = button.innerHTML;
+      button.disabled = true;
+      button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+
+      try {
+        const response = await apiFetch('/api/announcements', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: 'School Announcement',
+            message,
+            author: 'Admin'
+          })
+        });
+
+        if (!response.ok) throw new Error('Failed to save announcement');
+        const createdAnnouncement = await response.json();
+
+        textarea.value = '';
+        button.innerHTML = '<i class="fas fa-check"></i> Saved';
+        window.appData.announcements.push(createdAnnouncement);
+        renderAnnouncements();
+        showToast('Announcement saved', 'success');
+      } catch (err) {
+        showToast(`Error: ${err.message}`, 'error');
+      } finally {
+        setTimeout(() => {
+          button.disabled = false;
+          button.innerHTML = originalHtml;
+        }, 900);
+      }
     }
 
     async function renderAnnouncements() {
       const container = document.getElementById('announcementsList');
+      if (!container) return;
       let announcements = [];
 
       try {
-        announcements = await fetch(`${API_BASE}/api/announcements`, { headers: authHeader(), credentials: 'include' }).then(r => { if(r.status===401) redirectToLogin(); return r.json(); });
-        announcements = announcements.filter(a => !a.class_id);
+        announcements = await apiFetch(`/api/announcements?t=${Date.now()}`).then(r => {
+          if (!r.ok) throw new Error('Announcements failed to load');
+          return r.json();
+        });
       } catch (err) {
         container.innerHTML = `
           <div class="empty-state" style="padding:24px 0;">
@@ -2028,52 +3549,177 @@
         return;
       }
 
-      if (announcements.length === 0) {
+      const search = (document.getElementById('announcementAuditSearch')?.value || '').toLowerCase().trim();
+      const type = document.getElementById('announcementTypeFilter')?.value || '';
+      const filtered = announcements.filter(item => {
+        const isSchool = !item.class_id;
+        const matchesType = !type || (type === 'school' ? isSchool : !isSchool);
+        const date = item.created_at ? new Date(item.created_at).toLocaleString() : '';
+        const haystack = `${item.message || ''} ${item.author || ''} ${item.teacher_name || ''} ${item.class_name || ''} ${date}`.toLowerCase();
+        return matchesType && (!search || haystack.includes(search));
+      });
+
+      if (filtered.length === 0) {
         container.innerHTML = `
           <div class="empty-state" style="padding:24px 0;">
-            <div class="icon">📢</div>
-            <div class="msg">No announcements yet</div>
-            <div class="sub">Post your first announcement above</div>
+            <div class="icon"><i class="fas fa-bullhorn"></i></div>
+            <div class="msg">No matching announcements</div>
+            <div class="sub">Teacher and admin posts will appear in this audit log</div>
           </div>`;
         return;
       }
 
-      let html = '<ul class="announcement-list">';
-      announcements.forEach((a, i) => {
+      let html = `
+        <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="text-align:left;">Announcement</th>
+              <th style="text-align:left; width:160px;">Posted By</th>
+              <th style="text-align:center; width:130px;">Class</th>
+              <th style="text-align:center; width:170px;">Date</th>
+              <th style="text-align:right; width:100px;">Action</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+      filtered.forEach(item => {
+        const postedBy = item.teacher_name || item.author || 'Admin';
+        const date = item.created_at ? new Date(item.created_at).toLocaleString() : '-';
         html += `
-          <li class="announcement-item" style="animation-delay:${i * 0.05}s;">
-            <span class="announcement-date">${escapeHtml(new Date(a.created_at).toLocaleDateString('en-CA'))}</span>
-            <span class="announcement-msg">${escapeHtml(a.message)}</span>
-            <button class="announcement-delete" onclick="deleteAnnouncement(${a.id})" title="Delete announcement" aria-label="Delete announcement">
-              <i class="fas fa-trash-alt" aria-hidden="true"></i>
-              <span style="font-weight:700; margin-left:4px;">Delete</span>
-            </button>
-          </li>`;
+          <tr>
+            <td style="text-align:left;">
+              <strong>${escapeHtml(item.title || (item.class_id ? 'Class Announcement' : 'School Announcement'))}</strong>
+              <div style="font-size:0.82rem; color:var(--text-secondary); margin-top:4px; white-space:normal;">${escapeHtml(item.message)}</div>
+            </td>
+            <td style="text-align:left; color:var(--text-secondary);">${escapeHtml(postedBy)}</td>
+            <td style="text-align:center;"><span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(item.class_name || 'School-wide')}</span></td>
+            <td style="text-align:center; color:var(--text-secondary);">${escapeHtml(date)}</td>
+            <td style="text-align:right;">
+              <div class="action-buttons" style="justify-content:flex-end;">
+                <button type="button" class="btn-delete" onclick="deleteAnnouncement(${item.id})" title="Delete announcement" aria-label="Delete announcement">
+                  <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                </button>
+              </div>
+            </td>
+          </tr>`;
       });
-      html += '</ul>';
+
+      html += '</tbody></table></div>';
       container.innerHTML = html;
     }
 
     // =============================================================
-    // TOAST NOTIFICATIONS
+    // SESSION CHECK + AUTH
     // =============================================================
-    function showToast(message, type = 'info') {
-      const container = document.getElementById('toastContainer');
-      if (!container) return;
-      const toast = document.createElement('div');
-      toast.className = `toast ${type}`;
-      toast.textContent = message;
-      container.appendChild(toast);
-
-      setTimeout(() => {
-        if (toast.parentNode) toast.parentNode.removeChild(toast);
-      }, 3000);
+    async function checkSession() {
+      const session = await refreshSession();
+      if (!session) { redirectToLogin(); return; }
+      if (session.role !== 'admin' && session.role !== 'super_admin') { window.location.href = '/index.html'; return; }
+      window._isFirstLogin = session.is_first_login;
+      if (session.is_first_login) { showPasswordWarningBanner(); }
     }
+
+    function showPasswordWarningBanner() {
+      if (document.getElementById('pwBanner')) return;
+      const banner = document.createElement('div');
+      banner.id = 'pwBanner';
+      banner.style.cssText = 'position:sticky;top:0;z-index:10000;display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 24px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:600;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,0.15);flex-wrap:wrap;';
+      banner.innerHTML = '<span style="flex:1;min-width:200px;text-align:center;"><i class="fas fa-exclamation-triangle" style="margin-right:8px;"></i>You are using a default password. Please change it for security.</span>'
+        + '<button onclick="openChangePasswordModal()" style="padding:6px 18px;border:2px solid #fff;border-radius:6px;background:transparent;color:#fff;font-weight:700;cursor:pointer;transition:all .2s;font-size:13px;" onmouseover="this.style.background=\'#fff\';this.style.color=\'#d97706\'" onmouseout="this.style.background=\'transparent\';this.style.color=\'#fff\'">Change Password</button>'
+        + '<button onclick="dismissPasswordBanner()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;padding:0 4px;opacity:0.8;" title="Dismiss">&times;</button>';
+      document.body.insertBefore(banner, document.body.firstChild);
+    }
+
+    function hidePasswordWarningBanner() {
+      const b = document.getElementById('pwBanner');
+      if (b) b.remove();
+    }
+
+    function dismissPasswordBanner() {
+      hidePasswordWarningBanner();
+    }
+
+    async function handleLogout() {
+      localStorage.removeItem('auth_token');
+      try {
+        await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      } catch(e) { /* ignore network errors, still redirect */ }
+      window.location.href = '/index.html';
+    }
+
+    // Change Password Modal
+    function openChangePasswordModal() {
+      document.getElementById('cpCurrent').value = '';
+      document.getElementById('cpNew').value = '';
+      document.getElementById('cpConfirm').value = '';
+      document.getElementById('cpMsg').style.display = 'none';
+      document.getElementById('changePasswordModal').classList.add('open');
+    }
+
+    function closeChangePasswordModal() {
+      document.getElementById('changePasswordModal').classList.remove('open');
+    }
+
+    async function handleChangePassword(e) {
+      e.preventDefault();
+      const current = document.getElementById('cpCurrent').value;
+      const newPw = document.getElementById('cpNew').value;
+      const confirm = document.getElementById('cpConfirm').value;
+      const msgEl = document.getElementById('cpMsg');
+      const btn = document.getElementById('cpBtn');
+      const btnText = document.getElementById('cpBtnText');
+
+      msgEl.style.display = 'none';
+      if (newPw !== confirm) { msgEl.textContent = 'New passwords do not match'; msgEl.style.display = 'block'; msgEl.style.cssText += 'background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);'; return; }
+      if (newPw.length < 6) { msgEl.textContent = 'Password must be at least 6 characters'; msgEl.style.display = 'block'; msgEl.style.cssText += 'background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);'; return; }
+
+      btn.disabled = true;
+      btnText.innerHTML = '<span class="spinner"></span> Saving...';
+
+      try {
+        const res = await apiFetch('/api/auth/change-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ current_password: current, new_password: newPw, confirm_password: confirm })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          msgEl.textContent = data.error || 'Failed to change password';
+          msgEl.style.display = 'block';
+          msgEl.style.cssText += 'background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);';
+        } else {
+          if (data.token) localStorage.setItem('auth_token', data.token);
+          window._isFirstLogin = false;
+          hidePasswordWarningBanner();
+          msgEl.textContent = 'Password changed successfully';
+          msgEl.style.display = 'block';
+          msgEl.style.cssText += 'background:rgba(34,197,94,0.1);color:#22c55e;border:1px solid rgba(34,197,94,0.2);';
+          setTimeout(() => closeChangePasswordModal(), 1000);
+        }
+      } catch (e) {
+        msgEl.textContent = 'Connection error. Please try again.';
+        msgEl.style.display = 'block';
+        msgEl.style.cssText += 'background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);';
+      }
+      btn.disabled = false;
+      btnText.textContent = 'Change Password';
+    }
+
+    document.getElementById('changePasswordModal').addEventListener('click', function(e) {
+      if (e.target === this) closeChangePasswordModal();
+    });
+
+
+    // =============================================================
+    // INITIALIZATION — bootstrapped from DOMContentLoaded
+    // =============================================================
 
     // =============================================================
     // TAB ROUTING & SWITCHING
     // =============================================================
-    
+
 
     // =============================================================
     // EDIT TEACHER MODAL
@@ -2125,17 +3771,20 @@
       }
 
       try {
-        const response = await fetch(`${API_BASE}/api/teachers/${id}`, {
+        const response = await apiFetch(`/api/teachers/${id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json', ...authHeader() },
-          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, phone: phone || null, class_id: classId || null })
         });
 
         if (!response.ok) throw new Error('Failed to update teacher');
+        
+        const updatedTeacher = await response.json();
+        const idx = window.appData.teachers.findIndex(t => t.id === id);
+        if (idx !== -1) window.appData.teachers[idx] = updatedTeacher;
+        renderTeachers();
 
         closeEditTeacherModal();
-        await reloadAllData();
         showToast('✅ Teacher updated successfully', 'success');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -2185,17 +3834,20 @@
       const classId = existing ? existing.class_id : null;
 
       try {
-        const response = await fetch(`${API_BASE}/api/students/${id}`, {
+        const response = await apiFetch(`/api/students/${id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json', ...authHeader() },
-          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, roll_no: rollNo, phone: phone || null, class_id: classId })
         });
 
         if (!response.ok) throw new Error('Failed to update student');
+        
+        const updatedStudent = await response.json();
+        const idx = window.appData.students.findIndex(s => s.id === id);
+        if (idx !== -1) window.appData.students[idx] = updatedStudent;
+        filterStudents();
 
         closeEditStudentModal();
-        await reloadAllData();
         showToast('✅ Student updated successfully', 'success');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -2245,45 +3897,239 @@
       }
     }
 
+    async function populateClassDropdown(classes) {
+      try {
+        const select = document.getElementById('teacherClass');
+        if (select) select.innerHTML = '<option value="">-- Select a class --</option>';
+
+        const editSelect = document.getElementById('editTeacherClass');
+        if (editSelect) editSelect.innerHTML = '<option value="">-- Select a class --</option>';
+
+        const filterSelect = document.getElementById('studentClassFilter');
+        const filterVal = filterSelect ? filterSelect.value : '';
+        if (filterSelect) {
+          filterSelect.innerHTML = '<option value="">All Classes</option><option value="unassigned">Unassigned</option>';
+        }
+
+        const attendanceClassFilter = document.getElementById('attendanceClassFilter');
+        const attendanceVal = attendanceClassFilter ? attendanceClassFilter.value : '';
+        if (attendanceClassFilter) {
+          attendanceClassFilter.innerHTML = '<option value="">All Classes</option>';
+        }
+
+        const statsClassSelect = document.getElementById('statsClassSelect');
+        const statsVal = statsClassSelect ? statsClassSelect.value : '';
+        if (statsClassSelect) {
+          statsClassSelect.innerHTML = '<option value="">All Classes</option>';
+        }
+
+        classes.forEach(cls => {
+          if (select) {
+            const option = document.createElement('option');
+            option.value = cls.id;
+            option.textContent = cls.name;
+            select.appendChild(option);
+          }
+          if (editSelect) {
+            const option = document.createElement('option');
+            option.value = cls.id;
+            option.textContent = cls.name;
+            editSelect.appendChild(option);
+          }
+          if (filterSelect) {
+            const option = document.createElement('option');
+            option.value = cls.id;
+            option.textContent = cls.name;
+            filterSelect.appendChild(option);
+          }
+          if (attendanceClassFilter) {
+            const option = document.createElement('option');
+            option.value = cls.id;
+            option.textContent = cls.name;
+            attendanceClassFilter.appendChild(option);
+          }
+          if (statsClassSelect) {
+            const option = document.createElement('option');
+            option.value = cls.id;
+            option.textContent = cls.name;
+            statsClassSelect.appendChild(option);
+          }
+        });
+
+        if (filterSelect && filterVal) filterSelect.value = filterVal;
+        if (attendanceClassFilter && attendanceVal) attendanceClassFilter.value = attendanceVal;
+        if (statsClassSelect && statsVal) statsClassSelect.value = statsVal;
+      } catch (err) {
+        console.error('Error loading classes dropdown:', err);
+      }
+    }
+
     // =============================================================
     // INITIALIZATION
     // =============================================================
+
+    function switchTab(newTabId, clearSearch = true) {
+      if (activeTabId === newTabId) return;
+
+      if (hasAnyDirtyChanges() && (activeTabId === 'tab-teachers' || activeTabId === 'tab-students')) {
+        const activeTabDirty = dirtyState[activeTabId] && dirtyState[activeTabId].size > 0;
+        if (activeTabDirty) {
+          const tabName = document.querySelector(`.tab-btn[data-section="${activeTabId}"]`)?.textContent.trim() || 'this tab';
+          if (!confirm(`You have unsaved changes in ${tabName}. Switch anyway? Your changes will remain but will not be saved yet.`)) {
+            return;
+          }
+        }
+      }
+
+      // Hide all tabs
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+      // Close other modals if they are open
+      if (typeof closeEditTeacherModal === 'function') closeEditTeacherModal();
+      if (typeof closeEditStudentModal === 'function') closeEditStudentModal();
+      if (typeof closeAbsenteeModal === 'function') closeAbsenteeModal();
+      if (typeof closeChangePasswordModal === 'function') closeChangePasswordModal();
+
+      // Show new tab
+      const newTab = document.getElementById(newTabId);
+      if (newTab) newTab.classList.add('active');
+      
+      const newBtn = document.querySelector(`.tab-btn[data-section="${newTabId}"]`);
+      if (newBtn) newBtn.classList.add('active');
+
+      activeTabId = newTabId;
+      history.replaceState(null, '', '#' + newTabId);
+
+      if (clearSearch) {
+        if (newTabId === 'tab-classes') {
+          closeClassIsolation();
+          const inp = document.getElementById('classesSearchInput');
+          if (inp) { inp.value = ''; filterClasses(); }
+        } else if (newTabId === 'tab-teachers') {
+          const inp = document.getElementById('teacherSearchInput');
+          if (inp) { inp.value = ''; filterTeachers(); }
+        } else if (newTabId === 'tab-students') {
+          const searchInput = document.getElementById('studentSearchInput');
+          const classFilter = document.getElementById('studentClassFilter');
+          if (searchInput) searchInput.value = '';
+          if (classFilter) classFilter.value = '';
+          filterStudents();
+        }
+      }
+      
+      // Update sticky bar visibility
+      updateSaveBar();
+    }
+
+    function jumpToClass(classId) {
+      switchTab('tab-classes', false);
+      openClassIsolation(classId);
+    }
+
+    function updateSaveBar() {
+      const bar = document.getElementById('savebar');
+      const label = document.getElementById('savebarLabel');
+      
+      const dirtyCount = dirtyState[activeTabId] ? dirtyState[activeTabId].size : 0;
+      
+      if (dirtyCount > 0) {
+        label.innerHTML = `You have ${dirtyCount} unsaved change(s) in <strong>${document.querySelector(`.tab-btn[data-section="${activeTabId}"]`)?.textContent.trim() || 'this tab'}</strong>`;
+        bar.classList.add('visible');
+        document.body.classList.add('savebar-open');
+      } else {
+        bar.classList.remove('visible');
+        document.body.classList.remove('savebar-open');
+      }
+    }
+
+    function discardTabChanges() {
+      if (activeTabId === 'tab-teachers') {
+        dirtyState['tab-teachers'].clear();
+        renderTeachers();
+      } else if (activeTabId === 'tab-students') {
+        dirtyState['tab-students'].clear();
+        filterStudents();
+      }
+      updateSaveBar();
+      showToast('Undo successful', 'info');
+    }
     
+    async function saveTabChanges() {
+      const btn = document.getElementById('savebarSaveBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+      
+      try {
+        if (activeTabId === 'tab-teachers') {
+          for (let [id, data] of dirtyState['tab-teachers']) {
+            const response = await apiFetch(`/api/teachers/${id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data.current)
+            });
+            if (response.ok) {
+              const updated = await response.json();
+              const idx = window.appData.teachers.findIndex(t => t.id === id);
+              if (idx !== -1) window.appData.teachers[idx] = updated;
+            }
+          }
+          dirtyState['tab-teachers'].clear();
+          renderTeachers();
+        } else if (activeTabId === 'tab-students') {
+          for (let [id, data] of dirtyState['tab-students']) {
+            const response = await apiFetch(`/api/students/${id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data.current)
+            });
+            if (response.ok) {
+              const updated = await response.json();
+              const idx = window.appData.students.findIndex(s => s.id === id);
+              if (idx !== -1) window.appData.students[idx] = updated;
+            }
+          }
+          dirtyState['tab-students'].clear();
+          filterStudents();
+        }
+        
+        showToast('✅ All changes saved successfully', 'success');
+      } catch (err) {
+        showToast(`❌ Error saving changes: ${err.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save All Changes';
+        updateSaveBar();
+      }
+    }
+
     function setupSectionTabs() {
       const tabs = Array.from(document.querySelectorAll('.tab-btn[data-section]'));
-      const sections = tabs
-        .map(tab => document.getElementById(tab.dataset.section))
-        .filter(Boolean);
-
       tabs.forEach(tab => {
         tab.addEventListener('click', event => {
           event.preventDefault();
-          const section = document.getElementById(tab.dataset.section);
-          if (!section) return;
-          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          history.replaceState(null, '', '#' + section.id);
+          switchTab(tab.dataset.section);
         });
       });
-
-      const observer = new IntersectionObserver(entries => {
-        const visible = entries
-          .filter(entry => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-
-        if (!visible) return;
-
-        tabs.forEach(tab => {
-          tab.classList.toggle('active', tab.dataset.section === visible.target.id);
-        });
-      }, {
-        rootMargin: '-20% 0px -70% 0px',
-        threshold: [0.1, 0.25, 0.5]
-      });
-
-      sections.forEach(section => observer.observe(section));
+      
+      // Initial tab based on hash or default
+      const hash = window.location.hash.substring(1);
+      if (hash && document.getElementById(hash)) {
+        switchTab(hash);
+      } else {
+        switchTab('tab-teachers');
+      }
     }
+    
+    // Add beforeunload guard
+    window.addEventListener('beforeunload', e => {
+      if (hasAnyDirtyChanges()) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+      }
+    });
 
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
       setupSectionTabs();
       loadTheme();
 
@@ -2291,7 +4137,7 @@
       const setupModalDismiss = (modalId, closeFn) => {
         const el = document.getElementById(modalId);
         if (el) {
-          el.addEventListener('click', function(e) {
+          el.addEventListener('click', function (e) {
             if (e.target === this) closeFn();
           });
         }
@@ -2300,15 +4146,16 @@
       setupModalDismiss('editTeacherModal', closeEditTeacherModal);
       setupModalDismiss('editStudentModal', closeEditStudentModal);
       setupModalDismiss('absenteeModal', closeAbsenteeModal);
+      setupModalDismiss('credentialsModal', closeCredentialsModal);
 
-      // Verify session before loading data
       checkSession().then(() => {
+        startSessionKeepAlive();
         reloadAllData(true);
       });
 
       // Universal phone validation visual feedback
       document.querySelectorAll('.form-input[type="tel"]').forEach(input => {
-        input.addEventListener('input', function() {
+        input.addEventListener('input', function () {
           if (this.value.length === 0) {
             this.style.borderColor = 'var(--border)';
           } else if (this.validity.patternMismatch) {
@@ -2323,8 +4170,7 @@
     });
   </script>
 
-  <!-- Anti-inspect protection -->
-  <script src="anti-inspect.js"></script>
 
 </body>
+
 </html>
