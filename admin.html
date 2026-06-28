@@ -2835,6 +2835,9 @@
         // 4. Show success
         showToast('✅ Student saved successfully', 'success');
 
+        console.log('Credentials received:', data.student_id, data.temp_password)
+        console.log('Modal element exists:', !!document.getElementById('credentialsModal'))
+
         // 5. Show credentials modal
         showCredentialsPanel(data.student_id, data.temp_password, 'student', async () => {
           await reloadAllData(false, true);
