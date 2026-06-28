@@ -5,7 +5,7 @@
   <script>
     // Execute immediately to prevent theme flickering (FOUC)
     (function () {
-      const savedTheme = localStorage.getItem('attendance-theme') || 'dark';
+      const savedTheme = localStorage.getItem('attendance-theme') || 'dark'; // v3
       document.documentElement.setAttribute('data-theme', savedTheme);
     })();
   </script>
