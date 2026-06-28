@@ -26,11 +26,17 @@ async function refreshSession() {
       credentials: 'include',
       headers: authHeader()
     });
-    if (!res.ok) return null;
+    console.log('refreshSession response status:', res.status);
+    if (!res.ok) {
+      console.log('refreshSession failed, status:', res.status);
+      return null;
+    }
     const data = await res.json();
+    console.log('refreshSession data:', data);
     if (data.token) setAuthToken(data.token);
     return data;
-  } catch {
+  } catch (err) {
+    console.log('refreshSession error:', err);
     return null;
   }
 }
