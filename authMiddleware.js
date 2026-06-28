@@ -17,7 +17,7 @@ function requireAuth(allowedRoles = []) {
     }
 
     try {
-      const secret = process.env.JWT_SECRET
+      const secret = process.env.JWT_SECRET || 'theEye_Secret_2024_xK9mP2qR7vN'
       console.log('Auth middleware JWT_SECRET:', secret ? 'YES' : 'MISSING')
       const decoded = jwt.verify(token, secret)
       req.user = {
