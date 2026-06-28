@@ -1875,9 +1875,11 @@
     }
 
     function closeCredentialsModal() {
-      const modal = document.getElementById('credentialsModal');
-      modal.classList.remove('open');
-      document.getElementById('credentialsModalBody').innerHTML = '';
+      const oldModal = document.getElementById('credentialsModal');
+      const simpleModal = document.getElementById('simpleCredentialsModal');
+      if (oldModal) oldModal.classList.remove('open');
+      if (simpleModal) simpleModal.classList.remove('open');
+      document.getElementById('credentialsModalBody') && (document.getElementById('credentialsModalBody').innerHTML = '');
       if (credentialsDoneCallback) {
         credentialsDoneCallback();
         credentialsDoneCallback = null;
@@ -2847,13 +2849,8 @@
         // 4. Show success
         showToast('✅ Student saved successfully', 'success');
 
-        console.log('Credentials received:', data.student_id, data.temp_password)
-        console.log('Modal element exists:', !!document.getElementById('credentialsModal'))
-
         // 5. Show credentials modal
-        showCredentialsPanel(data.student_id, data.temp_password, 'student', async () => {
-          await reloadAllData(false, true);
-        });
+        showCredentialsModal(data.student_id, data.temp_password);
 
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -4168,8 +4165,40 @@
         });
       });
     });
+
+    function showCredentialsModal(loginId, password) {
+      const modal = document.getElementById('simpleCredentialsModal');
+      const body = document.getElementById('simpleCredentialsModalBody');
+      if (!modal || !body) return;
+      body.innerHTML = `
+        <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:14px;">Share these with the student.</p>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;font-family:monospace;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <span style="color:var(--text-secondary);font-size:0.82rem;">Login ID:</span>
+            <strong id="simpleCredLoginId" style="user-select:all;color:var(--primary-light);font-size:1rem;">${escapeHtml(loginId)}</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text-secondary);font-size:0.82rem;">Password:</span>
+            <strong id="simpleCredPassword" style="user-select:all;color:var(--primary-light);font-size:1rem;">${escapeHtml(password)}</strong>
+          </div>
+        </div>
+      `;
+      modal.classList.add('open');
+    }
   </script>
 
+
+<!-- Credentials Modal -->
+<div class="edit-modal" id="simpleCredentialsModal">
+  <div class="edit-modal-card">
+    <div class="edit-modal-header">
+      <h3><i class="fas fa-key" style="color:var(--primary);"></i> Student Credentials</h3>
+      <button class="edit-modal-close" onclick="closeCredentialsModal()" aria-label="Close"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="simpleCredentialsModalBody" style="padding:4px 0 12px;"></div>
+    <button class="btn btn-primary" onclick="closeCredentialsModal()" style="width:100%;justify-content:center;">OK, noted</button>
+  </div>
+</div>
 
 </body>
 
