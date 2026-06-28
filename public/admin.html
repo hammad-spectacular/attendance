@@ -1702,6 +1702,18 @@
     </div>
   </div>
 
+  <!-- Credentials Modal -->
+<div class="edit-modal" id="simpleCredentialsModal">
+  <div class="edit-modal-card">
+    <div class="edit-modal-header">
+      <h3><i class="fas fa-key" style="color:var(--primary);"></i> Student Credentials</h3>
+      <button class="edit-modal-close" onclick="closeCredentialsModal()" aria-label="Close"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="simpleCredentialsModalBody" style="padding:4px 0 12px;"></div>
+    <button class="btn btn-primary" onclick="closeCredentialsModal()" style="width:100%;justify-content:center;">OK, noted</button>
+  </div>
+</div>
+
   <!-- Toast container -->
   <div class="toast-container" id="toastContainer"></div>
 
@@ -4186,19 +4198,6 @@
       modal.classList.add('open');
     }
   </script>
-
-
-<!-- Credentials Modal -->
-<div class="edit-modal" id="simpleCredentialsModal">
-  <div class="edit-modal-card">
-    <div class="edit-modal-header">
-      <h3><i class="fas fa-key" style="color:var(--primary);"></i> Student Credentials</h3>
-      <button class="edit-modal-close" onclick="closeCredentialsModal()" aria-label="Close"><i class="fas fa-times"></i></button>
-    </div>
-    <div id="simpleCredentialsModalBody" style="padding:4px 0 12px;"></div>
-    <button class="btn btn-primary" onclick="closeCredentialsModal()" style="width:100%;justify-content:center;">OK, noted</button>
-  </div>
-</div>
 
 </body>
 
