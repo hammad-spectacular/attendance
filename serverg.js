@@ -283,10 +283,11 @@ app.post('/api/auth/login', async (req, res) => {
       { expiresIn: JWT_EXPIRY }
     )
 
+    const isProd = process.env.NODE_ENV === 'production'
     res.cookie('auth_token', token, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'None',
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
       path: '/',
       maxAge: 8 * 60 * 60 * 1000
     })
@@ -380,10 +381,11 @@ const token = jwt.sign(
         { expiresIn: JWT_EXPIRY }
       )
 
+      const isProd = process.env.NODE_ENV === 'production'
       res.cookie('auth_token', token, {
         httpOnly: true,
-        secure: true,
-        sameSite: 'None',
+        secure: isProd,
+        sameSite: isProd ? 'none' : 'lax',
         path: '/',
         maxAge: 8 * 60 * 60 * 1000
       })
