@@ -264,7 +264,12 @@ app.post('/api/auth/login', async (req, res) => {
       teacher: '/teacher.html',
       student: '/student.html'
     }
-    const redirect_url = redirectMap[user.role] || '/index.html'
+    let redirect_url = redirectMap[user.role] || '/index.html'
+    
+    // If first login, redirect to change password page
+    if (user.is_first_login) {
+      redirect_url = '/change-password.html'
+    }
 
     const token = jwt.sign(
       {
@@ -314,8 +319,14 @@ app.post('/api/auth/change-password', requireAuth(), async (req, res) => {
       return res.status(400).json({ error: 'New passwords do not match' })
     }
 
-    if (new_password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' })
+    if (new_password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' })
+    }
+
+    // Check for at least one special character
+    const specialChars = /[!@#$%^&*(),.?":{}|<>]/
+    if (!specialChars.test(new_password)) {
+      return res.status(400).json({ error: 'Password must contain at least one special character (!@#$%^&*(),.?":{}|<>)' })
     }
 
     const { user_id, role, tenant_id, login_id } = req.user
