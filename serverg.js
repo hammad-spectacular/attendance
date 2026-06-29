@@ -208,18 +208,17 @@ function generateTempPassword() {
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { password } = req.body
-    const full_id = req.body.full_id || req.body.login_id
+    const full_id = (req.body.full_id || req.body.login_id || '').trim()
+    console.log('LOGIN ATTEMPT - full_id:', full_id, 'password length:', password?.length)
+
     const lastDash = full_id.lastIndexOf('-')
     const tenant_id = full_id.substring(0, lastDash).toUpperCase()
-    const login_id = full_id.substring(lastDash + 1)
+    const login_id = full_id.substring(lastDash + 1).toUpperCase()
+    console.log('SPLIT - tenant_id:', tenant_id, 'login_id:', login_id)
 
     if (!full_id || !password) {
       return res.status(400).json({ error: 'Full ID and Password are required' })
     }
-
-    console.log('full_id received:', full_id)
-    console.log('tenant_id (split):', tenant_id)
-    console.log('login_id (split):', login_id)
 
     const result = await pool.query(`
       SELECT id, password_hash, role, is_first_login, is_frozen 
