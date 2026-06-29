@@ -278,7 +278,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tenant_id, login_id, password })
+      body: JSON.stringify({ full_id: fullId.toUpperCase(), password })
     });
     const text = await res.text();
     let data = {};
