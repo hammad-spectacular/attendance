@@ -567,6 +567,22 @@ app.post('/api/auth/register-school', async (req, res) => {
       return res.status(400).json({ error: 'School name, contact person, role, and email are required' })
     }
 
+    const existing = await pool.query(
+      'SELECT id, status FROM school_requests WHERE contact_email = $1',
+      [contact_email]
+    )
+    if (existing.rows.length > 0) {
+      const status = existing.rows[0].status
+      if (status === 'pending') {
+        return res.status(400).json({ error: 'A request with this email is already pending review.' })
+      }
+      if (status === 'approved') {
+        return res.status(400).json({ error: 'This email has already been approved. Please check your login details.' })
+      }
+      // if rejected, allow resubmission by deleting the old rejected request first
+      await pool.query('DELETE FROM school_requests WHERE id = $1', [existing.rows[0].id])
+    }
+
     const contactPersonValue = `${normalizedContactPerson} (${normalizedContactRole})`
 
     await pool.query(
