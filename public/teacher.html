@@ -1762,6 +1762,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
     // =============================================================
     async function checkSession() {
       const data = await refreshSession();
+      console.log('checkSession data:', JSON.stringify(data));
       if (!data) { redirectToLogin(); return null; }
       if (data.role?.toLowerCase() !== 'teacher') { window.location.href = '/index.html'; return null; }
       window._isFirstLogin = data.is_first_login;
