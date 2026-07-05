@@ -2387,8 +2387,10 @@ function setButtonLoading(btn, loading, loadingHtml) {
     });
 
     function init() {
+      console.log('init called');
       // Session check first
       checkSession().then((sessionData) => {
+        console.log('init sessionData:', JSON.stringify(sessionData));
         if (!sessionData) return;
         startSessionKeepAlive();
         setupSectionTabs();
