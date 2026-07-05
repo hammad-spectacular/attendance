@@ -1763,7 +1763,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
     async function checkSession() {
       const data = await refreshSession();
       if (!data) { redirectToLogin(); return null; }
-      if (data.role !== 'teacher') { window.location.href = '/index.html'; return null; }
+      if (data.role?.toLowerCase() !== 'teacher') { window.location.href = '/index.html'; return null; }
       window._isFirstLogin = data.is_first_login;
       window._loggedInUserId = data.user_id;
       if (data.is_first_login) { showPasswordWarningBanner(); }
