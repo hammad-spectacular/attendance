@@ -1922,6 +1922,11 @@ function setButtonLoading(btn, loading, loadingHtml) {
         if (!me || !me.user_id) { redirectToLogin(); return; }
 
         const teachers = await apiFetch('/api/teachers').then(r => r.json());
+        
+        if (!Array.isArray(teachers)) {
+          throw new Error(`Expected array of teachers, got: ${JSON.stringify(teachers).substring(0, 100)}`);
+        }
+
         const teacher = teachers.find(t => t.id === me.user_id);
 
         if (!teacher) {
@@ -1936,7 +1941,8 @@ function setButtonLoading(btn, loading, loadingHtml) {
         }
       } catch (e) {
         console.error('initTeacherSelection error:', e);
-        redirectToLogin();
+        showToast(`Error loading teacher data: ${e.message}`, 'error');
+        // We do not redirect to login here anymore unless refreshSession explicitly fails
       }
     }
 
