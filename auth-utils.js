@@ -20,7 +20,7 @@ function redirectToLogin() {
   window.location.href = '/index.html';
 }
 
-async function refreshSession() {
+async function refreshSession(retries = 2) {
   try {
     const res = await fetch(API_BASE + '/api/auth/me', {
       credentials: 'include',
@@ -29,6 +29,11 @@ async function refreshSession() {
     console.log('refreshSession response status:', res.status);
     if (!res.ok) {
       console.log('refreshSession failed, status:', res.status);
+      if (retries > 0) {
+        console.log(`Retrying refreshSession... (${retries} left)`);
+        await new Promise(r => setTimeout(r, 500));
+        return refreshSession(retries - 1);
+      }
       return null;
     }
     const data = await res.json();
@@ -37,11 +42,16 @@ async function refreshSession() {
     return data;
   } catch (err) {
     console.log('refreshSession error:', err);
+    if (retries > 0) {
+      console.log(`Retrying refreshSession due to error... (${retries} left)`);
+      await new Promise(r => setTimeout(r, 500));
+      return refreshSession(retries - 1);
+    }
     return null;
   }
 }
 
-async function apiFetch(url, options = {}) {
+async function apiFetch(url, options = {}, retries = 2) {
   const fullUrl = url.startsWith('/api') ? API_BASE + url : url;
   const doFetch = () => fetch(fullUrl, {
     credentials: 'include',
@@ -52,7 +62,25 @@ async function apiFetch(url, options = {}) {
     }
   });
 
-  let res = await doFetch();
+  let res;
+  try {
+    res = await doFetch();
+  } catch (err) {
+    if (retries > 0) {
+      console.log(`Retrying apiFetch due to error... (${retries} left)`);
+      await new Promise(r => setTimeout(r, 500));
+      return apiFetch(url, options, retries - 1);
+    }
+    throw err;
+  }
+
+  // Also retry on 5xx server errors or timeouts
+  if (res.status >= 500 && retries > 0) {
+    console.log(`Retrying apiFetch due to ${res.status}... (${retries} left)`);
+    await new Promise(r => setTimeout(r, 500));
+    return apiFetch(url, options, retries - 1);
+  }
+
   if (res.status === 401) {
     const session = await refreshSession();
     if (!session) {
