@@ -149,6 +149,19 @@ async function createTables() {
     ALTER TABLE students ADD COLUMN IF NOT EXISTS is_frozen BOOLEAN DEFAULT false;
   `)
 
+  // Migrate roll_no uniqueness to be scoped to tenant_id
+  await pool.query(`
+    ALTER TABLE students DROP CONSTRAINT IF EXISTS students_roll_no_key;
+    ALTER TABLE students DROP CONSTRAINT IF EXISTS students_tenant_roll_no_key;
+  `)
+  await pool.query(`
+    DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'students_tenant_roll_key') THEN
+        ALTER TABLE students ADD CONSTRAINT students_tenant_roll_key UNIQUE (tenant_id, roll_no);
+      END IF;
+    END $$;
+  `)
+
   await pool.query(`
     ALTER TABLE attendance ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(10);
     ALTER TABLE classes ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(10);
@@ -551,7 +564,12 @@ app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) =>
     res.json({ success: true, student_id: studentId, temp_password: tempPassword, student: result.rows[0] })
   } catch (err) {
     console.error('Create student error:', err)
-    res.status(500).json({ error: 'Server error' })
+
+    if (err.code === '23505' && err.constraint === 'students_tenant_roll_key') {
+      return res.status(400).json({ error: `Roll number "${roll_no}" is already used by another student in this school. Please choose a different one.` })
+    }
+
+    res.status(500).json({ error: 'Something went wrong while creating the student. Please try again.' })
   }
 })
 

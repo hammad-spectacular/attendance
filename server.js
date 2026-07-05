@@ -52,7 +52,7 @@ async function createTables() {
     CREATE TABLE IF NOT EXISTS students (
       id SERIAL PRIMARY KEY,
       name VARCHAR(100) NOT NULL,
-      roll_no VARCHAR(50) UNIQUE,
+      roll_no VARCHAR(50),
       phone VARCHAR(20),
       class_id INTEGER REFERENCES classes(id) ON DELETE SET NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
