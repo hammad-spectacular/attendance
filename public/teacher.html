@@ -890,9 +890,7 @@
 
   <!-- ======================== JAVASCRIPT ======================== -->
   <script>
-const API_BASE = window.location.origin.includes('localhost')
-  ? window.location.origin
-  : 'https://attendance-production-fb0b.up.railway.app';
+const API_BASE = window.location.origin;
 
 let isRedirecting = false;
 
@@ -1875,7 +1873,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
     // =============================================================
     // API CONFIGURATION (Automatic Localhost / Production Detection)
     // =============================================================
-    const API = '';
+    const API = window.location.origin;
 
     // ============================================================
     // SKELETON HELPERS
@@ -2417,8 +2415,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
     document.addEventListener('DOMContentLoaded', init);
   </script>
 
-  <!-- Anti-inspect protection -->
-  <script src="anti-inspect.js"></script>
+  <!-- Anti-inspect protection removed (missing file) -->
 
 </body>
 

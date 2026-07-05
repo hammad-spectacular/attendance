@@ -699,9 +699,7 @@
   </div>
 
   <script>
-const API_BASE = window.location.origin.includes('localhost')
-  ? window.location.origin
-  : 'https://attendance-production-fb0b.up.railway.app';
+const API_BASE = window.location.origin;
 
 let isRedirecting = false;
 
@@ -783,9 +781,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
     // =============================================================
     // API CONFIGURATION (Automatic Localhost / Production Detection)
     // =============================================================
-    const API = window.location.origin.includes('localhost')
-      ? window.location.origin
-      : 'https://attendance-production-fb0b.up.railway.app';
+    const API = window.location.origin;
     let sessionUser = null;
 
     const state = {
