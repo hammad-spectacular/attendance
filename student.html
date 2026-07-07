@@ -1235,11 +1235,9 @@ function setButtonLoading(btn, loading, loadingHtml) {
       }, 0);
 
       // Section 2 — Attendance (300ms stagger after min-time)
+      await delay(300);
       try {
-        const [attendance] = await Promise.all([
-          fetchJson(`${API}/api/attendance/all`),
-          delay(300)
-        ]);
+        const attendance = await fetchJson(`${API}/api/attendance/me`);
         renderAttendance(attendance);
       } catch (err) {
         setStateBox('attendanceSection', 'fas fa-circle-exclamation', 'Attendance failed to load', err.message);

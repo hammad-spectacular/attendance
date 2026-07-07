@@ -902,8 +902,9 @@
       renderHeader();
       renderTeacher();
 
+      await delay(300);
       try {
-        const attendance = await fetchJson(`${API}/api/attendance/all`);
+        const attendance = await fetchJson(`${API}/api/attendance/me`);
         renderAttendance(attendance);
       } catch (err) {
         setStateBox('attendanceSection', 'fas fa-circle-exclamation', 'Attendance failed to load', err.message);

@@ -939,6 +939,30 @@ app.post('/api/attendance', requireAuth(['teacher', 'admin']), async (req, res) 
   res.json({ success: true })
 })
 
+app.get('/api/attendance/me', requireAuth(['student']), async (req, res) => {
+  const tenant_id = req.user.tenant_id
+  const studentResult = await pool.query(
+    'SELECT id, class_id FROM students WHERE id = $1 AND tenant_id = $2',
+    [req.user.user_id, tenant_id]
+  )
+
+  if (studentResult.rows.length === 0) {
+    return res.status(404).json({ error: 'Student not found' })
+  }
+
+  const student = studentResult.rows[0]
+  const result = await pool.query(`
+    SELECT attendance.*, students.name, students.phone, students.roll_no, students.class_id, classes.name as class_name
+    FROM attendance
+    JOIN students ON attendance.student_id = students.id
+    LEFT JOIN classes ON students.class_id = classes.id
+    WHERE attendance.student_id = $1 AND attendance.tenant_id = $2
+    ORDER BY attendance.date DESC, students.name ASC
+  `, [student.id, tenant_id])
+
+  res.json(result.rows)
+})
+
 app.get('/api/attendance', requireAuth(['admin', 'teacher', 'student', 'super_admin']), async (req, res) => {
   const tenant_id = req.user.tenant_id
   const { date, class_id } = req.query
