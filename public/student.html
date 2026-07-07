@@ -564,8 +564,6 @@
   </nav>
 
   <main class="main">
-    <div class="notice" id="studentNotice"></div>
-
     <section class="section-card" id="teacherSection">
       <div class="section-header">
         <div class="section-icon blue"><i class="fas fa-chalkboard-user"></i></div>
@@ -661,12 +659,6 @@
           ${subtext ? `<div class="sub">${escapeHtml(subtext)}</div>` : ''}
         </div>
       `;
-    }
-
-    function setNotice(message) {
-      const notice = document.getElementById('studentNotice');
-      notice.textContent = message;
-      notice.classList.add('show');
     }
 
     function toggleTheme() {
@@ -858,7 +850,6 @@
     function openSelectedStudent() {
       const select = document.getElementById('studentPicker');
       if (!select || !select.value) {
-        setNotice('Please select a student to continue.');
         return;
       }
       window.location.href = `${window.location.pathname}?id=s_${select.value}`;

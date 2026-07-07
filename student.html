@@ -616,7 +616,6 @@
 
     <!-- TEACHER TAB -->
     <div id="tab-teacher" class="tab-content active">
-      <div class="notice" id="studentNotice"></div>
       <section class="section-card" id="teacherSection">
         <div class="section-header">
           <div class="section-icon blue"><i class="fas fa-chalkboard-user"></i></div>
@@ -822,12 +821,6 @@ function setButtonLoading(btn, loading, loadingHtml) {
       `;
     }
 
-    function setNotice(message) {
-      const notice = document.getElementById('studentNotice');
-      notice.textContent = message;
-      notice.classList.add('show');
-    }
-
     function toggleTheme() {
       const html = document.documentElement;
       const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
@@ -846,29 +839,8 @@ function setButtonLoading(btn, loading, loadingHtml) {
       if (!data) { redirectToLogin(); return false; }
       if (data.role !== 'student') { window.location.href = '/index.html'; return false; }
       window._isFirstLogin = data.is_first_login;
-      if (data.is_first_login) { showPasswordWarningBanner(); }
       sessionUser = data;
       return true;
-    }
-
-    function showPasswordWarningBanner() {
-      if (document.getElementById('pwBanner')) return;
-      const banner = document.createElement('div');
-      banner.id = 'pwBanner';
-      banner.style.cssText = 'position:sticky;top:0;z-index:10000;display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 24px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:600;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,0.15);flex-wrap:wrap;';
-      banner.innerHTML = '<span style="flex:1;min-width:200px;text-align:center;"><i class="fas fa-exclamation-triangle" style="margin-right:8px;"></i>You are using a default password. Please change it for security.</span>'
-        + '<button onclick="openChangePasswordModal()" style="padding:6px 18px;border:2px solid #fff;border-radius:6px;background:transparent;color:#fff;font-weight:700;cursor:pointer;transition:all .2s;font-size:13px;" onmouseover="this.style.background=\'#fff\';this.style.color=\'#d97706\'" onmouseout="this.style.background=\'transparent\';this.style.color=\'#fff\'">Change Password</button>'
-        + '<button onclick="dismissPasswordBanner()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;padding:0 4px;opacity:0.8;" title="Dismiss">&times;</button>';
-      document.body.insertBefore(banner, document.body.firstChild);
-    }
-
-    function hidePasswordWarningBanner() {
-      const b = document.getElementById('pwBanner');
-      if (b) b.remove();
-    }
-
-    function dismissPasswordBanner() {
-      hidePasswordWarningBanner();
     }
 
     async function handleLogout() {
@@ -905,7 +877,6 @@ function setButtonLoading(btn, loading, loadingHtml) {
       } else {
         if (data.token) localStorage.setItem('auth_token', data.token);
         window._isFirstLogin = false;
-        hidePasswordWarningBanner();
         msgEl.textContent = 'Password changed successfully';
         msgEl.style.color = 'var(--success)';
         setTimeout(closeChangePasswordModal, 1000);
@@ -1088,7 +1059,6 @@ function setButtonLoading(btn, loading, loadingHtml) {
     function openSelectedStudent() {
       const select = document.getElementById('studentPicker');
       if (!select || !select.value) {
-        setNotice('Please select a student to continue.');
         return;
       }
       window.location.href = `${window.location.pathname}?id=s_${select.value}`;
