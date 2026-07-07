@@ -891,9 +891,7 @@
 
   <!-- ======================== JAVASCRIPT ======================== -->
   <script>
-const API_BASE = window.location.origin.includes('localhost')
-  ? window.location.origin
-  : 'https://attendance-production-fb0b.up.railway.app';
+const API_BASE = window.location.origin;
 
 let isRedirecting = false;
 
@@ -1767,7 +1765,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
       if (!data) { redirectToLogin(); return null; }
       if (data.role?.toLowerCase() !== 'teacher') { window.location.href = '/index.html'; return null; }
       window._isFirstLogin = data.is_first_login;
-      window._loggedInUserId = data.user_id;
+      window._loggedInUserId = data.id;
       if (data.is_first_login) { showPasswordWarningBanner(); }
       return data;
     }
@@ -1921,7 +1919,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
     async function initTeacherSelection() {
       try {
         const me = await refreshSession();
-        if (!me || !me.user_id) { redirectToLogin(); return; }
+        if (!me || !me.id) { redirectToLogin(); return; }
 
         const teachers = await apiFetch('/api/teachers').then(r => r.json());
         
@@ -1929,7 +1927,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
           throw new Error(`Expected array of teachers, got: ${JSON.stringify(teachers).substring(0, 100)}`);
         }
 
-        const teacher = teachers.find(t => t.id === me.user_id);
+        const teacher = teachers.find(t => t.id === me.id);
 
         if (!teacher) {
           showToast('❌ Teacher profile not found. Contact admin.', 'error');
