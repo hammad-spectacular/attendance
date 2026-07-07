@@ -1184,30 +1184,38 @@ function setButtonLoading(btn, loading, loadingHtml) {
         fn();
       }
 
-      let students, classes, teachers;
+      let studentData = null;
+      let classData = null;
+      let teacherData = null;
+
       try {
-        [students, classes, teachers] = await Promise.all([
-          fetchJson(`${API}/api/students`),
-          fetchJson(`${API}/api/classes`),
-          fetchJson(`${API}/api/teachers`)
-        ]);
+        studentData = await fetchJson(`${API}/api/students/me`);
       } catch (err) {
         await revealAfterMinTime(() => {
           document.getElementById('studentName').textContent = 'Unable to load portal';
           document.getElementById('studentClass').textContent = 'Please try again later';
-          ['teacherCard', 'attendanceSection', 'homeworkSection', 'announcementsSection'].forEach(id => {
-            setStateBox(id, 'fas fa-circle-exclamation', 'Data failed to load', err.message);
-          });
+          setStateBox('teacherCard', 'fas fa-circle-exclamation', 'Failed to load student info', err.message);
         });
         return;
       }
 
-      const studentId = sessionUser ? Number(sessionUser.user_id) : getStudentIdFromUrl();
-      const rollNo = getRollNoFromUrl();
+      state.student = studentData;
 
-      state.student = studentId
-        ? students.find(student => Number(student.id) === studentId)
-        : rollNo ? students.find(student => String(student.roll_no || '').toLowerCase() === rollNo.toLowerCase()) : null;
+      try {
+        classData = await fetchJson(`${API}/api/classes/me`);
+        state.classInfo = classData;
+      } catch (err) {
+        state.classInfo = null;
+        setStateBox('teacherCard', 'fas fa-circle-exclamation', 'Failed to load class info', err.message);
+      }
+
+      try {
+        teacherData = await fetchJson(`${API}/api/teachers?class_id=${state.student?.class_id ?? ''}`);
+        state.teacher = Array.isArray(teacherData) ? teacherData[0] || null : null;
+      } catch (err) {
+        state.teacher = null;
+        setStateBox('teacherCard', 'fas fa-circle-exclamation', 'Failed to load teacher info', err.message);
+      }
 
       if (!state.student) {
         await revealAfterMinTime(() => {
@@ -1219,9 +1227,6 @@ function setButtonLoading(btn, loading, loadingHtml) {
         });
         return;
       }
-
-      state.classInfo = classes.find(cls => Number(cls.id) === Number(state.student.class_id)) || null;
-      state.teacher = teachers.find(teacher => Number(teacher.class_id) === Number(state.student.class_id)) || null;
 
       // Section 1 — Teacher (0ms extra stagger, just honour MIN_SKELETON_MS)
       await revealAfterMinTime(() => {

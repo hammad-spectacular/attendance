@@ -739,6 +739,34 @@ app.post('/api/auth/reactivate-school', requireAuth(['super_admin']), async (req
 // ============================================
 
 // CLASSES
+app.get('/api/classes/me', requireAuth(['student']), async (req, res) => {
+  const tenant_id = req.user.tenant_id
+  const studentResult = await pool.query(
+    'SELECT class_id FROM students WHERE id = $1 AND tenant_id = $2',
+    [req.user.user_id, tenant_id]
+  )
+
+  if (studentResult.rows.length === 0) {
+    return res.status(404).json({ error: 'Student not found' })
+  }
+
+  const classId = studentResult.rows[0].class_id
+  if (!classId) {
+    return res.status(404).json({ error: 'No class assigned' })
+  }
+
+  const result = await pool.query(
+    'SELECT * FROM classes WHERE id = $1 AND tenant_id = $2',
+    [classId, tenant_id]
+  )
+
+  if (result.rows.length === 0) {
+    return res.status(404).json({ error: 'Class not found' })
+  }
+
+  res.json(result.rows[0])
+})
+
 app.get('/api/classes', requireAuth(['admin', 'teacher', 'super_admin']), async (req, res) => {
   const tenant_id = req.user.tenant_id
   const result = await pool.query('SELECT * FROM classes WHERE tenant_id = $1 ORDER BY id', [tenant_id])
@@ -761,15 +789,46 @@ app.delete('/api/classes/:id', requireAuth(['admin', 'super_admin']), async (req
 })
 
 // TEACHERS
-app.get('/api/teachers', requireAuth(['admin', 'teacher', 'super_admin']), async (req, res) => {
+app.get('/api/teachers', requireAuth(['admin', 'teacher', 'student', 'super_admin']), async (req, res) => {
   const tenant_id = req.user.tenant_id
-  const result = await pool.query(`
+  const { class_id } = req.query
+
+  if (req.user.role === 'student') {
+    if (!class_id) {
+      return res.status(400).json({ error: 'class_id is required' })
+    }
+
+    const studentResult = await pool.query(
+      'SELECT class_id FROM students WHERE id = $1 AND tenant_id = $2',
+      [req.user.user_id, tenant_id]
+    )
+
+    if (studentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Student not found' })
+    }
+
+    const studentClassId = studentResult.rows[0].class_id
+    if (Number(class_id) !== Number(studentClassId)) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+  }
+
+  const params = [tenant_id]
+  let query = `
     SELECT teachers.*, classes.name as class_name 
     FROM teachers 
     LEFT JOIN classes ON teachers.class_id = classes.id 
     WHERE teachers.tenant_id = $1
-    ORDER BY teachers.id
-  `, [tenant_id])
+  `
+
+  if (class_id && req.user.role !== 'student') {
+    query += ' AND teachers.class_id = $2'
+    params.push(class_id)
+  }
+
+  query += ' ORDER BY teachers.id'
+
+  const result = await pool.query(query, params)
   res.json(result.rows)
 })
 
@@ -800,6 +859,20 @@ app.delete('/api/teachers/:id', requireAuth(['admin', 'super_admin']), async (re
 })
 
 // STUDENTS
+app.get('/api/students/me', requireAuth(['student']), async (req, res) => {
+  const tenant_id = req.user.tenant_id
+  const result = await pool.query(
+    'SELECT * FROM students WHERE id = $1 AND tenant_id = $2',
+    [req.user.user_id, tenant_id]
+  )
+
+  if (result.rows.length === 0) {
+    return res.status(404).json({ error: 'Student not found' })
+  }
+
+  res.json(result.rows[0])
+})
+
 app.get('/api/students', requireAuth(['admin', 'teacher', 'student', 'super_admin']), async (req, res) => {
   const tenant_id = req.user.tenant_id
   const { class_id } = req.query
