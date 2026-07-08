@@ -171,7 +171,12 @@ async function createTables() {
   `)
 
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS fee_structures (
+    DROP TABLE IF EXISTS fee_structures CASCADE;
+    DROP TABLE IF EXISTS fee_payments CASCADE;
+  `)
+
+  await pool.query(`
+    CREATE TABLE fee_structures (
       id SERIAL PRIMARY KEY,
       type VARCHAR(20) NOT NULL,
       target_id INTEGER NOT NULL,
@@ -184,7 +189,7 @@ async function createTables() {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
-    CREATE TABLE IF NOT EXISTS fee_payments (
+    CREATE TABLE fee_payments (
       id SERIAL PRIMARY KEY,
       student_id INTEGER NOT NULL,
       month VARCHAR(7) NOT NULL,
@@ -1165,8 +1170,8 @@ app.get('/api/fees/structures', requireAuth(['admin', 'teacher']), async (req, r
         WHEN fee_structures.type = 'student' THEN students.name 
       END as target_name
      FROM fee_structures
-     LEFT JOIN classes ON fee_structures.type = 'class' AND fee_structures.target_id = classes.id
-     LEFT JOIN students ON fee_structures.type = 'student' AND fee_structures.target_id = students.id
+     LEFT JOIN classes ON fee_structures.type = 'class' AND fee_structures.target_id = classes.id AND classes.tenant_id = fee_structures.tenant_id
+     LEFT JOIN students ON fee_structures.type = 'student' AND fee_structures.target_id = students.id AND students.tenant_id = fee_structures.tenant_id
      WHERE fee_structures.tenant_id = $1
      ORDER BY fee_structures.created_at DESC`,
     [tenant_id]
@@ -1219,8 +1224,8 @@ app.get('/api/fees/payments', requireAuth(['admin', 'teacher']), async (req, res
   let query = `
     SELECT fee_payments.*, students.name as student_name, students.roll_no, classes.name as class_name
     FROM fee_payments
-    JOIN students ON fee_payments.student_id = students.id
-    LEFT JOIN classes ON students.class_id = classes.id
+    JOIN students ON fee_payments.student_id = students.id AND fee_payments.tenant_id = students.tenant_id
+    LEFT JOIN classes ON students.class_id = classes.id AND students.tenant_id = classes.tenant_id
     WHERE fee_payments.tenant_id = $1
   `
   const params = [tenant_id]
@@ -1352,8 +1357,8 @@ app.get('/api/fees/me', requireAuth(['student']), async (req, res) => {
   let query = `
     SELECT fee_payments.*, students.name as student_name, classes.name as class_name
     FROM fee_payments
-    JOIN students ON fee_payments.student_id = students.id
-    LEFT JOIN classes ON students.class_id = classes.id
+    JOIN students ON fee_payments.student_id = students.id AND fee_payments.tenant_id = students.tenant_id
+    LEFT JOIN classes ON students.class_id = classes.id AND students.tenant_id = classes.tenant_id
     WHERE fee_payments.student_id = $1 AND fee_payments.tenant_id = $2
   `
   const params = [student_id, tenant_id]
