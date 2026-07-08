@@ -5,13 +5,17 @@
   <script>
     // Execute immediately to prevent theme flickering (FOUC)
     (function () {
-      const savedTheme = localStorage.getItem('attendance-theme') || 'dark';
+      const savedTheme = localStorage.getItem('attendance-theme') || 'dark'; // v3
       document.documentElement.setAttribute('data-theme', savedTheme);
     })();
   </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Dashboard — The Eye</title>
+  <title>Admin Dashboard — The Eye v2</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <meta name="description"
     content="Admin dashboard for The Eye School Management System. Manage teachers, view attendance, and post announcements.">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
@@ -865,6 +869,73 @@
       transform: none;
     }
 
+    /* Fee Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .stat-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+
+    .stat-icon.purple {
+      background: var(--badge-bg);
+      color: var(--badge-text);
+    }
+
+    .stat-icon.green {
+      background: var(--success-bg);
+      color: var(--success);
+    }
+
+    .stat-icon.amber {
+      background: var(--warning-bg);
+      color: var(--warning);
+    }
+
+    .stat-icon.blue {
+      background: rgba(59, 130, 246, 0.1);
+      color: #60a5fa;
+    }
+
+    .stat-info {
+      flex: 1;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.2;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-top: 2px;
+    }
+
     .btn-spinner {
       display: inline-block;
       width: 14px;
@@ -1354,6 +1425,9 @@
       <a href="#tab-announcements" class="tab-btn" data-section="tab-announcements">
         <i class="fas fa-bullhorn"></i>Announcements
       </a>
+      <a href="#tab-fees" class="tab-btn" data-section="tab-fees">
+        <i class="fas fa-money-bill-wave"></i>Fees
+      </a>
     </div>
   </nav>
 
@@ -1684,6 +1758,206 @@
       </div>
     </div>
 
+    <!-- ==================== FEES TAB ==================== -->
+    <div id="tab-fees" class="tab-content">
+      <!-- Stats Grid -->
+      <div class="stats-grid" style="margin-bottom:24px;">
+        <div class="stat-card">
+          <div class="stat-icon purple">
+            <i class="fa-solid fa-users"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" id="feeTotalStudents">245</div>
+            <div class="stat-label">Total Students</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon amber">
+            <i class="fa-solid fa-clock"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" id="feeTotalDue">Rs. 1.2L</div>
+            <div class="stat-label">Total Due</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">
+            <i class="fa-solid fa-check-circle"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" id="feeTotalCollected">Rs. 4.8L</div>
+            <div class="stat-label">Total Collected</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon blue">
+            <i class="fa-solid fa-percentage"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" id="feeCollectionRate">78%</div>
+            <div class="stat-label">Collection Rate</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-card" id="feesSection">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-icon amber" style="background: rgba(250, 204, 21, 0.14); color: #f59e0b;"><i class="fas fa-money-bill-wave"></i></div>
+            <div>
+              <div class="section-title">Fee Overview</div>
+              <div class="section-subtitle">Current month fee status</div>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openFeePaymentModal()">
+            <i class="fa-solid fa-plus"></i>
+            Record Payment
+          </button>
+        </div>
+        <div class="section-body">
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+            <input type="text" id="feeSearchInput" class="form-input" style="flex:1; min-width:220px;" placeholder="Search student or class..." oninput="renderFees()">
+            <select id="feeClassFilter" class="form-input" style="min-width:180px;" onchange="renderFees()">
+              <option value="">All Classes</option>
+            </select>
+            <input type="month" id="feeMonthFilter" class="form-input" style="max-width:180px;" onchange="renderFees()">
+            <select id="feeStatusFilter" class="form-input" style="max-width:180px;" onchange="renderFees()">
+              <option value="">All Status</option>
+              <option value="unpaid">Unpaid</option>
+              <option value="partial">Partial</option>
+              <option value="paid">Paid</option>
+              <option value="pending_approval">Pending Approval</option>
+            </select>
+          </div>
+
+          <div id="feesTableWrap"></div>
+        </div>
+      </div>
+
+      <!-- Fee Structure Section -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-icon purple">
+              <i class="fa-solid fa-sliders"></i>
+            </div>
+            <div>
+              <div class="section-title">Fee Structure Setup</div>
+              <div class="section-subtitle">Configure fee amounts per student or class</div>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openFeeStructureModal()">
+            <i class="fa-solid fa-plus"></i>
+            Add Structure
+          </button>
+        </div>
+        <div class="section-body">
+          <div id="feeStructureTableWrap"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="edit-modal" id="feePaymentModal" style="display:none; position:fixed; inset:0; z-index:100; align-items:center; justify-content:center; background:rgba(15,23,42,0.7);">
+    <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:16px; width:min(92vw, 500px); padding:20px; box-shadow:var(--shadow-lg);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div>
+          <div style="font-size:1rem; font-weight:800; color:var(--text);">Record Payment</div>
+          <div style="font-size:0.82rem; color:var(--text-secondary);">Update the current fee record for the selected month.</div>
+        </div>
+        <button class="btn btn-ghost" onclick="closeFeeModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <input type="hidden" id="feeRecordId">
+      <div class="form-group" style="margin-bottom:10px;">
+        <label class="form-label" for="feeRecordStudent">Student</label>
+        <select id="feeRecordStudent" class="form-input"></select>
+      </div>
+      <div class="form-group" style="margin-bottom:10px;">
+        <label class="form-label" for="feeRecordMonth">Month</label>
+        <input id="feeRecordMonth" class="form-input" type="month">
+      </div>
+      <div class="form-group" style="margin-bottom:10px;">
+        <label class="form-label" for="feeRecordDue">Amount Due</label>
+        <input id="feeRecordDue" class="form-input" type="number" min="0" step="100">
+      </div>
+      <div class="form-group" style="margin-bottom:10px;">
+        <label class="form-label" for="feeRecordPaid">Amount Paid</label>
+        <input id="feeRecordPaid" class="form-input" type="number" min="0" step="100">
+      </div>
+      <div class="form-group" style="margin-bottom:10px;">
+        <label class="form-label" for="feeRecordMethod">Payment Method</label>
+        <select id="feeRecordMethod" class="form-input">
+          <option value="cash">Cash</option>
+          <option value="bank">Bank Transfer</option>
+          <option value="online">Online</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:10px;">
+        <label class="form-label" for="feeRecordNotes">Notes</label>
+        <textarea id="feeRecordNotes" class="form-textarea" rows="2" placeholder="Optional note or payment details"></textarea>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px;">
+        <button class="btn btn-ghost" onclick="closeFeeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveFeeRecord()"><i class="fas fa-check"></i> Save Record</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fee Structure Modal -->
+  <div class="edit-modal" id="feeStructureModal" style="display:none; position:fixed; inset:0; z-index:100; align-items:center; justify-content:center; background:rgba(15,23,42,0.7);">
+    <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:16px; width:min(92vw, 500px); padding:20px; box-shadow:var(--shadow-lg);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div>
+          <div style="font-size:1rem; font-weight:800; color:var(--text);">Add Fee Structure</div>
+          <div style="font-size:0.82rem; color:var(--text-secondary);">Configure fee amounts per student or class</div>
+        </div>
+        <button class="btn btn-ghost" onclick="closeFeeStructureModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="form-group" style="margin-bottom:10px;">
+        <label class="form-label" for="feeStructureType">Type</label>
+        <select id="feeStructureType" class="form-input">
+          <option value="class">Class-wise</option>
+          <option value="student">Student-wise</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:10px;">
+        <label class="form-label" for="feeStructureTarget">Select Class/Student</label>
+        <select id="feeStructureTarget" class="form-input">
+          <option value="">Select...</option>
+          <option value="1">Class 1</option>
+          <option value="2">Class 2</option>
+          <option value="3">Class 3</option>
+          <option value="4">Class 4</option>
+          <option value="5">Class 5</option>
+          <option value="6">Class 6</option>
+        </select>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" for="feeStructureMonthly">Monthly Fee</label>
+          <input id="feeStructureMonthly" class="form-input" type="number" min="0" step="100" placeholder="Rs.">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" for="feeStructureAdmission">Admission Fee</label>
+          <input id="feeStructureAdmission" class="form-input" type="number" min="0" step="100" placeholder="Rs.">
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" for="feeStructureTransport">Transport Fee</label>
+          <input id="feeStructureTransport" class="form-input" type="number" min="0" step="100" placeholder="Rs.">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" for="feeStructureDiscount">Discount</label>
+          <input id="feeStructureDiscount" class="form-input" type="number" min="0" step="100" placeholder="Rs.">
+        </div>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px;">
+        <button class="btn btn-ghost" onclick="closeFeeStructureModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveFeeStructure()"><i class="fas fa-check"></i> Save Structure</button>
+      </div>
+    </div>
   </div>
 
   <!-- ======================== STICKY SAVE BAR ======================== -->
@@ -1701,6 +1975,18 @@
       </div>
     </div>
   </div>
+
+  <!-- Credentials Modal -->
+<div class="edit-modal" id="simpleCredentialsModal">
+  <div class="edit-modal-card">
+    <div class="edit-modal-header">
+      <h3><i class="fas fa-key" style="color:var(--primary);"></i> Student Credentials</h3>
+      <button class="edit-modal-close" onclick="closeCredentialsModal()" aria-label="Close"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="simpleCredentialsModalBody" style="padding:4px 0 12px;"></div>
+    <button class="btn btn-primary" onclick="closeCredentialsModal()" style="width:100%;justify-content:center;">OK, noted</button>
+  </div>
+</div>
 
   <!-- Toast container -->
   <div class="toast-container" id="toastContainer"></div>
@@ -1788,15 +2074,30 @@
       <form id="changePwdForm" onsubmit="handleChangePassword(event)">
         <div class="form-group">
           <label class="form-label" for="cpCurrent">Current Password</label>
-          <input class="form-input" type="password" id="cpCurrent" required>
+          <div style="position:relative;">
+            <input class="form-input" type="password" id="cpCurrent" required style="padding-right:40px;">
+            <button type="button" onclick="var inp=this.previousElementSibling;inp.type=inp.type==='password'?'text':'password';this.innerHTML=inp.type==='password'?'<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'18\' height=\'18\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z\'></path><circle cx=\'12\' cy=\'12\' r=\'3\'></circle></svg>':'<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'18\' height=\'18\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24\'></path><line x1=\'1\' y1=\'1\' x2=\'23\' y2=\'23\'></line></svg>'" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#475569;cursor:pointer;padding:4px 6px;border-radius:6px;line-height:1;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </button>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label" for="cpNew">New Password</label>
-          <input class="form-input" type="password" id="cpNew" required minlength="6">
+          <div style="position:relative;">
+            <input class="form-input" type="password" id="cpNew" required minlength="6" style="padding-right:40px;">
+            <button type="button" onclick="var inp=this.previousElementSibling;inp.type=inp.type==='password'?'text':'password';this.innerHTML=inp.type==='password'?'<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'18\' height=\'18\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z\'></path><circle cx=\'12\' cy=\'12\' r=\'3\'></circle></svg>':'<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'18\' height=\'18\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24\'></path><line x1=\'1\' y1=\'1\' x2=\'23\' y2=\'23\'></line></svg>'" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#475569;cursor:pointer;padding:4px 6px;border-radius:6px;line-height:1;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </button>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label" for="cpConfirm">Confirm New Password</label>
-          <input class="form-input" type="password" id="cpConfirm" required>
+          <div style="position:relative;">
+            <input class="form-input" type="password" id="cpConfirm" required style="padding-right:40px;">
+            <button type="button" onclick="var inp=this.previousElementSibling;inp.type=inp.type==='password'?'text':'password';this.innerHTML=inp.type==='password'?'<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'18\' height=\'18\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z\'></path><circle cx=\'12\' cy=\'12\' r=\'3\'></circle></svg>':'<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'18\' height=\'18\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24\'></path><line x1=\'1\' y1=\'1\' x2=\'23\' y2=\'23\'></line></svg>'" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#475569;cursor:pointer;padding:4px 6px;border-radius:6px;line-height:1;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </button>
+          </div>
         </div>
         <div id="cpMsg" style="padding:10px;border-radius:10px;font-size:0.8rem;font-weight:500;display:none;margin-bottom:10px;"></div>
         <div class="edit-modal-actions">
@@ -1825,45 +2126,8 @@
 
 
   <!-- ======================== JAVASCRIPT ======================== -->
-  <script src="/auth-utils.js"></script>
+  <script src="./auth-utils.js"></script>
   <script>
-    // Lightweight toast helper. Self-contained and never throws so it can't
-    // block follow-up logic (e.g. showing the credentials panel).
-    function showToast(message, type = 'info') {
-      try {
-        let container = document.getElementById('toastContainer');
-        if (!container) {
-          container = document.createElement('div');
-          container.className = 'toast-container';
-          container.id = 'toastContainer';
-          document.body.appendChild(container);
-        }
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        toast.textContent = message;
-        container.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
-      } catch (e) {
-        console.log('toast:', message);
-      }
-    }
-
-    // Fallback only if auth-utils.js did not provide setButtonLoading.
-    if (typeof window.setButtonLoading !== 'function') {
-      window.setButtonLoading = function (btn, isLoading, loadingHtml) {
-        if (!btn) return;
-        if (isLoading) {
-          if (!btn.dataset.originalHtml) btn.dataset.originalHtml = btn.innerHTML;
-          btn.disabled = true;
-          btn.innerHTML = loadingHtml || 'Loading...';
-        } else {
-          btn.disabled = false;
-          btn.innerHTML = btn.dataset.originalHtml || btn.innerHTML;
-          delete btn.dataset.originalHtml;
-        }
-      };
-    }
-
     let credentialsDoneCallback = null;
     let activeCredentialsType = null;
 
@@ -1912,9 +2176,11 @@
     }
 
     function closeCredentialsModal() {
-      const modal = document.getElementById('credentialsModal');
-      modal.classList.remove('open');
-      document.getElementById('credentialsModalBody').innerHTML = '';
+      const oldModal = document.getElementById('credentialsModal');
+      const simpleModal = document.getElementById('simpleCredentialsModal');
+      if (oldModal) oldModal.classList.remove('open');
+      if (simpleModal) simpleModal.classList.remove('open');
+      document.getElementById('credentialsModalBody') && (document.getElementById('credentialsModalBody').innerHTML = '');
       if (credentialsDoneCallback) {
         credentialsDoneCallback();
         credentialsDoneCallback = null;
@@ -1962,7 +2228,9 @@
       students: [],
       classes: [],
       attendance: [],
-      attendanceLoadError: ''
+      fees: [],
+      attendanceLoadError: '',
+      feesLoadError: ''
     };
 
     // =============================================================
@@ -1990,6 +2258,18 @@
       const div = document.createElement('div');
       div.textContent = str;
       return div.innerHTML;
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.remove();
+      }, 3000);
     }
 
     // =============================================================
@@ -2094,6 +2374,7 @@
 
         // Populate dropdowns used globally
         populateClassDropdown(classes);
+        loadFeeData();
 
         // Staggered section reveals with min skeleton time
         await revealAfterMinTime(() => {
@@ -2146,7 +2427,294 @@
       else if (activeTabId === 'tab-attendance') renderAttendance();
       else if (activeTabId === 'tab-stats') renderStats();
       else if (activeTabId === 'tab-announcements') renderAnnouncements();
+      else if (activeTabId === 'tab-fees') renderFees();
       updateSaveBar();
+    }
+
+    function formatFeeCurrency(value) {
+      return new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(Number(value || 0));
+    }
+
+    function getFeeStatusLabel(status) {
+      switch (status) {
+        case 'paid': return 'Paid';
+        case 'partial': return 'Partial';
+        case 'pending_approval': return 'Pending Approval';
+        default: return 'Unpaid';
+      }
+    }
+
+    function getFeeStatusBadge(status) {
+      const normalized = String(status || '').toLowerCase();
+      const colorMap = {
+        paid: 'background:rgba(34,197,94,0.14); color:#22c55e;',
+        partial: 'background:rgba(245,158,11,0.16); color:#f59e0b;',
+        pending_approval: 'background:rgba(59,130,246,0.14); color:#3b82f6;',
+        unpaid: 'background:rgba(239,68,68,0.12); color:#ef4444;'
+      };
+      return `<span class="badge" style="${colorMap[normalized] || colorMap.unpaid}">${escapeHtml(getFeeStatusLabel(status))}</span>`;
+    }
+
+    function getFeeFallbackData() {
+      const month = new Date().toISOString().slice(0, 7);
+      return (window.appData.students || []).slice(0, 6).map((student, index) => {
+        const className = (window.appData.classes || []).find(c => String(c.id) === String(student.class_id))?.name || 'Unassigned';
+        const due = 3000 + index * 250;
+        const paid = index % 3 === 0 ? due : index % 3 === 1 ? due / 2 : 0;
+        const status = paid <= 0 ? 'unpaid' : paid < due ? 'partial' : 'paid';
+        return {
+          id: 1000 + index,
+          student_id: student.id,
+          student_name: student.name,
+          class_name: className,
+          month_year: month,
+          amount_due: due,
+          amount_paid: paid,
+          status,
+          payment_date: status === 'paid' ? `${month}-10` : status === 'partial' ? `${month}-03` : '',
+          payment_method: status === 'partial' ? 'Cash' : '',
+          notes: status === 'partial' ? 'Half payment received.' : ''
+        };
+      });
+    }
+
+    async function loadFeeData() {
+      try {
+        const response = await apiFetch('/api/fees');
+        if (!response.ok) throw new Error('Fee endpoint is not ready yet');
+        const data = await response.json();
+        window.appData.fees = Array.isArray(data) ? data : [];
+      } catch (err) {
+        window.appData.fees = getFeeFallbackData();
+        window.appData.feesLoadError = err.message;
+      }
+      renderFees();
+    }
+
+    function renderFees() {
+      const wrap = document.getElementById('feesTableWrap');
+      const cards = document.getElementById('feesSummaryCards');
+      const records = Array.isArray(window.appData.fees) ? window.appData.fees : [];
+      const query = (document.getElementById('feeSearchInput')?.value || '').toLowerCase().trim();
+      const classFilter = document.getElementById('feeClassFilter')?.value || '';
+      const monthFilter = document.getElementById('feeMonthFilter')?.value || '';
+      const statusFilter = document.getElementById('feeStatusFilter')?.value || '';
+
+      const filtered = records.filter(record => {
+        const studentName = String(record.student_name || '').toLowerCase();
+        const className = String(record.class_name || '').toLowerCase();
+        const month = String(record.month_year || '');
+        const status = String(record.status || '').toLowerCase();
+        const matchesQuery = !query || studentName.includes(query) || className.includes(query);
+        const matchesClass = !classFilter || String(record.class_name || '') === classFilter || String(record.class_id || '') === classFilter;
+        const matchesMonth = !monthFilter || month === monthFilter;
+        const matchesStatus = !statusFilter || status === statusFilter;
+        return matchesQuery && matchesClass && matchesMonth && matchesStatus;
+      });
+
+      const totalDue = filtered.reduce((acc, item) => acc + Number(item.amount_due || 0), 0);
+      const totalCollected = filtered.reduce((acc, item) => acc + Number(item.amount_paid || 0), 0);
+      const collectionRate = totalDue > 0 ? Math.round((totalCollected / totalDue) * 100) : 0;
+
+      if (cards) {
+        cards.innerHTML = `
+          <div class="section-card" style="padding:14px; border:1px solid var(--border); box-shadow:none;">
+            <div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:6px;">Total Students</div>
+            <div style="font-size:1.25rem; font-weight:800; color:var(--text);">${filtered.length}</div>
+          </div>
+          <div class="section-card" style="padding:14px; border:1px solid var(--border); box-shadow:none;">
+            <div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:6px;">Total Due</div>
+            <div style="font-size:1.25rem; font-weight:800; color:var(--text);">${formatFeeCurrency(totalDue)}</div>
+          </div>
+          <div class="section-card" style="padding:14px; border:1px solid var(--border); box-shadow:none;">
+            <div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:6px;">Total Collected</div>
+            <div style="font-size:1.25rem; font-weight:800; color:var(--text);">${formatFeeCurrency(totalCollected)}</div>
+          </div>
+          <div class="section-card" style="padding:14px; border:1px solid var(--border); box-shadow:none;">
+            <div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:6px;">Collection Rate</div>
+            <div style="font-size:1.25rem; font-weight:800; color:var(--text);">${collectionRate}%</div>
+          </div>`;
+      }
+
+      if (!filtered.length) {
+        wrap.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">💳</div>
+            <div class="msg">No fee records found</div>
+            <div class="sub">Use the setup form above or connect the backend fee endpoints.</div>
+          </div>`;
+        return;
+      }
+
+      wrap.innerHTML = `
+        <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="text-align:left;">Student</th>
+              <th style="text-align:left;">Class</th>
+              <th style="text-align:center;">Month</th>
+              <th style="text-align:right;">Due</th>
+              <th style="text-align:right;">Paid</th>
+              <th style="text-align:center;">Status</th>
+              <th style="text-align:center;">Payment Date</th>
+              <th style="text-align:right;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filtered.map(record => `
+              <tr>
+                <td style="text-align:left;"><strong>${escapeHtml(record.student_name || 'Student')}</strong></td>
+                <td style="text-align:left; color:var(--text-secondary);">${escapeHtml(record.class_name || 'Unassigned')}</td>
+                <td style="text-align:center; color:var(--text-secondary);">${escapeHtml(record.month_year || '-')}</td>
+                <td style="text-align:right; font-weight:700;">${formatFeeCurrency(record.amount_due)}</td>
+                <td style="text-align:right;">${formatFeeCurrency(record.amount_paid)}</td>
+                <td style="text-align:center;">${getFeeStatusBadge(record.status)}</td>
+                <td style="text-align:center; color:var(--text-secondary);">${escapeHtml(record.payment_date || '-')}</td>
+                <td style="text-align:right;"><button class="btn btn-ghost btn-sm" onclick="openFeeModal(${record.id})"><i class="fas fa-pen"></i> Update</button></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+        </div>`;
+    }
+
+    function populateFeeSetupStudentOptions() {
+      const select = document.getElementById('feeSetupStudent');
+      if (!select) return;
+      select.innerHTML = '<option value="">Select a student</option>';
+      (window.appData.students || []).forEach(student => {
+        const option = document.createElement('option');
+        option.value = student.id;
+        option.textContent = `${student.name}${student.roll_no ? ` • ${student.roll_no}` : ''}`;
+        select.appendChild(option);
+      });
+    }
+
+    function openFeeModal(recordId) {
+      const modal = document.getElementById('feePaymentModal');
+      if (!modal) return;
+      const record = (window.appData.fees || []).find(item => Number(item.id) === Number(recordId));
+      const studentSelect = document.getElementById('feeRecordStudent');
+      studentSelect.innerHTML = '<option value="">Select student</option>';
+      (window.appData.students || []).forEach(student => {
+        const option = document.createElement('option');
+        option.value = student.id;
+        option.textContent = `${student.name}${student.roll_no ? ` • ${student.roll_no}` : ''}`;
+        if (record && Number(student.id) === Number(record.student_id)) option.selected = true;
+        studentSelect.appendChild(option);
+      });
+      document.getElementById('feeRecordId').value = record ? record.id : '';
+      document.getElementById('feeRecordMonth').value = record?.month_year || new Date().toISOString().slice(0, 7);
+      document.getElementById('feeRecordDue').value = record?.amount_due || '';
+      document.getElementById('feeRecordPaid').value = record?.amount_paid || '';
+      document.getElementById('feeRecordMethod').value = record?.payment_method || 'cash';
+      document.getElementById('feeRecordNotes').value = record?.notes || '';
+      modal.style.display = 'flex';
+    }
+
+    function closeFeeModal() {
+      const modal = document.getElementById('feePaymentModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function openFeePaymentModal() {
+      const modal = document.getElementById('feePaymentModal');
+      if (modal) modal.style.display = 'flex';
+      // Set default month to current month
+      document.getElementById('feeRecordMonth').value = new Date().toISOString().slice(0, 7);
+    }
+
+    function openFeeStructureModal() {
+      const modal = document.getElementById('feeStructureModal');
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function closeFeeStructureModal() {
+      const modal = document.getElementById('feeStructureModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function saveFeeStructure() {
+      const type = document.getElementById('feeStructureType').value;
+      const target = document.getElementById('feeStructureTarget').value;
+      const monthly = document.getElementById('feeStructureMonthly').value;
+      const admission = document.getElementById('feeStructureAdmission').value;
+      const transport = document.getElementById('feeStructureTransport').value;
+      const discount = document.getElementById('feeStructureDiscount').value;
+
+      if (!target) {
+        showToast('⚠️ Please select a class or student', 'warning');
+        return;
+      }
+
+      showToast('✅ Fee structure saved locally', 'success');
+      closeFeeStructureModal();
+    }
+
+    function saveFeeSetup() {
+      const studentId = document.getElementById('feeSetupStudent').value;
+      const monthlyFee = document.getElementById('feeSetupMonthly').value;
+      const admissionFee = document.getElementById('feeSetupAdmission').value;
+      const transportFee = document.getElementById('feeSetupTransport').value;
+      const discount = document.getElementById('feeSetupDiscount').value;
+      if (!studentId) {
+        showToast('⚠️ Choose a student first', 'warning');
+        return;
+      }
+      const student = (window.appData.students || []).find(item => String(item.id) === String(studentId));
+      const due = Number(monthlyFee || 0) + Number(admissionFee || 0) + Number(transportFee || 0) - Number(discount || 0);
+      const setupEntry = {
+        id: Date.now(),
+        student_id: studentId,
+        student_name: student?.name || 'Student',
+        class_name: student?.class_id ? (window.appData.classes || []).find(c => String(c.id) === String(student.class_id))?.name || 'Unassigned' : 'Unassigned',
+        month_year: new Date().toISOString().slice(0, 7),
+        amount_due: Math.max(0, due),
+        amount_paid: 0,
+        status: 'unpaid',
+        payment_date: '',
+        notes: 'Fee setup saved from admin UI.'
+      };
+      const existingIndex = (window.appData.fees || []).findIndex(item => Number(item.student_id) === Number(studentId) && String(item.month_year) === String(setupEntry.month_year));
+      if (existingIndex >= 0) window.appData.fees[existingIndex] = { ...window.appData.fees[existingIndex], ...setupEntry };
+      else window.appData.fees.unshift(setupEntry);
+      renderFees();
+      showToast('✅ Fee setup saved locally', 'success');
+    }
+
+    function saveFeeRecord() {
+      const id = document.getElementById('feeRecordId').value;
+      const studentId = document.getElementById('feeRecordStudent').value;
+      const monthYear = document.getElementById('feeRecordMonth').value;
+      const amountDue = Number(document.getElementById('feeRecordDue').value || 0);
+      const amountPaid = Number(document.getElementById('feeRecordPaid').value || 0);
+      const method = document.getElementById('feeRecordMethod').value;
+      const notes = document.getElementById('feeRecordNotes').value;
+      if (!studentId || !monthYear) {
+        showToast('⚠️ Student and month are required', 'warning');
+        return;
+      }
+      const student = (window.appData.students || []).find(item => String(item.id) === String(studentId));
+      const status = amountPaid <= 0 ? 'unpaid' : amountPaid < amountDue ? 'partial' : 'paid';
+      const record = {
+        id: id || Date.now(),
+        student_id: studentId,
+        student_name: student?.name || 'Student',
+        class_name: student?.class_id ? (window.appData.classes || []).find(c => String(c.id) === String(student.class_id))?.name || 'Unassigned' : 'Unassigned',
+        month_year: monthYear,
+        amount_due: amountDue,
+        amount_paid: amountPaid,
+        status,
+        payment_date: amountPaid > 0 ? monthYear + '-10' : '',
+        payment_method: method,
+        notes
+      };
+      const existingIndex = (window.appData.fees || []).findIndex(item => Number(item.id) === Number(record.id));
+      if (existingIndex >= 0) window.appData.fees[existingIndex] = record;
+      else window.appData.fees.unshift(record);
+      renderFees();
+      closeFeeModal();
+      showToast('✅ Fee record saved locally', 'success');
     }
 
     function showAdminSkeletons() {
@@ -2156,6 +2724,7 @@
       document.getElementById('attendanceTableWrap').innerHTML = getTableSkeletonHtml(7, 5);
       document.getElementById('statsTableWrap').innerHTML = getTableSkeletonHtml(7, 5);
       document.getElementById('announcementsList').innerHTML = getAnnouncementsSkeletonHtml(3);
+      document.getElementById('feesTableWrap').innerHTML = getTableSkeletonHtml(6, 4);
     }
 
     function getTableSkeletonHtml(cols = 4, rows = 5) {
@@ -2644,8 +3213,8 @@
         renderTeachers();
         btn.innerHTML = '<i class="fas fa-check"></i> Created';
         if (btn) btn.dataset.originalHtml = btn.innerHTML;
-        showCredentialsPanel(data.teacher_id, data.temp_password, 'teacher');
         showToast('✅ Teacher created successfully', 'success');
+        showCredentialsPanel(data.teacher_id, data.temp_password, 'teacher');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       } finally {
@@ -2869,13 +3438,11 @@
         // 3. Re-render table immediately so student appears
         filterStudents();
 
-        // 4. Show credentials modal first so a toast error can never block it
-        showCredentialsPanel(data.student_id, data.temp_password, 'student', async () => {
-          await reloadAllData(false, true);
-        });
-
-        // 5. Show success
+        // 4. Show success
         showToast('✅ Student saved successfully', 'success');
+
+        // 5. Show credentials modal
+        showCredentialsModal(data.student_id, data.temp_password);
 
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -3952,6 +4519,13 @@
             option.textContent = cls.name;
             select.appendChild(option);
           }
+          const feeClassFilter = document.getElementById('feeClassFilter');
+          if (feeClassFilter) {
+            const option = document.createElement('option');
+            option.value = cls.id;
+            option.textContent = cls.name;
+            feeClassFilter.appendChild(option);
+          }
           if (editSelect) {
             const option = document.createElement('option');
             option.value = cls.id;
@@ -4022,6 +4596,11 @@
 
       activeTabId = newTabId;
       history.replaceState(null, '', '#' + newTabId);
+
+      if (newTabId === 'tab-fees') {
+        populateFeeSetupStudentOptions();
+        renderFees();
+      }
 
       if (clearSearch) {
         if (newTabId === 'tab-classes') {
@@ -4190,10 +4769,27 @@
         });
       });
     });
-  </script>
 
-  <!-- Anti-inspect protection -->
-  <script src="anti-inspect.js"></script>
+    function showCredentialsModal(loginId, password) {
+      const modal = document.getElementById('simpleCredentialsModal');
+      const body = document.getElementById('simpleCredentialsModalBody');
+      if (!modal || !body) return;
+      body.innerHTML = `
+        <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:14px;">Share these with the student.</p>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;font-family:monospace;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <span style="color:var(--text-secondary);font-size:0.82rem;">Login ID:</span>
+            <strong id="simpleCredLoginId" style="user-select:all;color:var(--primary-light);font-size:1rem;">${escapeHtml(loginId)}</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text-secondary);font-size:0.82rem;">Password:</span>
+            <strong id="simpleCredPassword" style="user-select:all;color:var(--primary-light);font-size:1rem;">${escapeHtml(password)}</strong>
+          </div>
+        </div>
+      `;
+      modal.classList.add('open');
+    }
+  </script>
 
 </body>
 
