@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Student Portal — The Eye</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <meta name="description" content="Student and parent portal for The Eye School Management System.">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -179,6 +183,80 @@
       background: rgba(255,255,255,0.2);
       border-color: rgba(255,255,255,0.5);
       transform: scale(1.06);
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 8px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .badge.paid {
+      background: var(--success-bg);
+      color: var(--success);
+    }
+
+    .badge.unpaid {
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+
+    .badge.partial {
+      background: var(--warning-bg);
+      color: var(--warning);
+    }
+
+    .badge.pending {
+      background: rgba(34, 197, 94, 0.1);
+      color: var(--primary-light);
+    }
+
+    /* Data Table */
+    .data-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 0.82rem;
+    }
+
+    .data-table thead th {
+      padding: 10px 14px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .data-table tbody tr {
+      transition: background 0.2s ease;
+    }
+
+    .data-table tbody tr:hover {
+      background: rgba(34, 197, 94, 0.06);
+    }
+
+    .data-table tbody tr:nth-child(even) {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .data-table tbody tr:nth-child(even):hover {
+      background: rgba(34, 197, 94, 0.06);
+    }
+
+    .data-table tbody td {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-secondary);
+      vertical-align: middle;
     }
 
     .main {
@@ -605,6 +683,9 @@
       <a href="#tab-announcements" class="tab-btn" data-section="tab-announcements">
         <i class="fas fa-bullhorn"></i>Announcements
       </a>
+      <a href="#tab-fees" class="tab-btn" data-section="tab-fees">
+        <i class="fas fa-money-bill-wave"></i>Fees
+      </a>
     </div>
   </nav>
 
@@ -612,7 +693,6 @@
 
     <!-- TEACHER TAB -->
     <div id="tab-teacher" class="tab-content active">
-      <div class="notice" id="studentNotice"></div>
       <section class="section-card" id="teacherSection">
         <div class="section-header">
           <div class="section-icon blue"><i class="fas fa-chalkboard-user"></i></div>
@@ -667,6 +747,108 @@
       </section>
     </div>
 
+    <!-- FEES TAB -->
+    <div id="tab-fees" class="tab-content">
+      <!-- Current Month Fee Status -->
+      <section class="section-card" id="currentFeeCard">
+        <div class="section-header">
+          <div class="section-icon amber"><i class="fas fa-money-bill-wave"></i></div>
+          <div>
+            <div class="section-title">Current Month Fee</div>
+            <div class="section-subtitle">July 2026</div>
+          </div>
+        </div>
+        <div class="section-body">
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:16px; margin-bottom:20px;">
+            <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; padding:16px;">
+              <div style="font-size:0.75rem; color:var(--text-muted); font-weight:600; margin-bottom:8px;">Amount Due</div>
+              <div style="font-size:1.5rem; font-weight:800; color:var(--text);">Rs. 5,000</div>
+            </div>
+            <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; padding:16px;">
+              <div style="font-size:0.75rem; color:var(--text-muted); font-weight:600; margin-bottom:8px;">Amount Paid</div>
+              <div style="font-size:1.5rem; font-weight:800; color:var(--success);">Rs. 5,000</div>
+            </div>
+            <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; padding:16px;">
+              <div style="font-size:0.75rem; color:var(--text-muted); font-weight:600; margin-bottom:8px;">Status</div>
+              <div style="font-size:1.1rem; font-weight:700; color:var(--success);">Paid</div>
+            </div>
+            <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; padding:16px;">
+              <div style="font-size:0.75rem; color:var(--text-muted); font-weight:600; margin-bottom:8px;">Payment Date</div>
+              <div style="font-size:1.1rem; font-weight:600; color:var(--text);">July 5, 2026</div>
+            </div>
+          </div>
+          <div style="background:var(--success-bg); border:1px solid rgba(34, 197, 94, 0.2); border-radius:10px; padding:12px 16px; display:flex; align-items:center; gap:10px;">
+            <i class="fas fa-check-circle" style="color:var(--success); font-size:1.2rem;"></i>
+            <div>
+              <div style="font-size:0.85rem; font-weight:700; color:var(--success);">Fee Paid Successfully</div>
+              <div style="font-size:0.75rem; color:var(--text-secondary);">Your July 2026 fee has been received</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Fee History -->
+      <section class="section-card" id="feeHistoryCard">
+        <div class="section-header">
+          <div class="section-icon blue"><i class="fas fa-history"></i></div>
+          <div>
+            <div class="section-title">Payment History</div>
+            <div class="section-subtitle">Recent fee payments</div>
+          </div>
+        </div>
+        <div class="section-body">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Month</th>
+                <th>Amount Due</th>
+                <th>Amount Paid</th>
+                <th>Status</th>
+                <th>Payment Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>July 2026</td>
+                <td>Rs. 5,000</td>
+                <td>Rs. 5,000</td>
+                <td><span class="badge paid"><i class="fas fa-check"></i> Paid</span></td>
+                <td>2026-07-05</td>
+              </tr>
+              <tr>
+                <td>June 2026</td>
+                <td>Rs. 5,000</td>
+                <td>Rs. 5,000</td>
+                <td><span class="badge paid"><i class="fas fa-check"></i> Paid</span></td>
+                <td>2026-06-03</td>
+              </tr>
+              <tr>
+                <td>May 2026</td>
+                <td>Rs. 5,000</td>
+                <td>Rs. 5,000</td>
+                <td><span class="badge paid"><i class="fas fa-check"></i> Paid</span></td>
+                <td>2026-05-02</td>
+              </tr>
+              <tr>
+                <td>April 2026</td>
+                <td>Rs. 5,000</td>
+                <td>Rs. 5,000</td>
+                <td><span class="badge paid"><i class="fas fa-check"></i> Paid</span></td>
+                <td>2026-04-01</td>
+              </tr>
+              <tr>
+                <td>March 2026</td>
+                <td>Rs. 5,000</td>
+                <td>Rs. 5,000</td>
+                <td><span class="badge paid"><i class="fas fa-check"></i> Paid</span></td>
+                <td>2026-03-05</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
   </main>
 
   <div class="edit-modal" id="changePasswordModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
@@ -694,18 +876,97 @@
     </div>
   </div>
 
-  <script src="/auth-utils.js"></script>
+  <script>
+const API_BASE = window.location.origin;
+
+let isRedirecting = false;
+
+function authHeader() {
+  const token = localStorage.getItem('auth_token');
+  return token ? { Authorization: 'Bearer ' + token } : {};
+}
+
+function setAuthToken(token) {
+  if (token) localStorage.setItem('auth_token', token);
+}
+
+function redirectToLogin() {
+  if (isRedirecting) return;
+  isRedirecting = true;
+  localStorage.removeItem('auth_token');
+  window.location.href = '/index.html';
+}
+
+async function refreshSession() {
+  try {
+    const res = await fetch(API_BASE + '/api/auth/me', {
+      credentials: 'include',
+      headers: authHeader()
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.token) setAuthToken(data.token);
+    return data;
+  } catch (err) {
+    return null;
+  }
+}
+
+async function apiFetch(url, options = {}) {
+  const fullUrl = url.startsWith('/api') ? API_BASE + url : url;
+  const doFetch = () => fetch(fullUrl, {
+    credentials: 'include',
+    ...options,
+    headers: {
+      ...authHeader(),
+      ...(options.headers || {})
+    }
+  });
+
+  let res = await doFetch();
+  if (res.status === 401) {
+    const session = await refreshSession();
+    if (!session) {
+      redirectToLogin();
+      return res;
+    }
+    res = await doFetch();
+    if (res.status === 401) redirectToLogin();
+  }
+
+  return res;
+}
+
+function startSessionKeepAlive(intervalMs = 10 * 60 * 1000) {
+  refreshSession();
+  setInterval(refreshSession, intervalMs);
+}
+
+function setButtonLoading(btn, loading, loadingHtml) {
+  if (!btn) return;
+  if (loading) {
+    if (!btn.dataset.originalHtml) btn.dataset.originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = loadingHtml || '<i class="fas fa-spinner fa-spin"></i> Saving...';
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = btn.dataset.originalHtml || btn.innerHTML;
+    delete btn.dataset.originalHtml;
+  }
+}
+</script>
   <script>
     // =============================================================
     // API CONFIGURATION (Automatic Localhost / Production Detection)
     // =============================================================
-    const API = '';
+    const API = window.location.origin;
     let sessionUser = null;
 
     const state = {
       student: null,
       classInfo: null,
-      teacher: null
+      teacher: null,
+      fees: []
     };
 
     function escapeHtml(value) {
@@ -740,12 +1001,6 @@
       `;
     }
 
-    function setNotice(message) {
-      const notice = document.getElementById('studentNotice');
-      notice.textContent = message;
-      notice.classList.add('show');
-    }
-
     function toggleTheme() {
       const html = document.documentElement;
       const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
@@ -763,7 +1018,7 @@
       const data = await refreshSession();
       if (!data) { redirectToLogin(); return false; }
       if (data.role !== 'student') { window.location.href = '/index.html'; return false; }
-      if (data.is_first_login) { window.location.href = '/change-password.html'; return false; }
+      window._isFirstLogin = data.is_first_login;
       sessionUser = data;
       return true;
     }
@@ -801,6 +1056,7 @@
         msgEl.style.color = 'var(--danger)';
       } else {
         if (data.token) localStorage.setItem('auth_token', data.token);
+        window._isFirstLogin = false;
         msgEl.textContent = 'Password changed successfully';
         msgEl.style.color = 'var(--success)';
         setTimeout(closeChangePasswordModal, 1000);
@@ -953,6 +1209,82 @@
       `;
     }
 
+    function getDemoFeeRecords(student) {
+      const month = new Date().toISOString().slice(0, 7);
+      const due = 3000 + ((Number(student?.id || 1) % 5) * 400);
+      const paid = Number(student?.id || 1) % 3 === 0 ? due : Number(student?.id || 1) % 3 === 1 ? Math.round(due / 2) : 0;
+      const status = paid <= 0 ? 'unpaid' : paid < due ? 'partial' : 'paid';
+      return [
+        {
+          month_year: month,
+          amount_due: due,
+          amount_paid: paid,
+          status,
+          payment_date: paid > 0 ? `${month}-10` : '',
+          notes: paid > 0 ? 'Payment recorded in the school office.' : 'Awaiting payment.'
+        },
+        {
+          month_year: `${new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 7)}`,
+          amount_due: due,
+          amount_paid: due,
+          status: 'paid',
+          payment_date: `${new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)}`,
+          notes: 'Previous month cleared.'
+        }
+      ];
+    }
+
+    function renderFees(records) {
+      const feeHistory = Array.isArray(records) && records.length ? records : getDemoFeeRecords(state.student);
+      state.fees = feeHistory;
+      const currentMonth = feeHistory[0];
+      const currentStatus = String(currentMonth?.status || 'unpaid').toLowerCase();
+      const statusLabel = currentStatus === 'paid' ? 'Paid' : currentStatus === 'partial' ? 'Partial' : currentStatus === 'pending_approval' ? 'Pending Approval' : 'Unpaid';
+      const statusColor = currentStatus === 'paid' ? 'var(--success)' : currentStatus === 'partial' ? 'var(--warning)' : currentStatus === 'pending_approval' ? 'var(--primary)' : 'var(--danger)';
+
+      document.getElementById('feesSection').innerHTML = `
+        <div class="attendance-grid" style="margin-bottom:14px;">
+          <div class="summary-card">
+            <div class="summary-number">${escapeHtml(currentMonth?.month_year || '-')}</div>
+            <div class="summary-label">Current Month</div>
+          </div>
+          <div class="summary-card" style="border-color:${statusColor};">
+            <div class="summary-number">${escapeHtml(statusLabel)}</div>
+            <div class="summary-label">Fee Status</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-number">${escapeHtml(String(currentMonth?.amount_due || 0))}</div>
+            <div class="summary-label">Amount Due</div>
+          </div>
+          <div class="summary-card present">
+            <div class="summary-number">${escapeHtml(String(currentMonth?.amount_paid || 0))}</div>
+            <div class="summary-label">Amount Paid</div>
+          </div>
+        </div>
+        <div class="item-list">
+          <div style="font-size:0.9rem; font-weight:700; color:var(--text); margin-bottom:8px;">Recent Fee History</div>
+          ${feeHistory.map(item => `
+            <div class="list-item">
+              <div class="item-topline">
+                <div class="item-title">${escapeHtml(item.month_year || 'Month')}</div>
+                <div class="item-date">${escapeHtml(item.payment_date || 'Pending')}</div>
+              </div>
+              <div class="item-text">Due ${escapeHtml(String(item.amount_due || 0))} • Paid ${escapeHtml(String(item.amount_paid || 0))} • ${escapeHtml(item.notes || '')}</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    async function loadFees() {
+      try {
+        const payload = await fetchOptional([`${API}/api/fees/me`, `${API}/api/fees`]);
+        renderFees(Array.isArray(payload) ? payload : []);
+      } catch (err) {
+        renderFees([]);
+      }
+    }
+
     function renderStudentChooser(students, classes) {
       document.getElementById('studentName').textContent = 'Choose student';
       document.getElementById('studentClass').textContent = 'Select a student to open the portal';
@@ -983,7 +1315,6 @@
     function openSelectedStudent() {
       const select = document.getElementById('studentPicker');
       if (!select || !select.value) {
-        setNotice('Please select a student to continue.');
         return;
       }
       window.location.href = `${window.location.pathname}?id=s_${select.value}`;
@@ -1079,30 +1410,38 @@
         fn();
       }
 
-      let students, classes, teachers;
+      let studentData = null;
+      let classData = null;
+      let teacherData = null;
+
       try {
-        [students, classes, teachers] = await Promise.all([
-          fetchJson(`${API}/api/students`),
-          fetchJson(`${API}/api/classes`),
-          fetchJson(`${API}/api/teachers`)
-        ]);
+        studentData = await fetchJson(`${API}/api/students/me`);
       } catch (err) {
         await revealAfterMinTime(() => {
           document.getElementById('studentName').textContent = 'Unable to load portal';
           document.getElementById('studentClass').textContent = 'Please try again later';
-          ['teacherCard', 'attendanceSection', 'homeworkSection', 'announcementsSection'].forEach(id => {
-            setStateBox(id, 'fas fa-circle-exclamation', 'Data failed to load', err.message);
-          });
+          setStateBox('teacherCard', 'fas fa-circle-exclamation', 'Failed to load student info', err.message);
         });
         return;
       }
 
-      const studentId = sessionUser ? Number(sessionUser.user_id) : getStudentIdFromUrl();
-      const rollNo = getRollNoFromUrl();
+      state.student = studentData;
 
-      state.student = studentId
-        ? students.find(student => Number(student.id) === studentId)
-        : rollNo ? students.find(student => String(student.roll_no || '').toLowerCase() === rollNo.toLowerCase()) : null;
+      try {
+        classData = await fetchJson(`${API}/api/classes/me`);
+        state.classInfo = classData;
+      } catch (err) {
+        state.classInfo = null;
+        setStateBox('teacherCard', 'fas fa-circle-exclamation', 'Failed to load class info', err.message);
+      }
+
+      try {
+        teacherData = await fetchJson(`${API}/api/teachers?class_id=${state.student?.class_id ?? ''}`);
+        state.teacher = Array.isArray(teacherData) ? teacherData[0] || null : null;
+      } catch (err) {
+        state.teacher = null;
+        setStateBox('teacherCard', 'fas fa-circle-exclamation', 'Failed to load teacher info', err.message);
+      }
 
       if (!state.student) {
         await revealAfterMinTime(() => {
@@ -1115,9 +1454,6 @@
         return;
       }
 
-      state.classInfo = classes.find(cls => Number(cls.id) === Number(state.student.class_id)) || null;
-      state.teacher = teachers.find(teacher => Number(teacher.class_id) === Number(state.student.class_id)) || null;
-
       // Section 1 — Teacher (0ms extra stagger, just honour MIN_SKELETON_MS)
       await revealAfterMinTime(() => {
         renderHeader();
@@ -1125,11 +1461,9 @@
       }, 0);
 
       // Section 2 — Attendance (300ms stagger after min-time)
+      await delay(300);
       try {
-        const [attendance] = await Promise.all([
-          fetchJson(`${API}/api/attendance/all`),
-          delay(300)
-        ]);
+        const attendance = await fetchJson(`${API}/api/attendance/me`);
         renderAttendance(attendance);
       } catch (err) {
         setStateBox('attendanceSection', 'fas fa-circle-exclamation', 'Attendance failed to load', err.message);
@@ -1157,6 +1491,14 @@
         renderAnnouncements(announcements);
       } catch (err) {
         setStateBox('announcementsSection', 'fas fa-plug-circle-xmark', 'Announcements API is not available yet', 'This section will work when the backend provides announcement data.');
+      }
+
+      // Section 5 — Fees
+      await delay(300);
+      try {
+        await loadFees();
+      } catch (err) {
+        setStateBox('feesSection', 'fas fa-receipt', 'Fee history is still loading', 'The fee section will render as soon as data is available.');
       }
     }
 
