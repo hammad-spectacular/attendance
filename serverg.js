@@ -170,6 +170,37 @@ async function createTables() {
     ALTER TABLE organizations ADD COLUMN IF NOT EXISTS contact_email VARCHAR(200);
   `)
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS fee_structures (
+      id SERIAL PRIMARY KEY,
+      type VARCHAR(20) NOT NULL,
+      target_id INTEGER NOT NULL,
+      monthly_fee NUMERIC(10, 2) DEFAULT 0,
+      admission_fee NUMERIC(10, 2) DEFAULT 0,
+      transport_fee NUMERIC(10, 2) DEFAULT 0,
+      discount NUMERIC(10, 2) DEFAULT 0,
+      tenant_id VARCHAR(10) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS fee_payments (
+      id SERIAL PRIMARY KEY,
+      student_id INTEGER NOT NULL,
+      month VARCHAR(7) NOT NULL,
+      amount_due NUMERIC(10, 2) DEFAULT 0,
+      amount_paid NUMERIC(10, 2) DEFAULT 0,
+      status VARCHAR(20) DEFAULT 'unpaid',
+      payment_method VARCHAR(50),
+      payment_date DATE,
+      notes TEXT,
+      tenant_id VARCHAR(10) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(student_id, month, tenant_id)
+    );
+  `)
+
   // Fix existing admin login_id values that were stored as the full concatenated ID
   await pool.query(`
     UPDATE admins SET login_id = 'ADM' WHERE tenant_id = 'SUPER' AND login_id = 'SUPER-ADM'
@@ -1118,6 +1149,224 @@ app.delete('/api/announcements/:id', requireAuth(['admin', 'teacher', 'super_adm
   const tenant_id = req.user.tenant_id
   await pool.query('DELETE FROM announcements WHERE id = $1 AND tenant_id = $2', [req.params.id, tenant_id])
   res.json({ success: true })
+})
+
+// ============================================
+// FEE MANAGEMENT ROUTES
+// ============================================
+
+// GET /api/fees/structures - List all fee structures for the tenant
+app.get('/api/fees/structures', requireAuth(['admin', 'teacher']), async (req, res) => {
+  const tenant_id = req.user.tenant_id
+  const result = await pool.query(
+    `SELECT fee_structures.*, 
+      CASE 
+        WHEN fee_structures.type = 'class' THEN classes.name 
+        WHEN fee_structures.type = 'student' THEN students.name 
+      END as target_name
+     FROM fee_structures
+     LEFT JOIN classes ON fee_structures.type = 'class' AND fee_structures.target_id = classes.id
+     LEFT JOIN students ON fee_structures.type = 'student' AND fee_structures.target_id = students.id
+     WHERE fee_structures.tenant_id = $1
+     ORDER BY fee_structures.created_at DESC`,
+    [tenant_id]
+  )
+  res.json(result.rows)
+})
+
+// POST /api/fees/structures - Create a new fee structure
+app.post('/api/fees/structures', requireAuth(['admin']), async (req, res) => {
+  const { type, target_id, monthly_fee, admission_fee, transport_fee, discount } = req.body
+  const tenant_id = req.user.tenant_id
+
+  if (!type || !target_id) {
+    return res.status(400).json({ error: 'type and target_id are required' })
+  }
+
+  const result = await pool.query(
+    `INSERT INTO fee_structures (type, target_id, monthly_fee, admission_fee, transport_fee, discount, tenant_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    [type, target_id, monthly_fee || 0, admission_fee || 0, transport_fee || 0, discount || 0, tenant_id]
+  )
+  res.json(result.rows[0])
+})
+
+// PUT /api/fees/structures/:id - Update an existing fee structure
+app.put('/api/fees/structures/:id', requireAuth(['admin']), async (req, res) => {
+  const { type, target_id, monthly_fee, admission_fee, transport_fee, discount } = req.body
+  const tenant_id = req.user.tenant_id
+
+  const result = await pool.query(
+    `UPDATE fee_structures 
+     SET type = $1, target_id = $2, monthly_fee = $3, admission_fee = $4, transport_fee = $5, discount = $6, updated_at = CURRENT_TIMESTAMP
+     WHERE id = $7 AND tenant_id = $8
+     RETURNING *`,
+    [type, target_id, monthly_fee || 0, admission_fee || 0, transport_fee || 0, discount || 0, req.params.id, tenant_id]
+  )
+
+  if (result.rows.length === 0) {
+    return res.status(404).json({ error: 'Fee structure not found' })
+  }
+
+  res.json(result.rows[0])
+})
+
+// GET /api/fees/payments - List fee payments with filters
+app.get('/api/fees/payments', requireAuth(['admin', 'teacher']), async (req, res) => {
+  const tenant_id = req.user.tenant_id
+  const { month, class_id, status, search } = req.query
+
+  let query = `
+    SELECT fee_payments.*, students.name as student_name, students.roll_no, classes.name as class_name
+    FROM fee_payments
+    JOIN students ON fee_payments.student_id = students.id
+    LEFT JOIN classes ON students.class_id = classes.id
+    WHERE fee_payments.tenant_id = $1
+  `
+  const params = [tenant_id]
+  let paramIndex = 2
+
+  if (month) {
+    query += ` AND fee_payments.month = $${paramIndex}`
+    params.push(month)
+    paramIndex++
+  }
+
+  if (class_id) {
+    query += ` AND students.class_id = $${paramIndex}`
+    params.push(class_id)
+    paramIndex++
+  }
+
+  if (status) {
+    query += ` AND fee_payments.status = $${paramIndex}`
+    params.push(status)
+    paramIndex++
+  }
+
+  if (search) {
+    query += ` AND (students.name ILIKE $${paramIndex} OR students.roll_no ILIKE $${paramIndex})`
+    params.push(`%${search}%`)
+    paramIndex++
+  }
+
+  query += ` ORDER BY fee_payments.month DESC, students.name ASC`
+
+  const result = await pool.query(query, params)
+  res.json(result.rows)
+})
+
+// POST /api/fees/payments - Upsert fee payment record
+app.post('/api/fees/payments', requireAuth(['admin']), async (req, res) => {
+  const { student_id, month, amount_due, amount_paid, payment_method, payment_date, notes } = req.body
+  const tenant_id = req.user.tenant_id
+
+  if (!student_id || !month) {
+    return res.status(400).json({ error: 'student_id and month are required' })
+  }
+
+  // Auto-calculate status
+  const due = Number(amount_due) || 0
+  const paid = Number(amount_paid) || 0
+  let status = 'unpaid'
+  if (paid >= due) {
+    status = 'paid'
+  } else if (paid > 0) {
+    status = 'partial'
+  }
+
+  // Check if record exists
+  const existing = await pool.query(
+    'SELECT id FROM fee_payments WHERE student_id = $1 AND month = $2 AND tenant_id = $3',
+    [student_id, month, tenant_id]
+  )
+
+  let result
+  if (existing.rows.length > 0) {
+    // Update existing
+    result = await pool.query(
+      `UPDATE fee_payments 
+       SET amount_due = $1, amount_paid = $2, status = $3, payment_method = $4, payment_date = $5, notes = $6, updated_at = CURRENT_TIMESTAMP
+       WHERE student_id = $7 AND month = $8 AND tenant_id = $9
+       RETURNING *`,
+      [due, paid, status, payment_method, payment_date, notes, student_id, month, tenant_id]
+    )
+  } else {
+    // Insert new
+    result = await pool.query(
+      `INSERT INTO fee_payments (student_id, month, amount_due, amount_paid, status, payment_method, payment_date, notes, tenant_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [student_id, month, due, paid, status, payment_method, payment_date, notes, tenant_id]
+    )
+  }
+
+  res.json(result.rows[0])
+})
+
+// GET /api/fees/stats - Get fee statistics for a month
+app.get('/api/fees/stats', requireAuth(['admin', 'teacher']), async (req, res) => {
+  const tenant_id = req.user.tenant_id
+  const { month } = req.query
+
+  let monthFilter = ''
+  const params = [tenant_id]
+  let paramIndex = 2
+
+  if (month) {
+    monthFilter = ` AND fee_payments.month = $${paramIndex}`
+    params.push(month)
+    paramIndex++
+  }
+
+  const stats = await pool.query(
+    `SELECT 
+      COUNT(DISTINCT students.id) as total_students,
+      COALESCE(SUM(fee_payments.amount_due), 0) as total_due,
+      COALESCE(SUM(fee_payments.amount_paid), 0) as total_collected
+     FROM students
+     LEFT JOIN fee_payments ON students.id = fee_payments.student_id AND fee_payments.tenant_id = students.tenant_id${monthFilter}
+     WHERE students.tenant_id = $1`,
+    params
+  )
+
+  const data = stats.rows[0]
+  const totalStudents = Number(data.total_students) || 0
+  const totalDue = Number(data.total_due) || 0
+  const totalCollected = Number(data.total_collected) || 0
+  const collectionRate = totalDue > 0 ? Math.round((totalCollected / totalDue) * 100) : 0
+
+  res.json({
+    total_students: totalStudents,
+    total_due: totalDue,
+    total_collected: totalCollected,
+    collection_rate: collectionRate
+  })
+})
+
+// GET /api/fees/me - Get current student's fee records
+app.get('/api/fees/me', requireAuth(['student']), async (req, res) => {
+  const tenant_id = req.user.tenant_id
+  const student_id = req.user.user_id
+  const { month } = req.query
+
+  let query = `
+    SELECT fee_payments.*, students.name as student_name, classes.name as class_name
+    FROM fee_payments
+    JOIN students ON fee_payments.student_id = students.id
+    LEFT JOIN classes ON students.class_id = classes.id
+    WHERE fee_payments.student_id = $1 AND fee_payments.tenant_id = $2
+  `
+  const params = [student_id, tenant_id]
+
+  if (month) {
+    query += ` AND fee_payments.month = $3`
+    params.push(month)
+  }
+
+  query += ` ORDER BY fee_payments.month DESC`
+
+  const result = await pool.query(query, params)
+  res.json(result.rows)
 })
 
 
