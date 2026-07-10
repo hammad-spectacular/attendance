@@ -1760,45 +1760,8 @@
 
     <!-- ==================== FEES TAB ==================== -->
     <div id="tab-fees" class="tab-content">
-      <!-- Stats Grid -->
-      <div class="stats-grid" style="margin-bottom:24px;">
-        <div class="stat-card">
-          <div class="stat-icon purple">
-            <i class="fa-solid fa-users"></i>
-          </div>
-          <div class="stat-info">
-            <div class="stat-value" id="feeTotalStudents">245</div>
-            <div class="stat-label">Total Students</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon amber">
-            <i class="fa-solid fa-clock"></i>
-          </div>
-          <div class="stat-info">
-            <div class="stat-value" id="feeTotalDue">Rs. 1.2L</div>
-            <div class="stat-label">Total Due</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon green">
-            <i class="fa-solid fa-check-circle"></i>
-          </div>
-          <div class="stat-info">
-            <div class="stat-value" id="feeTotalCollected">Rs. 4.8L</div>
-            <div class="stat-label">Total Collected</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon blue">
-            <i class="fa-solid fa-percentage"></i>
-          </div>
-          <div class="stat-info">
-            <div class="stat-value" id="feeCollectionRate">78%</div>
-            <div class="stat-label">Collection Rate</div>
-          </div>
-        </div>
-      </div>
+      <!-- Stats Grid (populated by renderFees) -->
+      <div id="feesSummaryCards"></div>
 
       <div class="section-card" id="feesSection">
         <div class="section-header">
@@ -2480,7 +2443,7 @@
 
     async function loadFeeData() {
       try {
-        const response = await apiFetch('/api/fees');
+        const response = await apiFetch('/api/fees/payments');
         if (!response.ok) throw new Error('Fee endpoint is not ready yet');
         const data = await response.json();
         window.appData.fees = Array.isArray(data) ? data : [];
