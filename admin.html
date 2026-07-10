@@ -2684,11 +2684,15 @@
       }
 
       try {
-        await apiFetch('/api/fees/structures', {
+        const res = await apiFetch('/api/fees/structures', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ type, target_id: parseInt(target), monthly_fee: monthly, admission_fee: admission, transport_fee: transport, discount })
         });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `Server returned ${res.status}`);
+        }
         showToast('✅ Fee structure saved', 'success');
         closeFeeStructureModal();
         // Reload fee structures and refresh UI
@@ -2885,8 +2889,7 @@
       showToast('✅ Fee setup saved locally', 'success');
     }
 
-    function saveFeeRecord() {
-      const id = document.getElementById('feeRecordId').value;
+    async function saveFeeRecord() {
       const studentId = document.getElementById('feeRecordStudent').value;
       const monthYear = document.getElementById('feeRecordMonth').value;
       const amountDue = Number(document.getElementById('feeRecordDue').value || 0);
@@ -2897,27 +2900,33 @@
         showToast('⚠️ Student and month are required', 'warning');
         return;
       }
-      const student = (window.appData.students || []).find(item => String(item.id) === String(studentId));
-      const status = amountPaid <= 0 ? 'unpaid' : amountPaid < amountDue ? 'partial' : 'paid';
-      const record = {
-        id: id || Date.now(),
-        student_id: studentId,
-        student_name: student?.name || 'Student',
-        class_name: student?.class_id ? (window.appData.classes || []).find(c => String(c.id) === String(student.class_id))?.name || 'Unassigned' : 'Unassigned',
-        month_year: monthYear,
-        amount_due: amountDue,
-        amount_paid: amountPaid,
-        status,
-        payment_date: amountPaid > 0 ? monthYear + '-10' : '',
-        payment_method: method,
-        notes
-      };
-      const existingIndex = (window.appData.fees || []).findIndex(item => Number(item.id) === Number(record.id) || Number(item.payment_id) === Number(record.id));
-      if (existingIndex >= 0) window.appData.fees[existingIndex] = { ...record, payment_id: window.appData.fees[existingIndex].payment_id };
-      else window.appData.fees.unshift(record);
-      renderFees();
-      closeFeeModal();
-      showToast('✅ Fee record saved locally', 'success');
+
+      try {
+        const res = await apiFetch('/api/fees/payments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            student_id: parseInt(studentId),
+            month: monthYear,
+            amount_due: amountDue,
+            amount_paid: amountPaid,
+            payment_method: method,
+            payment_date: amountPaid > 0 ? monthYear + '-10' : '',
+            notes
+          })
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `Server returned ${res.status}`);
+        }
+
+        // Reload overview + stats from server
+        await loadFeeData();
+        closeFeeModal();
+        showToast('✅ Fee record saved', 'success');
+      } catch (err) {
+        showToast(`❌ ${err.message}`, 'error');
+      }
     }
 
     function showAdminSkeletons() {
