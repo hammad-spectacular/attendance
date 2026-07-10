@@ -1219,7 +1219,50 @@ app.put('/api/fees/structures/:id', requireAuth(['admin']), async (req, res) => 
 // GET /api/fees/payments - List fee payments with filters
 app.get('/api/fees/payments', requireAuth(['admin', 'teacher']), async (req, res) => {
   const tenant_id = req.user.tenant_id
-  const { month, class_id, status, search } = req.query
+  const { mode, month, class_id, status, search } = req.query
+
+  // mode=overview returns ALL students for the tenant with their payment status (LEFT JOIN)
+  // so students without a payment record still appear with status='not_set_up'
+  if (mode === 'overview') {
+    const overviewMonth = month || new Date().toISOString().slice(0, 7)
+    let query = `
+      SELECT 
+        students.id as student_id,
+        students.name as student_name,
+        students.roll_no,
+        students.class_id,
+        classes.name as class_name,
+        fee_payments.id as payment_id,
+        fee_payments.month as month_year,
+        fee_payments.amount_due,
+        fee_payments.amount_paid,
+        COALESCE(fee_payments.status, 'not_set_up') as status,
+        fee_payments.payment_date,
+        fee_payments.payment_method,
+        fee_payments.notes
+      FROM students
+      LEFT JOIN fee_payments ON students.id = fee_payments.student_id AND fee_payments.tenant_id = students.tenant_id AND fee_payments.month = $2
+      LEFT JOIN classes ON students.class_id = classes.id AND students.tenant_id = classes.tenant_id
+      WHERE students.tenant_id = $1
+    `
+    const params = [tenant_id, overviewMonth]
+    let paramIdx = 3
+
+    if (class_id) {
+      query += ` AND students.class_id = $${paramIdx}`
+      params.push(class_id)
+      paramIdx++
+    }
+    if (search) {
+      query += ` AND (students.name ILIKE $${paramIdx} OR students.roll_no ILIKE $${paramIdx})`
+      params.push(`%${search}%`)
+      paramIdx++
+    }
+
+    query += ` ORDER BY students.name ASC`
+    const result = await pool.query(query, params)
+    return res.json(result.rows)
+  }
 
   let query = `
     SELECT fee_payments.*, students.name as student_name, students.roll_no, classes.name as class_name
