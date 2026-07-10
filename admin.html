@@ -4478,46 +4478,6 @@
     async function populateClassDropdown(classes) {
       try {
         const select = document.getElementById('teacherClass');
-        select.innerHTML = '<option value="">-- Select a class --</option>';
-
-        const editSelect = document.getElementById('editTeacherClass');
-        if (editSelect) {
-          editSelect.innerHTML = '<option value="">-- Select a class --</option>';
-        }
-
-        const filterSelect = document.getElementById('studentClassFilter');
-        const filterVal = filterSelect ? filterSelect.value : '';
-        if (filterSelect) {
-          filterSelect.innerHTML = '<option value="">All Classes</option><option value="unassigned">Unassigned</option>';
-        }
-
-        classes.forEach(cls => {
-          const option = document.createElement('option');
-          option.value = cls.id;
-          option.textContent = cls.name;
-          select.appendChild(option.cloneNode(true));
-          if (editSelect) {
-            editSelect.appendChild(option.cloneNode(true));
-          }
-          if (filterSelect) {
-            const filterOption = document.createElement('option');
-            filterOption.value = cls.id;
-            filterOption.textContent = cls.name;
-            filterSelect.appendChild(filterOption);
-          }
-        });
-
-        if (filterSelect && filterVal) {
-          filterSelect.value = filterVal;
-        }
-      } catch (err) {
-        console.error('Error loading classes dropdown:', err);
-      }
-    }
-
-    async function populateClassDropdown(classes) {
-      try {
-        const select = document.getElementById('teacherClass');
         if (select) select.innerHTML = '<option value="">-- Select a class --</option>';
 
         const editSelect = document.getElementById('editTeacherClass');
@@ -4541,6 +4501,12 @@
           statsClassSelect.innerHTML = '<option value="">All Classes</option>';
         }
 
+        const feeClassFilter = document.getElementById('feeClassFilter');
+        const feeClassVal = feeClassFilter ? feeClassFilter.value : '';
+        if (feeClassFilter) {
+          feeClassFilter.innerHTML = '<option value="">All Classes</option>';
+        }
+
         classes.forEach(cls => {
           if (select) {
             const option = document.createElement('option');
@@ -4548,7 +4514,6 @@
             option.textContent = cls.name;
             select.appendChild(option);
           }
-          const feeClassFilter = document.getElementById('feeClassFilter');
           if (feeClassFilter) {
             const option = document.createElement('option');
             option.value = cls.id;
@@ -4584,6 +4549,7 @@
         if (filterSelect && filterVal) filterSelect.value = filterVal;
         if (attendanceClassFilter && attendanceVal) attendanceClassFilter.value = attendanceVal;
         if (statsClassSelect && statsVal) statsClassSelect.value = statsVal;
+        if (feeClassFilter && feeClassVal) feeClassFilter.value = feeClassVal;
       } catch (err) {
         console.error('Error loading classes dropdown:', err);
       }
