@@ -185,6 +185,80 @@
       transform: scale(1.06);
     }
 
+    /* Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 8px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .badge.paid {
+      background: var(--success-bg);
+      color: var(--success);
+    }
+
+    .badge.unpaid {
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+
+    .badge.partial {
+      background: var(--warning-bg);
+      color: var(--warning);
+    }
+
+    .badge.pending {
+      background: rgba(34, 197, 94, 0.1);
+      color: var(--primary-light);
+    }
+
+    /* Data Table */
+    .data-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 0.82rem;
+    }
+
+    .data-table thead th {
+      padding: 10px 14px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .data-table tbody tr {
+      transition: background 0.2s ease;
+    }
+
+    .data-table tbody tr:hover {
+      background: rgba(34, 197, 94, 0.06);
+    }
+
+    .data-table tbody tr:nth-child(even) {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .data-table tbody tr:nth-child(even):hover {
+      background: rgba(34, 197, 94, 0.06);
+    }
+
+    .data-table tbody td {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-secondary);
+      vertical-align: middle;
+    }
+
     .main {
       max-width: 960px;
       margin: 0 auto;
@@ -269,7 +343,19 @@
       box-shadow: var(--shadow);
       overflow: hidden;
       animation: fadeInUp 0.45s ease-out both;
-      scroll-margin-top: 168px;
+    }
+
+    /* True tab switching */
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.4s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
     .section-card:nth-child(2) { animation-delay: 0.05s; }
@@ -511,7 +597,6 @@
       .main { padding: 16px 12px 48px; }
       .section-header { padding: 14px; }
       .section-body { padding: 14px; }
-      .section-card { scroll-margin-top: 154px; }
       .teacher-card { grid-template-columns: 1fr; }
       .attendance-grid { grid-template-columns: repeat(2, 1fr); }
       .item-topline { align-items: flex-start; flex-direction: column; gap: 4px; }
@@ -520,6 +605,39 @@
 
     @media (max-width: 420px) {
       .attendance-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ================================
+       SKELETON SHIMMER LOADERS
+       ================================ */
+    @keyframes skeleton-shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .skeleton-shimmer {
+      background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
+      background-size: 200% 100%;
+      animation: skeleton-shimmer 1.6s infinite linear;
+      border-color: transparent !important;
+    }
+    [data-theme="light"] .skeleton-shimmer {
+      background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+      background-size: 200% 100%;
+    }
+    .skeleton-text {
+      height: 12px;
+      border-radius: 4px;
+      background-color: var(--border);
+      display: inline-block;
+      opacity: 0.6;
+    }
+    .skeleton-circle {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background-color: var(--border);
+      display: inline-block;
+      opacity: 0.6;
     }
   </style>
 </head>
@@ -537,96 +655,222 @@
           <span id="studentClass">Class details loading</span>
         </div>
       </div>
-      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
-        <i id="themeIcon" class="fas fa-sun"></i>
-      </button>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="theme-toggle" onclick="openChangePasswordModal()" title="Change Password" aria-label="Change Password" style="position:static;">
+          <i class="fas fa-key"></i>
+        </button>
+        <button class="theme-toggle" onclick="handleLogout()" title="Logout" aria-label="Logout" style="position:static;">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme" style="position:static;">
+          <i id="themeIcon" class="fas fa-sun"></i>
+        </button>
+      </div>
     </div>
   </header>
 
   <nav class="tab-nav" aria-label="Student portal sections">
     <div class="tab-nav-inner">
-      <a href="#teacherSection" class="tab-btn active" data-section="teacherSection">
+      <a href="#tab-teacher" class="tab-btn active" data-section="tab-teacher">
         <i class="fas fa-chalkboard-user"></i>Teacher
       </a>
-      <a href="#attendanceCard" class="tab-btn" data-section="attendanceCard">
+      <a href="#tab-attendance" class="tab-btn" data-section="tab-attendance">
         <i class="fas fa-clipboard-check"></i>Attendance
       </a>
-      <a href="#homeworkCard" class="tab-btn" data-section="homeworkCard">
+      <a href="#tab-homework" class="tab-btn" data-section="tab-homework">
         <i class="fas fa-book-open"></i>Homework
       </a>
-      <a href="#announcementsCard" class="tab-btn" data-section="announcementsCard">
-        <i class="fas fa-bullhorn"></i>Notifications & Announcements
+      <a href="#tab-announcements" class="tab-btn" data-section="tab-announcements">
+        <i class="fas fa-bullhorn"></i>Announcements
       </a>
-      <a href="#attendanceCard" class="tab-btn" data-section="attendanceCard">
-        <i class="fas fa-chart-bar"></i>Stats & Statistics
+      <a href="#tab-fees" class="tab-btn" data-section="tab-fees">
+        <i class="fas fa-money-bill-wave"></i>Fees
       </a>
     </div>
   </nav>
 
   <main class="main">
-    <section class="section-card" id="teacherSection">
-      <div class="section-header">
-        <div class="section-icon blue"><i class="fas fa-chalkboard-user"></i></div>
-        <div>
-          <div class="section-title">Class Teacher</div>
-          <div class="section-subtitle">Teacher assigned to this student's class</div>
-        </div>
-      </div>
-      <div class="section-body" id="teacherCard">
-        <div class="state"><i class="fas fa-spinner fa-spin"></i><div class="msg">Loading teacher details</div></div>
-      </div>
-    </section>
 
-    <section class="section-card" id="attendanceCard">
-      <div class="section-header">
-        <div class="section-icon green"><i class="fas fa-clipboard-check"></i></div>
-        <div>
-          <div class="section-title">Attendance</div>
-          <div class="section-subtitle">Summary from submitted attendance records</div>
+    <!-- TEACHER TAB -->
+    <div id="tab-teacher" class="tab-content active">
+      <section class="section-card" id="teacherSection">
+        <div class="section-header">
+          <div class="section-icon blue"><i class="fas fa-chalkboard-user"></i></div>
+          <div>
+            <div class="section-title">Class Teacher</div>
+            <div class="section-subtitle">Teacher assigned to this student's class</div>
+          </div>
         </div>
-      </div>
-      <div class="section-body" id="attendanceSection">
-        <div class="state"><i class="fas fa-spinner fa-spin"></i><div class="msg">Loading attendance</div></div>
-      </div>
-    </section>
+        <div class="section-body" id="teacherCard"></div>
+      </section>
+    </div>
 
-    <section class="section-card" id="homeworkCard">
-      <div class="section-header">
-        <div class="section-icon orange"><i class="fas fa-book-open"></i></div>
-        <div>
-          <div class="section-title">Homework</div>
-          <div class="section-subtitle">Assignments shared by the teacher</div>
+    <!-- ATTENDANCE TAB -->
+    <div id="tab-attendance" class="tab-content">
+      <section class="section-card" id="attendanceCard">
+        <div class="section-header">
+          <div class="section-icon green"><i class="fas fa-clipboard-check"></i></div>
+          <div>
+            <div class="section-title">Attendance</div>
+            <div class="section-subtitle">Summary from submitted attendance records</div>
+          </div>
         </div>
-      </div>
-      <div class="section-body" id="homeworkSection">
-        <div class="state"><i class="fas fa-spinner fa-spin"></i><div class="msg">Loading homework</div></div>
-      </div>
-    </section>
+        <div class="section-body" id="attendanceSection"></div>
+      </section>
+    </div>
 
-    <section class="section-card" id="announcementsCard">
-      <div class="section-header">
-        <div class="section-icon blue"><i class="fas fa-bullhorn"></i></div>
-        <div>
-          <div class="section-title">Announcements</div>
-          <div class="section-subtitle">Updates from school and class teachers</div>
+    <!-- HOMEWORK TAB -->
+    <div id="tab-homework" class="tab-content">
+      <section class="section-card" id="homeworkCard">
+        <div class="section-header">
+          <div class="section-icon orange"><i class="fas fa-book-open"></i></div>
+          <div>
+            <div class="section-title">Homework</div>
+            <div class="section-subtitle">Assignments shared by the teacher</div>
+          </div>
         </div>
-      </div>
-      <div class="section-body" id="announcementsSection">
-        <div class="state"><i class="fas fa-spinner fa-spin"></i><div class="msg">Loading announcements</div></div>
-      </div>
-    </section>
+        <div class="section-body" id="homeworkSection"></div>
+      </section>
+    </div>
+
+    <!-- ANNOUNCEMENTS TAB -->
+    <div id="tab-announcements" class="tab-content">
+      <section class="section-card" id="announcementsCard">
+        <div class="section-header">
+          <div class="section-icon blue"><i class="fas fa-bullhorn"></i></div>
+          <div>
+            <div class="section-title">Announcements</div>
+            <div class="section-subtitle">Updates from school and class teachers</div>
+          </div>
+        </div>
+        <div class="section-body" id="announcementsSection"></div>
+      </section>
+    </div>
+
+    <!-- FEES TAB -->
+    <div id="tab-fees" class="tab-content">
+      <!-- Populated by renderFees() -->
+      <div id="feesSection"></div>
+    </div>
+
   </main>
 
+  <div class="edit-modal" id="changePasswordModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:400px;width:90%;">
+      <h3 style="margin-bottom:16px;font-size:1rem;">Change Password</h3>
+      <form onsubmit="handleChangePassword(event)">
+        <div style="margin-bottom:12px;">
+          <label style="font-size:0.75rem;color:var(--text-secondary);">Current Password</label>
+          <input type="password" id="cpCurrent" required style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text);margin-top:4px;">
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:0.75rem;color:var(--text-secondary);">New Password</label>
+          <input type="password" id="cpNew" required minlength="6" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text);margin-top:4px;">
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:0.75rem;color:var(--text-secondary);">Confirm Password</label>
+          <input type="password" id="cpConfirm" required style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text);margin-top:4px;">
+        </div>
+        <div id="cpMsg" style="display:none;font-size:0.8rem;margin-bottom:10px;"></div>
+        <div style="display:flex;gap:8px;">
+          <button type="submit" style="flex:1;padding:10px;border:none;border-radius:8px;background:var(--gradient);color:white;font-weight:600;cursor:pointer;">Save</button>
+          <button type="button" onclick="closeChangePasswordModal()" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);cursor:pointer;">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+const API_BASE = window.location.origin;
+
+let isRedirecting = false;
+
+function authHeader() {
+  const token = localStorage.getItem('auth_token');
+  return token ? { Authorization: 'Bearer ' + token } : {};
+}
+
+function setAuthToken(token) {
+  if (token) localStorage.setItem('auth_token', token);
+}
+
+function redirectToLogin() {
+  if (isRedirecting) return;
+  isRedirecting = true;
+  localStorage.removeItem('auth_token');
+  window.location.href = '/index.html';
+}
+
+async function refreshSession() {
+  try {
+    const res = await fetch(API_BASE + '/api/auth/me', {
+      credentials: 'include',
+      headers: authHeader()
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.token) setAuthToken(data.token);
+    return data;
+  } catch (err) {
+    return null;
+  }
+}
+
+async function apiFetch(url, options = {}) {
+  const fullUrl = url.startsWith('/api') ? API_BASE + url : url;
+  const doFetch = () => fetch(fullUrl, {
+    credentials: 'include',
+    ...options,
+    headers: {
+      ...authHeader(),
+      ...(options.headers || {})
+    }
+  });
+
+  let res = await doFetch();
+  if (res.status === 401) {
+    const session = await refreshSession();
+    if (!session) {
+      redirectToLogin();
+      return res;
+    }
+    res = await doFetch();
+    if (res.status === 401) redirectToLogin();
+  }
+
+  return res;
+}
+
+function startSessionKeepAlive(intervalMs = 10 * 60 * 1000) {
+  refreshSession();
+  setInterval(refreshSession, intervalMs);
+}
+
+function setButtonLoading(btn, loading, loadingHtml) {
+  if (!btn) return;
+  if (loading) {
+    if (!btn.dataset.originalHtml) btn.dataset.originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = loadingHtml || '<i class="fas fa-spinner fa-spin"></i> Saving...';
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = btn.dataset.originalHtml || btn.innerHTML;
+    delete btn.dataset.originalHtml;
+  }
+}
+</script>
   <script>
     // =============================================================
     // API CONFIGURATION (Automatic Localhost / Production Detection)
     // =============================================================
     const API = window.location.origin;
+    let sessionUser = null;
 
     const state = {
       student: null,
       classInfo: null,
-      teacher: null
+      teacher: null,
+      fees: []
     };
 
     function escapeHtml(value) {
@@ -669,9 +913,58 @@
     }
 
     async function fetchJson(url) {
-      const response = await fetch(url);
+      const response = await apiFetch(url);
       if (!response.ok) throw new Error(`Request failed (${response.status})`);
       return response.json();
+    }
+
+    async function checkSession() {
+      const data = await refreshSession();
+      if (!data) { redirectToLogin(); return false; }
+      if (data.role !== 'student') { window.location.href = '/index.html'; return false; }
+      window._isFirstLogin = data.is_first_login;
+      sessionUser = data;
+      return true;
+    }
+
+    async function handleLogout() {
+      localStorage.removeItem('auth_token');
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/index.html';
+    }
+
+    function openChangePasswordModal() {
+      document.getElementById('changePasswordModal').style.display = 'flex';
+    }
+
+    function closeChangePasswordModal() {
+      document.getElementById('changePasswordModal').style.display = 'none';
+    }
+
+    async function handleChangePassword(e) {
+      e.preventDefault();
+      const res = await apiFetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          current_password: document.getElementById('cpCurrent').value,
+          new_password: document.getElementById('cpNew').value,
+          confirm_password: document.getElementById('cpConfirm').value
+        })
+      });
+      const data = await res.json();
+      const msgEl = document.getElementById('cpMsg');
+      msgEl.style.display = 'block';
+      if (!res.ok) {
+        msgEl.textContent = data.error || 'Failed to change password';
+        msgEl.style.color = 'var(--danger)';
+      } else {
+        if (data.token) localStorage.setItem('auth_token', data.token);
+        window._isFirstLogin = false;
+        msgEl.textContent = 'Password changed successfully';
+        msgEl.style.color = 'var(--success)';
+        setTimeout(closeChangePasswordModal, 1000);
+      }
     }
 
     async function fetchOptional(urls) {
@@ -820,6 +1113,68 @@
       `;
     }
 
+    function renderFees(records) {
+      const feeHistory = Array.isArray(records) ? records : [];
+      state.fees = feeHistory;
+      const currentMonth = feeHistory[0];
+      const currentStatus = String(currentMonth?.status || 'not_set_up').toLowerCase();
+      const statusLabel = currentStatus === 'paid' ? 'Paid' : currentStatus === 'partial' ? 'Partial' : currentStatus === 'pending_approval' ? 'Pending Approval' : currentStatus === 'not_set_up' ? 'Not Set Up' : 'Unpaid';
+      const statusColor = currentStatus === 'paid' ? 'var(--success)' : currentStatus === 'partial' ? 'var(--warning)' : currentStatus === 'pending_approval' ? 'var(--primary)' : currentStatus === 'not_set_up' ? 'var(--text-muted)' : 'var(--danger)';
+
+      if (!feeHistory.length) {
+        document.getElementById('feesSection').innerHTML = `
+          <div style="text-align:center; padding:40px 20px; color:var(--text-muted);">
+            <div style="font-size:2rem; margin-bottom:12px;">💳</div>
+            <div style="font-size:1rem; font-weight:700; margin-bottom:6px; color:var(--text-secondary);">No fee data yet</div>
+            <div style="font-size:0.85rem; color:var(--text-muted);">No fee structure assigned yet. Ask the admin to set up fee structures.</div>
+          </div>
+        `;
+        return;
+      }
+
+      document.getElementById('feesSection').innerHTML = `
+        <div class="attendance-grid" style="margin-bottom:14px;">
+          <div class="summary-card">
+            <div class="summary-number">${escapeHtml(currentMonth?.month_year || '-')}</div>
+            <div class="summary-label">Current Month</div>
+          </div>
+          <div class="summary-card" style="border-color:${statusColor};">
+            <div class="summary-number">${escapeHtml(statusLabel)}</div>
+            <div class="summary-label">Fee Status</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-number">${escapeHtml(String(currentMonth?.amount_due || 0))}</div>
+            <div class="summary-label">Amount Due</div>
+          </div>
+          <div class="summary-card present">
+            <div class="summary-number">${escapeHtml(String(currentMonth?.amount_paid || 0))}</div>
+            <div class="summary-label">Amount Paid</div>
+          </div>
+        </div>
+        <div class="item-list">
+          <div style="font-size:0.9rem; font-weight:700; color:var(--text); margin-bottom:8px;">Recent Fee History</div>
+          ${feeHistory.map(item => `
+            <div class="list-item">
+              <div class="item-topline">
+                <div class="item-title">${escapeHtml(item.month_year || 'Month')}</div>
+                <div class="item-date">${escapeHtml(item.payment_date || 'Pending')}</div>
+              </div>
+              <div class="item-text">Due ${escapeHtml(String(item.amount_due || 0))} • Paid ${escapeHtml(String(item.amount_paid || 0))} • ${escapeHtml(item.notes || '')}</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    async function loadFees() {
+      try {
+        const payload = await fetchOptional([`${API}/api/fees/me`, `${API}/api/fees`]);
+        renderFees(Array.isArray(payload) ? payload : []);
+      } catch (err) {
+        renderFees([]);
+      }
+    }
+
     function renderStudentChooser(students, classes) {
       document.getElementById('studentName').textContent = 'Choose student';
       document.getElementById('studentClass').textContent = 'Select a student to open the portal';
@@ -855,26 +1210,123 @@
       window.location.href = `${window.location.pathname}?id=s_${select.value}`;
     }
 
+    // ============================================================
+    // SKELETON LOADERS — dynamic, staggered, theme-adaptive
+    // ============================================================
+    const MIN_SKELETON_MS = 600; // minimum shimmer time before reveal
+
+    function skBar(w = '60%', h = '12px', mb = '0') {
+      return `<div class="skeleton-shimmer" style="height:${h};width:${w};border-radius:6px;margin-bottom:${mb};"></div>`;
+    }
+
+    function showStudentSkeletons() {
+      // Teacher card skeleton — mimics the 2-column info-box layout
+      document.getElementById('teacherCard').innerHTML = `
+        <div class="teacher-card">
+          <div class="info-box">
+            ${skBar('45%', '10px', '8px')}
+            ${skBar('75%', '18px')}
+          </div>
+          <div class="info-box">
+            ${skBar('45%', '10px', '8px')}
+            ${skBar('60%', '18px')}
+          </div>
+        </div>
+      `;
+
+      // Attendance skeleton — 4 summary cards + progress bar
+      document.getElementById('attendanceSection').innerHTML = `
+        <div class="attendance-grid">
+          ${[1,2,3,4].map(() => `
+            <div class="summary-card skeleton-shimmer" style="border-color:transparent;">
+              ${skBar('48px', '32px', '10px')}
+              ${skBar('70%', '10px')}
+            </div>
+          `).join('')}
+        </div>
+        <div class="attendance-bar" style="margin-top:16px;">
+          <div class="bar-present skeleton-shimmer" style="width:60%;"></div>
+        </div>
+        <div style="margin-top:10px;">${skBar('40%', '10px')}</div>
+      `;
+
+      // Homework skeleton — 3 list items
+      document.getElementById('homeworkSection').innerHTML = `
+        <div class="item-list">
+          ${[1,2,3].map(() => `
+            <div class="list-item">
+              <div class="item-topline">
+                ${skBar('50%', '13px')}
+                ${skBar('20%', '10px')}
+              </div>
+              ${skBar('90%', '10px', '6px')}
+              ${skBar('75%', '10px')}
+            </div>
+          `).join('')}
+        </div>
+      `;
+
+      // Announcements skeleton — 2 list items
+      document.getElementById('announcementsSection').innerHTML = `
+        <div class="item-list">
+          ${[1,2].map(() => `
+            <div class="list-item">
+              <div class="item-topline">
+                ${skBar('55%', '13px')}
+                ${skBar('18%', '10px')}
+              </div>
+              ${skBar('95%', '10px', '6px')}
+              ${skBar('80%', '10px')}
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
     async function loadPortal() {
+      // Show skeleton immediately before any network call
+      showStudentSkeletons();
+      const skeletonStart = Date.now();
+
+      // Helper: waits for remaining skeleton time then runs a fn
+      async function revealAfterMinTime(fn, extraDelay = 0) {
+        const elapsed = Date.now() - skeletonStart;
+        const wait = Math.max(0, MIN_SKELETON_MS - elapsed) + extraDelay;
+        await delay(wait);
+        fn();
+      }
+
+      let studentData = null;
+      let classData = null;
+      let teacherData = null;
+
       try {
-        const studentData = await fetchJson(`${API}/api/students/me`);
-        state.student = studentData;
+        studentData = await fetchJson(`${API}/api/students/me`);
       } catch (err) {
-        document.getElementById('studentName').textContent = 'Unable to load portal';
-        document.getElementById('studentClass').textContent = 'Please try again later';
-        setStateBox('teacherCard', 'fas fa-circle-exclamation', 'Failed to load student info', err.message);
+        await revealAfterMinTime(() => {
+          document.getElementById('studentName').textContent = 'Unable to load portal';
+          document.getElementById('studentClass').textContent = 'Please try again later';
+          setStateBox('teacherCard', 'fas fa-circle-exclamation', 'Failed to load student info', err.message);
+        });
         return;
       }
 
+      state.student = studentData;
+
       try {
-        state.classInfo = await fetchJson(`${API}/api/classes/me`);
+        classData = await fetchJson(`${API}/api/classes/me`);
+        state.classInfo = classData;
       } catch (err) {
         state.classInfo = null;
         setStateBox('teacherCard', 'fas fa-circle-exclamation', 'Failed to load class info', err.message);
       }
 
       try {
-        const teacherData = await fetchJson(`${API}/api/teachers?class_id=${state.student?.class_id ?? ''}`);
+        teacherData = await fetchJson(`${API}/api/teachers?class_id=${state.student?.class_id ?? ''}`);
         state.teacher = Array.isArray(teacherData) ? teacherData[0] || null : null;
       } catch (err) {
         state.teacher = null;
@@ -882,17 +1334,23 @@
       }
 
       if (!state.student) {
-        document.getElementById('studentName').textContent = 'Student not found';
-        document.getElementById('studentClass').textContent = 'Check the student link';
-        ['teacherCard', 'attendanceSection', 'homeworkSection', 'announcementsSection'].forEach(id => {
-          setStateBox(id, 'fas fa-triangle-exclamation', 'Unable to load this section', 'The selected student could not be found.');
+        await revealAfterMinTime(() => {
+          document.getElementById('studentName').textContent = 'Student not found';
+          document.getElementById('studentClass').textContent = 'Check the student link';
+          ['teacherCard', 'attendanceSection', 'homeworkSection', 'announcementsSection'].forEach(id => {
+            setStateBox(id, 'fas fa-triangle-exclamation', 'Unable to load this section', 'The selected student could not be found.');
+          });
         });
         return;
       }
 
-      renderHeader();
-      renderTeacher();
+      // Section 1 — Teacher (0ms extra stagger, just honour MIN_SKELETON_MS)
+      await revealAfterMinTime(() => {
+        renderHeader();
+        renderTeacher();
+      }, 0);
 
+      // Section 2 — Attendance (300ms stagger after min-time)
       await delay(300);
       try {
         const attendance = await fetchJson(`${API}/api/attendance/me`);
@@ -901,6 +1359,8 @@
         setStateBox('attendanceSection', 'fas fa-circle-exclamation', 'Attendance failed to load', err.message);
       }
 
+      // Section 3 — Homework (300ms stagger after previous reveal)
+      await delay(300);
       try {
         const homework = await fetchOptional([
           `${API}/api/homework?class_id=${state.student.class_id || ''}`,
@@ -911,6 +1371,8 @@
         setStateBox('homeworkSection', 'fas fa-plug-circle-xmark', 'Homework API is not available yet', 'This section will work when the backend provides homework data.');
       }
 
+      // Section 4 — Announcements (300ms stagger after previous reveal)
+      await delay(300);
       try {
         const announcements = await fetchOptional([
           `${API}/api/announcements?class_id=${state.student.class_id || ''}`,
@@ -920,45 +1382,63 @@
       } catch (err) {
         setStateBox('announcementsSection', 'fas fa-plug-circle-xmark', 'Announcements API is not available yet', 'This section will work when the backend provides announcement data.');
       }
+
+      // Section 5 — Fees
+      await delay(300);
+      try {
+        await loadFees();
+      } catch (err) {
+        setStateBox('feesSection', 'fas fa-receipt', 'Fee history is still loading', 'The fee section will render as soon as data is available.');
+      }
+    }
+
+    // =============================================================
+    // TRUE TAB SWITCHING
+    // =============================================================
+    let activeTabId = 'tab-teacher';
+
+    function switchTab(newTabId) {
+      if (activeTabId === newTabId) return;
+
+      // Hide all tab content and deactivate all buttons
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+      // Show the new tab and activate the matching button
+      const newTab = document.getElementById(newTabId);
+      if (newTab) newTab.classList.add('active');
+      const newBtn = document.querySelector(`.tab-btn[data-section="${newTabId}"]`);
+      if (newBtn) newBtn.classList.add('active');
+
+      activeTabId = newTabId;
+      history.replaceState(null, '', '#' + newTabId);
     }
 
     function setupSectionTabs() {
-      const tabs = Array.from(document.querySelectorAll('.tab-btn[data-section]'));
-      const sections = tabs
-        .map(tab => document.getElementById(tab.dataset.section))
-        .filter(Boolean);
-
-      tabs.forEach(tab => {
+      // Wire up all tab buttons
+      document.querySelectorAll('.tab-btn[data-section]').forEach(tab => {
         tab.addEventListener('click', event => {
           event.preventDefault();
-          const section = document.getElementById(tab.dataset.section);
-          if (!section) return;
-          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          history.replaceState(null, '', `#${section.id}`);
+          switchTab(tab.dataset.section);
         });
       });
 
-      const observer = new IntersectionObserver(entries => {
-        const visible = entries
-          .filter(entry => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-
-        if (!visible) return;
-
-        tabs.forEach(tab => {
-          tab.classList.toggle('active', tab.dataset.section === visible.target.id);
-        });
-      }, {
-        rootMargin: '-42% 0px -45% 0px',
-        threshold: [0.1, 0.25, 0.5, 0.75]
-      });
-
-      sections.forEach(section => observer.observe(section));
+      // Honour URL hash on load, else default to Teacher tab
+      const hash = window.location.hash.substring(1);
+      if (hash && document.getElementById(hash)) {
+        switchTab(hash);
+      } else {
+        switchTab('tab-teacher');
+      }
     }
 
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
       setupSectionTabs();
-      loadPortal();
+      const ok = await checkSession();
+      if (ok) {
+        startSessionKeepAlive();
+        loadPortal();
+      }
     });
   </script>
 </body>

@@ -1221,85 +1221,83 @@ app.get('/api/fees/payments', requireAuth(['admin', 'teacher']), async (req, res
   const tenant_id = req.user.tenant_id
   const { mode, month, class_id, status, search } = req.query
 
-  // mode=overview returns ALL students for the tenant with their payment status (LEFT JOIN)
-  // so students without a payment record still appear with status='not_set_up'
-  if (mode === 'overview') {
-    const overviewMonth = month || new Date().toISOString().slice(0, 7)
+  // Default mode: LEFT JOIN from students so every student appears.
+  // Students without a payment record get status='not_set_up'.
+  // mode=records uses the old INNER JOIN (only students with actual payments).
+  if (mode === 'records') {
     let query = `
-      SELECT 
-        students.id as student_id,
-        students.name as student_name,
-        students.roll_no,
-        students.class_id,
-        classes.name as class_name,
-        fee_payments.id as payment_id,
-        fee_payments.month as month_year,
-        fee_payments.amount_due,
-        fee_payments.amount_paid,
-        COALESCE(fee_payments.status, 'not_set_up') as status,
-        fee_payments.payment_date,
-        fee_payments.payment_method,
-        fee_payments.notes
-      FROM students
-      LEFT JOIN fee_payments ON students.id = fee_payments.student_id AND fee_payments.tenant_id = students.tenant_id AND fee_payments.month = $2
+      SELECT fee_payments.*, students.name as student_name, students.roll_no, classes.name as class_name
+      FROM fee_payments
+      JOIN students ON fee_payments.student_id = students.id AND fee_payments.tenant_id = students.tenant_id
       LEFT JOIN classes ON students.class_id = classes.id AND students.tenant_id = classes.tenant_id
-      WHERE students.tenant_id = $1
+      WHERE fee_payments.tenant_id = $1
     `
-    const params = [tenant_id, overviewMonth]
-    let paramIdx = 3
+    const params = [tenant_id]
+    let paramIndex = 2
 
+    if (month) {
+      query += ` AND fee_payments.month = $${paramIndex}`
+      params.push(month)
+      paramIndex++
+    }
     if (class_id) {
-      query += ` AND students.class_id = $${paramIdx}`
+      query += ` AND students.class_id = $${paramIndex}`
       params.push(class_id)
-      paramIdx++
+      paramIndex++
+    }
+    if (status) {
+      query += ` AND fee_payments.status = $${paramIndex}`
+      params.push(status)
+      paramIndex++
     }
     if (search) {
-      query += ` AND (students.name ILIKE $${paramIdx} OR students.roll_no ILIKE $${paramIdx})`
+      query += ` AND (students.name ILIKE $${paramIndex} OR students.roll_no ILIKE $${paramIndex})`
       params.push(`%${search}%`)
-      paramIdx++
+      paramIndex++
     }
 
-    query += ` ORDER BY students.name ASC`
+    query += ` ORDER BY fee_payments.month DESC, students.name ASC`
     const result = await pool.query(query, params)
     return res.json(result.rows)
   }
 
+  // Default: LEFT JOIN — all students, with payments if they exist for the month
+  const targetMonth = month || new Date().toISOString().slice(0, 7)
   let query = `
-    SELECT fee_payments.*, students.name as student_name, students.roll_no, classes.name as class_name
-    FROM fee_payments
-    JOIN students ON fee_payments.student_id = students.id AND fee_payments.tenant_id = students.tenant_id
+    SELECT 
+      students.id as student_id,
+      students.name as student_name,
+      students.roll_no,
+      students.class_id,
+      classes.name as class_name,
+      fee_payments.id as payment_id,
+      fee_payments.month as month_year,
+      fee_payments.amount_due,
+      fee_payments.amount_paid,
+      COALESCE(fee_payments.status, 'not_set_up') as status,
+      fee_payments.payment_date,
+      fee_payments.payment_method,
+      fee_payments.notes
+    FROM students
+    LEFT JOIN fee_payments ON students.id = fee_payments.student_id AND fee_payments.tenant_id = students.tenant_id AND fee_payments.month = $2
     LEFT JOIN classes ON students.class_id = classes.id AND students.tenant_id = classes.tenant_id
-    WHERE fee_payments.tenant_id = $1
+    WHERE students.tenant_id = $1
   `
-  const params = [tenant_id]
-  let paramIndex = 2
-
-  if (month) {
-    query += ` AND fee_payments.month = $${paramIndex}`
-    params.push(month)
-    paramIndex++
-  }
+  const params = [tenant_id, targetMonth]
+  let paramIdx = 3
 
   if (class_id) {
-    query += ` AND students.class_id = $${paramIndex}`
+    query += ` AND students.class_id = $${paramIdx}`
     params.push(class_id)
-    paramIndex++
+    paramIdx++
   }
-
-  if (status) {
-    query += ` AND fee_payments.status = $${paramIndex}`
-    params.push(status)
-    paramIndex++
-  }
-
   if (search) {
-    query += ` AND (students.name ILIKE $${paramIndex} OR students.roll_no ILIKE $${paramIndex})`
+    query += ` AND (students.name ILIKE $${paramIdx} OR students.roll_no ILIKE $${paramIdx})`
     params.push(`%${search}%`)
-    paramIndex++
+    paramIdx++
   }
 
-  query += ` ORDER BY fee_payments.month DESC, students.name ASC`
-
+  query += ` ORDER BY students.name ASC`
   const result = await pool.query(query, params)
   res.json(result.rows)
 })

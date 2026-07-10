@@ -1341,13 +1341,26 @@
     }
 
     // Load fee structures
+    function getStructureTargetName(s) {
+      if (s.target_name) return s.target_name;
+      if (s.type === 'class') {
+        const cls = (window._classesCache || []).find(c => Number(c.id) === Number(s.target_id));
+        return cls ? cls.name : '#${s.target_id}';
+      }
+      if (s.type === 'student') {
+        const stu = (window._studentsCache || []).find(st => Number(st.id) === Number(s.target_id));
+        return stu ? stu.name : '#${s.target_id}';
+      }
+      return s.target_id;
+    }
+
     async function loadFeeStructures() {
       try {
         const structures = await fetchJson('/api/fees/structures');
         const tbody = document.getElementById('structuresTableBody');
         tbody.innerHTML = structures.map(s => `
           <tr>
-            <td>${s.target_name || s.target_id}</td>
+            <td>${getStructureTargetName(s)}</td>
             <td>Rs. ${Number(s.monthly_fee).toLocaleString()}</td>
             <td>Rs. ${Number(s.admission_fee).toLocaleString()}</td>
             <td>Rs. ${Number(s.transport_fee).toLocaleString()}</td>
@@ -1379,6 +1392,7 @@
         if (status) params.append('status', status);
         if (search) params.append('search', search);
         
+        params.append('mode', 'records');
         const payments = await fetchJson(`/api/fees/payments?${params}`);
         const tbody = document.getElementById('paymentsTableBody');
         tbody.innerHTML = payments.map(p => `
@@ -1404,7 +1418,7 @@
     // Load payment history
     async function loadPaymentHistory() {
       try {
-        const payments = await fetchJson('/api/fees/payments');
+        const payments = await fetchJson('/api/fees/payments?mode=records');
         const tbody = document.getElementById('historyTableBody');
         tbody.innerHTML = payments.map(p => `
           <tr>
@@ -1499,12 +1513,22 @@
           transport_fee: parseFloat(document.getElementById('transportFee').value) || 0,
           discount: parseFloat(document.getElementById('discountFee').value) || 0
         };
-        
-        await apiFetch('/api/fees/structures', {
-          method: 'POST',
-          body: JSON.stringify(data)
-        });
-        
+
+        // Check if a structure already exists for this type+target_id
+        const existingList = await fetchJson('/api/fees/structures');
+        const existing = Array.isArray(existingList)
+          ? existingList.find(s => s.type === data.type && Number(s.target_id) === data.target_id)
+          : null;
+
+        const url = existing ? `/api/fees/structures/${existing.id}` : '/api/fees/structures';
+        const method = existing ? 'PUT' : 'POST';
+
+        const res = await apiFetch(url, { method, body: JSON.stringify(data) });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `Server returned ${res.status}`);
+        }
+
         alert('Fee structure saved successfully!');
         closeStructureModal();
         loadFeeStructures();

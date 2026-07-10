@@ -2446,37 +2446,14 @@
       return `<span class="badge" style="${colorMap[normalized] || colorMap.unpaid}">${escapeHtml(getFeeStatusLabel(status))}</span>`;
     }
 
-    function getFeeFallbackData() {
-      const month = new Date().toISOString().slice(0, 7);
-      return (window.appData.students || []).slice(0, 6).map((student, index) => {
-        const className = (window.appData.classes || []).find(c => String(c.id) === String(student.class_id))?.name || 'Unassigned';
-        const due = 3000 + index * 250;
-        const paid = index % 3 === 0 ? due : index % 3 === 1 ? due / 2 : 0;
-        const status = paid <= 0 ? 'unpaid' : paid < due ? 'partial' : 'paid';
-        return {
-          id: 1000 + index,
-          student_id: student.id,
-          student_name: student.name,
-          class_name: className,
-          month_year: month,
-          amount_due: due,
-          amount_paid: paid,
-          status,
-          payment_date: status === 'paid' ? `${month}-10` : status === 'partial' ? `${month}-03` : '',
-          payment_method: status === 'partial' ? 'Cash' : '',
-          notes: status === 'partial' ? 'Half payment received.' : ''
-        };
-      });
-    }
-
     async function loadFeeData(month) {
       try {
         const now = new Date();
         const targetMonth = month || now.toISOString().slice(0, 7);
-        const overviewResp = await apiFetch(`/api/fees/payments?mode=overview&month=${encodeURIComponent(targetMonth)}`);
-        if (!overviewResp.ok) throw new Error('Fee endpoint is not ready yet');
-        const overviewData = await overviewResp.json();
-        window.appData.fees = Array.isArray(overviewData) ? overviewData : [];
+        const resp = await apiFetch(`/api/fees/payments?month=${encodeURIComponent(targetMonth)}`);
+        if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
+        const data = await resp.json();
+        window.appData.fees = Array.isArray(data) ? data : [];
 
         const statsResp = await apiFetch(`/api/fees/stats?month=${encodeURIComponent(targetMonth)}`);
         if (statsResp.ok) {
@@ -2484,8 +2461,9 @@
         } else {
           window.appData.feeStats = null;
         }
+        window.appData.feesLoadError = '';
       } catch (err) {
-        window.appData.fees = getFeeFallbackData();
+        window.appData.fees = [];
         window.appData.feeStats = null;
         window.appData.feesLoadError = err.message;
       }
@@ -2540,11 +2518,33 @@
       }
 
       if (!filtered.length) {
+        const hasStudents = (window.appData.students || []).length > 0;
+        const apiError = window.appData.feesLoadError;
+        let msg, sub;
+        if (apiError) {
+          msg = 'Failed to load fee data';
+          sub = `${escapeHtml(apiError)}. Check the server or network.`;
+        } else if (!hasStudents) {
+          msg = 'No students enrolled yet';
+          sub = 'Add students in the Students tab first.';
+        } else {
+          const monthVal = document.getElementById('feeMonthFilter')?.value || '';
+          const classVal = document.getElementById('feeClassFilter')?.value || '';
+          const searchVal = document.getElementById('feeSearchInput')?.value || '';
+          const statusVal = document.getElementById('feeStatusFilter')?.value || '';
+          if (searchVal || classVal || monthVal || statusVal) {
+            msg = 'No records match your filters';
+            sub = 'Try changing the search term, class, month, or status filter.';
+          } else {
+            msg = 'No fee records found';
+            sub = 'All students have status "Not Set Up". Record a payment to see data here.';
+          }
+        }
         wrap.innerHTML = `
           <div class="empty-state">
             <div class="icon">💳</div>
-            <div class="msg">No fee records found</div>
-            <div class="sub">No students are enrolled yet. Add students in the Students tab.</div>
+            <div class="msg">${msg}</div>
+            <div class="sub">${sub}</div>
           </div>`;
         return;
       }
@@ -2684,8 +2684,14 @@
       }
 
       try {
-        const res = await apiFetch('/api/fees/structures', {
-          method: 'POST',
+        // Check if a structure already exists for this type+target_id
+        const existingList = window._feeStructuresCache || [];
+        const existing = existingList.find(s => s.type === type && Number(s.target_id) === Number(target));
+        const url = existing ? `/api/fees/structures/${existing.id}` : '/api/fees/structures';
+        const method = existing ? 'PUT' : 'POST';
+
+        const res = await apiFetch(url, {
+          method,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ type, target_id: parseInt(target), monthly_fee: monthly, admission_fee: admission, transport_fee: transport, discount })
         });
@@ -2983,41 +2989,6 @@
       }
       html += '</ul>';
       return html;
-    }
-
-    function groupAttendanceRecords(flatRecords) {
-      const groups = {};
-      flatRecords.forEach(row => {
-        let dateStr = row.date;
-        if (dateStr && dateStr.includes('T')) {
-          dateStr = dateStr.split('T')[0];
-        } else if (dateStr) {
-          dateStr = new Date(dateStr).toLocaleDateString('en-CA');
-        }
-
-        const key = `${dateStr}_${row.class_name}`;
-        if (!groups[key]) {
-          const classObj = window.appData.classes.find(c => c.name === row.class_name);
-          const classId = classObj ? classObj.id : null;
-          const teacherObj = classId ? window.appData.teachers.find(t => t.class_id === classId) : null;
-
-          groups[key] = {
-            date: dateStr,
-            class: row.class_name,
-            teacher: teacherObj ? teacherObj.name : '—',
-            students: []
-          };
-        }
-        groups[key].students.push({
-          id: row.student_id,
-          name: row.name,
-          rollNo: row.roll_no,
-          status: row.status,
-          phone: row.phone
-        });
-      });
-
-      return Object.values(groups).sort((a, b) => b.date.localeCompare(a.date));
     }
 
     function groupAttendanceRecords(flatRecords) {
@@ -3802,68 +3773,6 @@
     // =============================================================
     // ATTENDANCE OVERVIEW
     // =============================================================
-    function renderAttendance() {
-      const wrap = document.getElementById('attendanceTableWrap');
-      const records = window.appData.attendance;
-
-      if (!records || records.length === 0) {
-        wrap.innerHTML = `
-          <div class="empty-state" style="padding:36px 16px;">
-            <div class="icon">📊</div>
-            <div class="msg">No attendance records found</div>
-            <div class="sub">Records appear here after teachers submit attendance</div>
-          </div>`;
-        return;
-      }
-
-      let html = `
-        <div style="overflow-x:auto;">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th style="text-align:left;">Date</th>
-              <th style="text-align:left;">Teacher</th>
-              <th style="text-align:center; width:120px;">Class</th>
-              <th style="text-align:center; width:100px;">Present</th>
-              <th style="text-align:center; width:100px;">Absent</th>
-              <th style="text-align:center; width:100px;">Leave</th>
-              <th style="width:100px; text-align:right;">Actions</th>
-            </tr>
-          </thead>
-          <tbody>`;
-
-      records.forEach(record => {
-        const students = record.students || [];
-        const present = students.filter(s => s.status === 'Present').length;
-        const absent = students.filter(s => s.status === 'Absent').length;
-        const leave = students.filter(s => s.status === 'Leave').length;
-
-        html += `
-          <tr>
-            <td style="text-align:left; font-weight:600;">${escapeHtml(record.date || '—')}</td>
-            <td style="text-align:left; color:var(--text-secondary);">${escapeHtml(record.teacher || '—')}</td>
-            <td style="text-align:center;">
-              ${record.class ? `<span class="badge" style="background:var(--badge-bg); color:var(--badge-text); font-weight:700;">${escapeHtml(record.class)}</span>` : '—'}
-            </td>
-            <td style="text-align:center;"><span class="badge present">✅ ${present}</span></td>
-            <td style="text-align:center;"><span class="badge absent">❌ ${absent}</span></td>
-            <td style="text-align:center; color:var(--text-secondary); font-weight:600;">${leave > 0 ? '📝 ' + leave : '—'}</td>
-            <td style="text-align:right;">
-              <div class="action-buttons" style="justify-content: flex-end;">
-                ${absent > 0 || leave > 0 ? `
-                  <button onclick="viewAbsentees('${record.date}', '${escapeHtml(record.teacher || '')}', '${escapeHtml(record.class || '')}')" class="btn-edit" title="View absent students" style="background:var(--danger-bg); color:var(--danger);">
-                    <i class="fas fa-eye"></i>
-                  </button>
-                ` : '<span style="color:var(--text-muted); font-size:0.75rem; padding-right:8px;">—</span>'}
-              </div>
-            </td>
-          </tr>`;
-      });
-
-      html += `</tbody></table></div>`;
-      wrap.innerHTML = html;
-    }
-
     function viewAbsentees(date, teacher, cls) {
       const records = window.appData.attendance;
       const record = records.find(r => r.date === date && r.class === cls);
@@ -3931,98 +3840,6 @@
     // =============================================================
     // STATS / PERCENTAGES
     // =============================================================
-    function renderStats() {
-      const wrap = document.getElementById('statsTableWrap');
-      const records = window.appData.attendance;
-
-      if (!records || records.length === 0) {
-        wrap.innerHTML = `
-          <div class="empty-state" style="padding:36px 16px;">
-            <div class="icon">📊</div>
-            <div class="msg">No attendance data to calculate stats</div>
-            <div class="sub">Stats appear after teachers submit attendance</div>
-          </div>`;
-        return;
-      }
-
-      const studentMap = {};
-
-      records.forEach(record => {
-        (record.students || []).forEach(s => {
-          if (!studentMap[s.id]) {
-            studentMap[s.id] = {
-              id: s.id,
-              name: s.name,
-              rollNo: s.rollNo || '—',
-              present: 0,
-              absent: 0,
-              leave: 0,
-              total: 0
-            };
-          }
-          studentMap[s.id].total++;
-          if (s.status === 'Present') studentMap[s.id].present++;
-          else if (s.status === 'Absent') studentMap[s.id].absent++;
-          else if (s.status === 'Leave') studentMap[s.id].leave++;
-        });
-      });
-
-      const students = Object.values(studentMap).map(s => ({
-        ...s,
-        percentage: s.total > 0 ? Math.round((s.present / s.total) * 100) : 0
-      }));
-
-      students.sort((a, b) => b.percentage - a.percentage);
-
-      const totalDays = records.length;
-
-      let html = `<div style="padding:16px 22px;"><div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px;">📅 Total days recorded: <strong style="color:var(--text);">${totalDays}</strong></div></div>`;
-      html += `
-        <div style="overflow-x:auto;">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th style="width:50px; text-align:left;">#</th>
-              <th style="text-align:left;">Name</th>
-              <th style="text-align:center; width:120px;">Roll No</th>
-              <th style="text-align:center; width:100px;">Present</th>
-              <th style="text-align:center; width:100px;">Absent</th>
-              <th style="text-align:center; width:100px;">Leave</th>
-              <th style="width:120px; text-align:right;">Attendance %</th>
-            </tr>
-          </thead>
-          <tbody>`;
-
-      students.forEach((s, i) => {
-        const pct = s.percentage;
-        let barColor = '#dc2626';
-        if (pct >= 80) barColor = '#22c55e';
-        else if (pct >= 60) barColor = '#f59e0b';
-        else if (pct >= 40) barColor = '#f97316';
-
-        let rankIcon = '';
-        if (i === 0) rankIcon = '🏆';
-        else if (i === 1) rankIcon = '🥈';
-        else if (i === 2) rankIcon = '🥉';
-
-        html += `
-          <tr>
-            <td style="color:var(--text-muted); font-size:0.75rem; text-align:left;">${rankIcon || (i + 1)}</td>
-            <td style="text-align:left;"><strong>${escapeHtml(s.name)}</strong></td>
-            <td style="text-align:center;">
-              <span class="badge" style="background:var(--bg); border:1px solid var(--border); color:var(--text-secondary);">${escapeHtml(s.rollNo)}</span>
-            </td>
-            <td style="text-align:center;"><span class="badge present">✅ ${s.present}</span></td>
-            <td style="text-align:center;"><span class="badge absent">❌ ${s.absent}</span></td>
-            <td style="text-align:center; color:var(--text-secondary);">${s.leave > 0 ? '📝 ' + s.leave : '—'}</td>
-            <td style="text-align:right; font-weight:800; color:${barColor}; font-size:0.9rem;">${pct}%</td>
-          </tr>`;
-      });
-
-      html += '</tbody></table></div>';
-      wrap.innerHTML = html;
-    }
-
     // =============================================================
     // SCHOOL ANNOUNCEMENTS (see saveAnnouncement below in audit section)
     // =============================================================
