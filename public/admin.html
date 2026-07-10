@@ -1809,18 +1809,19 @@
         </div>
         <div class="section-body">
           <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
-            <input type="text" id="feeSearchInput" class="form-input" style="flex:1; min-width:220px;" placeholder="Search student or class..." oninput="renderFees()">
-            <select id="feeClassFilter" class="form-input" style="min-width:180px;" onchange="renderFees()">
+            <input type="text" id="feeSearchInput" class="form-input" style="flex:1; min-width:220px;" placeholder="Search student or class...">
+            <select id="feeClassFilter" class="form-input" style="min-width:180px;">
               <option value="">All Classes</option>
             </select>
-            <input type="month" id="feeMonthFilter" class="form-input" style="max-width:180px;" onchange="loadFeeData(this.value)">
-            <select id="feeStatusFilter" class="form-input" style="max-width:180px;" onchange="renderFees()">
+            <input type="month" id="feeMonthFilter" class="form-input" style="max-width:180px;">
+            <select id="feeStatusFilter" class="form-input" style="max-width:180px;">
               <option value="">All Status</option>
               <option value="unpaid">Unpaid</option>
               <option value="partial">Partial</option>
               <option value="paid">Paid</option>
               <option value="pending_approval">Pending Approval</option>
             </select>
+            <button class="btn btn-primary" onclick="applyFeeFilters()" style="white-space:nowrap;"><i class="fas fa-search"></i> Apply</button>
           </div>
 
           <div id="feesTableWrap"></div>
@@ -2447,9 +2448,15 @@
     }
 
     async function loadFeeData(month) {
+      const wrap = document.getElementById('feesTableWrap');
+      if (wrap) {
+        wrap.innerHTML = '<div class="empty-state"><div class="loader-spinner" style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px;"></div><div style="font-size:0.85rem;color:var(--text-secondary);">Loading fee data...</div></div>';
+      }
       try {
         const now = new Date();
         const targetMonth = month || now.toISOString().slice(0, 7);
+        const monthInput = document.getElementById('feeMonthFilter');
+        if (monthInput && !monthInput.value) monthInput.value = targetMonth;
         const resp = await apiFetch(`/api/fees/payments?month=${encodeURIComponent(targetMonth)}`);
         if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
         const data = await resp.json();
@@ -2468,6 +2475,12 @@
         window.appData.feesLoadError = err.message;
       }
       renderFees();
+    }
+
+    async function applyFeeFilters() {
+      const monthInput = document.getElementById('feeMonthFilter');
+      const month = monthInput ? monthInput.value : '';
+      await loadFeeData(month);
     }
 
     function renderFees() {
