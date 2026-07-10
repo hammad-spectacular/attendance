@@ -1395,24 +1395,67 @@ app.get('/api/fees/me', requireAuth(['student']), async (req, res) => {
   const student_id = req.user.user_id
   const { month } = req.query
 
-  let query = `
-    SELECT fee_payments.*, students.name as student_name, classes.name as class_name
-    FROM fee_payments
-    JOIN students ON fee_payments.student_id = students.id AND fee_payments.tenant_id = students.tenant_id
+  // Look up student's class and name
+  const studentInfo = await pool.query(
+    `SELECT s.name as student_name, s.class_id, c.name as class_name
+     FROM students s
+     LEFT JOIN classes c ON s.class_id = c.id AND s.tenant_id = c.tenant_id
+     WHERE s.id = $1 AND s.tenant_id = $2`,
+    [student_id, tenant_id]
+  )
+  const student = studentInfo.rows[0] || { student_name: '', class_name: '' }
+
+  // Find fee structure for student's class
+  let amountDue = 0
+  if (student.class_id) {
+    const fsResult = await pool.query(
+      `SELECT amount_due FROM fee_structures WHERE target_type = 'class' AND target_id = $1 AND tenant_id = $2 LIMIT 1`,
+      [student.class_id, tenant_id]
+    )
+    amountDue = Number(fsResult.rows[0]?.amount_due) || 0
+  }
+
+  // Get all payment records for this student
+  let paymentQuery = `
+    SELECT fp.id, fp.student_id, fp.month as month_year, fp.amount_due, fp.amount_paid, fp.status, fp.payment_date, fp.payment_method, fp.notes,
+           students.name as student_name, classes.name as class_name
+    FROM fee_payments fp
+    JOIN students ON fp.student_id = students.id AND fp.tenant_id = students.tenant_id
     LEFT JOIN classes ON students.class_id = classes.id AND students.tenant_id = classes.tenant_id
-    WHERE fee_payments.student_id = $1 AND fee_payments.tenant_id = $2
+    WHERE fp.student_id = $1 AND fp.tenant_id = $2
   `
   const params = [student_id, tenant_id]
 
   if (month) {
-    query += ` AND fee_payments.month = $3`
+    paymentQuery += ` AND fp.month = $3`
     params.push(month)
   }
 
-  query += ` ORDER BY fee_payments.month DESC`
+  paymentQuery += ` ORDER BY fp.month DESC`
+  const paymentResult = await pool.query(paymentQuery, params)
+  const records = paymentResult.rows
 
-  const result = await pool.query(query, params)
-  res.json(result.rows)
+  // If the requested month has no payment record, create a synthetic one
+  const targetMonth = month || new Date().toISOString().slice(0, 7)
+  const hasRequestedMonth = records.some(r => r.month_year === targetMonth)
+
+  if (!hasRequestedMonth) {
+    records.unshift({
+      id: null,
+      student_id,
+      month_year: targetMonth,
+      amount_due: amountDue,
+      amount_paid: 0,
+      status: 'not_set_up',
+      payment_date: null,
+      payment_method: null,
+      notes: null,
+      student_name: student.student_name,
+      class_name: student.class_name,
+    })
+  }
+
+  res.json(records)
 })
 
 
