@@ -1763,6 +1763,36 @@
       <!-- Stats Grid (populated by renderFees) -->
       <div id="feesSummaryCards"></div>
 
+      <!-- Browse Students by Class -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-icon purple" style="background: rgba(34, 197, 94, 0.12); color: #22c55e;">
+              <i class="fas fa-users"></i>
+            </div>
+            <div>
+              <div class="section-title">Browse Students by Class</div>
+              <div class="section-subtitle">View and edit fee structure per student</div>
+            </div>
+          </div>
+        </div>
+        <div class="section-body">
+          <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; align-items:center;">
+            <select id="feeBrowseClass" class="form-input" style="min-width:200px;" onchange="renderFeeClassBrowser()">
+              <option value="">Select a class...</option>
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="openFeeStructureModalForClass()">
+              <i class="fas fa-plus"></i> Set Class Default
+            </button>
+          </div>
+          <div id="feeClassBrowserWrap">
+            <div class="empty-state" style="padding:20px;">
+              <div class="msg">Select a class above to view students and their fees</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="section-card" id="feesSection">
         <div class="section-header">
           <div class="section-header-left">
@@ -1879,7 +1909,7 @@
       </div>
       <div class="form-group" style="margin-bottom:10px;">
         <label class="form-label" for="feeStructureType">Type</label>
-        <select id="feeStructureType" class="form-input">
+        <select id="feeStructureType" class="form-input" onchange="populateFeeStructureTarget()">
           <option value="class">Class-wise</option>
           <option value="student">Student-wise</option>
         </select>
@@ -1887,13 +1917,7 @@
       <div class="form-group" style="margin-bottom:10px;">
         <label class="form-label" for="feeStructureTarget">Select Class/Student</label>
         <select id="feeStructureTarget" class="form-input">
-          <option value="">Select...</option>
-          <option value="1">Class 1</option>
-          <option value="2">Class 2</option>
-          <option value="3">Class 3</option>
-          <option value="4">Class 4</option>
-          <option value="5">Class 5</option>
-          <option value="6">Class 6</option>
+          <option value="">Select a type first...</option>
         </select>
       </div>
       <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
@@ -2338,6 +2362,8 @@
         // Populate dropdowns used globally
         populateClassDropdown(classes);
         loadFeeData();
+        populateFeeBrowseClassDropdown();
+        loadFeeStructures();
 
         // Staggered section reveals with min skeleton time
         await revealAfterMinTime(() => {
@@ -2590,6 +2616,13 @@
     function openFeeStructureModal() {
       const modal = document.getElementById('feeStructureModal');
       if (modal) modal.style.display = 'flex';
+      // Reset form
+      document.getElementById('feeStructureType').value = 'class';
+      document.getElementById('feeStructureMonthly').value = '';
+      document.getElementById('feeStructureAdmission').value = '';
+      document.getElementById('feeStructureTransport').value = '';
+      document.getElementById('feeStructureDiscount').value = '';
+      populateFeeStructureTarget();
     }
 
     function closeFeeStructureModal() {
@@ -2597,21 +2630,198 @@
       if (modal) modal.style.display = 'none';
     }
 
-    function saveFeeStructure() {
+    function populateFeeStructureTarget() {
+      const type = document.getElementById('feeStructureType').value;
+      const sel = document.getElementById('feeStructureTarget');
+      sel.innerHTML = '<option value="">Select...</option>';
+      if (type === 'class') {
+        (window.appData.classes || []).forEach(cls => {
+          const opt = document.createElement('option');
+          opt.value = cls.id;
+          opt.textContent = cls.name;
+          sel.appendChild(opt);
+        });
+      } else {
+        (window.appData.students || []).forEach(stu => {
+          const opt = document.createElement('option');
+          opt.value = stu.id;
+          const cls = (window.appData.classes || []).find(c => Number(c.id) === Number(stu.class_id));
+          opt.textContent = `${stu.name}${cls ? ' — ' + cls.name : ''}`;
+          sel.appendChild(opt);
+        });
+      }
+    }
+
+    async function saveFeeStructure() {
       const type = document.getElementById('feeStructureType').value;
       const target = document.getElementById('feeStructureTarget').value;
-      const monthly = document.getElementById('feeStructureMonthly').value;
-      const admission = document.getElementById('feeStructureAdmission').value;
-      const transport = document.getElementById('feeStructureTransport').value;
-      const discount = document.getElementById('feeStructureDiscount').value;
+      const monthly = parseFloat(document.getElementById('feeStructureMonthly').value) || 0;
+      const admission = parseFloat(document.getElementById('feeStructureAdmission').value) || 0;
+      const transport = parseFloat(document.getElementById('feeStructureTransport').value) || 0;
+      const discount = parseFloat(document.getElementById('feeStructureDiscount').value) || 0;
 
       if (!target) {
         showToast('⚠️ Please select a class or student', 'warning');
         return;
       }
 
-      showToast('✅ Fee structure saved locally', 'success');
-      closeFeeStructureModal();
+      try {
+        await apiFetch('/api/fees/structures', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type, target_id: parseInt(target), monthly_fee: monthly, admission_fee: admission, transport_fee: transport, discount })
+        });
+        showToast('✅ Fee structure saved', 'success');
+        closeFeeStructureModal();
+        // Reload fee structures and refresh UI
+        if (typeof loadFeeStructures === 'function') await loadFeeStructures();
+        if (typeof renderFeeClassBrowser === 'function') renderFeeClassBrowser();
+        if (typeof renderStudentTable === 'function') filterStudents();
+      } catch (err) {
+        showToast(`❌ ${err.message}`, 'error');
+      }
+    }
+
+    // ── Fee structures cache ──────────────────────────────────────────────────
+    window._feeStructuresCache = [];
+
+    async function loadFeeStructures() {
+      try {
+        const data = await apiFetch('/api/fees/structures');
+        if (data.ok) {
+          const json = await data.json();
+          window._feeStructuresCache = Array.isArray(json) ? json : [];
+        }
+      } catch (err) {
+        window._feeStructuresCache = [];
+      }
+    }
+
+    function getStudentMonthlyFee(student) {
+      // Try student-level override first
+      let s = window._feeStructuresCache.find(x => String(x.type) === 'student' && String(x.target_id) === String(student.id));
+      if (s) return Number(s.monthly_fee) || 0;
+      // Fall back to class default
+      if (student.class_id) {
+        s = window._feeStructuresCache.find(x => String(x.type) === 'class' && String(x.target_id) === String(student.class_id));
+        if (s) return Number(s.monthly_fee) || 0;
+      }
+      return null; // not set
+    }
+
+    function getStructureId(student) {
+      let s = window._feeStructuresCache.find(x => String(x.type) === 'student' && String(x.target_id) === String(student.id));
+      if (s) return s.id;
+      if (student.class_id) {
+        s = window._feeStructuresCache.find(x => String(x.type) === 'class' && String(x.target_id) === String(student.class_id));
+        if (s) return s.id;
+      }
+      return null;
+    }
+
+    // Populate the Browse Class dropdown
+    function populateFeeBrowseClassDropdown() {
+      const sel = document.getElementById('feeBrowseClass');
+      if (!sel) return;
+      const current = sel.value;
+      sel.innerHTML = '<option value="">Select a class...</option>';
+      (window.appData.classes || []).forEach(cls => {
+        const opt = document.createElement('option');
+        opt.value = cls.id;
+        opt.textContent = cls.name;
+        sel.appendChild(opt);
+      });
+      sel.value = current;
+    }
+
+    function openFeeStructureModalForClass() {
+      openFeeStructureModal();
+      document.getElementById('feeStructureType').value = 'class';
+      populateFeeStructureTarget();
+    }
+
+    function renderFeeClassBrowser() {
+      const sel = document.getElementById('feeBrowseClass');
+      const wrap = document.getElementById('feeClassBrowserWrap');
+      if (!sel || !wrap) return;
+      const classId = sel.value;
+
+      if (!classId) {
+        wrap.innerHTML = `
+          <div class="empty-state" style="padding:20px;">
+            <div class="msg">Select a class above to view students and their fees</div>
+          </div>`;
+        return;
+      }
+
+      const cls = (window.appData.classes || []).find(c => String(c.id) === String(classId));
+      const students = (window.appData.students || []).filter(s => String(s.class_id) === String(classId));
+
+      if (!students.length) {
+        wrap.innerHTML = `
+          <div class="empty-state" style="padding:20px;">
+            <div class="msg">No students in ${escapeHtml(cls?.name || 'this class')}</div>
+          </div>`;
+        return;
+      }
+
+      // Class default fee
+      const classDefault = (window._feeStructuresCache || []).find(x => String(x.type) === 'class' && String(x.target_id) === String(classId));
+      const classDefaultAmount = classDefault ? Number(classDefault.monthly_fee) || 0 : 0;
+
+      let rows = students.map(s => {
+        const monthlyFee = getStudentMonthlyFee(s);
+        const hasOverride = !!window._feeStructuresCache.find(x => String(x.type) === 'student' && String(x.target_id) === String(s.id));
+        const displayFee = monthlyFee !== null ? `Rs. ${monthlyFee.toLocaleString()}` : '—';
+        const feeColor = monthlyFee !== null ? 'var(--text)' : 'var(--text-muted)';
+        const badge = monthlyFee !== null
+          ? (hasOverride ? '<span class="badge" style="background:rgba(34,197,94,0.14);color:#22c55e;font-size:0.68rem;">Custom</span>' : '<span class="badge" style="background:rgba(59,130,246,0.14);color:#3b82f6;font-size:0.68rem;">Class</span>')
+          : '<span class="badge" style="background:rgba(239,68,68,0.12);color:#ef4444;font-size:0.68rem;">Not Set</span>';
+        return `
+          <tr>
+            <td style="text-align:left;"><strong>${escapeHtml(s.name)}</strong></td>
+            <td style="text-align:center; color:var(--text-secondary);">${escapeHtml(s.roll_no || '—')}</td>
+            <td style="text-align:center; font-weight:700; color:${feeColor};">${displayFee}</td>
+            <td style="text-align:center;">${badge}</td>
+            <td style="text-align:right;">
+              <button class="btn btn-ghost btn-sm" onclick="openStudentFeeEdit(${s.id}, ${monthlyFee !== null ? monthlyFee : 0})" style="font-size:0.75rem;">
+                <i class="fas fa-pen"></i> Edit
+              </button>
+            </td>
+          </tr>`;
+      }).join('');
+
+      wrap.innerHTML = `
+        ${classDefaultAmount > 0 ? `<div style="font-size:0.78rem; color:var(--text-muted); margin-bottom:10px;">Class default: <strong>Rs. ${classDefaultAmount.toLocaleString()}</strong> — students inherit this unless overridden individually.</div>` : ''}
+        <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="text-align:left;">Student</th>
+              <th style="text-align:center;">Roll No</th>
+              <th style="text-align:center;">Monthly Fee</th>
+              <th style="text-align:center;">Source</th>
+              <th style="text-align:right;">Action</th>
+            </tr>
+          </thead>
+          <tbody>${rows || `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:16px;">No students found.</td></tr>`}</tbody>
+        </table>
+        </div>`;
+    }
+
+    function openStudentFeeEdit(studentId, currentFee) {
+      const student = (window.appData.students || []).find(s => String(s.id) === String(studentId));
+      if (!student) return;
+
+      // Pre-fill the structure modal for student-wise
+      openFeeStructureModal();
+      document.getElementById('feeStructureType').value = 'student';
+      populateFeeStructureTarget();
+      document.getElementById('feeStructureTarget').value = studentId;
+      document.getElementById('feeStructureMonthly').value = currentFee > 0 ? currentFee : '';
+      document.getElementById('feeStructureAdmission').value = '';
+      document.getElementById('feeStructureTransport').value = '';
+      document.getElementById('feeStructureDiscount').value = '';
     }
 
     function saveFeeSetup() {
