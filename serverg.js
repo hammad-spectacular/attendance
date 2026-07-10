@@ -1405,14 +1405,19 @@ app.get('/api/fees/me', requireAuth(['student']), async (req, res) => {
   )
   const student = studentInfo.rows[0] || { student_name: '', class_name: '' }
 
-  // Find fee structure for student's class
-  let amountDue = 0
-  if (student.class_id) {
-    const fsResult = await pool.query(
-      `SELECT amount_due FROM fee_structures WHERE target_type = 'class' AND target_id = $1 AND tenant_id = $2 LIMIT 1`,
-      [student.class_id, tenant_id]
-    )
-    amountDue = Number(fsResult.rows[0]?.amount_due) || 0
+  // Find fee structure — student override first, then class default (same as getStudentMonthlyFee)
+  let monthlyFee = 0
+  let feeStructureExists = false
+  const fsResult = await pool.query(
+    `SELECT monthly_fee FROM fee_structures WHERE type = 'student' AND target_id = $1 AND tenant_id = $2
+     UNION ALL
+     SELECT monthly_fee FROM fee_structures WHERE type = 'class' AND target_id = $3 AND tenant_id = $2
+     LIMIT 1`,
+    [student_id, tenant_id, student.class_id || 0]
+  )
+  if (fsResult.rows.length > 0) {
+    monthlyFee = Number(fsResult.rows[0].monthly_fee) || 0
+    feeStructureExists = true
   }
 
   // Get all payment records for this student
@@ -1444,9 +1449,9 @@ app.get('/api/fees/me', requireAuth(['student']), async (req, res) => {
       id: null,
       student_id,
       month_year: targetMonth,
-      amount_due: amountDue,
+      amount_due: monthlyFee,
       amount_paid: 0,
-      status: 'not_set_up',
+      status: feeStructureExists ? 'unpaid' : 'not_set_up',
       payment_date: null,
       payment_method: null,
       notes: null,
