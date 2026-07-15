@@ -1,0 +1,1568 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <script>
+    (function () {
+      const savedTheme = localStorage.getItem('attendance-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fee Management — The Eye v2</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <meta name="description" content="Fee management module for The Eye School Management System.">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    [data-theme="dark"] {
+      --bg: #0f172a;
+      --bg-card: #1e293b;
+      --bg-card-hover: #263348;
+      --bg-input: #0f172a;
+      --border: #334155;
+      --border-focus: #4f46e5;
+      --text: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --primary: #4f46e5;
+      --primary-light: #818cf8;
+      --primary-hover: #6366f1;
+      --success: #22c55e;
+      --success-bg: rgba(34, 197, 94, 0.1);
+      --danger: #ef4444;
+      --danger-bg: rgba(239, 68, 68, 0.08);
+      --warning: #f59e0b;
+      --warning-bg: rgba(245, 158, 11, 0.08);
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+      --gradient: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+      --table-row-hover: rgba(79, 70, 229, 0.06);
+      --table-stripe: rgba(255, 255, 255, 0.02);
+      --badge-bg: rgba(79, 70, 229, 0.12);
+      --badge-text: #a5b4fc;
+    }
+
+    [data-theme="light"] {
+      --bg: #f1f5f9;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f8fafc;
+      --bg-input: #f8fafc;
+      --border: #e2e8f0;
+      --border-focus: #4f46e5;
+      --text: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      --primary: #4f46e5;
+      --primary-light: #6366f1;
+      --primary-hover: #4338ca;
+      --success: #16a34a;
+      --success-bg: rgba(34, 197, 94, 0.08);
+      --danger: #dc2626;
+      --danger-bg: rgba(239, 68, 68, 0.06);
+      --warning: #d97706;
+      --warning-bg: rgba(245, 158, 11, 0.06);
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
+      --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+      --gradient: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+      --table-row-hover: rgba(79, 70, 229, 0.04);
+      --table-stripe: rgba(0, 0, 0, 0.015);
+      --badge-bg: rgba(79, 70, 229, 0.08);
+      --badge-text: #4f46e5;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      transition: background 0.4s ease, color 0.4s ease;
+      overflow-x: hidden;
+    }
+
+    .header {
+      background: var(--gradient);
+      padding: 20px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(79, 70, 229, 0.3);
+      animation: headerSlideDown 0.5s ease-out;
+    }
+
+    .header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 30% 50%, rgba(255, 255, 255, 0.08) 0%, transparent 60%),
+        radial-gradient(ellipse at 70% 50%, rgba(255, 255, 255, 0.05) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .header-inner {
+      position: relative;
+      z-index: 1;
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .back-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+
+    .back-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.5);
+      transform: scale(1.06);
+    }
+
+    .header-title strong {
+      display: block;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: white;
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+    }
+
+    .header-title span {
+      font-size: 0.72rem;
+      color: rgba(255, 255, 255, 0.65);
+      font-weight: 400;
+      letter-spacing: 0.3px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .theme-toggle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+    }
+
+    .theme-toggle:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.5);
+      transform: scale(1.06);
+    }
+
+    .tab-nav {
+      background: var(--bg);
+      border-bottom: 2px solid var(--border);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      transition: background 0.3s ease, border-color 0.3s ease;
+      margin-top: 2px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      white-space: nowrap;
+    }
+
+    .tab-nav::-webkit-scrollbar {
+      display: none;
+    }
+
+    .tab-nav {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    [data-theme="dark"] .tab-nav {
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .tab-nav-inner {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      gap: 0.5rem;
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
+      width: max-content;
+    }
+
+    .tab-btn {
+      padding: 0.65rem 1.5rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      border-radius: 12px;
+      border: 2px solid transparent;
+      background: var(--bg-card);
+      transition: all 0.25s ease;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: 'Inter', sans-serif;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .tab-btn:hover {
+      color: var(--primary);
+      background: var(--bg-card-hover);
+      border-color: var(--border);
+    }
+
+    .tab-btn.active {
+      color: #fff;
+      background: var(--gradient);
+      border-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+    }
+
+    .tab-content {
+      display: none;
+      animation: fadeInUp 0.3s ease-out both;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 28px 20px 60px;
+    }
+
+    .section-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      animation: fadeInUp 0.5s ease-out both;
+    }
+
+    .section-card:nth-child(1) {
+      animation-delay: 0.05s;
+    }
+
+    .section-card:nth-child(2) {
+      animation-delay: 0.15s;
+    }
+
+    .section-card:nth-child(3) {
+      animation-delay: 0.25s;
+    }
+
+    .section-header {
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .section-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .section-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    .section-icon.purple {
+      background: var(--badge-bg);
+      color: var(--badge-text);
+    }
+
+    .section-icon.green {
+      background: var(--success-bg);
+      color: var(--success);
+    }
+
+    .section-icon.amber {
+      background: var(--warning-bg);
+      color: var(--warning);
+    }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
+    }
+
+    .section-subtitle {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .section-body {
+      padding: 18px 22px;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 0.82rem;
+    }
+
+    .data-table thead th {
+      padding: 10px 14px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .data-table tbody tr {
+      transition: background 0.2s ease;
+    }
+
+    .data-table tbody tr:hover {
+      background: var(--table-row-hover);
+    }
+
+    .data-table tbody tr:nth-child(even) {
+      background: var(--table-stripe);
+    }
+
+    .data-table tbody tr:nth-child(even):hover {
+      background: var(--table-row-hover);
+    }
+
+    .data-table tbody td {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-secondary);
+      vertical-align: middle;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 30px 16px;
+      color: var(--text-muted);
+    }
+
+    .empty-state .icon {
+      font-size: 2rem;
+      margin-bottom: 8px;
+      opacity: 0.6;
+    }
+
+    .empty-state .msg {
+      font-size: 0.82rem;
+      font-weight: 500;
+    }
+
+    .empty-state .sub {
+      font-size: 0.72rem;
+      margin-top: 4px;
+      opacity: 0.7;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 8px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .badge.paid {
+      background: var(--success-bg);
+      color: var(--success);
+    }
+
+    .badge.unpaid {
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+
+    .badge.partial {
+      background: var(--warning-bg);
+      color: var(--warning);
+    }
+
+    .badge.pending {
+      background: rgba(79, 70, 229, 0.1);
+      color: var(--primary-light);
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-input,
+    .form-select {
+      width: 100%;
+      padding: 11px 14px;
+      border-radius: 10px;
+      border: 2px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.85rem;
+      transition: border-color 0.25s ease, box-shadow 0.25s ease;
+      outline: none;
+    }
+
+    .form-input:focus,
+    .form-select:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
+
+    .form-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .form-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .form-row .form-group {
+      flex: 1;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 22px;
+      border-radius: 10px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      border: none;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      letter-spacing: 0.2px;
+    }
+
+    .btn-primary {
+      background: var(--gradient);
+      color: white;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 6px 18px rgba(79, 70, 229, 0.45);
+      transform: translateY(-1px);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-secondary);
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 0.75rem;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .btn-edit {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      border: none;
+      background: var(--badge-bg);
+      color: var(--badge-text);
+      cursor: pointer;
+      font-size: 0.72rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .btn-edit:hover {
+      background: rgba(79, 70, 229, 0.2);
+      transform: scale(1.1);
+    }
+
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    .modal.open {
+      display: flex !important;
+    }
+
+    .modal-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 24px;
+      width: 90%;
+      max-width: 480px;
+      box-shadow: var(--shadow-lg);
+      animation: modalSlideIn 0.3s ease-out;
+    }
+
+    .modal-card h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
+    }
+
+    .modal-card h3 i {
+      color: var(--primary);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .modal-actions .btn {
+      flex: 1;
+    }
+
+    .filters-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .filters-row .form-group {
+      margin-bottom: 0;
+      flex: 1;
+      min-width: 150px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .stat-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+
+    .stat-icon.purple {
+      background: var(--badge-bg);
+      color: var(--badge-text);
+    }
+
+    .stat-icon.green {
+      background: var(--success-bg);
+      color: var(--success);
+    }
+
+    .stat-icon.amber {
+      background: var(--warning-bg);
+      color: var(--warning);
+    }
+
+    .stat-icon.blue {
+      background: rgba(59, 130, 246, 0.1);
+      color: #60a5fa;
+    }
+
+    .stat-info {
+      flex: 1;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.2;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-top: 2px;
+    }
+
+    @keyframes headerSlideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes modalSlideIn {
+      from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .header {
+        padding: 16px;
+      }
+
+      .header-title strong {
+        font-size: 1.1rem;
+      }
+
+      .main {
+        padding: 16px 14px 50px;
+      }
+
+      .section-header {
+        padding: 14px 16px;
+      }
+
+      .section-body {
+        padding: 14px 16px;
+      }
+
+      .form-row {
+        flex-direction: column;
+        gap: 0;
+      }
+
+      .data-table {
+        font-size: 0.75rem;
+      }
+
+      .data-table thead th {
+        padding: 8px 10px;
+        font-size: 0.62rem;
+      }
+
+      .data-table tbody td {
+        padding: 9px 10px;
+      }
+
+      .section-title {
+        font-size: 0.9rem;
+      }
+
+      .tab-nav-inner {
+        padding-left: 14px;
+        padding-right: 14px;
+        gap: 0.35rem;
+      }
+
+      .tab-btn {
+        padding: 0.55rem 1rem;
+        font-size: 0.82rem;
+      }
+
+      .modal-card {
+        padding: 20px;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <div class="header-left">
+        <a href="admin.html" class="back-btn">
+          <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <div class="header-title">
+          <strong>Fee Management</strong>
+          <span>Track and manage student fees</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <button class="theme-toggle" onclick="toggleTheme()">
+          <i class="fa-solid fa-moon"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tab-nav">
+    <div class="tab-nav-inner">
+      <button class="tab-btn active" data-tab="dashboard">
+        <i class="fa-solid fa-chart-pie"></i>
+        <span>Dashboard</span>
+      </button>
+      <button class="tab-btn" data-tab="structure">
+        <i class="fa-solid fa-sliders"></i>
+        <span>Fee Structure</span>
+      </button>
+      <button class="tab-btn" data-tab="records">
+        <i class="fa-solid fa-list"></i>
+        <span>Payment Records</span>
+      </button>
+    </div>
+  </nav>
+
+  <main class="main">
+    <!-- Dashboard Tab -->
+    <div class="tab-content active" id="dashboard-tab">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon purple">
+            <i class="fa-solid fa-users"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" id="totalStudents">245</div>
+            <div class="stat-label">Total Students</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon amber">
+            <i class="fa-solid fa-clock"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" id="totalDue">Rs. 1.2L</div>
+            <div class="stat-label">Total Due</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">
+            <i class="fa-solid fa-check-circle"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" id="totalCollected">Rs. 4.8L</div>
+            <div class="stat-label">Total Collected</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon blue">
+            <i class="fa-solid fa-percentage"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" id="collectionRate">78%</div>
+            <div class="stat-label">Collection Rate</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-icon purple">
+              <i class="fa-solid fa-money-bill-wave"></i>
+            </div>
+            <div>
+              <div class="section-title">Fee Overview</div>
+              <div class="section-subtitle">Current month fee status</div>
+            </div>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="filters-row">
+            <div class="form-group">
+              <select class="form-select" id="monthFilter">
+                <option value="2026-07">July 2026</option>
+                <option value="2026-06">June 2026</option>
+                <option value="2026-05">May 2026</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <select class="form-select" id="classFilter">
+                <option value="">All Classes</option>
+                <option value="1">Class 1</option>
+                <option value="2">Class 2</option>
+                <option value="3">Class 3</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <select class="form-select" id="statusFilter">
+                <option value="">All Status</option>
+                <option value="paid">Paid</option>
+                <option value="unpaid">Unpaid</option>
+                <option value="partial">Partial</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <input type="text" class="form-input" placeholder="Search student..." id="searchInput">
+            </div>
+          </div>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Student Name</th>
+                <th>Class</th>
+                <th>Amount Due</th>
+                <th>Amount Paid</th>
+                <th>Status</th>
+                <th>Payment Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="paymentsTableBody">
+              <tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:24px;">No fee records yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fee Structure Tab -->
+    <div class="tab-content" id="structure-tab">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-icon purple">
+              <i class="fa-solid fa-sliders"></i>
+            </div>
+            <div>
+              <div class="section-title">Fee Structure Setup</div>
+              <div class="section-subtitle">Configure fee amounts per student or class</div>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openStructureModal()">
+            <i class="fa-solid fa-plus"></i>
+            Add Structure
+          </button>
+        </div>
+        <div class="section-body">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Student/Class</th>
+                <th>Monthly Fee</th>
+                <th>Admission Fee</th>
+                <th>Transport Fee</th>
+                <th>Discount</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="structuresTableBody">
+              <tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:24px;">No fee structures yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Payment Records Tab -->
+    <div class="tab-content" id="records-tab">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-icon green">
+              <i class="fa-solid fa-list"></i>
+            </div>
+            <div>
+              <div class="section-title">Payment History</div>
+              <div class="section-subtitle">Complete record of all fee payments</div>
+            </div>
+          </div>
+        </div>
+        <div class="section-body">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Receipt #</th>
+                <th>Student</th>
+                <th>Month</th>
+                <th>Amount</th>
+                <th>Method</th>
+                <th>Date</th>
+                <th>Received By</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody">
+              <tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:24px;">No payment records yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Payment Modal -->
+  <div class="modal" id="paymentModal">
+    <div class="modal-card">
+      <h3><i class="fa-solid fa-money-bill-wave"></i> Record Payment</h3>
+      <form id="paymentForm">
+        <div class="form-group">
+          <label class="form-label">Student</label>
+          <select class="form-select" id="paymentStudent" onchange="onStudentChange()">
+            <option value="">Select student...</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Month</label>
+            <select class="form-select" id="paymentMonth">
+              <option value="2026-07">July 2026</option>
+              <option value="2026-06">June 2026</option>
+              <option value="2026-05">May 2026</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Amount Due</label>
+            <input type="text" class="form-input" id="amountDue" placeholder="Select a student" readonly>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Amount Paid</label>
+            <input type="number" class="form-input" id="amountPaid" placeholder="Enter amount">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Payment Date</label>
+            <input type="date" class="form-input" id="paymentDate">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Payment Method</label>
+          <select class="form-select" id="paymentMethod">
+            <option value="cash">Cash</option>
+            <option value="bank">Bank Transfer</option>
+            <option value="cheque">Cheque</option>
+            <option value="online">Online Payment</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes (Optional)</label>
+          <input type="text" class="form-input" id="paymentNotes" placeholder="Any additional notes...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Upload Receipt (Optional)</label>
+          <input type="file" class="form-input" id="paymentReceipt" accept="image/*">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" onclick="closePaymentModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Payment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Fee Structure Modal -->
+  <div class="modal" id="structureModal">
+    <div class="modal-card">
+      <h3><i class="fa-solid fa-sliders"></i> Add Fee Structure</h3>
+      <form id="structureForm">
+        <div class="form-group">
+          <label class="form-label">Type</label>
+          <select class="form-select" id="structureType">
+            <option value="class">Class-wise</option>
+            <option value="student">Student-wise</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Select Class/Student</label>
+          <select class="form-select" id="structureTarget">
+            <option value="">Select...</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Monthly Fee</label>
+            <input type="number" class="form-input" id="monthlyFee" placeholder="Rs.">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Admission Fee</label>
+            <input type="number" class="form-input" id="admissionFee" placeholder="Rs.">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Transport Fee</label>
+            <input type="number" class="form-input" id="transportFee" placeholder="Rs.">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Discount</label>
+            <input type="number" class="form-input" id="discountFee" placeholder="Rs.">
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" onclick="closeStructureModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Structure</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = window.location.origin;
+
+    let isRedirecting = false;
+
+    function authHeader() {
+      const token = localStorage.getItem('auth_token');
+      return token ? { Authorization: 'Bearer ' + token } : {};
+    }
+
+    function setAuthToken(token) {
+      if (token) localStorage.setItem('auth_token', token);
+    }
+
+    function redirectToLogin() {
+      if (isRedirecting) return;
+      isRedirecting = true;
+      localStorage.removeItem('auth_token');
+      window.location.href = '/index.html';
+    }
+
+    async function refreshSession() {
+      try {
+        const res = await fetch(API_BASE + '/api/auth/me', {
+          credentials: 'include',
+          headers: authHeader()
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (data.token) setAuthToken(data.token);
+        return data;
+      } catch (err) {
+        return null;
+      }
+    }
+
+    async function apiFetch(url, options = {}) {
+      const fullUrl = url.startsWith('/api') ? API_BASE + url : url;
+      const doFetch = () => fetch(fullUrl, {
+        credentials: 'include',
+        ...options,
+        headers: {
+          ...authHeader(),
+          'Content-Type': 'application/json',
+          ...(options.headers || {})
+        }
+      });
+
+      let res = await doFetch();
+      if (res.status === 401) {
+        const session = await refreshSession();
+        if (!session) {
+          redirectToLogin();
+          return res;
+        }
+        res = await doFetch();
+        if (res.status === 401) redirectToLogin();
+      }
+
+      return res;
+    }
+
+    async function fetchJson(url) {
+      const response = await apiFetch(url);
+      if (!response.ok) throw new Error(`Request failed (${response.status})`);
+      return response.json();
+    }
+
+    // ── Classes (for structure modal target dropdown) ──────────────────────────
+    async function loadClasses() {
+      try {
+        const classes = await fetchJson('/api/classes');
+        window._classesCache = Array.isArray(classes) ? classes : [];
+      } catch (err) {
+        window._classesCache = [];
+        console.error('Failed to load classes:', err);
+      }
+    }
+
+    function populateStructureTarget(type) {
+      const sel = document.getElementById('structureTarget');
+      sel.innerHTML = '<option value="">Select...</option>';
+      if (type === 'class') {
+        (window._classesCache || []).forEach(cls => {
+          const opt = document.createElement('option');
+          opt.value = cls.id;
+          opt.textContent = cls.name;
+          sel.appendChild(opt);
+        });
+      } else {
+        // student-wise — populate from student cache
+        (window._studentsCache || []).forEach(stu => {
+          const cls = (window._classesCache || []).find(c => Number(c.id) === Number(stu.class_id));
+          const opt = document.createElement('option');
+          opt.value = stu.id;
+          opt.textContent = `${stu.name}${cls ? ' — ' + cls.name : ''}`;
+          sel.appendChild(opt);
+        });
+      }
+    }
+
+    // ── Students (for payment modal dropdown) ───────────────────────────────────
+    async function loadStudentsForPayment() {
+      try {
+        const students = await fetchJson('/api/students');
+        window._studentsCache = Array.isArray(students) ? students : [];
+      } catch (err) {
+        window._studentsCache = [];
+        console.error('Failed to load students:', err);
+      }
+    }
+
+    function populateStudentDropdown() {
+      const sel = document.getElementById('paymentStudent');
+      sel.innerHTML = '<option value="">Select student...</option>';
+      (window._studentsCache || []).forEach(stu => {
+        const cls = (window._classesCache || []).find(c => Number(c.id) === Number(stu.class_id));
+        const opt = document.createElement('option');
+        opt.value = stu.id;
+        opt.textContent = `${stu.name}${cls ? ' — ' + cls.name : ''}`;
+        sel.appendChild(opt);
+      });
+    }
+
+    // ── Fee structure lookup on student selection ──────────────────────────────
+    async function onStudentChange() {
+      const studentId = parseInt(document.getElementById('paymentStudent').value);
+      const amountDueEl = document.getElementById('amountDue');
+      amountDueEl.value = 'Loading...';
+      if (!studentId) {
+        amountDueEl.value = '';
+        return;
+      }
+      try {
+        const student = (window._studentsCache || []).find(s => Number(s.id) === studentId);
+        const structures = await fetchJson('/api/fees/structures');
+        // Try individual override first, then class-level fallback
+        let structure = Array.isArray(structures)
+          ? structures.find(s => String(s.target_id) === String(studentId) && s.type === 'student')
+          : null;
+        if (!structure && student) {
+          structure = Array.isArray(structures)
+            ? structures.find(s => String(s.target_id) === String(student.class_id) && s.type === 'class')
+            : null;
+        }
+        if (structure) {
+          const monthly = Number(structure.monthly_fee) || 0;
+          amountDueEl.value = `Rs. ${monthly.toLocaleString()}`;
+        } else {
+          amountDueEl.value = 'N/A';
+        }
+      } catch (err) {
+        console.error('Failed to load fee structure:', err);
+        amountDueEl.value = 'Error';
+      }
+    }
+
+    // Theme Toggle
+    function toggleTheme() {
+      const html = document.documentElement;
+      const current = html.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('attendance-theme', next);
+      
+      const icon = document.querySelector('.theme-toggle i');
+      icon.className = next === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+    }
+
+    // Initialize theme icon
+    (function() {
+      const theme = document.documentElement.getAttribute('data-theme');
+      const icon = document.querySelector('.theme-toggle i');
+      if (icon) {
+        icon.className = theme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+      }
+    })();
+
+    // Tab Navigation
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab + '-tab').classList.add('active');
+      });
+    });
+
+    // Load fee stats
+    async function loadFeeStats() {
+      try {
+        const stats = await fetchJson('/api/fees/stats?month=2026-07');
+        document.getElementById('totalStudents').textContent = stats.total_students;
+        document.getElementById('totalDue').textContent = `Rs. ${stats.total_due.toLocaleString()}`;
+        document.getElementById('totalCollected').textContent = `Rs. ${stats.total_collected.toLocaleString()}`;
+        document.getElementById('collectionRate').textContent = `${stats.collection_rate}%`;
+      } catch (err) {
+        console.error('Failed to load fee stats:', err);
+      }
+    }
+
+    // Load fee structures
+    function getStructureTargetName(s) {
+      if (s.target_name) return s.target_name;
+      if (s.type === 'class') {
+        const cls = (window._classesCache || []).find(c => Number(c.id) === Number(s.target_id));
+        return cls ? cls.name : '#${s.target_id}';
+      }
+      if (s.type === 'student') {
+        const stu = (window._studentsCache || []).find(st => Number(st.id) === Number(s.target_id));
+        return stu ? stu.name : '#${s.target_id}';
+      }
+      return s.target_id;
+    }
+
+    async function loadFeeStructures() {
+      try {
+        const structures = await fetchJson('/api/fees/structures');
+        const tbody = document.getElementById('structuresTableBody');
+        tbody.innerHTML = structures.map(s => `
+          <tr>
+            <td>${getStructureTargetName(s)}</td>
+            <td>Rs. ${Number(s.monthly_fee).toLocaleString()}</td>
+            <td>Rs. ${Number(s.admission_fee).toLocaleString()}</td>
+            <td>Rs. ${Number(s.transport_fee).toLocaleString()}</td>
+            <td>Rs. ${Number(s.discount).toLocaleString()}</td>
+            <td><span class="badge paid">Active</span></td>
+            <td>
+              <div class="action-buttons">
+                <button class="btn-edit"><i class="fa-solid fa-pen"></i></button>
+              </div>
+            </td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Failed to load fee structures:', err);
+      }
+    }
+
+    // Load fee payments
+    async function loadFeePayments() {
+      try {
+        const month = document.getElementById('monthFilter')?.value || '';
+        const classId = document.getElementById('classFilter')?.value || '';
+        const status = document.getElementById('statusFilter')?.value || '';
+        const search = document.getElementById('searchInput')?.value || '';
+        
+        const params = new URLSearchParams();
+        if (month) params.append('month', month);
+        if (classId) params.append('class_id', classId);
+        if (status) params.append('status', status);
+        if (search) params.append('search', search);
+        
+        params.append('mode', 'records');
+        const payments = await fetchJson(`/api/fees/payments?${params}`);
+        const tbody = document.getElementById('paymentsTableBody');
+        tbody.innerHTML = payments.map(p => `
+          <tr>
+            <td>${p.student_name}</td>
+            <td>${p.class_name || 'N/A'}</td>
+            <td>Rs. ${Number(p.amount_due).toLocaleString()}</td>
+            <td>Rs. ${Number(p.amount_paid).toLocaleString()}</td>
+            <td><span class="badge ${p.status}"><i class="fa-solid ${p.status === 'paid' ? 'fa-check' : p.status === 'partial' ? 'fa-minus' : 'fa-xmark'}"></i> ${p.status.charAt(0).toUpperCase() + p.status.slice(1)}</span></td>
+            <td>${p.payment_date || '-'}</td>
+            <td>
+              <div class="action-buttons">
+                <button class="btn-edit" onclick="openPaymentModal(${p.student_id})"><i class="fa-solid fa-eye"></i></button>
+              </div>
+            </td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Failed to load fee payments:', err);
+      }
+    }
+
+    // Load payment history
+    async function loadPaymentHistory() {
+      try {
+        const payments = await fetchJson('/api/fees/payments?mode=records');
+        const tbody = document.getElementById('historyTableBody');
+        tbody.innerHTML = payments.map(p => `
+          <tr>
+            <td>RCP-${String(p.id).padStart(3, '0')}</td>
+            <td>${p.student_name}</td>
+            <td>${p.month}</td>
+            <td>Rs. ${Number(p.amount_paid).toLocaleString()}</td>
+            <td>${p.payment_method || 'N/A'}</td>
+            <td>${p.payment_date || '-'}</td>
+            <td>Admin</td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Failed to load payment history:', err);
+      }
+    }
+
+    // Payment Modal
+    function openPaymentModal(studentId) {
+      document.getElementById('paymentModal').classList.add('open');
+      if (studentId) {
+        document.getElementById('paymentStudent').value = studentId;
+        onStudentChange();
+      } else {
+        document.getElementById('amountDue').value = '';
+      }
+    }
+
+    function closePaymentModal() {
+      document.getElementById('paymentModal').classList.remove('open');
+      document.getElementById('paymentForm').reset();
+      document.getElementById('amountDue').value = '';
+    }
+
+    // Structure Modal
+    function openStructureModal() {
+      document.getElementById('structureModal').classList.add('open');
+    }
+
+    function closeStructureModal() {
+      document.getElementById('structureModal').classList.remove('open');
+      document.getElementById('structureForm').reset();
+    }
+
+    // Close modals on backdrop click
+    document.querySelectorAll('.modal').forEach(modal => {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.classList.remove('open');
+        }
+      });
+    });
+
+    // Payment form submission
+    document.getElementById('paymentForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const data = {
+          student_id: parseInt(document.getElementById('paymentStudent').value),
+          month: document.getElementById('paymentMonth').value,
+          amount_due: parseFloat(document.getElementById('amountDue').value.replace(/[^0-9.]/g, '')) || 0,
+          amount_paid: parseFloat(document.getElementById('amountPaid').value) || 0,
+          payment_method: document.getElementById('paymentMethod').value,
+          payment_date: document.getElementById('paymentDate').value,
+          notes: document.getElementById('paymentNotes').value
+        };
+        
+        await apiFetch('/api/fees/payments', {
+          method: 'POST',
+          body: JSON.stringify(data)
+        });
+        
+        alert('Payment recorded successfully!');
+        closePaymentModal();
+        loadFeePayments();
+        loadPaymentHistory();
+        loadFeeStats();
+      } catch (err) {
+        alert('Failed to record payment: ' + err.message);
+      }
+    });
+
+    // Structure form submission
+    document.getElementById('structureForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const data = {
+          type: document.getElementById('structureType').value,
+          target_id: parseInt(document.getElementById('structureTarget').value),
+          monthly_fee: parseFloat(document.getElementById('monthlyFee').value) || 0,
+          admission_fee: parseFloat(document.getElementById('admissionFee').value) || 0,
+          transport_fee: parseFloat(document.getElementById('transportFee').value) || 0,
+          discount: parseFloat(document.getElementById('discountFee').value) || 0
+        };
+
+        // Check if a structure already exists for this type+target_id
+        const existingList = await fetchJson('/api/fees/structures');
+        const existing = Array.isArray(existingList)
+          ? existingList.find(s => s.type === data.type && Number(s.target_id) === data.target_id)
+          : null;
+
+        const url = existing ? `/api/fees/structures/${existing.id}` : '/api/fees/structures';
+        const method = existing ? 'PUT' : 'POST';
+
+        const res = await apiFetch(url, { method, body: JSON.stringify(data) });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `Server returned ${res.status}`);
+        }
+
+        alert('Fee structure saved successfully!');
+        closeStructureModal();
+        loadFeeStructures();
+      } catch (err) {
+        alert('Failed to save fee structure: ' + err.message);
+      }
+    });
+
+    // Filter change handlers
+    document.getElementById('monthFilter')?.addEventListener('change', loadFeePayments);
+    document.getElementById('classFilter')?.addEventListener('change', loadFeePayments);
+    document.getElementById('statusFilter')?.addEventListener('change', loadFeePayments);
+    document.getElementById('searchInput')?.addEventListener('input', loadFeePayments);
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async () => {
+      loadFeeStats();
+      loadFeeStructures();
+      loadFeePayments();
+      loadPaymentHistory();
+
+      // Set today's date as default
+      document.getElementById('paymentDate').valueAsDate = new Date();
+
+      // Load real data for dropdowns
+      await Promise.all([loadClasses(), loadStudentsForPayment()]);
+      populateStudentDropdown();
+      populateStructureTarget('class');
+
+      // Wire structure type toggle
+      document.getElementById('structureType').addEventListener('change', (e) => {
+        populateStructureTarget(e.target.value);
+      });
+    });
+  </script>
+</body>
+</html>
