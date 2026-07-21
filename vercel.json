@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "http://13.50.106.16:3000/api/$1"
+      "destination": "https://attendance-production-fb0b.up.railway.app/api/$1"
     }
   ],
   "headers": [
