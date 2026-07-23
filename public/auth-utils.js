@@ -1,4 +1,4 @@
-const API_BASE = window.location.origin;
+const API_BASE = 'http://13.50.106.16';
 
 let isRedirecting = false;
 

@@ -260,7 +260,8 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     errorEl.classList.add('show');
     return;
   }
-  if (fullId.indexOf('-') === -1) {
+  // Allow SUPER-ADM as a special case
+  if (fullId !== 'SUPER-ADM' && fullId.indexOf('-') === -1) {
     errorEl.textContent = 'Invalid ID format. Your ID should look like HARV-T001';
     errorEl.classList.add('show');
     return;
@@ -279,7 +280,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
   btn.innerHTML = '<span class="spinner"></span> Signing in...';
 
   try {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch('http://13.50.106.16/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ full_id: fullId.toUpperCase(), password })

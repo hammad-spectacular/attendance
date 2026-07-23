@@ -15,7 +15,7 @@ const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_SALT_ROUNDS || '12')
 const JWT_EXPIRY = '8h'
 
 app.use(cors({
-  origin: ['https://theeye-beta.vercel.app', 'http://localhost:3000'],
+  origin: ['https://theeye-beta.vercel.app', 'http://localhost:3000', 'http://16.16.104.177', 'http://13.50.106.16'],
   credentials: true
 }))
 app.use(express.json())
