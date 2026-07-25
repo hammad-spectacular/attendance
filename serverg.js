@@ -11,11 +11,29 @@ const { requireAuth } = require('./authMiddleware')
 const app = express()
 const JWT_SECRET = process.env.JWT_SECRET
 console.log('JWT_SECRET loaded:', JWT_SECRET ? 'YES' : 'MISSING')
+if (!JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET is not set. Set it in Railway environment variables.')
+  process.exit(1)
+}
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_SALT_ROUNDS || '12')
 const JWT_EXPIRY = '8h'
 
 app.use(cors({
-  origin: ['https://theeye-beta.vercel.app', 'http://localhost:3000', 'http://16.16.104.177', 'http://13.50.106.16'],
+  origin: (origin, callback) => {
+    // Same-origin and server-to-server requests have no Origin header
+    if (!origin) return callback(null, true)
+    const allowed = [
+      'https://theeye-beta.vercel.app',
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'http://16.16.104.177',
+      'http://13.50.106.16'
+    ]
+    if (allowed.includes(origin)) return callback(null, true)
+    // Vercel preview deployments use unique subdomains
+    if (/^https:\/\/[\w-]+\.vercel\.app$/.test(origin)) return callback(null, true)
+    callback(null, false)
+  },
   credentials: true
 }))
 app.use(express.json())
@@ -250,14 +268,27 @@ function generateTempPassword() {
 
 
 // ============================================
+// HEALTH CHECK (used by frontend / deploy verification)
+// ============================================
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true, service: 'serverg', auth: true, ts: Date.now() })
+})
+
+// ============================================
 // AUTH ROUTES
 // ============================================
 
 // POST /api/auth/login
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { password } = req.body
-    const full_id = (req.body.full_id || req.body.login_id || '').trim()
+    const { password, tenant_id: bodyTenantId, login_id: bodyLoginId } = req.body
+    let full_id = (req.body.full_id || '').trim()
+    if (!full_id && bodyTenantId && bodyLoginId) {
+      full_id = `${bodyTenantId}-${bodyLoginId}`.trim()
+    }
+    if (!full_id && bodyLoginId) {
+      full_id = String(bodyLoginId).trim()
+    }
     console.log('LOGIN ATTEMPT - full_id:', full_id, 'password length:', password?.length)
 
     const lastDash = full_id.lastIndexOf('-')

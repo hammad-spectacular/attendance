@@ -343,7 +343,7 @@ async function confirmApprove() {
     `;
     openModal('credentialsModal');
     showToast('✅ School approved successfully', 'success');
-  } catch (e) { showToast('⚠️ Connection error', 'error'); }
+  } catch (e) { showToast(e.message || 'Could not reach the server', 'error'); }
 }
 
 // Reject school
@@ -493,7 +493,7 @@ async function handleChangePassword(e) {
       msgEl.textContent = 'Password changed successfully'; msgEl.style.display = 'block'; msgEl.style.color = '#22c55e';
       setTimeout(() => closeModal('changePasswordModal'), 1000);
     }
-  } catch(e) { msgEl.textContent = 'Connection error'; msgEl.style.display = 'block'; msgEl.style.color = '#ef4444'; }
+  } catch(e) { msgEl.textContent = e.message || 'Could not reach the server. Please try again.'; msgEl.style.display = 'block'; msgEl.style.color = '#ef4444'; }
   btn.disabled = false; btnText.textContent = 'Change Password';
 }
 

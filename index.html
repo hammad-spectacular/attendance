@@ -215,6 +215,7 @@ body {
   </div>
 </div>
 
+<script src="/auth-utils.js"></script>
 <script>
 function toggleTheme() {
   const html = document.documentElement;
@@ -280,16 +281,9 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
   btn.innerHTML = '<span class="spinner"></span> Signing in...';
 
   try {
-    const res = await fetch('http://13.50.106.16/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ full_id: fullId.toUpperCase(), password })
-    });
-    const text = await res.text();
-    let data = {};
-    try { data = text ? JSON.parse(text) : {}; } catch { throw new Error(`Server error (${res.status})`); }
+    const { ok, data } = await apiLogin(fullId, password);
 
-    if (!res.ok) {
+    if (!ok) {
       errorEl.textContent = data.error || 'Login failed. Please try again.';
       errorEl.classList.add('show');
       document.getElementById('password').value = '';
@@ -298,10 +292,10 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
       return;
     }
 
-    if (data.token) localStorage.setItem('auth_token', data.token);
+    if (data.token) setAuthToken(data.token);
     window.location.href = data.redirect_url || '/';
   } catch (err) {
-    errorEl.textContent = 'Connection error. Please check your internet and try again.';
+    errorEl.textContent = formatFetchError(err);
     errorEl.classList.add('show');
     document.getElementById('password').value = '';
     btn.disabled = false;

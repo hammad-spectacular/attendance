@@ -890,7 +890,7 @@
 
   <!-- ======================== JAVASCRIPT ======================== -->
   <script>
-const API_BASE = 'http://13.50.106.16';
+const API_BASE = '';
 
 let isRedirecting = false;
 
@@ -1845,7 +1845,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
           setTimeout(() => closeChangePasswordModal(), 1000);
         }
       } catch (e) {
-        msgEl.textContent = 'Connection error. Please try again.';
+        msgEl.textContent = e.message || 'Could not reach the server. Please try again.';
         msgEl.style.display = 'block';
         msgEl.style.cssText += 'background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);';
       }

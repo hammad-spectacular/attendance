@@ -215,6 +215,7 @@ body {
   </div>
 </div>
 
+<script src="/auth-utils.js"></script>
 <script>
 function toggleTheme() {
   const html = document.documentElement;
@@ -260,7 +261,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     errorEl.classList.add('show');
     return;
   }
-  if (fullId.indexOf('-') === -1) {
+  if (fullId !== 'SUPER-ADM' && fullId.indexOf('-') === -1) {
     errorEl.textContent = 'Invalid ID format. Your ID should look like HARV-T001';
     errorEl.classList.add('show');
     return;
@@ -271,24 +272,13 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     return;
   }
 
-  const lastDashIndex = fullId.lastIndexOf('-');
-  const tenant_id = fullId.substring(0, lastDashIndex).toUpperCase();
-  const login_id = fullId.substring(lastDashIndex + 1);
-
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Signing in...';
 
   try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tenant_id, login_id, password })
-    });
-    const text = await res.text();
-    let data = {};
-    try { data = text ? JSON.parse(text) : {}; } catch { throw new Error(`Server error (${res.status})`); }
+    const { ok, data } = await apiLogin(fullId, password);
 
-    if (!res.ok) {
+    if (!ok) {
       errorEl.textContent = data.error || 'Login failed. Please try again.';
       errorEl.classList.add('show');
       document.getElementById('password').value = '';
@@ -297,10 +287,10 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
       return;
     }
 
-    if (data.token) localStorage.setItem('auth_token', data.token);
+    if (data.token) setAuthToken(data.token);
     window.location.href = data.redirect_url || '/';
   } catch (err) {
-    errorEl.textContent = 'Connection error. Please check your internet and try again.';
+    errorEl.textContent = formatFetchError(err);
     errorEl.classList.add('show');
     document.getElementById('password').value = '';
     btn.disabled = false;

@@ -204,7 +204,7 @@ async function handleRegister(e) {
     btn.disabled = false;
     btnText.textContent = 'Send Request';
   } catch (err) {
-    msgEl.textContent = 'Connection error. Please try again.';
+    msgEl.textContent = err.message || 'Could not reach the server. Please try again.';
     msgEl.className = 'msg error show';
     btn.disabled = false;
     btnText.textContent = 'Send Request';
