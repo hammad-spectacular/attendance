@@ -781,7 +781,7 @@
   </div>
 
   <script>
-const API_BASE = '';
+const API_BASE = 'http://13.50.106.16';
 
 let isRedirecting = false;
 
@@ -929,7 +929,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
     async function handleLogout() {
       localStorage.removeItem('auth_token');
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch('http://13.50.106.16/api/auth/logout', { method: 'POST' });
       window.location.href = '/index.html';
     }
 
