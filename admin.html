@@ -4274,7 +4274,7 @@
     async function handleLogout() {
       localStorage.removeItem('auth_token');
       try {
-        await fetch('http://13.50.106.16/api/auth/logout', { method: 'POST', credentials: 'include' });
+        await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
       } catch(e) { /* ignore network errors, still redirect */ }
       window.location.href = '/index.html';
     }

@@ -1,5 +1,5 @@
 // Same-origin — Vercel rewrites /api/* to the Railway backend
-const API_BASE = 'http://13.50.106.16';
+const API_BASE = '';
 
 let isRedirecting = false;
 
@@ -20,12 +20,7 @@ function redirectToLogin() {
 }
 
 function formatFetchError(err) {
-  if (!err) return 'Could not reach the server. Please try again.';
-  const msg = String(err.message || '');
-  if (err.name === 'TypeError' && msg.toLowerCase().includes('fetch')) {
-    return 'Could not reach the server. Check your connection and try again.';
-  }
-  return msg || 'Could not reach the server. Please try again.';
+  return 'Connection error. Please check your internet and try again.';
 }
 
 /** Safely read a fetch Response — never throws on HTML/404 pages from a misconfigured backend */

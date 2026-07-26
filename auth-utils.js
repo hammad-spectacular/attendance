@@ -1,5 +1,5 @@
 // Same-origin — Vercel rewrites /api/* to the Railway backend
-const API_BASE = 'http://13.50.106.16';
+const API_BASE = '';
 
 let isRedirecting = false;
 

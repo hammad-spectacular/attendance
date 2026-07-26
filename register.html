@@ -183,7 +183,7 @@ async function handleRegister(e) {
   btnText.innerHTML = '<span class="spinner"></span> Sending...';
 
   try {
-    const res = await fetch('http://13.50.106.16/api/auth/register-school', {
+    const res = await fetch('/api/auth/register-school', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ school_name: schoolName, contact_person: contactPerson, role: contactRole, contact_email: contactEmail, message })

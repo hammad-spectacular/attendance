@@ -1845,7 +1845,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
           setTimeout(() => closeChangePasswordModal(), 1000);
         }
       } catch (e) {
-        msgEl.textContent = e.message || 'Could not reach the server. Please try again.';
+        msgEl.textContent = 'Connection error. Please check your internet and try again.';
         msgEl.style.display = 'block';
         msgEl.style.cssText += 'background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);';
       }
