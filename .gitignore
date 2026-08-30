@@ -1,7 +1,13 @@
 .env
-.env
+.env.*
+.neon
 node_modules/
-# it is so that the password be on the git
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+.ssh/
 
 # Playwright
 /test-results/
@@ -13,3 +19,5 @@ tests/test-failures/
 
 # Agent files
 .agent/
+.qoder/
+skills-lock.json

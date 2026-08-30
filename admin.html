@@ -1471,6 +1471,10 @@
                 <input class="form-input" type="tel" id="teacherPhone" placeholder="03001234567" pattern="[0-9]{11}"
                   title="11 digits (e.g., 03001234567)" required>
               </div>
+              <div class="form-group">
+                <label class="form-label" for="teacherEmail">Recovery email <span style="font-weight:400;">(optional)</span></label>
+                <input class="form-input" type="email" id="teacherEmail" placeholder="teacher@example.com">
+              </div>
             </div>
             <div style="display:flex; gap:8px; margin-top:4px;">
               <button class="btn btn-primary" onclick="saveTeacher()">
@@ -1545,6 +1549,10 @@
                 <label class="form-label" for="studentPhone">Contact</label>
                 <input class="form-input" type="tel" id="studentPhone" placeholder="03001234567" pattern="[0-9]{11}"
                   title="11 digits (e.g., 03001234567)" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="studentEmail">Recovery email <span style="font-weight:400;">(optional)</span></label>
+                <input class="form-input" type="email" id="studentEmail" placeholder="student@example.com">
               </div>
             </div>
             <div style="display:flex; gap:8px; margin-top:4px;">
@@ -2003,6 +2011,10 @@
         <input class="form-input" type="tel" id="editTeacherPhone" placeholder="03001234567" pattern="[0-9]{11}"
           title="11 digits (e.g., 03001234567)" required>
       </div>
+      <div class="form-group">
+        <label class="form-label" for="editTeacherEmail">Recovery email</label>
+        <input class="form-input" type="email" id="editTeacherEmail" placeholder="teacher@example.com">
+      </div>
       <div class="edit-modal-actions">
         <button class="btn btn-primary" onclick="saveEditTeacher()"><i class="fas fa-check"></i> Save</button>
         <button class="btn btn-ghost" onclick="closeEditTeacherModal()">Cancel</button>
@@ -2031,6 +2043,10 @@
         <label class="form-label" for="editStudentPhone">Contact</label>
         <input class="form-input" type="tel" id="editStudentPhone" placeholder="03001234567" pattern="[0-9]{11}"
           title="11 digits (e.g., 03001234567)" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="editStudentEmail">Recovery email</label>
+        <input class="form-input" type="email" id="editStudentEmail" placeholder="student@example.com">
       </div>
       <div class="edit-modal-actions">
         <button class="btn btn-primary" onclick="saveEditStudent()"
@@ -2118,6 +2134,28 @@
   <script>
     let credentialsDoneCallback = null;
     let activeCredentialsType = null;
+
+    function openAdminRecoveryReveal(targetId, targetRole, promptText = 'Verify the user’s identity before issuing a temporary password. Continue?') {
+      if (!confirm(promptText + '\n\nThe password will be shown once in a separate window and all current sessions for this user will be invalidated.')) return;
+      const revealWindow = window.open('', 'temporaryPasswordReveal', 'width=640,height=500');
+      if (!revealWindow) {
+        showToast('Please allow pop-ups to show the one-time temporary password.', 'warning');
+        return;
+      }
+      revealWindow.document.write('<p style="font-family:system-ui;padding:24px">Generating one-time temporary password…</p>');
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/admin/recovery-reveal';
+      form.target = 'temporaryPasswordReveal';
+      for (const [name, value] of Object.entries({ target_id: targetId, target_role: targetRole })) {
+        const input = document.createElement('input');
+        input.type = 'hidden'; input.name = name; input.value = value;
+        form.appendChild(input);
+      }
+      document.body.appendChild(form);
+      form.submit();
+      form.remove();
+    }
 
     function showCredentialsPanel(loginId, tempPassword, userType = 'user', onDone) {
       const type = userType === 'student' ? 'student' : 'teacher';
@@ -3359,12 +3397,14 @@
       document.getElementById('teacherName').value = '';
       document.getElementById('teacherClass').value = '';
       document.getElementById('teacherPhone').value = '';
+      document.getElementById('teacherEmail').value = '';
     }
 
     async function saveTeacher() {
       const name = document.getElementById('teacherName').value.trim();
       const classId = parseInt(document.getElementById('teacherClass').value);
       const phone = document.getElementById('teacherPhone').value.trim();
+      const email = document.getElementById('teacherEmail').value.trim();
       const btn = document.querySelector('#addTeacherForm .btn-primary, button[onclick="saveTeacher()"]');
 
       if (!name) {
@@ -3389,14 +3429,13 @@
         const response = await apiFetch('/api/auth/create-teacher', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, phone: phone || null, class_id: classId || null })
+          body: JSON.stringify({ name, phone: phone || null, class_id: classId || null, email: email || null })
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Failed to add teacher');
 
-        // Validate credentials were returned before showing the modal
-        if (!data.teacher_id || !data.temp_password) {
-          throw new Error('Server did not return credentials. Please try again.');
+        if (!data.teacher_id || !data.teacher) {
+          throw new Error('Server did not return the new account. Please try again.');
         }
 
         clearTeacherForm();
@@ -3410,7 +3449,7 @@
         btn.innerHTML = '<i class="fas fa-check"></i> Created';
         if (btn) btn.dataset.originalHtml = btn.innerHTML;
         showToast('✅ Teacher created successfully', 'success');
-        showCredentialsPanel(data.teacher_id, data.temp_password, 'teacher');
+        openAdminRecoveryReveal(data.teacher.id, 'teacher', 'New teacher account: issue a temporary password now?');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       } finally {
@@ -3547,6 +3586,9 @@
             </td>
             <td style="text-align:right;">
               <div class="action-buttons" style="justify-content: flex-end;">
+                <button onclick="openAdminRecoveryReveal(${t.id}, 'teacher')" class="btn-edit" title="Issue one-time temporary password" style="background:var(--warning-bg); color:var(--warning);">
+                  <i class="fas fa-key"></i>
+                </button>
                 <button onclick="openEditTeacherModal(${t.id})" class="btn-edit" title="Edit in modal">
                   <i class="fas fa-expand"></i>
                 </button>
@@ -3582,6 +3624,7 @@
         document.getElementById('studentName').value = '';
         document.getElementById('studentRoll').value = '';
         document.getElementById('studentPhone').value = '';
+        document.getElementById('studentEmail').value = '';
       }
     }
 
@@ -3589,6 +3632,7 @@
       const name = document.getElementById('studentName').value.trim();
       const rollNo = document.getElementById('studentRoll').value.trim();
       const phone = document.getElementById('studentPhone').value.trim();
+      const email = document.getElementById('studentEmail').value.trim();
       const btn = document.querySelector('#addStudentForm .btn-primary, button[onclick="saveStudent()"]');
 
       if (!name) {
@@ -3615,14 +3659,15 @@
             name,
             roll_no: rollNo,
             phone: phone || null,
-            class_id: null
+            class_id: null,
+            email: email || null
           })
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Failed to save student');
 
-        if (!data.student_id || !data.temp_password) {
-          throw new Error('Server did not return credentials. Please try again.');
+        if (!data.student_id || !data.student) {
+          throw new Error('Server did not return the new account. Please try again.');
         }
 
         // 1. Add student to cache immediately
@@ -3638,7 +3683,7 @@
         showToast('✅ Student saved successfully', 'success');
 
         // 5. Show credentials modal
-        showCredentialsModal(data.student_id, data.temp_password);
+        openAdminRecoveryReveal(data.student.id, 'student', 'New student account: issue a temporary password now?');
 
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -3765,6 +3810,9 @@
             </td>
             <td style="text-align:right;">
               <div class="action-buttons" style="justify-content: flex-end;">
+                <button onclick="openAdminRecoveryReveal(${s.id}, 'student')" class="btn-edit" title="Issue one-time temporary password" style="background:var(--warning-bg); color:var(--warning);">
+                  <i class="fas fa-key"></i>
+                </button>
                 <button onclick="markDirty('tab-students', ${s.id}, 'is_frozen', ${!dirtyData.is_frozen})" class="btn-edit" title="${dirtyData.is_frozen ? 'Unfreeze Account' : 'Freeze Account'}" style="background: ${dirtyData.is_frozen ? 'var(--danger-bg)' : 'var(--warning-bg)'}; color: ${dirtyData.is_frozen ? 'var(--danger)' : 'var(--warning)'}; border: none;">
                   <i class="fas ${dirtyData.is_frozen ? 'fa-lock' : 'fa-lock-open'}"></i>
                 </button>
@@ -4363,6 +4411,7 @@
         document.getElementById('editTeacherIndex').value = id;
         document.getElementById('editTeacherName').value = teacher.name;
         document.getElementById('editTeacherPhone').value = teacher.phone || '';
+        document.getElementById('editTeacherEmail').value = teacher.email || '';
 
         // Populate class dropdown
         const select = document.getElementById('editTeacherClass');
@@ -4390,6 +4439,7 @@
       const name = document.getElementById('editTeacherName').value.trim();
       const classId = parseInt(document.getElementById('editTeacherClass').value);
       const phone = document.getElementById('editTeacherPhone').value.trim();
+      const email = document.getElementById('editTeacherEmail').value.trim();
 
       if (!name) {
         showToast('⚠️ Please enter teacher name', 'warning');
@@ -4405,7 +4455,7 @@
         const response = await apiFetch(`/api/teachers/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, phone: phone || null, class_id: classId || null })
+          body: JSON.stringify({ name, phone: phone || null, class_id: classId || null, email: email || null })
         });
 
         if (!response.ok) throw new Error('Failed to update teacher');
@@ -4433,6 +4483,7 @@
       document.getElementById('editStudentName').value = student.name;
       document.getElementById('editStudentRoll').value = student.roll_no || '';
       document.getElementById('editStudentPhone').value = student.phone || '';
+      document.getElementById('editStudentEmail').value = student.email || '';
       document.getElementById('editStudentModal').classList.add('open');
     }
 
@@ -4445,6 +4496,7 @@
       const name = document.getElementById('editStudentName').value.trim();
       const rollNo = document.getElementById('editStudentRoll').value.trim();
       const phone = document.getElementById('editStudentPhone').value.trim();
+      const email = document.getElementById('editStudentEmail').value.trim();
 
       if (!name) {
         showToast('⚠️ Please enter student name', 'warning');
@@ -4468,7 +4520,7 @@
         const response = await apiFetch(`/api/students/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, roll_no: rollNo, phone: phone || null, class_id: classId })
+          body: JSON.stringify({ name, roll_no: rollNo, phone: phone || null, class_id: classId, email: email || null })
         });
 
         if (!response.ok) throw new Error('Failed to update student');

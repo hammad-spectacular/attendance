@@ -5,8 +5,11 @@ const path = require('path')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const cookieParser = require('cookie-parser')
+const crypto = require('crypto')
+const nodemailer = require('nodemailer')
+const rateLimit = require('express-rate-limit')
 require('dotenv').config()
-const { requireAuth } = require('./authMiddleware')
+const { requireAuth, setPool } = require('./authMiddleware')
 
 const app = express()
 const JWT_SECRET = process.env.JWT_SECRET
@@ -17,6 +20,119 @@ if (!JWT_SECRET) {
 }
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_SALT_ROUNDS || '12')
 const JWT_EXPIRY = '8h'
+
+// Inject pool into auth middleware so it can verify token_generation
+setPool(pool)
+
+// ============================================
+// NODEMAILER SETUP
+// ============================================
+let mailTransporter = null
+if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+  mailTransporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: (process.env.SMTP_PORT || '587') === '465',
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    }
+  })
+  console.log('Nodemailer transporter configured with SMTP_HOST:', process.env.SMTP_HOST)
+} else {
+  console.warn('SMTP not configured — email recovery is unavailable until SMTP is configured')
+}
+
+const APP_URL = process.env.APP_URL || 'http://localhost:3000'
+const SMTP_FROM = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@theeye.app'
+const RESET_TOKEN_EXPIRY_MINUTES = 30
+
+// ============================================
+// RATE LIMITER — forgot-password
+// ============================================
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 3, // 3 requests per IP per window
+  message: { error: 'Too many requests. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false
+})
+
+const adminRecoveryLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: 'Too many recovery requests. Please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false
+})
+
+const ACCOUNT_TABLES = {
+  admin: 'admins',
+  super_admin: 'admins',
+  teacher: 'teachers',
+  student: 'students'
+}
+
+function tableForRole(role) {
+  return ACCOUNT_TABLES[role] || null
+}
+
+function normalizeEmail(value) {
+  const email = String(value || '').trim().toLowerCase()
+  if (!email) return null
+  if (email.length > 200 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return undefined
+  return email
+}
+
+function generateTempPassword() {
+  const chars = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const specials = '!@#$%^&*'
+  const pick = source => source[crypto.randomInt(source.length)]
+  const password = Array.from({ length: 14 }, () => pick(chars)).concat(pick(specials))
+  for (let index = password.length - 1; index > 0; index -= 1) {
+    const swapIndex = crypto.randomInt(index + 1)
+    ;[password[index], password[swapIndex]] = [password[swapIndex], password[index]]
+  }
+  return password.join('')
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char])
+}
+
+function requireSameOrigin(req, res, next) {
+  const origin = req.get('origin')
+  const expectedOrigin = `${req.protocol}://${req.get('host')}`
+  if (origin && origin !== expectedOrigin && origin !== APP_URL.replace(/\/$/, '')) {
+    return res.status(403).send('Invalid request origin')
+  }
+  next()
+}
+
+async function issueEmailVerification(user) {
+  if (!mailTransporter || !user.email) return false
+  const rawToken = crypto.randomBytes(32).toString('hex')
+  const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
+  await pool.query(
+    `UPDATE email_verification_tokens SET used = true
+     WHERE user_id = $1 AND user_role = $2 AND used = false`,
+    [user.id, user.role]
+  )
+  await pool.query(
+    `INSERT INTO email_verification_tokens (user_id, user_role, token_hash, expires_at)
+     VALUES ($1, $2, $3, NOW() + INTERVAL '24 hours')`,
+    [user.id, user.role, tokenHash]
+  )
+  const verificationUrl = `${APP_URL}/verify-email.html?token=${rawToken}`
+  await mailTransporter.sendMail({
+    from: SMTP_FROM,
+    to: user.email,
+    subject: 'Verify your recovery email — The Eye',
+    text: `Verify this email address for password recovery: ${verificationUrl}\n\nThis link expires in 24 hours.`,
+    html: `<p>Verify this email address for password recovery.</p><p><a href="${verificationUrl}">Verify email address</a></p><p>This link expires in 24 hours.</p>`
+  })
+  return true
+}
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -37,6 +153,7 @@ app.use(cors({
   credentials: true
 }))
 app.use(express.json())
+app.use(express.urlencoded({ extended: false }))
 app.use(cookieParser())
 
 app.use(express.static('public'))
@@ -247,23 +364,67 @@ async function createTables() {
     WHERE login_id LIKE '%-%';
   `)
 
+  // ============================================
+  // PASSWORD RESET: email columns, token_generation, reset tokens table
+  // ============================================
+  await pool.query(`
+    ALTER TABLE admins ADD COLUMN IF NOT EXISTS email VARCHAR(200);
+    ALTER TABLE teachers ADD COLUMN IF NOT EXISTS email VARCHAR(200);
+    ALTER TABLE students ADD COLUMN IF NOT EXISTS email VARCHAR(200);
+    ALTER TABLE admins ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;
+    ALTER TABLE teachers ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;
+    ALTER TABLE students ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;
+  `)
+
+  await pool.query(`
+    ALTER TABLE admins ADD COLUMN IF NOT EXISTS token_generation INTEGER DEFAULT 0;
+    ALTER TABLE teachers ADD COLUMN IF NOT EXISTS token_generation INTEGER DEFAULT 0;
+    ALTER TABLE students ADD COLUMN IF NOT EXISTS token_generation INTEGER DEFAULT 0;
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      user_role VARCHAR(20) NOT NULL,
+      token_hash VARCHAR(255) NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
+      used BOOLEAN DEFAULT false,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS email_verification_tokens (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      user_role VARCHAR(20) NOT NULL,
+      token_hash VARCHAR(255) NOT NULL UNIQUE,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS admin_password_reset_audit (
+      id SERIAL PRIMARY KEY,
+      actor_id INTEGER NOT NULL,
+      actor_role VARCHAR(20) NOT NULL,
+      target_id INTEGER NOT NULL,
+      target_role VARCHAR(20) NOT NULL,
+      tenant_id VARCHAR(10) NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS password_reset_tokens_active_lookup_idx
+      ON password_reset_tokens (user_id, user_role, used, expires_at);
+    CREATE INDEX IF NOT EXISTS email_verification_tokens_active_lookup_idx
+      ON email_verification_tokens (user_id, user_role, used, expires_at);
+  `)
+
+  // Ensure token_generation is initialized for existing users
+  await pool.query(`UPDATE admins SET token_generation = 0 WHERE token_generation IS NULL`)
+  await pool.query(`UPDATE teachers SET token_generation = 0 WHERE token_generation IS NULL`)
+  await pool.query(`UPDATE students SET token_generation = 0 WHERE token_generation IS NULL`)
+
   console.log('Tables ready')
-}
-
-
-// ============================================
-// UTILITY: Generate random password
-// ============================================
-function generateTempPassword() {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-  const specials = '!@#$%^&*'
-  let pw = ''
-  for (let i = 0; i < 6; i++) {
-    pw += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  pw += specials.charAt(Math.floor(Math.random() * specials.length))
-  pw += chars.charAt(Math.floor(Math.random() * chars.length))
-  return pw.split('').sort(() => Math.random() - 0.5).join('')
 }
 
 
@@ -289,38 +450,26 @@ app.post('/api/auth/login', async (req, res) => {
     if (!full_id && bodyLoginId) {
       full_id = String(bodyLoginId).trim()
     }
-    console.log('LOGIN ATTEMPT - full_id:', full_id, 'password length:', password?.length)
-
     const lastDash = full_id.lastIndexOf('-')
     const tenant_id = full_id.substring(0, lastDash).toUpperCase()
     const login_id = full_id.substring(lastDash + 1).toUpperCase()
-    console.log('SPLIT - tenant_id:', tenant_id, 'login_id:', login_id)
-
     if (!full_id || !password) {
       return res.status(400).json({ error: 'Full ID and Password are required' })
     }
 
     const result = await pool.query(`
-      SELECT id, password_hash, role, is_first_login, is_frozen 
+      SELECT id, password_hash, role, is_first_login, is_frozen, token_generation
       FROM students 
       WHERE tenant_id = $1 AND login_id = $2
       UNION
-      SELECT id, password_hash, role, is_first_login, FALSE as is_frozen 
+      SELECT id, password_hash, role, is_first_login, FALSE as is_frozen, token_generation
       FROM teachers 
       WHERE tenant_id = $1 AND login_id = $2
       UNION
-      SELECT id, password_hash, role, is_first_login, FALSE as is_frozen 
+      SELECT id, password_hash, role, is_first_login, FALSE as is_frozen, token_generation
       FROM admins 
       WHERE tenant_id = $1 AND login_id = $2
     `, [tenant_id, login_id])
-
-    console.log('query result rows:', result.rows.length)
-    if (result.rows.length > 0) {
-      console.log('found user role:', result.rows[0].role)
-      console.log('found user id:', result.rows[0].id)
-      console.log('password_hash from db:', result.rows[0].password_hash)
-      console.log('bcrypt result:', await bcrypt.compare(password, result.rows[0].password_hash))
-    }
 
     if (result.rows.length === 0) {
       return res.status(401).json({ error: 'Invalid Organization, ID, or Password' })
@@ -356,7 +505,8 @@ app.post('/api/auth/login', async (req, res) => {
         role: user.role,
         tenant_id: tenant_id,
         login_id: login_id,
-        is_first_login: user.is_first_login
+        is_first_login: user.is_first_login,
+        token_generation: user.token_generation || 0
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRY }
@@ -414,14 +564,14 @@ app.post('/api/auth/change-password', requireAuth(), async (req, res) => {
     let updateQuery = ''
 
     if (role === 'super_admin' || role === 'admin') {
-      selectQuery = 'SELECT * FROM admins WHERE id = $1'
-      updateQuery = 'UPDATE admins SET password_hash = $1, is_first_login = false WHERE id = $2'
+      selectQuery = 'SELECT password_hash, token_generation FROM admins WHERE id = $1'
+      updateQuery = 'UPDATE admins SET password_hash = $1, is_first_login = false, token_generation = COALESCE(token_generation, 0) + 1 WHERE id = $2 RETURNING token_generation'
     } else if (role === 'teacher') {
-      selectQuery = 'SELECT * FROM teachers WHERE id = $1'
-      updateQuery = 'UPDATE teachers SET password_hash = $1, is_first_login = false WHERE id = $2'
+      selectQuery = 'SELECT password_hash, token_generation FROM teachers WHERE id = $1'
+      updateQuery = 'UPDATE teachers SET password_hash = $1, is_first_login = false, token_generation = COALESCE(token_generation, 0) + 1 WHERE id = $2 RETURNING token_generation'
     } else if (role === 'student') {
-      selectQuery = 'SELECT * FROM students WHERE id = $1'
-      updateQuery = 'UPDATE students SET password_hash = $1, is_first_login = false WHERE id = $2'
+      selectQuery = 'SELECT password_hash, token_generation FROM students WHERE id = $1'
+      updateQuery = 'UPDATE students SET password_hash = $1, is_first_login = false, token_generation = COALESCE(token_generation, 0) + 1 WHERE id = $2 RETURNING token_generation'
     } else {
       return res.status(400).json({ error: 'Invalid role' })
     }
@@ -446,7 +596,8 @@ app.post('/api/auth/change-password', requireAuth(), async (req, res) => {
 
     const newHash = await bcrypt.hash(new_password, BCRYPT_ROUNDS)
 
-    await pool.query(updateQuery, [newHash, user_id])
+    const updateResult = await pool.query(updateQuery, [newHash, user_id])
+    const tokenGeneration = updateResult.rows[0].token_generation
 
 const token = jwt.sign(
         {
@@ -454,7 +605,8 @@ const token = jwt.sign(
           role,
           tenant_id,
           login_id,
-          is_first_login: false
+          is_first_login: false,
+          token_generation: tokenGeneration
         },
         JWT_SECRET,
         { expiresIn: JWT_EXPIRY }
@@ -491,6 +643,190 @@ app.post('/api/auth/logout', (req, res) => {
   return res.status(200).json({ success: true })
 })
 
+// ============================================
+// POST /api/auth/forgot-password
+// ============================================
+app.post('/api/auth/forgot-password', forgotPasswordLimiter, async (req, res) => {
+  const GENERIC_MSG = 'If a verified recovery email is registered for that account, a reset link has been sent. Otherwise, contact your administrator.'
+  try {
+    let full_id = (req.body.full_id || '').trim()
+    if (!full_id) {
+      return res.status(400).json({ error: 'Full ID is required' })
+    }
+
+    const lastDash = full_id.lastIndexOf('-')
+    const tenant_id = full_id.substring(0, lastDash).toUpperCase()
+    const login_id = full_id.substring(lastDash + 1).toUpperCase()
+
+    if (!tenant_id || !login_id) {
+      // Don't reveal that the ID format is wrong — return generic message
+      return res.json({ success: true, message: GENERIC_MSG })
+    }
+
+    // Look up user across all tables
+    const result = await pool.query(`
+      SELECT id, role, email, email_verified_at FROM students WHERE tenant_id = $1 AND login_id = $2
+      UNION
+      SELECT id, role, email, email_verified_at FROM teachers WHERE tenant_id = $1 AND login_id = $2
+      UNION
+      SELECT id, role, email, email_verified_at FROM admins WHERE tenant_id = $1 AND login_id = $2
+    `, [tenant_id, login_id])
+
+    if (result.rows.length === 0) {
+      return res.json({ success: true, message: GENERIC_MSG })
+    }
+
+    const user = result.rows[0]
+
+    if (!user.email || !user.email_verified_at) {
+      return res.json({ success: true, message: GENERIC_MSG })
+    }
+
+    // Generate cryptographically secure token
+    const rawToken = crypto.randomBytes(32).toString('hex')
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
+    const expiresAt = new Date(Date.now() + RESET_TOKEN_EXPIRY_MINUTES * 60 * 1000)
+
+    // Store only the hash
+    await pool.query(
+      `UPDATE password_reset_tokens SET used = true
+       WHERE user_id = $1 AND user_role = $2 AND used = false`,
+      [user.id, user.role]
+    )
+    await pool.query(
+      `INSERT INTO password_reset_tokens (user_id, user_role, token_hash, expires_at)
+       VALUES ($1, $2, $3, $4)`,
+      [user.id, user.role, tokenHash, expiresAt]
+    )
+
+    const resetUrl = `${APP_URL}/reset-password.html?token=${rawToken}`
+
+    // Send email
+    if (mailTransporter) {
+      try {
+        await mailTransporter.sendMail({
+          from: SMTP_FROM,
+          to: user.email,
+          subject: 'Password Reset — The Eye',
+          text: `You requested a password reset.\n\nClick the link below to reset your password:\n${resetUrl}\n\nThis link expires in ${RESET_TOKEN_EXPIRY_MINUTES} minutes.\nIf you did not request this, ignore this email.`,
+          html: `<p>You requested a password reset.</p><p><a href="${resetUrl}">Click here to reset your password</a></p><p>This link expires in ${RESET_TOKEN_EXPIRY_MINUTES} minutes.</p><p>If you did not request this, ignore this email.</p>`
+        })
+      } catch (emailErr) {
+        console.error('Failed to send reset email:', emailErr.message)
+      }
+    }
+
+    res.json({ success: true, message: GENERIC_MSG })
+  } catch (err) {
+    console.error('Forgot password error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/auth/verify-email', async (req, res) => {
+  const tokenHash = crypto.createHash('sha256').update(String(req.body.token || '')).digest('hex')
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const result = await client.query(
+      `SELECT id, user_id, user_role FROM email_verification_tokens
+       WHERE token_hash = $1 AND used = false AND expires_at > NOW() FOR UPDATE`,
+      [tokenHash]
+    )
+    if (result.rows.length !== 1) {
+      await client.query('ROLLBACK')
+      return res.status(400).json({ error: 'Invalid or expired verification link' })
+    }
+    const record = result.rows[0]
+    const table = tableForRole(record.user_role)
+    if (!table) throw new Error('Invalid verification role')
+    await client.query(`UPDATE ${table} SET email_verified_at = NOW() WHERE id = $1`, [record.user_id])
+    await client.query('UPDATE email_verification_tokens SET used = true WHERE id = $1', [record.id])
+    await client.query('COMMIT')
+    res.json({ success: true, message: 'Email verified. You can now use it for password recovery.' })
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {})
+    console.error('Email verification error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  } finally {
+    client.release()
+  }
+})
+
+// ============================================
+// POST /api/auth/reset-password
+// ============================================
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { token, new_password, confirm_password } = req.body
+
+    if (!token) {
+      return res.status(400).json({ error: 'Reset token is required' })
+    }
+
+    if (!new_password || !confirm_password) {
+      return res.status(400).json({ error: 'New password and confirmation are required' })
+    }
+
+    if (new_password !== confirm_password) {
+      return res.status(400).json({ error: 'Passwords do not match' })
+    }
+
+    if (new_password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' })
+    }
+
+    const specialChars = /[!@#$%^&*(),.?":{}|<>]/
+    if (!specialChars.test(new_password)) {
+      return res.status(400).json({ error: 'Password must contain at least one special character' })
+    }
+
+    // Hash the provided token and look it up
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
+
+    const newHash = await bcrypt.hash(new_password, BCRYPT_ROUNDS)
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      const tokenResult = await client.query(
+        `SELECT id, user_id, user_role FROM password_reset_tokens
+         WHERE token_hash = $1 AND used = false AND expires_at > NOW() FOR UPDATE`,
+        [tokenHash]
+      )
+      if (tokenResult.rows.length !== 1) {
+        await client.query('ROLLBACK')
+        return res.status(400).json({ error: 'Invalid or expired reset link' })
+      }
+      const resetRecord = tokenResult.rows[0]
+      const role = resetRecord.user_role
+      const table = tableForRole(role)
+      if (!table) throw new Error('Invalid reset role')
+      await client.query(
+        `UPDATE ${table} SET password_hash = $1, is_first_login = false, token_generation = COALESCE(token_generation, 0) + 1 WHERE id = $2`,
+        [newHash, resetRecord.user_id]
+      )
+
+      // Mark token as used
+      await client.query(
+        `UPDATE password_reset_tokens SET used = true WHERE id = $1`,
+        [resetRecord.id]
+      )
+
+      await client.query('COMMIT')
+    } catch (txErr) {
+      await client.query('ROLLBACK')
+      throw txErr
+    } finally {
+      client.release()
+    }
+
+    res.json({ success: true, message: 'Password has been reset successfully. You can now log in with your new password.' })
+  } catch (err) {
+    console.error('Reset password error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // GET /api/auth/me
 app.get('/api/auth/me', async (req, res) => {
   try {
@@ -515,13 +851,20 @@ app.get('/api/auth/me', async (req, res) => {
     else if (decoded.role === 'student') table = 'students'
 
     let is_first_login = decoded.is_first_login
+    let token_generation = decoded.token_generation || 0
     if (table) {
       const result = await pool.query(
-        `SELECT is_first_login FROM ${table} WHERE id = $1`,
+        `SELECT is_first_login, token_generation FROM ${table} WHERE id = $1`,
         [decoded.user_id]
       )
       if (result.rows.length > 0) {
         is_first_login = result.rows[0].is_first_login
+        token_generation = result.rows[0].token_generation || 0
+      }
+
+      // Reject tokens with stale generation (password was reset)
+      if (decoded.token_generation !== undefined && decoded.token_generation !== token_generation) {
+        return res.status(401).json({ error: 'Session invalidated. Please log in again.' })
       }
     }
 
@@ -531,7 +874,8 @@ app.get('/api/auth/me', async (req, res) => {
         role: decoded.role,
         tenant_id: decoded.tenant_id,
         login_id: decoded.login_id,
-        is_first_login
+        is_first_login,
+        token_generation
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRY }
@@ -561,7 +905,9 @@ app.get('/api/auth/me', async (req, res) => {
 app.post('/api/auth/create-teacher', requireAuth(['admin']), async (req, res) => {
   try {
     const { name, phone, class_id } = req.body
+    const email = normalizeEmail(req.body.email)
     if (!name) return res.status(400).json({ error: 'Teacher name is required' })
+    if (email === undefined) return res.status(400).json({ error: 'Enter a valid email address' })
 
     const tenant_id = req.user.tenant_id
 
@@ -584,12 +930,13 @@ app.post('/api/auth/create-teacher', requireAuth(['admin']), async (req, res) =>
     const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS)
 
     const result = await pool.query(
-      `INSERT INTO teachers (name, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login)
-       VALUES ($1, $2, $3, $4, $5, 'teacher', $6, true) RETURNING *`,
-      [name, phone || null, class_id || null, shortId, passwordHash, tenant_id]
+      `INSERT INTO teachers (name, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email, email_verified_at)
+       VALUES ($1, $2, $3, $4, $5, 'teacher', $6, true, $7, NULL)
+       RETURNING id, name, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at`,
+      [name, phone || null, class_id || null, shortId, passwordHash, tenant_id, email]
     )
-
-    res.json({ success: true, teacher_id: teacherId, temp_password: tempPassword, teacher: result.rows[0] })
+    if (email) issueEmailVerification(result.rows[0]).catch(err => console.error('Verification email send failed:', err.message))
+    res.json({ success: true, teacher_id: teacherId, teacher: result.rows[0] })
   } catch (err) {
     console.error('Create teacher error:', err)
     res.status(500).json({ error: 'Server error' })
@@ -600,7 +947,9 @@ app.post('/api/auth/create-teacher', requireAuth(['admin']), async (req, res) =>
 app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) => {
   try {
     const { name, roll_no, phone, class_id } = req.body
+    const email = normalizeEmail(req.body.email)
     if (!name) return res.status(400).json({ error: 'Student name is required' })
+    if (email === undefined) return res.status(400).json({ error: 'Enter a valid email address' })
 
     const tenant_id = req.user.tenant_id
 
@@ -623,12 +972,13 @@ app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) =>
     const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS)
 
     const result = await pool.query(
-      `INSERT INTO students (name, roll_no, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login)
-       VALUES ($1, $2, $3, $4, $5, $6, 'student', $7, true) RETURNING *`,
-      [name, roll_no || null, phone || null, class_id || null, shortId, passwordHash, tenant_id]
+      `INSERT INTO students (name, roll_no, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email, email_verified_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'student', $7, true, $8, NULL)
+       RETURNING id, name, roll_no, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at`,
+      [name, roll_no || null, phone || null, class_id || null, shortId, passwordHash, tenant_id, email]
     )
-
-    res.json({ success: true, student_id: studentId, temp_password: tempPassword, student: result.rows[0] })
+    if (email) issueEmailVerification(result.rows[0]).catch(err => console.error('Verification email send failed:', err.message))
+    res.json({ success: true, student_id: studentId, student: result.rows[0] })
   } catch (err) {
     console.error('Create student error:', err)
 
@@ -637,6 +987,68 @@ app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) =>
     }
 
     res.status(500).json({ error: 'Something went wrong while creating the student. Please try again.' })
+  }
+})
+
+// This endpoint intentionally renders a one-time, no-store HTML document instead
+// of returning a password in a JSON API response. It is opened by an authorized
+// administrator in a separate window after they have verified the user offline.
+app.post('/admin/recovery-reveal', requireAuth(['admin', 'super_admin']), requireSameOrigin, adminRecoveryLimiter, async (req, res) => {
+  const targetId = Number.parseInt(req.body.target_id, 10)
+  const targetRole = String(req.body.target_role || '')
+  const table = tableForRole(targetRole)
+  if (!Number.isInteger(targetId) || !table || targetRole === 'super_admin') {
+    return res.status(400).send('Invalid recovery request')
+  }
+  if (req.user.role === 'admin' && !['student', 'teacher'].includes(targetRole)) {
+    return res.status(403).send('You are not permitted to reset this account')
+  }
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const scope = req.user.role === 'admin' ? ' AND tenant_id = $2' : ''
+    const params = req.user.role === 'admin' ? [targetId, req.user.tenant_id] : [targetId]
+    const target = await client.query(
+      `SELECT id, name, tenant_id FROM ${table} WHERE id = $1${scope} FOR UPDATE`,
+      params
+    )
+    if (target.rows.length !== 1) {
+      await client.query('ROLLBACK')
+      return res.status(404).send('Account not found')
+    }
+    const temporaryPassword = generateTempPassword()
+    const passwordHash = await bcrypt.hash(temporaryPassword, BCRYPT_ROUNDS)
+    await client.query(
+      `UPDATE ${table}
+       SET password_hash = $1, is_first_login = true, token_generation = COALESCE(token_generation, 0) + 1
+       WHERE id = $2`,
+      [passwordHash, targetId]
+    )
+    await client.query(
+      `UPDATE password_reset_tokens SET used = true WHERE user_id = $1 AND user_role = $2 AND used = false`,
+      [targetId, targetRole]
+    )
+    await client.query(
+      `INSERT INTO admin_password_reset_audit (actor_id, actor_role, target_id, target_role, tenant_id)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [req.user.user_id, req.user.role, targetId, targetRole, target.rows[0].tenant_id]
+    )
+    await client.query('COMMIT')
+
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+      Pragma: 'no-cache',
+      'Referrer-Policy': 'no-referrer',
+      'Content-Type': 'text/html; charset=utf-8'
+    })
+    return res.send(`<!doctype html><title>Temporary password</title><meta name="robots" content="noindex"><style>body{font-family:system-ui;max-width:560px;margin:48px auto;padding:24px;color:#172033}code{display:block;padding:18px;background:#f1f5f9;border-radius:8px;font-size:22px;word-break:break-all}.warn{color:#9a6700}</style><h1>Temporary password</h1><p>Provide this password to <strong>${escapeHtml(target.rows[0].name || 'the user')}</strong> through an approved private channel. It is shown only in this window.</p><code>${escapeHtml(temporaryPassword)}</code><p class="warn">They must change it on first login. Close this window after recording it.</p><script>window.addEventListener('pagehide',()=>document.body.textContent='Temporary password closed.');</script>`)
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {})
+    console.error('Admin recovery error:', err.message)
+    res.status(500).send('Unable to reset the password')
+  } finally {
+    client.release()
   }
 })
 
@@ -709,24 +1121,35 @@ app.post('/api/auth/approve-school', requireAuth(['super_admin']), async (req, r
       return res.status(400).json({ error: 'School code already taken' })
     }
 
-    await pool.query(
-      'INSERT INTO organizations (school_code, school_name, contact_email, status) VALUES ($1, $2, $3, $4)',
-      [code, school_name, contactEmail, 'active']
-    )
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
 
-    const tempPassword = generateTempPassword()
-    const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS)
+      await client.query(
+        'INSERT INTO organizations (school_code, school_name, contact_email, status) VALUES ($1, $2, $3, $4)',
+        [code, school_name, contactEmail, 'active']
+      )
 
-    await pool.query(
-      `INSERT INTO admins (login_id, password_hash, role, tenant_id, is_first_login)
-       VALUES ($1, $2, 'admin', $3, true)`,
-      ['ADM', passwordHash, code]
-    )
+      const tempPassword = generateTempPassword()
+      const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS)
 
-    console.log('Updating request_id:', request_id)
-    await pool.query('UPDATE school_requests SET status = $1 WHERE id = $2', ['approved', request_id])
+      await client.query(
+        `INSERT INTO admins (login_id, name, email, password_hash, role, tenant_id, is_first_login, email_verified_at)
+         VALUES ('ADM', $1, $2, $3, 'admin', $4, true, NULL)`,
+        [contactPersonValue, normalizeEmail(contactEmail), passwordHash, code]
+      )
 
-    res.json({ success: true, admin_id: `${code}-ADM`, temp_password: tempPassword })
+      await client.query('UPDATE school_requests SET status = $1 WHERE id = $2', ['approved', request_id])
+
+      await client.query('COMMIT')
+    } catch (err) {
+      await client.query('ROLLBACK')
+      throw err
+    } finally {
+      client.release()
+    }
+
+    res.json({ success: true, admin_id: `${code}-ADM` })
   } catch (err) {
     console.error('Approve school error:', err)
     res.status(500).json({ error: 'Server error' })
@@ -882,7 +1305,9 @@ app.get('/api/teachers', requireAuth(['admin', 'teacher', 'student', 'super_admi
 
   const params = [tenant_id]
   let query = `
-    SELECT teachers.*, classes.name as class_name 
+    SELECT teachers.id, teachers.name, teachers.phone, teachers.class_id, teachers.login_id,
+           teachers.role, teachers.tenant_id, teachers.is_first_login, teachers.email,
+           teachers.email_verified_at, teachers.created_at, classes.name as class_name
     FROM teachers 
     LEFT JOIN classes ON teachers.class_id = classes.id 
     WHERE teachers.tenant_id = $1
@@ -911,11 +1336,17 @@ app.post('/api/teachers', requireAuth(['admin', 'super_admin']), async (req, res
 
 app.put('/api/teachers/:id', requireAuth(['admin', 'super_admin']), async (req, res) => {
   const { name, phone, class_id } = req.body
+  const email = normalizeEmail(req.body.email)
+  if (email === undefined) return res.status(400).json({ error: 'Enter a valid email address' })
   const tenant_id = req.user.tenant_id
   const result = await pool.query(
-    'UPDATE teachers SET name=$1, phone=$2, class_id=$3 WHERE id=$4 AND tenant_id=$5 RETURNING *',
-    [name, phone, class_id, req.params.id, tenant_id]
+    `UPDATE teachers SET name=$1, phone=$2, class_id=$3, email=$4,
+     email_verified_at = CASE WHEN email IS NOT DISTINCT FROM $4 THEN email_verified_at ELSE NULL END
+     WHERE id=$5 AND tenant_id=$6
+     RETURNING id, name, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at, created_at`,
+    [name, phone, class_id, email, req.params.id, tenant_id]
   )
+  if (result.rows[0]?.email && !result.rows[0].email_verified_at) issueEmailVerification(result.rows[0]).catch(err => console.error('Verification email send failed:', err.message))
   res.json(result.rows[0])
 })
 
@@ -929,7 +1360,7 @@ app.delete('/api/teachers/:id', requireAuth(['admin', 'super_admin']), async (re
 app.get('/api/students/me', requireAuth(['student']), async (req, res) => {
   const tenant_id = req.user.tenant_id
   const result = await pool.query(
-    'SELECT * FROM students WHERE id = $1 AND tenant_id = $2',
+    'SELECT id, name, roll_no, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at, is_frozen, created_at FROM students WHERE id = $1 AND tenant_id = $2',
     [req.user.user_id, tenant_id]
   )
 
@@ -946,12 +1377,12 @@ app.get('/api/students', requireAuth(['admin', 'teacher', 'student', 'super_admi
   let result
   if (class_id) {
     result = await pool.query(
-      'SELECT * FROM students WHERE tenant_id = $1 AND class_id = $2 ORDER BY id',
+      'SELECT id, name, roll_no, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at, is_frozen, created_at FROM students WHERE tenant_id = $1 AND class_id = $2 ORDER BY id',
       [tenant_id, class_id]
     )
   } else {
     result = await pool.query(
-      'SELECT * FROM students WHERE tenant_id = $1 ORDER BY id',
+      'SELECT id, name, roll_no, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at, is_frozen, created_at FROM students WHERE tenant_id = $1 ORDER BY id',
       [tenant_id]
     )
   }
@@ -960,7 +1391,7 @@ app.get('/api/students', requireAuth(['admin', 'teacher', 'student', 'super_admi
 
 app.get('/api/students/:id', requireAuth(['admin', 'teacher', 'super_admin']), async (req, res) => {
   const tenant_id = req.user.tenant_id
-  const result = await pool.query('SELECT * FROM students WHERE id = $1 AND tenant_id = $2', [req.params.id, tenant_id])
+  const result = await pool.query('SELECT id, name, roll_no, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at, is_frozen, created_at FROM students WHERE id = $1 AND tenant_id = $2', [req.params.id, tenant_id])
   if (result.rows.length === 0) return res.status(404).json({ error: 'Student not found' })
   res.json(result.rows[0])
 })
@@ -977,11 +1408,17 @@ app.post('/api/students', requireAuth(['admin', 'super_admin']), async (req, res
 
 app.put('/api/students/:id', requireAuth(['admin', 'super_admin']), async (req, res) => {
   const { name, roll_no, phone, class_id } = req.body
+  const email = normalizeEmail(req.body.email)
+  if (email === undefined) return res.status(400).json({ error: 'Enter a valid email address' })
   const tenant_id = req.user.tenant_id
   const result = await pool.query(
-    'UPDATE students SET name=$1, roll_no=$2, phone=$3, class_id=$4 WHERE id=$5 AND tenant_id=$6 RETURNING *',
-    [name, roll_no, phone, class_id, req.params.id, tenant_id]
+    `UPDATE students SET name=$1, roll_no=$2, phone=$3, class_id=$4, email=$5,
+     email_verified_at = CASE WHEN email IS NOT DISTINCT FROM $5 THEN email_verified_at ELSE NULL END
+     WHERE id=$6 AND tenant_id=$7
+     RETURNING id, name, roll_no, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at, is_frozen, created_at`,
+    [name, roll_no, phone, class_id, email, req.params.id, tenant_id]
   )
+  if (result.rows[0]?.email && !result.rows[0].email_verified_at) issueEmailVerification(result.rows[0]).catch(err => console.error('Verification email send failed:', err.message))
   res.json(result.rows[0])
 })
 
