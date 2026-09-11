@@ -299,6 +299,7 @@ async function createTables() {
     ALTER TABLE teachers ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(10);
     ALTER TABLE teachers ADD COLUMN IF NOT EXISTS is_first_login BOOLEAN DEFAULT true;
     ALTER TABLE teachers ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
+    ALTER TABLE teachers ADD COLUMN IF NOT EXISTS is_frozen BOOLEAN DEFAULT false;
   `)
 
   await pool.query(`
@@ -510,7 +511,7 @@ app.post('/api/auth/login', async (req, res) => {
       FROM students
       WHERE tenant_id = $1 AND login_id = $2
       UNION ALL
-      SELECT id, password_hash, role, is_first_login, FALSE AS is_frozen, token_generation, 2 AS src_order
+      SELECT id, password_hash, role, is_first_login, COALESCE(is_frozen, false) AS is_frozen, token_generation, 2 AS src_order
       FROM teachers
       WHERE tenant_id = $1 AND login_id = $2
       UNION ALL
@@ -1364,7 +1365,7 @@ app.get('/api/teachers', requireAuth(['admin', 'teacher', 'student', 'super_admi
   let query = `
     SELECT teachers.id, teachers.name, teachers.phone, teachers.class_id, teachers.login_id,
            teachers.role, teachers.tenant_id, teachers.is_first_login, teachers.email,
-           teachers.email_verified_at, teachers.created_at, classes.name as class_name
+           teachers.email_verified_at, teachers.created_at, teachers.is_frozen, classes.name as class_name
     FROM teachers 
     LEFT JOIN classes ON teachers.class_id = classes.id 
     WHERE teachers.tenant_id = $1
@@ -1392,7 +1393,7 @@ app.post('/api/teachers', requireAuth(['admin', 'super_admin']), async (req, res
 })
 
 app.put('/api/teachers/:id', requireAuth(['admin', 'super_admin']), async (req, res) => {
-  const { name, phone, class_id } = req.body
+  const { name, phone, class_id, is_frozen } = req.body
   const rawEmail = req.body.email
   // Only call normalizeEmail when the field is a non-empty string (not null/undefined/empty)
   // normalizeEmail(String(null)) = "null" → fails regex → undefined ❌
@@ -1406,10 +1407,11 @@ app.put('/api/teachers/:id', requireAuth(['admin', 'super_admin']), async (req, 
   const tenant_id = req.user.tenant_id
   const result = await pool.query(
     `UPDATE teachers SET name=$1, phone=$2, class_id=$3, email=$4::text,
+     is_frozen=$7,
      email_verified_at = CASE WHEN email IS NOT DISTINCT FROM $4::text THEN email_verified_at ELSE NULL END
      WHERE id=$5 AND tenant_id=$6
-     RETURNING id, name, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at, created_at`,
-    [name, phone, class_id, email, req.params.id, tenant_id]
+     RETURNING id, name, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at, is_frozen, created_at`,
+    [name, phone, class_id, email, req.params.id, tenant_id, is_frozen === true]
   )
   if (result.rows[0]?.email && !result.rows[0].email_verified_at) issueEmailVerification(result.rows[0]).catch(err => console.error('Verification email send failed:', err.message))
   res.json(result.rows[0])
@@ -1472,7 +1474,7 @@ app.post('/api/students', requireAuth(['admin', 'super_admin']), async (req, res
 })
 
 app.put('/api/students/:id', requireAuth(['admin', 'super_admin']), async (req, res) => {
-  const { name, roll_no, phone, class_id } = req.body
+  const { name, roll_no, phone, class_id, is_frozen } = req.body
   const rawEmail = req.body.email
   // Only call normalizeEmail when the field is a non-empty string (not null/undefined/empty)
   // normalizeEmail(String(null)) = "null" → fails regex → undefined ❌
@@ -1486,10 +1488,11 @@ app.put('/api/students/:id', requireAuth(['admin', 'super_admin']), async (req, 
   const tenant_id = req.user.tenant_id
   const result = await pool.query(
     `UPDATE students SET name=$1, roll_no=$2, phone=$3, class_id=$4, email=$5::text,
+     is_frozen=$8,
      email_verified_at = CASE WHEN email IS NOT DISTINCT FROM $5::text THEN email_verified_at ELSE NULL END
      WHERE id=$6 AND tenant_id=$7
      RETURNING id, name, roll_no, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at, is_frozen, created_at`,
-    [name, roll_no, phone, class_id, email, req.params.id, tenant_id]
+    [name, roll_no, phone, class_id, email, req.params.id, tenant_id, is_frozen === true]
   )
   if (result.rows[0]?.email && !result.rows[0].email_verified_at) issueEmailVerification(result.rows[0]).catch(err => console.error('Verification email send failed:', err.message))
   res.json(result.rows[0])
@@ -1839,8 +1842,15 @@ app.get('/api/fees/payments', requireAuth(['admin', 'teacher']), async (req, res
   }
 
   query += ` ORDER BY students.name ASC`
-  const result = await pool.query(query, params)
-  res.json(result.rows)
+  let result = await pool.query(query, params)
+  let rows = result.rows
+
+  // Filter by status in JS after query (COALESCE can't be used in WHERE easily)
+  if (status) {
+    rows = rows.filter(r => r.status === status)
+  }
+
+  res.json(rows)
 })
 
 // POST /api/fees/payments - Upsert fee payment record

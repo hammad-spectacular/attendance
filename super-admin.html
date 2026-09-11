@@ -257,6 +257,23 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
   </div>
 </div>
 
+<!-- Confirm Action Modal -->
+<div class="modal" id="confirmModal">
+  <div class="modal-card" style="max-width:400px;">
+    <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:18px;">
+      <div id="confirmModalIcon" style="width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;"></div>
+      <div>
+        <div id="confirmModalTitle" style="font-size:1rem;font-weight:700;color:var(--text);line-height:1.3;margin-bottom:4px;"></div>
+        <div id="confirmModalBody" style="font-size:0.82rem;color:var(--text-secondary);line-height:1.5;"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal('confirmModal')" style="flex:1;">Cancel</button>
+      <button class="btn primary" id="confirmModalBtn" style="flex:1;"></button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-container" id="toastContainer"></div>
 
 <script src="./auth-utils.js"></script>
@@ -286,6 +303,7 @@ function switchTab(name) {
   closeModal('credentialsModal');
   closeModal('approveModal');
   closeModal('changePasswordModal');
+  closeModal('confirmModal');
 
   const tc = document.getElementById('tab-'+name);
   if (tc) tc.classList.add('active');
@@ -346,43 +364,91 @@ async function confirmApprove() {
   } catch (e) { showToast('Connection error. Please check your internet and try again.', 'error'); }
 }
 
+// Custom confirm modal helper
+let _confirmCallback = null;
+function openConfirmModal({ title, body, confirmText, iconClass, iconBg, iconColor, btnClass, onConfirm }) {
+  document.getElementById('confirmModalTitle').textContent = title;
+  document.getElementById('confirmModalBody').textContent = body;
+  const iconEl = document.getElementById('confirmModalIcon');
+  iconEl.style.background = iconBg || 'var(--danger-bg)';
+  iconEl.style.color = iconColor || 'var(--danger)';
+  iconEl.innerHTML = `<i class="${iconClass || 'fas fa-exclamation-triangle'}"></i>`;
+  const btn = document.getElementById('confirmModalBtn');
+  btn.textContent = confirmText || 'Confirm';
+  btn.className = `btn ${btnClass || 'primary'}`;
+  btn.style.flex = '1';
+  _confirmCallback = onConfirm;
+  btn.onclick = () => { closeModal('confirmModal'); if (_confirmCallback) _confirmCallback(); };
+  openModal('confirmModal');
+}
+
 // Reject school
-async function rejectSchool(id) {
-  if (!confirm('Reject this request?')) return;
-  try {
-    const res = await fetch(API_BASE + '/api/auth/reject-school', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeader() },
-      body: JSON.stringify({ request_id: id })
-    });
-    if (res.ok) { showToast('Request rejected', 'info'); fetchPendingRequests(); }
-  } catch(e) { showToast('⚠️ Error', 'error'); }
+function rejectSchool(id) {
+  openConfirmModal({
+    title: 'Reject this request?',
+    body: 'This school request will be marked as rejected. The applicant can resubmit in the future.',
+    confirmText: 'Yes, Reject',
+    iconClass: 'fas fa-times-circle',
+    iconBg: 'var(--danger-bg)',
+    iconColor: 'var(--danger)',
+    btnClass: 'primary',
+    onConfirm: async () => {
+      try {
+        const res = await fetch(API_BASE + '/api/auth/reject-school', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body: JSON.stringify({ request_id: id })
+        });
+        if (res.ok) { showToast('Request rejected', 'info'); fetchPendingRequests(); }
+      } catch(e) { showToast('⚠️ Error rejecting request', 'error'); }
+    }
+  });
 }
 
 // Suspend school
-async function suspendSchool(id) {
-  if (!confirm('Suspend this school?')) return;
-  try {
-    const res = await fetch(API_BASE + '/api/auth/suspend-school', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeader() },
-      body: JSON.stringify({ school_id: id })
-    });
-    if (res.ok) { showToast('School suspended', 'info'); fetchActiveSchools(); fetchSuspendedSchools(); }
-  } catch(e) { showToast('⚠️ Error', 'error'); }
+function suspendSchool(id) {
+  openConfirmModal({
+    title: 'Suspend this school?',
+    body: 'The school will lose access until it is reactivated. All teachers and students will be unable to log in.',
+    confirmText: 'Yes, Suspend',
+    iconClass: 'fas fa-ban',
+    iconBg: 'var(--warning-bg)',
+    iconColor: 'var(--warning)',
+    btnClass: 'primary',
+    onConfirm: async () => {
+      try {
+        const res = await fetch(API_BASE + '/api/auth/suspend-school', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body: JSON.stringify({ school_id: id })
+        });
+        if (res.ok) { showToast('School suspended', 'info'); fetchActiveSchools(); fetchSuspendedSchools(); }
+      } catch(e) { showToast('⚠️ Error suspending school', 'error'); }
+    }
+  });
 }
 
 // Reactivate school
-async function reactivateSchool(id) {
-  if (!confirm('Reactivate this school?')) return;
-  try {
-    const res = await fetch(API_BASE + '/api/auth/reactivate-school', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeader() },
-      body: JSON.stringify({ school_id: id })
-    });
-    if (res.ok) { showToast('School reactivated', 'success'); fetchActiveSchools(); fetchSuspendedSchools(); }
-  } catch(e) { showToast('⚠️ Error', 'error'); }
+function reactivateSchool(id) {
+  openConfirmModal({
+    title: 'Reactivate this school?',
+    body: 'The school and all its accounts will be restored to active status.',
+    confirmText: 'Yes, Reactivate',
+    iconClass: 'fas fa-check-circle',
+    iconBg: 'var(--success-bg)',
+    iconColor: 'var(--success)',
+    btnClass: 'primary',
+    onConfirm: async () => {
+      try {
+        const res = await fetch(API_BASE + '/api/auth/reactivate-school', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body: JSON.stringify({ school_id: id })
+        });
+        if (res.ok) { showToast('School reactivated', 'success'); fetchActiveSchools(); fetchSuspendedSchools(); }
+      } catch(e) { showToast('⚠️ Error reactivating school', 'error'); }
+    }
+  });
 }
 
 function escapeHtml(str) {

@@ -911,17 +911,13 @@
           <div class="filters-row">
             <div class="form-group">
               <select class="form-select" id="monthFilter">
-                <option value="2026-07">July 2026</option>
-                <option value="2026-06">June 2026</option>
-                <option value="2026-05">May 2026</option>
+                <!-- Populated dynamically by JS -->
               </select>
             </div>
             <div class="form-group">
               <select class="form-select" id="classFilter">
                 <option value="">All Classes</option>
-                <option value="1">Class 1</option>
-                <option value="2">Class 2</option>
-                <option value="3">Class 3</option>
+                <!-- Populated dynamically by JS -->
               </select>
             </div>
             <div class="form-group">
@@ -930,6 +926,7 @@
                 <option value="paid">Paid</option>
                 <option value="unpaid">Unpaid</option>
                 <option value="partial">Partial</option>
+                <option value="not_set_up">Not Set Up</option>
               </select>
             </div>
             <div class="form-group">
@@ -1047,9 +1044,7 @@
           <div class="form-group">
             <label class="form-label">Month</label>
             <select class="form-select" id="paymentMonth">
-              <option value="2026-07">July 2026</option>
-              <option value="2026-06">June 2026</option>
-              <option value="2026-05">May 2026</option>
+              <!-- Populated dynamically by JS -->
             </select>
           </div>
           <div class="form-group">
@@ -1295,6 +1290,52 @@
       }
     }
 
+    // ── Dynamic Month Dropdown Builder ──────────────────────────────────────
+    function buildMonthOptions(selectId, defaultToCurrentMonth = true) {
+      const sel = document.getElementById(selectId);
+      if (!sel) return;
+      sel.innerHTML = '';
+      const now = new Date();
+      const months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      for (let i = 0; i < 12; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const label = `${months[d.getMonth()]} ${d.getFullYear()}`;
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = label;
+        if (defaultToCurrentMonth && val === currentMonthStr) opt.selected = true;
+        sel.appendChild(opt);
+      }
+    }
+
+    // ── Load classes into the class filter dropdown ──────────────────────────
+    async function loadClassesForFilter() {
+      const sel = document.getElementById('classFilter');
+      if (!sel) return;
+      try {
+        const classes = await fetchJson('/api/classes');
+        const firstOpt = sel.querySelector('option[value=""]');
+        sel.innerHTML = '';
+        const allOpt = document.createElement('option');
+        allOpt.value = '';
+        allOpt.textContent = 'All Classes';
+        sel.appendChild(allOpt);
+        (Array.isArray(classes) ? classes : []).forEach(cls => {
+          const opt = document.createElement('option');
+          opt.value = cls.id;
+          opt.textContent = cls.name;
+          sel.appendChild(opt);
+        });
+      } catch (err) {
+        console.error('Failed to load classes for filter:', err);
+      }
+    }
+
     // Theme Toggle
     function toggleTheme() {
       const html = document.documentElement;
@@ -1327,13 +1368,16 @@
       });
     });
 
-    // Load fee stats
+    // Load fee stats — uses selected month
     async function loadFeeStats() {
       try {
-        const stats = await fetchJson('/api/fees/stats?month=2026-07');
+        const month = document.getElementById('monthFilter')?.value || '';
+        const params = new URLSearchParams();
+        if (month) params.append('month', month);
+        const stats = await fetchJson(`/api/fees/stats?${params}`);
         document.getElementById('totalStudents').textContent = stats.total_students;
-        document.getElementById('totalDue').textContent = `Rs. ${stats.total_due.toLocaleString()}`;
-        document.getElementById('totalCollected').textContent = `Rs. ${stats.total_collected.toLocaleString()}`;
+        document.getElementById('totalDue').textContent = `Rs. ${Number(stats.total_due).toLocaleString()}`;
+        document.getElementById('totalCollected').textContent = `Rs. ${Number(stats.total_collected).toLocaleString()}`;
         document.getElementById('collectionRate').textContent = `${stats.collection_rate}%`;
       } catch (err) {
         console.error('Failed to load fee stats:', err);
@@ -1380,6 +1424,8 @@
 
     // Load fee payments
     async function loadFeePayments() {
+      const tbody = document.getElementById('paymentsTableBody');
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px;"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</td></tr>';
       try {
         const month = document.getElementById('monthFilter')?.value || '';
         const classId = document.getElementById('classFilter')?.value || '';
@@ -1392,25 +1438,37 @@
         if (status) params.append('status', status);
         if (search) params.append('search', search);
         
-        params.append('mode', 'records');
+        // No mode=records: use default LEFT JOIN so ALL students appear
         const payments = await fetchJson(`/api/fees/payments?${params}`);
-        const tbody = document.getElementById('paymentsTableBody');
-        tbody.innerHTML = payments.map(p => `
+        
+        if (!Array.isArray(payments) || payments.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px;">No students found.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = payments.map(p => {
+          const statusClass = p.status === 'paid' ? 'paid' : p.status === 'partial' ? 'partial' : p.status === 'unpaid' ? 'unpaid' : 'unpaid';
+          const statusIcon = p.status === 'paid' ? 'fa-check' : p.status === 'partial' ? 'fa-minus' : 'fa-xmark';
+          const statusLabel = p.status === 'not_set_up' ? 'Not Set Up' : p.status ? (p.status.charAt(0).toUpperCase() + p.status.slice(1)) : 'Unpaid';
+          const amountDue = p.amount_due != null ? `Rs. ${Number(p.amount_due).toLocaleString()}` : '—';
+          const amountPaid = p.amount_paid != null ? `Rs. ${Number(p.amount_paid).toLocaleString()}` : '—';
+          return `
           <tr>
-            <td>${p.student_name}</td>
-            <td>${p.class_name || 'N/A'}</td>
-            <td>Rs. ${Number(p.amount_due).toLocaleString()}</td>
-            <td>Rs. ${Number(p.amount_paid).toLocaleString()}</td>
-            <td><span class="badge ${p.status}"><i class="fa-solid ${p.status === 'paid' ? 'fa-check' : p.status === 'partial' ? 'fa-minus' : 'fa-xmark'}"></i> ${p.status.charAt(0).toUpperCase() + p.status.slice(1)}</span></td>
-            <td>${p.payment_date || '-'}</td>
+            <td>${p.student_name || '—'}</td>
+            <td>${p.class_name || '—'}</td>
+            <td>${amountDue}</td>
+            <td>${amountPaid}</td>
+            <td><span class="badge ${statusClass}"><i class="fa-solid ${statusIcon}"></i> ${statusLabel}</span></td>
+            <td>${p.payment_date || '—'}</td>
             <td>
               <div class="action-buttons">
-                <button class="btn-edit" onclick="openPaymentModal(${p.student_id})"><i class="fa-solid fa-eye"></i></button>
+                <button class="btn-edit" onclick="openPaymentModal(${p.student_id})" title="Record Payment"><i class="fa-solid fa-money-bill-wave"></i></button>
               </div>
             </td>
-          </tr>
-        `).join('');
+          </tr>`;
+        }).join('');
       } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--danger);padding:24px;">Failed to load fee data.</td></tr>';
         console.error('Failed to load fee payments:', err);
       }
     }
@@ -1538,25 +1596,30 @@
     });
 
     // Filter change handlers
-    document.getElementById('monthFilter')?.addEventListener('change', loadFeePayments);
+    document.getElementById('monthFilter')?.addEventListener('change', () => { loadFeePayments(); loadFeeStats(); });
     document.getElementById('classFilter')?.addEventListener('change', loadFeePayments);
     document.getElementById('statusFilter')?.addEventListener('change', loadFeePayments);
     document.getElementById('searchInput')?.addEventListener('input', loadFeePayments);
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
+      // Build dynamic month dropdowns (last 12 months, current month selected)
+      buildMonthOptions('monthFilter', true);
+      buildMonthOptions('paymentMonth', true);
+
+      // Set today's date as default in payment modal
+      document.getElementById('paymentDate').valueAsDate = new Date();
+
+      // Load real data for dropdowns
+      await Promise.all([loadClasses(), loadStudentsForPayment(), loadClassesForFilter()]);
+      populateStudentDropdown();
+      populateStructureTarget('class');
+
+      // Load initial data
       loadFeeStats();
       loadFeeStructures();
       loadFeePayments();
       loadPaymentHistory();
-
-      // Set today's date as default
-      document.getElementById('paymentDate').valueAsDate = new Date();
-
-      // Load real data for dropdowns
-      await Promise.all([loadClasses(), loadStudentsForPayment()]);
-      populateStudentDropdown();
-      populateStructureTarget('class');
 
       // Wire structure type toggle
       document.getElementById('structureType').addEventListener('change', (e) => {
