@@ -100,6 +100,29 @@ function escapeHtml(value) {
   return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char])
 }
 
+function parseFullId(full_id) {
+  const value = String(full_id || '').trim().toUpperCase()
+  if (!value) return { tenant_id: '', login_id: '', isValid: false }
+
+  if (value === 'ADM' || value === 'SUPER-ADM') {
+    return { tenant_id: 'SUPER', login_id: 'ADM', isValid: true }
+  }
+
+  const lastDash = value.lastIndexOf('-')
+  if (lastDash <= 0 || lastDash === value.length - 1) {
+    return { tenant_id: '', login_id: '', isValid: false }
+  }
+
+  const tenant_id = value.substring(0, lastDash)
+  const login_id = value.substring(lastDash + 1)
+
+  if (!tenant_id || !login_id) {
+    return { tenant_id: '', login_id: '', isValid: false }
+  }
+
+  return { tenant_id, login_id, isValid: true }
+}
+
 function requireSameOrigin(req, res, next) {
   const origin = req.get('origin')
   const expectedOrigin = `${req.protocol}://${req.get('host')}`
@@ -148,6 +171,8 @@ app.use(cors({
     if (allowed.includes(origin)) return callback(null, true)
     // Vercel preview deployments use unique subdomains
     if (/^https:\/\/[\w-]+\.vercel\.app$/.test(origin)) return callback(null, true)
+    // Local dev servers (like Live Server on any port, localhost, or local IP)
+    if (/^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(origin)) return callback(null, true)
     callback(null, false)
   },
   credentials: true
@@ -273,6 +298,7 @@ async function createTables() {
     ALTER TABLE teachers ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'teacher';
     ALTER TABLE teachers ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(10);
     ALTER TABLE teachers ADD COLUMN IF NOT EXISTS is_first_login BOOLEAN DEFAULT true;
+    ALTER TABLE teachers ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
   `)
 
   await pool.query(`
@@ -282,6 +308,7 @@ async function createTables() {
     ALTER TABLE students ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(10);
     ALTER TABLE students ADD COLUMN IF NOT EXISTS is_first_login BOOLEAN DEFAULT true;
     ALTER TABLE students ADD COLUMN IF NOT EXISTS is_frozen BOOLEAN DEFAULT false;
+    ALTER TABLE students ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
   `)
 
   // Migrate roll_no uniqueness to be scoped to tenant_id
@@ -350,7 +377,8 @@ async function createTables() {
   await pool.query(`
     UPDATE admins 
     SET login_id = SUBSTRING(login_id FROM POSITION('-' IN login_id) + 1)
-    WHERE login_id LIKE '%-%';
+    WHERE login_id LIKE '%-%'
+      AND role <> 'super_admin';
   `)
 
   // Fix existing teacher/student login_id values that were stored with full concatenated IDs (e.g. 'APSC-T001' -> 'T001')
@@ -362,6 +390,26 @@ async function createTables() {
     UPDATE students 
     SET login_id = SUBSTRING(login_id FROM POSITION('-' IN login_id) + 1)
     WHERE login_id LIKE '%-%';
+  `)
+
+  // Fix global UNIQUE constraints on login_id to be scoped per tenant_id
+  await pool.query(`
+    ALTER TABLE admins DROP CONSTRAINT IF EXISTS admins_login_id_key;
+    ALTER TABLE teachers DROP CONSTRAINT IF EXISTS teachers_login_id_key;
+    ALTER TABLE students DROP CONSTRAINT IF EXISTS students_login_id_key;
+  `)
+  await pool.query(`
+    DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'admins_tenant_login_key') THEN
+        ALTER TABLE admins ADD CONSTRAINT admins_tenant_login_key UNIQUE (tenant_id, login_id);
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'teachers_tenant_login_key') THEN
+        ALTER TABLE teachers ADD CONSTRAINT teachers_tenant_login_key UNIQUE (tenant_id, login_id);
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'students_tenant_login_key') THEN
+        ALTER TABLE students ADD CONSTRAINT students_tenant_login_key UNIQUE (tenant_id, login_id);
+      END IF;
+    END $$;
   `)
 
   // ============================================
@@ -450,25 +498,27 @@ app.post('/api/auth/login', async (req, res) => {
     if (!full_id && bodyLoginId) {
       full_id = String(bodyLoginId).trim()
     }
-    const lastDash = full_id.lastIndexOf('-')
-    const tenant_id = full_id.substring(0, lastDash).toUpperCase()
-    const login_id = full_id.substring(lastDash + 1).toUpperCase()
-    if (!full_id || !password) {
+    const parsed = parseFullId(full_id)
+    const tenant_id = parsed.tenant_id
+    const login_id = parsed.login_id
+    if (!parsed.isValid || !password) {
       return res.status(400).json({ error: 'Full ID and Password are required' })
     }
 
     const result = await pool.query(`
-      SELECT id, password_hash, role, is_first_login, is_frozen, token_generation
-      FROM students 
+      SELECT id, password_hash, role, is_first_login, is_frozen, token_generation, 1 AS src_order
+      FROM students
       WHERE tenant_id = $1 AND login_id = $2
-      UNION
-      SELECT id, password_hash, role, is_first_login, FALSE as is_frozen, token_generation
-      FROM teachers 
+      UNION ALL
+      SELECT id, password_hash, role, is_first_login, FALSE AS is_frozen, token_generation, 2 AS src_order
+      FROM teachers
       WHERE tenant_id = $1 AND login_id = $2
-      UNION
-      SELECT id, password_hash, role, is_first_login, FALSE as is_frozen, token_generation
-      FROM admins 
+      UNION ALL
+      SELECT id, password_hash, role, is_first_login, FALSE AS is_frozen, token_generation, 3 AS src_order
+      FROM admins
       WHERE tenant_id = $1 AND login_id = $2
+      ORDER BY src_order
+      LIMIT 1
     `, [tenant_id, login_id])
 
     if (result.rows.length === 0) {
@@ -532,7 +582,7 @@ app.post('/api/auth/login', async (req, res) => {
 
   } catch (err) {
     console.error('Login error:', err)
-    return res.status(500).json({ error: 'Internal server error' })
+    return res.status(500).json({ error: 'Internal server error: ' + err.message })
   }
 })
 
@@ -564,13 +614,13 @@ app.post('/api/auth/change-password', requireAuth(), async (req, res) => {
     let updateQuery = ''
 
     if (role === 'super_admin' || role === 'admin') {
-      selectQuery = 'SELECT password_hash, token_generation FROM admins WHERE id = $1'
+      selectQuery = 'SELECT password_hash, token_generation, is_first_login FROM admins WHERE id = $1'
       updateQuery = 'UPDATE admins SET password_hash = $1, is_first_login = false, token_generation = COALESCE(token_generation, 0) + 1 WHERE id = $2 RETURNING token_generation'
     } else if (role === 'teacher') {
-      selectQuery = 'SELECT password_hash, token_generation FROM teachers WHERE id = $1'
+      selectQuery = 'SELECT password_hash, token_generation, is_first_login FROM teachers WHERE id = $1'
       updateQuery = 'UPDATE teachers SET password_hash = $1, is_first_login = false, token_generation = COALESCE(token_generation, 0) + 1 WHERE id = $2 RETURNING token_generation'
     } else if (role === 'student') {
-      selectQuery = 'SELECT password_hash, token_generation FROM students WHERE id = $1'
+      selectQuery = 'SELECT password_hash, token_generation, is_first_login FROM students WHERE id = $1'
       updateQuery = 'UPDATE students SET password_hash = $1, is_first_login = false, token_generation = COALESCE(token_generation, 0) + 1 WHERE id = $2 RETURNING token_generation'
     } else {
       return res.status(400).json({ error: 'Invalid role' })
@@ -583,10 +633,12 @@ app.post('/api/auth/change-password', requireAuth(), async (req, res) => {
     }
 
     const user = result.rows[0]
+    const isFirstLogin = user.is_first_login === true
 
-    if (!user.is_first_login) {
+    if (!isFirstLogin) {
+      // Only require current password for non-first-time logins
       if (!current_password) {
-        return res.status(400).json({ error: 'Current password is required' })
+        return res.status(400).json({ error: 'Please enter your current password' })
       }
       const validCurrent = await bcrypt.compare(current_password, user.password_hash)
       if (!validCurrent) {
@@ -624,10 +676,10 @@ const token = jwt.sign(
       const redirectMap = { super_admin: '/super-admin.html', admin: '/admin.html', teacher: '/teacher.html', student: '/student.html' }
       const redirect_url = redirectMap[role] || '/'
 
-      res.json({ success: true, token, redirect_url, message: 'Password changed successfully' })
+    res.json({ success: true, token, redirect_url, message: 'Password changed successfully' })
   } catch (err) {
     console.error('Change password error:', err)
-    res.status(500).json({ error: 'Server error' })
+    res.status(500).json({ error: 'Server error: ' + err.message })
   }
 })
 
@@ -654,22 +706,24 @@ app.post('/api/auth/forgot-password', forgotPasswordLimiter, async (req, res) =>
       return res.status(400).json({ error: 'Full ID is required' })
     }
 
-    const lastDash = full_id.lastIndexOf('-')
-    const tenant_id = full_id.substring(0, lastDash).toUpperCase()
-    const login_id = full_id.substring(lastDash + 1).toUpperCase()
+    const parsed = parseFullId(full_id)
+    const tenant_id = parsed.tenant_id
+    const login_id = parsed.login_id
 
-    if (!tenant_id || !login_id) {
+    if (!parsed.isValid) {
       // Don't reveal that the ID format is wrong — return generic message
       return res.json({ success: true, message: GENERIC_MSG })
     }
 
     // Look up user across all tables
     const result = await pool.query(`
-      SELECT id, role, email, email_verified_at FROM students WHERE tenant_id = $1 AND login_id = $2
-      UNION
-      SELECT id, role, email, email_verified_at FROM teachers WHERE tenant_id = $1 AND login_id = $2
-      UNION
-      SELECT id, role, email, email_verified_at FROM admins WHERE tenant_id = $1 AND login_id = $2
+      SELECT id, role, email, email_verified_at, 1 AS src_order FROM students WHERE tenant_id = $1 AND login_id = $2
+      UNION ALL
+      SELECT id, role, email, email_verified_at, 2 AS src_order FROM teachers WHERE tenant_id = $1 AND login_id = $2
+      UNION ALL
+      SELECT id, role, email, email_verified_at, 3 AS src_order FROM admins WHERE tenant_id = $1 AND login_id = $2
+      ORDER BY src_order
+      LIMIT 1
     `, [tenant_id, login_id])
 
     if (result.rows.length === 0) {
@@ -936,7 +990,7 @@ app.post('/api/auth/create-teacher', requireAuth(['admin']), async (req, res) =>
       [name, phone || null, class_id || null, shortId, passwordHash, tenant_id, email]
     )
     if (email) issueEmailVerification(result.rows[0]).catch(err => console.error('Verification email send failed:', err.message))
-    res.json({ success: true, teacher_id: teacherId, teacher: result.rows[0] })
+    res.json({ success: true, teacher_id: teacherId, teacher: result.rows[0], temp_password: tempPassword })
   } catch (err) {
     console.error('Create teacher error:', err)
     res.status(500).json({ error: 'Server error' })
@@ -978,7 +1032,7 @@ app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) =>
       [name, roll_no || null, phone || null, class_id || null, shortId, passwordHash, tenant_id, email]
     )
     if (email) issueEmailVerification(result.rows[0]).catch(err => console.error('Verification email send failed:', err.message))
-    res.json({ success: true, student_id: studentId, student: result.rows[0] })
+    res.json({ success: true, student_id: studentId, student: result.rows[0], temp_password: tempPassword })
   } catch (err) {
     console.error('Create student error:', err)
 
@@ -1109,17 +1163,20 @@ app.post('/api/auth/approve-school', requireAuth(['super_admin']), async (req, r
       return res.status(400).json({ error: 'School code must be exactly 4 uppercase letters' })
     }
 
-    const requestResult = await pool.query('SELECT contact_email FROM school_requests WHERE id = $1', [request_id])
+    const requestResult = await pool.query('SELECT contact_person, contact_email FROM school_requests WHERE id = $1', [request_id])
     if (requestResult.rows.length === 0) {
       return res.status(404).json({ error: 'School request not found' })
     }
 
     const contactEmail = requestResult.rows[0].contact_email
+    const contactPerson = requestResult.rows[0].contact_person || 'Admin'
 
     const existing = await pool.query('SELECT id FROM organizations WHERE school_code = $1', [code])
     if (existing.rows.length > 0) {
       return res.status(400).json({ error: 'School code already taken' })
     }
+
+    let tempPasswordToReturn = ''
 
     const client = await pool.connect()
     try {
@@ -1130,13 +1187,13 @@ app.post('/api/auth/approve-school', requireAuth(['super_admin']), async (req, r
         [code, school_name, contactEmail, 'active']
       )
 
-      const tempPassword = generateTempPassword()
-      const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS)
+      tempPasswordToReturn = generateTempPassword()
+      const passwordHash = await bcrypt.hash(tempPasswordToReturn, BCRYPT_ROUNDS)
 
       await client.query(
         `INSERT INTO admins (login_id, name, email, password_hash, role, tenant_id, is_first_login, email_verified_at)
          VALUES ('ADM', $1, $2, $3, 'admin', $4, true, NULL)`,
-        [contactPersonValue, normalizeEmail(contactEmail), passwordHash, code]
+        [contactPerson, normalizeEmail(contactEmail), passwordHash, code]
       )
 
       await client.query('UPDATE school_requests SET status = $1 WHERE id = $2', ['approved', request_id])
@@ -1149,10 +1206,10 @@ app.post('/api/auth/approve-school', requireAuth(['super_admin']), async (req, r
       client.release()
     }
 
-    res.json({ success: true, admin_id: `${code}-ADM` })
+    res.json({ success: true, admin_id: `${code}-ADM`, temp_password: tempPasswordToReturn })
   } catch (err) {
     console.error('Approve school error:', err)
-    res.status(500).json({ error: 'Server error' })
+    res.status(500).json({ error: 'An unexpected error occurred while approving the school. Please try again or contact support.' })
   }
 })
 
@@ -1336,12 +1393,20 @@ app.post('/api/teachers', requireAuth(['admin', 'super_admin']), async (req, res
 
 app.put('/api/teachers/:id', requireAuth(['admin', 'super_admin']), async (req, res) => {
   const { name, phone, class_id } = req.body
-  const email = normalizeEmail(req.body.email)
-  if (email === undefined) return res.status(400).json({ error: 'Enter a valid email address' })
+  const rawEmail = req.body.email
+  // Only call normalizeEmail when the field is a non-empty string (not null/undefined/empty)
+  // normalizeEmail(String(null)) = "null" → fails regex → undefined ❌
+  // normalizeEmail(undefined)  = "undefined" → fails regex → undefined ❌
+  let email = null
+  if (typeof rawEmail === 'string' && rawEmail.trim()) {
+    const normalized = normalizeEmail(rawEmail)
+    if (normalized === undefined) return res.status(400).json({ error: 'Enter a valid email address' })
+    email = normalized
+  }
   const tenant_id = req.user.tenant_id
   const result = await pool.query(
-    `UPDATE teachers SET name=$1, phone=$2, class_id=$3, email=$4,
-     email_verified_at = CASE WHEN email IS NOT DISTINCT FROM $4 THEN email_verified_at ELSE NULL END
+    `UPDATE teachers SET name=$1, phone=$2, class_id=$3, email=$4::text,
+     email_verified_at = CASE WHEN email IS NOT DISTINCT FROM $4::text THEN email_verified_at ELSE NULL END
      WHERE id=$5 AND tenant_id=$6
      RETURNING id, name, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at, created_at`,
     [name, phone, class_id, email, req.params.id, tenant_id]
@@ -1408,12 +1473,20 @@ app.post('/api/students', requireAuth(['admin', 'super_admin']), async (req, res
 
 app.put('/api/students/:id', requireAuth(['admin', 'super_admin']), async (req, res) => {
   const { name, roll_no, phone, class_id } = req.body
-  const email = normalizeEmail(req.body.email)
-  if (email === undefined) return res.status(400).json({ error: 'Enter a valid email address' })
+  const rawEmail = req.body.email
+  // Only call normalizeEmail when the field is a non-empty string (not null/undefined/empty)
+  // normalizeEmail(String(null)) = "null" → fails regex → undefined ❌
+  // normalizeEmail(undefined)  = "undefined" → fails regex → undefined ❌
+  let email = null
+  if (typeof rawEmail === 'string' && rawEmail.trim()) {
+    const normalized = normalizeEmail(rawEmail)
+    if (normalized === undefined) return res.status(400).json({ error: 'Enter a valid email address' })
+    email = normalized
+  }
   const tenant_id = req.user.tenant_id
   const result = await pool.query(
-    `UPDATE students SET name=$1, roll_no=$2, phone=$3, class_id=$4, email=$5,
-     email_verified_at = CASE WHEN email IS NOT DISTINCT FROM $5 THEN email_verified_at ELSE NULL END
+    `UPDATE students SET name=$1, roll_no=$2, phone=$3, class_id=$4, email=$5::text,
+     email_verified_at = CASE WHEN email IS NOT DISTINCT FROM $5::text THEN email_verified_at ELSE NULL END
      WHERE id=$6 AND tenant_id=$7
      RETURNING id, name, roll_no, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at, is_frozen, created_at`,
     [name, roll_no, phone, class_id, email, req.params.id, tenant_id]
@@ -1931,6 +2004,22 @@ app.get('/api/fees/me', requireAuth(['student']), async (req, res) => {
   res.json(records)
 })
 
+
+// ============================================
+// JSON ERROR HANDLER — ensures API routes always
+// return JSON, never HTML (Express 5 default
+// error handler sends HTML in development mode)
+// ============================================
+app.use('/api', (err, req, res, next) => {
+  console.error('API error:', err)
+  if (res.headersSent) return next(err)
+  res.status(err.status || 500).json({ error: err.message || 'Internal server error' })
+})
+
+// Catch-all: return 404 JSON for any unmatched /api routes
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: `Cannot ${req.method} ${req.originalUrl}` })
+})
 
 // ============================================
 // START SERVER

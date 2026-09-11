@@ -501,7 +501,7 @@ async function handleChangePassword(e) {
 async function handleLogout() {
   localStorage.removeItem('auth_token');
   try {
-    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    await fetch(API_BASE + '/api/auth/logout', { method: 'POST', credentials: 'include' });
   } catch(e) { /* ignore network errors, still redirect */ }
   window.location.href = '/index.html';
 }

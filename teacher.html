@@ -586,9 +586,11 @@
 
       border-color: #059669 !important;
 
-      box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.25);
+      box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.3), 0 4px 12px rgba(5,150,105,0.4) !important;
 
-      transform: scale(1.03);
+      transform: scale(1.06);
+
+      font-weight: 800 !important;
 
     }
 
@@ -604,9 +606,11 @@
 
       border-color: #dc2626 !important;
 
-      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.25);
+      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.3), 0 4px 12px rgba(220,38,38,0.4) !important;
 
-      transform: scale(1.03);
+      transform: scale(1.06);
+
+      font-weight: 800 !important;
 
     }
 
@@ -622,9 +626,11 @@
 
       border-color: #d97706 !important;
 
-      box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.25);
+      box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.3), 0 4px 12px rgba(217,119,6,0.4) !important;
 
-      transform: scale(1.03);
+      transform: scale(1.06);
+
+      font-weight: 800 !important;
 
     }
 
@@ -668,7 +674,9 @@
 
     .row-marked-present {
 
-      border-left: 4px solid #059669;
+      border-left: 5px solid #059669;
+
+      background: rgba(5, 150, 105, 0.06) !important;
 
     }
 
@@ -676,7 +684,9 @@
 
     .row-marked-absent {
 
-      border-left: 4px solid #dc2626;
+      border-left: 5px solid #dc2626;
+
+      background: rgba(220, 38, 38, 0.06) !important;
 
     }
 
@@ -684,7 +694,9 @@
 
     .row-marked-leave {
 
-      border-left: 4px solid #d97706;
+      border-left: 5px solid #d97706;
+
+      background: rgba(217, 119, 6, 0.06) !important;
 
     }
 
@@ -692,7 +704,7 @@
 
     .row-default {
 
-      border-left: 4px solid transparent;
+      border-left: 5px solid transparent;
 
     }
 
@@ -1134,7 +1146,7 @@
 
         <div class="flex items-center gap-3">
 
-          <a href="./index.html" class="theme-toggle" aria-label="Back to Home" title="Back to Home" style="text-decoration:none;">
+          <a href="./index.html" onclick="event.preventDefault(); safeNavigate('./index.html');" class="theme-toggle" aria-label="Back to Home" title="Back to Home" style="text-decoration:none;">
 
             <i class="fas fa-arrow-left"></i>
 
@@ -1666,7 +1678,7 @@
 
         <!-- Clear data -->
 
-        <button onclick="closeSettings(); if(confirm('Clear all saved attendance data?')){ localStorage.removeItem(STORAGE_KEY); showToast('🗑️ Data cleared','info'); }" class="w-full py-2.5 rounded-xl text-sm font-600 transition-colors cursor-pointer" style="background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger);">
+        <button onclick="closeSettings(); clearAllData();" class="w-full py-2.5 rounded-xl text-sm font-600 transition-colors cursor-pointer" style="background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger);">
 
           🗑️ Clear All Saved Attendance
 
@@ -2428,9 +2440,17 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
      */
 
-    function clearSavedRecords() {
-
-      if (!confirm('Are you sure you want to clear all saved attendance data?')) return;
+    async function clearSavedRecords() {
+      const confirmed = await showConfirmModal({
+        icon: '🗑️',
+        iconBg: 'rgba(239,68,68,0.15)',
+        title: 'Clear Attendance Data',
+        message: 'Are you sure you want to clear all saved attendance data?',
+        confirmText: 'Clear Data',
+        confirmClass: 'danger',
+        cancelText: 'Cancel'
+      });
+      if (!confirmed) return;
 
 
 
@@ -3141,161 +3161,92 @@ function setButtonLoading(btn, loading, loadingHtml) {
     // =============================================================
 
     function renderStats() {
-
       const container = document.getElementById('statsContent');
+      if (!container) return;
+
+      const activeStudents = Array.isArray(students) ? students : [];
+
+      if (activeStudents.length === 0) {
+        container.innerHTML = `<div class="text-center py-8 text-gray-400"><p class="text-3xl mb-2">👥</p><p class="text-sm font-500">No students enrolled in this class</p></div>`;
+        return;
+      }
+
+      const studentMap = {};
+      activeStudents.forEach(s => {
+        const key = String(s.id);
+        studentMap[key] = { id: s.id, name: s.name, present: 0, absent: 0, leave: 0, total: 0 };
+      });
 
       const saved = localStorage.getItem(STORAGE_KEY);
+      let totalDays = 0;
 
-      if (!saved) {
-
-        container.innerHTML = `<div class="text-center py-8 text-gray-400"><p class="text-3xl mb-2">📊</p><p class="text-sm font-500">No attendance data yet</p><p class="text-xs mt-1">Submit attendance to see stats</p></div>`;
-
-        return;
-
-      }
-
-
-
-      try {
-
-        const data = JSON.parse(saved);
-
-        if (!Array.isArray(data) || data.length === 0) {
-
-          container.innerHTML = `<div class="text-center py-8 text-gray-400"><p class="text-3xl mb-2">📊</p><p class="text-sm font-500">No attendance data yet</p></div>`;
-
-          return;
-
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          if (Array.isArray(data)) {
+            totalDays = data.length;
+            data.forEach(record => {
+              (record.students || []).forEach(s => {
+                const key = String(s.id);
+                const targetKey = studentMap[key] ? key : Object.keys(studentMap).find(k => studentMap[k].name.toLowerCase() === (s.name || '').toLowerCase());
+                if (targetKey && studentMap[targetKey]) {
+                  studentMap[targetKey].total++;
+                  if (s.status === 'Present') studentMap[targetKey].present++;
+                  else if (s.status === 'Absent') studentMap[targetKey].absent++;
+                  else if (s.status === 'Leave') studentMap[targetKey].leave++;
+                }
+              });
+            });
+          }
+        } catch (e) {
+          console.error('Error parsing stats data:', e);
         }
-
-
-
-        const studentMap = {};
-
-
-
-        data.forEach(record => {
-
-          (record.students || []).forEach(s => {
-
-            if (!studentMap[s.id]) {
-
-              studentMap[s.id] = { id: s.id, name: s.name, present: 0, absent: 0, leave: 0, total: 0 };
-
-            }
-
-            studentMap[s.id].total++;
-
-            if (s.status === 'Present') studentMap[s.id].present++;
-
-            else if (s.status === 'Absent') studentMap[s.id].absent++;
-
-            else if (s.status === 'Leave') studentMap[s.id].leave++;
-
-          });
-
-        });
-
-
-
-        const studentList = Object.values(studentMap).map(s => ({
-
-          ...s,
-
-          percentage: s.total > 0 ? Math.round((s.present / s.total) * 100) : 0
-
-        }));
-
-
-
-        studentList.sort((a, b) => b.percentage - a.percentage);
-
-
-
-        const totalDays = data.length;
-
-
-
-        let html = `<div class="mb-4"><p class="text-xs text-gray-500"><span class="font-600">${totalDays}</span> day(s) recorded</p></div>`;
-
-        html += '<div class="space-y-3">';
-
-
-
-        studentList.forEach((s, i) => {
-
-          const pct = s.percentage;
-
-          let barColor = '#ef4444';
-
-          let textColor = 'text-red-500';
-
-          if (pct >= 80) { barColor = '#22c55e'; textColor = 'text-emerald-500'; }
-
-          else if (pct >= 60) { barColor = '#f59e0b'; textColor = 'text-amber-500'; }
-
-          else if (pct >= 40) { barColor = '#f97316'; textColor = 'text-orange-500'; }
-
-
-
-          let rankBadge = '';
-
-          if (i === 0) rankBadge = '🥇';
-
-          else if (i === 1) rankBadge = '🥈';
-
-          else if (i === 2) rankBadge = '🥉';
-
-
-
-          const initials = s.name.split(' ').map(n => n[0]).join('');
-
-          const colors = ['bg-blue-100 text-blue-700','bg-emerald-100 text-emerald-700','bg-purple-100 text-purple-700','bg-amber-100 text-amber-700','bg-rose-100 text-rose-700','bg-cyan-100 text-cyan-700'];
-
-          const colorClass = colors[i % colors.length];
-
-
-
-          html += `
-
-            <div class="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors" style="background:var(--bg-card);">
-
-              <div class="w-10 h-10 rounded-full ${colorClass} flex items-center justify-center font-700 text-sm shrink-0">${initials}</div>
-
-              <div class="flex-1 min-w-0">
-
-                <div class="flex items-center justify-between mb-1">
-
-                  <span class="text-sm font-600" style="color:var(--text);">${rankBadge || `#${i+1}`} ${s.name}</span>
-
-                  <span class="text-base font-800 ${textColor}">${pct}%</span>
-
-                </div>
-
-                <div class="flex gap-3 text-xs" style="color:var(--text-muted);">
-
-                  <span>✅ ${s.present}</span><span>❌ ${s.absent}</span><span>📝 ${s.leave}</span><span>📅 ${s.total} days</span>
-
-                </div>
-
-              </div>
-
-            </div>`;
-
-        });
-
-
-
-        html += '</div>';
-
-        container.innerHTML = html;
-
-      } catch (e) {
-
-        container.innerHTML = `<div class="text-center py-8 text-red-400"><p class="text-sm font-500">⚠️ Data error</p></div>`;
-
       }
 
+      const studentList = Object.values(studentMap).map(s => ({
+        ...s,
+        percentage: s.total > 0 ? Math.round((s.present / s.total) * 100) : 0
+      }));
+
+      studentList.sort((a, b) => b.percentage - a.percentage);
+
+      let html = `<div class="mb-4"><p class="text-xs text-gray-400"><span class="font-600 text-emerald-400">${totalDays}</span> day(s) recorded for <span class="font-600 text-white">${activeStudents.length}</span> student(s)</p></div>`;
+      html += '<div class="space-y-3">';
+
+      studentList.forEach((s, i) => {
+        const pct = s.percentage;
+        let barColor = '#ef4444';
+        let textColor = 'text-red-500';
+        if (pct >= 80) { barColor = '#22c55e'; textColor = 'text-emerald-500'; }
+        else if (pct >= 60) { barColor = '#f59e0b'; textColor = 'text-amber-500'; }
+        else if (pct >= 40) { barColor = '#f97316'; textColor = 'text-orange-500'; }
+
+        let rankBadge = '';
+        if (i === 0) rankBadge = '🥇';
+        else if (i === 1) rankBadge = '🥈';
+        else if (i === 2) rankBadge = '🥉';
+
+        const initials = (s.name || 'S').split(' ').map(n => n[0]).join('').toUpperCase();
+        const colors = ['bg-blue-100 text-blue-700', 'bg-emerald-100 text-emerald-700', 'bg-purple-100 text-purple-700', 'bg-amber-100 text-amber-700', 'bg-rose-100 text-rose-700', 'bg-cyan-100 text-cyan-700'];
+        const colorClass = colors[i % colors.length];
+
+        html += `
+          <div class="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors" style="background:var(--bg-card);">
+            <div class="w-10 h-10 rounded-full ${colorClass} flex items-center justify-center font-700 text-sm shrink-0">${initials}</div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-sm font-600" style="color:var(--text);">${rankBadge || `#${i + 1}`} ${s.name}</span>
+                <span class="text-base font-800 ${textColor}">${pct}%</span>
+              </div>
+              <div class="flex gap-3 text-xs" style="color:var(--text-muted);">
+                <span>✅ ${s.present}</span><span>❌ ${s.absent}</span><span>📝 ${s.leave}</span><span>📅 ${s.total} days</span>
+              </div>
+            </div>
+          </div>`;
+      });
+
+      html += '</div>';
+      container.innerHTML = html;
     }
 
 
@@ -4468,9 +4419,17 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
 
 
-    function clearSavedRecords() {
-
-      if(confirm('Are you sure you want to clear all locally saved attendance records? This cannot be undone.')) {
+    async function clearSavedRecordsSecondary() {
+      const confirmed = await showConfirmModal({
+        icon: '🗑️',
+        iconBg: 'rgba(239,68,68,0.15)',
+        title: 'Clear Attendance Data',
+        message: 'Are you sure you want to clear all locally saved attendance records? This cannot be undone.',
+        confirmText: 'Clear Data',
+        confirmClass: 'danger',
+        cancelText: 'Cancel'
+      });
+      if (confirmed) {
 
         localStorage.removeItem(STORAGE_KEY);
 
@@ -4758,95 +4717,187 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
 
 
-    window.addEventListener('beforeunload', e => {
+    let isAttendanceDirty = false;
 
-      if (hasUnsavedChanges()) {
-
-        e.preventDefault();
-
-        e.returnValue = 'You have unmarked attendance changes. Are you sure you want to leave?';
-
+    async function safeNavigate(url) {
+      if (isAttendanceDirty) {
+        const confirmed = await showConfirmModal({
+          icon: '⚠️',
+          iconBg: 'rgba(245,158,11,0.15)',
+          title: 'Unsaved Attendance',
+          message: 'You have unsaved attendance marks. Are you sure you want to leave without submitting?',
+          confirmText: 'Leave Without Saving',
+          confirmClass: 'danger',
+          cancelText: 'Stay & Save'
+        });
+        if (!confirmed) return;
       }
-
-    });
-
-
-
-    function init() {
-
-      console.log('init called');
-
-      // Session check first
-
-      checkSession().then((sessionData) => {
-
-        console.log('init sessionData:', JSON.stringify(sessionData));
-
-        if (!sessionData) return;
-
-        startSessionKeepAlive();
-
-        setupSectionTabs();
-
-        // Load theme preference
-
-        loadTheme();
-
-
-
-        // Display today's date
-
-        const today = new Date();
-
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-
-        document.getElementById('dateDisplay').textContent = today.toLocaleDateString('en-US', options);
-
-
-
-        // Render student list
-
-        renderStudentList();
-
-
-
-        // Auto load the logged-in teacher's class from session
-
-        initTeacherSelection();
-
-
-
-        // Restore saved attendance from localStorage (if exists for today)
-
-        loadAttendance();
-
-      });
-
+      isAttendanceDirty = false;
+      window.location.href = url;
     }
 
+    async function clearAllData() {
+      const confirmed = await showConfirmModal({
+        icon: '🗑️',
+        iconBg: 'rgba(239,68,68,0.15)',
+        title: 'Clear Attendance Data',
+        message: 'Are you sure you want to clear all locally saved attendance records? This action cannot be undone.',
+        confirmText: 'Clear Data',
+        confirmClass: 'danger',
+        cancelText: 'Cancel'
+      });
+      if (!confirmed) return;
+      localStorage.removeItem(STORAGE_KEY);
+      showToast('🗑️ Data cleared', 'info');
+      if (typeof renderSavedRecords === 'function') renderSavedRecords();
+      if (typeof renderStats === 'function') renderStats();
+    }
 
+    let _confirmResolve = null;
 
-    // TODO: Future — Load class/section from URL params or user selection
+    function showConfirmModal({ icon = '⚠️', iconBg = 'rgba(239,68,68,0.12)', title = 'Are you sure?', message = '', confirmText = 'Confirm', confirmClass = 'danger', cancelText = 'Cancel' } = {}) {
+      return new Promise((resolve) => {
+        _confirmResolve = resolve;
+        const modal = document.getElementById('customConfirmModal');
+        document.getElementById('confirmModalIcon').textContent = icon;
+        document.getElementById('confirmModalIcon').style.background = iconBg;
+        document.getElementById('confirmModalTitle').textContent = title;
+        document.getElementById('confirmModalMessage').textContent = message;
+        const confirmBtn = document.getElementById('confirmModalConfirmBtn');
+        confirmBtn.textContent = confirmText;
+        confirmBtn.className = 'confirm-modal-btn confirm-modal-btn--' + confirmClass;
+        document.getElementById('confirmModalCancelBtn').textContent = cancelText;
+        modal.classList.add('open');
+        setTimeout(() => document.getElementById('confirmModalCancelBtn').focus(), 50);
+      });
+    }
 
-    // TODO: Future — Check if attendance already submitted for today
+    function _confirmModalResolve(result) {
+      const modal = document.getElementById('customConfirmModal');
+      modal.classList.remove('open');
+      if (_confirmResolve) { _confirmResolve(result); _confirmResolve = null; }
+    }
 
-
-
-    // Boot up
+    function init() {
+      console.log('init called');
+      // Session check first
+      checkSession().then((sessionData) => {
+        console.log('init sessionData:', JSON.stringify(sessionData));
+        if (!sessionData) return;
+        startSessionKeepAlive();
+        setupSectionTabs();
+        loadTheme();
+        const today = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('dateDisplay').textContent = today.toLocaleDateString('en-US', options);
+        initTeacherSelection();
+      });
+    }
 
     document.addEventListener('DOMContentLoaded', init);
-
   </script>
 
+  <!-- Custom HCI Confirm Modal -->
+  <div id="customConfirmModal" style="
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    width: 100vw; height: 100vh;
+    z-index: 99999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    padding: 16px;
+  ">
+    <div style="
+      background: var(--bg-card, #1e2130);
+      border: 1px solid var(--border, rgba(255,255,255,0.08));
+      border-radius: 20px;
+      padding: 32px 28px 24px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.45), 0 4px 20px rgba(0,0,0,0.25);
+      animation: confirmModalIn 0.25s cubic-bezier(0.34,1.56,0.64,1) forwards;
+      text-align: center;
+    ">
+      <div id="confirmModalIcon" style="
+        width: 64px; height: 64px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 28px;
+        margin: 0 auto 20px;
+        transition: background 0.2s;
+      "></div>
+      <h3 id="confirmModalTitle" style="
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--text, #f0f2f7);
+        margin: 0 0 10px;
+        letter-spacing: -0.01em;
+      "></h3>
+      <p id="confirmModalMessage" style="
+        font-size: 0.88rem;
+        color: var(--text-secondary, rgba(240,242,247,0.65));
+        line-height: 1.6;
+        margin: 0 0 28px;
+      "></p>
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button id="confirmModalCancelBtn"
+          onclick="_confirmModalResolve(false)"
+          style="
+            flex: 1;
+            padding: 11px 20px;
+            border-radius: 12px;
+            border: 1.5px solid var(--border, rgba(255,255,255,0.1));
+            background: transparent;
+            color: var(--text-secondary, rgba(240,242,247,0.7));
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-family: inherit;
+          "
+          onmouseover="this.style.background='var(--bg-hover,rgba(255,255,255,0.06))';this.style.color='var(--text,#f0f2f7)'"
+          onmouseout="this.style.background='transparent';this.style.color='var(--text-secondary,rgba(240,242,247,0.7))'"
+        ></button>
+        <button id="confirmModalConfirmBtn"
+          onclick="_confirmModalResolve(true)"
+          class="confirm-modal-btn confirm-modal-btn--danger"
+          style="flex: 1;"
+        ></button>
+      </div>
+    </div>
+  </div>
 
-
-  <!-- Anti-inspect protection removed (missing file) -->
-
-
+  <style>
+    #customConfirmModal.open { display: flex !important; }
+    @keyframes confirmModalIn {
+      from { opacity: 0; transform: scale(0.85) translateY(20px); }
+      to   { opacity: 1; transform: scale(1)   translateY(0); }
+    }
+    .confirm-modal-btn {
+      padding: 11px 20px;
+      border-radius: 12px;
+      border: none;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+    .confirm-modal-btn--danger {
+      background: #ef4444;
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(239,68,68,0.35);
+    }
+    .confirm-modal-btn--danger:hover {
+      background: #dc2626;
+      box-shadow: 0 6px 20px rgba(239,68,68,0.5);
+    }
+  </style>
 
 </body>
-
-
 
 </html>
 

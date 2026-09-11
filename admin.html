@@ -2129,14 +2129,24 @@
 
 
 
+
   <!-- ======================== JAVASCRIPT ======================== -->
   <script src="./auth-utils.js"></script>
   <script>
     let credentialsDoneCallback = null;
     let activeCredentialsType = null;
 
-    function openAdminRecoveryReveal(targetId, targetRole, promptText = 'Verify the user’s identity before issuing a temporary password. Continue?') {
-      if (!confirm(promptText + '\n\nThe password will be shown once in a separate window and all current sessions for this user will be invalidated.')) return;
+    async function openAdminRecoveryReveal(targetId, targetRole, promptText = 'Verify the user\'s identity before issuing a temporary password. Continue?') {
+      const confirmed = await showConfirmModal({
+        icon: '🔑',
+        iconBg: 'rgba(245,158,11,0.12)',
+        title: 'Issue Temporary Password',
+        message: promptText + ' The password will be shown once in a separate window and all current sessions for this user will be invalidated.',
+        confirmText: 'Yes, Continue',
+        confirmClass: 'warning',
+        cancelText: 'Cancel'
+      });
+      if (!confirmed) return;
       const revealWindow = window.open('', 'temporaryPasswordReveal', 'width=640,height=500');
       if (!revealWindow) {
         showToast('Please allow pop-ups to show the one-time temporary password.', 'warning');
@@ -2364,16 +2374,22 @@
         fn();
       }
 
+      function toArray(payload) {
+        if (Array.isArray(payload)) return payload;
+        if (payload && typeof payload === 'object') {
+          const msg = payload.error || payload.message || 'Unexpected response';
+          throw new Error(msg);
+        }
+        return [];
+      }
+
       try {
         window.appData.attendanceLoadError = '';
         const [teachers, classes, students, rawAttendance] = await Promise.all([
-          apiFetch('/api/teachers').then(r => r.json()),
-          apiFetch('/api/classes').then(r => r.json()),
-          apiFetch('/api/students').then(r => r.json()),
-          apiFetch('/api/attendance/all').then(r => {
-            if (!r.ok) throw new Error('Attendance failed to load');
-            return r.json();
-          }).catch(err => {
+          apiFetch('/api/teachers').then(r => r.json()).then(toArray),
+          apiFetch('/api/classes').then(r => r.json()).then(toArray),
+          apiFetch('/api/students').then(r => r.json()).then(toArray),
+          apiFetch('/api/attendance/all').then(r => r.json()).then(toArray).catch(err => {
             window.appData.attendanceLoadError = err.message || 'Attendance failed to load';
             return [];
           })
@@ -3458,7 +3474,16 @@
     }
 
     async function deleteTeacher(id) {
-      if (!confirm('Remove this teacher?')) return;
+      const confirmed = await showConfirmModal({
+        icon: '🗑️',
+        iconBg: 'rgba(239,68,68,0.12)',
+        title: 'Remove Teacher',
+        message: 'Are you sure you want to remove this teacher? Their account and all associated data will be permanently deleted.',
+        confirmText: 'Yes, Remove',
+        confirmClass: 'danger',
+        cancelText: 'Cancel'
+      });
+      if (!confirmed) return;
       try {
         const response = await apiFetch(`/api/teachers/${id}`, { method: 'DELETE' });
         if (!response.ok) throw new Error('Failed to delete teacher');
@@ -3693,7 +3718,16 @@
     }
 
     async function deleteStudent(id) {
-      if (!confirm('Remove this student?')) return;
+      const confirmed = await showConfirmModal({
+        icon: '🗑️',
+        iconBg: 'rgba(239,68,68,0.12)',
+        title: 'Remove Student',
+        message: 'Are you sure you want to remove this student? Their record and all attendance data will be permanently deleted.',
+        confirmText: 'Yes, Remove',
+        confirmClass: 'danger',
+        cancelText: 'Cancel'
+      });
+      if (!confirmed) return;
       try {
         const response = await apiFetch(`/api/students/${id}`, { method: 'DELETE' });
         if (!response.ok) throw new Error('Failed to delete student');
@@ -3890,7 +3924,16 @@
     }
 
     async function clearAttendanceHistory() {
-      if (!confirm('Clear all attendance history? This cannot be undone.')) return;
+      const confirmed = await showConfirmModal({
+        icon: '⚠️',
+        iconBg: 'rgba(245,158,11,0.12)',
+        title: 'Clear Attendance History',
+        message: 'This will permanently erase all attendance records. This action cannot be undone.',
+        confirmText: 'Clear All',
+        confirmClass: 'danger',
+        cancelText: 'Cancel'
+      });
+      if (!confirmed) return;
       try {
         showToast('⚠️ Clear operation must be requested through administrator CLI', 'warning');
       } catch (err) {
@@ -3906,7 +3949,16 @@
     // =============================================================
 
     async function deleteAnnouncement(id) {
-      if (!confirm('Remove this announcement?')) return;
+      const confirmed = await showConfirmModal({
+        icon: '📢',
+        iconBg: 'rgba(239,68,68,0.12)',
+        title: 'Remove Announcement',
+        message: 'Are you sure you want to remove this announcement? It will no longer be visible to teachers and students.',
+        confirmText: 'Remove',
+        confirmClass: 'danger',
+        cancelText: 'Keep It'
+      });
+      if (!confirmed) return;
       const response = await apiFetch(`/api/announcements/${id}`, { method: 'DELETE' });
       if (!response.ok) {
         showToast('Failed to remove announcement', 'error');
@@ -4322,7 +4374,7 @@
     async function handleLogout() {
       localStorage.removeItem('auth_token');
       try {
-        await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+        await fetch(API_BASE + '/api/auth/logout', { method: 'POST', credentials: 'include' });
       } catch(e) { /* ignore network errors, still redirect */ }
       window.location.href = '/index.html';
     }
@@ -4624,16 +4676,23 @@
     // INITIALIZATION
     // =============================================================
 
-    function switchTab(newTabId, clearSearch = true) {
+    async function switchTab(newTabId, clearSearch = true) {
       if (activeTabId === newTabId) return;
 
       if (hasAnyDirtyChanges() && (activeTabId === 'tab-teachers' || activeTabId === 'tab-students')) {
         const activeTabDirty = dirtyState[activeTabId] && dirtyState[activeTabId].size > 0;
         if (activeTabDirty) {
           const tabName = document.querySelector(`.tab-btn[data-section="${activeTabId}"]`)?.textContent.trim() || 'this tab';
-          if (!confirm(`You have unsaved changes in ${tabName}. Switch anyway? Your changes will remain but will not be saved yet.`)) {
-            return;
-          }
+          const confirmed = await showConfirmModal({
+            icon: '✏️',
+            iconBg: 'rgba(99,102,241,0.12)',
+            title: 'Unsaved Changes',
+            message: `You have unsaved changes in "${tabName}". Switch anyway? Your changes will remain but will not be saved yet.`,
+            confirmText: 'Switch Tab',
+            confirmClass: 'warning',
+            cancelText: 'Stay Here'
+          });
+          if (!confirmed) return;
         }
       }
 
@@ -4720,7 +4779,9 @@
       const btn = document.getElementById('savebarSaveBtn');
       btn.disabled = true;
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-      
+      let failedCount = 0;
+      let savedCount = 0;
+
       try {
         if (activeTabId === 'tab-teachers') {
           for (let [id, data] of dirtyState['tab-teachers']) {
@@ -4729,10 +4790,14 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(data.current)
             });
-            if (response.ok) {
-              const updated = await response.json();
+            const data2 = await response.json().catch(() => null);
+            if (response.ok && data2) {
               const idx = window.appData.teachers.findIndex(t => t.id === id);
-              if (idx !== -1) window.appData.teachers[idx] = updated;
+              if (idx !== -1) window.appData.teachers[idx] = data2;
+              savedCount++;
+            } else {
+              failedCount++;
+              console.error(`Teacher ${id} save failed:`, data2?.error || response.status);
             }
           }
           dirtyState['tab-teachers'].clear();
@@ -4744,17 +4809,25 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(data.current)
             });
-            if (response.ok) {
-              const updated = await response.json();
+            const data2 = await response.json().catch(() => null);
+            if (response.ok && data2) {
               const idx = window.appData.students.findIndex(s => s.id === id);
-              if (idx !== -1) window.appData.students[idx] = updated;
+              if (idx !== -1) window.appData.students[idx] = data2;
+              savedCount++;
+            } else {
+              failedCount++;
+              console.error(`Student ${id} save failed:`, data2?.error || response.status);
             }
           }
           dirtyState['tab-students'].clear();
           filterStudents();
         }
-        
-        showToast('✅ All changes saved successfully', 'success');
+
+        if (failedCount === 0 && savedCount > 0) {
+          showToast('✅ All changes saved successfully', 'success');
+        } else if (failedCount > 0) {
+          showToast(`⚠️ Saved ${savedCount}, failed ${failedCount}. Check console for details.`, 'warning');
+        }
       } catch (err) {
         showToast(`❌ Error saving changes: ${err.message}`, 'error');
       } finally {
@@ -4854,7 +4927,173 @@
       `;
       modal.classList.add('open');
     }
+
+    // ================================================================
+    // CUSTOM CONFIRM MODAL — HCI-compliant replacement for confirm()
+    // ================================================================
+    let _confirmResolve = null;
+
+    function showConfirmModal({ icon = '⚠️', iconBg = 'rgba(239,68,68,0.12)', title = 'Are you sure?', message = '', confirmText = 'Confirm', confirmClass = 'danger', cancelText = 'Cancel' } = {}) {
+      return new Promise((resolve) => {
+        _confirmResolve = resolve;
+        const modal = document.getElementById('customConfirmModal');
+        document.getElementById('confirmModalIcon').textContent = icon;
+        document.getElementById('confirmModalIcon').style.background = iconBg;
+        document.getElementById('confirmModalTitle').textContent = title;
+        document.getElementById('confirmModalMessage').textContent = message;
+        const confirmBtn = document.getElementById('confirmModalConfirmBtn');
+        confirmBtn.textContent = confirmText;
+        confirmBtn.className = 'confirm-modal-btn confirm-modal-btn--' + confirmClass;
+        document.getElementById('confirmModalCancelBtn').textContent = cancelText;
+        modal.classList.add('open');
+        // Focus the cancel button by default for safety (HCI best practice)
+        setTimeout(() => document.getElementById('confirmModalCancelBtn').focus(), 50);
+      });
+    }
+
+    function _confirmModalResolve(result) {
+      const modal = document.getElementById('customConfirmModal');
+      modal.classList.remove('open');
+      if (_confirmResolve) { _confirmResolve(result); _confirmResolve = null; }
+    }
+
+    // Close on backdrop click
+    document.addEventListener('DOMContentLoaded', () => {
+      const modal = document.getElementById('customConfirmModal');
+      if (modal) {
+        modal.addEventListener('click', (e) => { if (e.target === modal) _confirmModalResolve(false); });
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && modal.classList.contains('open')) _confirmModalResolve(false);
+        });
+      }
+    });
   </script>
+
+  <!-- Custom HCI Confirm Modal -->
+  <div id="customConfirmModal" style="
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    width: 100vw; height: 100vh;
+    z-index: 99999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    padding: 16px;
+  ">
+    <div style="
+      background: var(--bg-card, #1e2130);
+      border: 1px solid var(--border, rgba(255,255,255,0.08));
+      border-radius: 20px;
+      padding: 32px 28px 24px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.45), 0 4px 20px rgba(0,0,0,0.25);
+      animation: confirmModalIn 0.25s cubic-bezier(0.34,1.56,0.64,1) forwards;
+      text-align: center;
+    ">
+      <!-- Icon -->
+      <div id="confirmModalIcon" style="
+        width: 64px; height: 64px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 28px;
+        margin: 0 auto 20px;
+        transition: background 0.2s;
+      "></div>
+      <!-- Title -->
+      <h3 id="confirmModalTitle" style="
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--text, #f0f2f7);
+        margin: 0 0 10px;
+        letter-spacing: -0.01em;
+      "></h3>
+      <!-- Message -->
+      <p id="confirmModalMessage" style="
+        font-size: 0.88rem;
+        color: var(--text-secondary, rgba(240,242,247,0.65));
+        line-height: 1.6;
+        margin: 0 0 28px;
+      "></p>
+      <!-- Buttons -->
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button id="confirmModalCancelBtn"
+          onclick="_confirmModalResolve(false)"
+          style="
+            flex: 1;
+            padding: 11px 20px;
+            border-radius: 12px;
+            border: 1.5px solid var(--border, rgba(255,255,255,0.1));
+            background: transparent;
+            color: var(--text-secondary, rgba(240,242,247,0.7));
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-family: inherit;
+          "
+          onmouseover="this.style.background='var(--bg-hover,rgba(255,255,255,0.06))';this.style.color='var(--text,#f0f2f7)'"
+          onmouseout="this.style.background='transparent';this.style.color='var(--text-secondary,rgba(240,242,247,0.7))'"
+        ></button>
+        <button id="confirmModalConfirmBtn"
+          onclick="_confirmModalResolve(true)"
+          class="confirm-modal-btn confirm-modal-btn--danger"
+          style="flex: 1;"
+        ></button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    #customConfirmModal.open { display: flex !important; }
+    @keyframes confirmModalIn {
+      from { opacity: 0; transform: scale(0.85) translateY(20px); }
+      to   { opacity: 1; transform: scale(1)   translateY(0); }
+    }
+    .confirm-modal-btn {
+      padding: 11px 20px;
+      border-radius: 12px;
+      border: none;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+      letter-spacing: 0.01em;
+    }
+    .confirm-modal-btn--danger {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(239,68,68,0.35);
+    }
+    .confirm-modal-btn--danger:hover {
+      background: linear-gradient(135deg, #f87171, #ef4444);
+      box-shadow: 0 6px 20px rgba(239,68,68,0.5);
+      transform: translateY(-1px);
+    }
+    .confirm-modal-btn--warning {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(245,158,11,0.35);
+    }
+    .confirm-modal-btn--warning:hover {
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      box-shadow: 0 6px 20px rgba(245,158,11,0.5);
+      transform: translateY(-1px);
+    }
+    .confirm-modal-btn--primary {
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(99,102,241,0.35);
+    }
+    .confirm-modal-btn--primary:hover {
+      background: linear-gradient(135deg, #818cf8, #6366f1);
+      box-shadow: 0 6px 20px rgba(99,102,241,0.5);
+      transform: translateY(-1px);
+    }
+  </style>
 
 </body>
 

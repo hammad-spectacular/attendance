@@ -1471,6 +1471,10 @@
                 <input class="form-input" type="tel" id="teacherPhone" placeholder="03001234567" pattern="[0-9]{11}"
                   title="11 digits (e.g., 03001234567)" required>
               </div>
+              <div class="form-group">
+                <label class="form-label" for="teacherEmail">Recovery email <span style="font-weight:400;">(optional)</span></label>
+                <input class="form-input" type="email" id="teacherEmail" placeholder="teacher@example.com">
+              </div>
             </div>
             <div style="display:flex; gap:8px; margin-top:4px;">
               <button class="btn btn-primary" onclick="saveTeacher()">
@@ -1545,6 +1549,10 @@
                 <label class="form-label" for="studentPhone">Contact</label>
                 <input class="form-input" type="tel" id="studentPhone" placeholder="03001234567" pattern="[0-9]{11}"
                   title="11 digits (e.g., 03001234567)" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="studentEmail">Recovery email <span style="font-weight:400;">(optional)</span></label>
+                <input class="form-input" type="email" id="studentEmail" placeholder="student@example.com">
               </div>
             </div>
             <div style="display:flex; gap:8px; margin-top:4px;">
@@ -2003,6 +2011,10 @@
         <input class="form-input" type="tel" id="editTeacherPhone" placeholder="03001234567" pattern="[0-9]{11}"
           title="11 digits (e.g., 03001234567)" required>
       </div>
+      <div class="form-group">
+        <label class="form-label" for="editTeacherEmail">Recovery email</label>
+        <input class="form-input" type="email" id="editTeacherEmail" placeholder="teacher@example.com">
+      </div>
       <div class="edit-modal-actions">
         <button class="btn btn-primary" onclick="saveEditTeacher()"><i class="fas fa-check"></i> Save</button>
         <button class="btn btn-ghost" onclick="closeEditTeacherModal()">Cancel</button>
@@ -2031,6 +2043,10 @@
         <label class="form-label" for="editStudentPhone">Contact</label>
         <input class="form-input" type="tel" id="editStudentPhone" placeholder="03001234567" pattern="[0-9]{11}"
           title="11 digits (e.g., 03001234567)" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="editStudentEmail">Recovery email</label>
+        <input class="form-input" type="email" id="editStudentEmail" placeholder="student@example.com">
       </div>
       <div class="edit-modal-actions">
         <button class="btn btn-primary" onclick="saveEditStudent()"
@@ -2113,11 +2129,43 @@
 
 
 
+
   <!-- ======================== JAVASCRIPT ======================== -->
   <script src="./auth-utils.js"></script>
   <script>
     let credentialsDoneCallback = null;
     let activeCredentialsType = null;
+
+    async function openAdminRecoveryReveal(targetId, targetRole, promptText = 'Verify the user\'s identity before issuing a temporary password. Continue?') {
+      const confirmed = await showConfirmModal({
+        icon: '🔑',
+        iconBg: 'rgba(245,158,11,0.12)',
+        title: 'Issue Temporary Password',
+        message: promptText + ' The password will be shown once in a separate window and all current sessions for this user will be invalidated.',
+        confirmText: 'Yes, Continue',
+        confirmClass: 'warning',
+        cancelText: 'Cancel'
+      });
+      if (!confirmed) return;
+      const revealWindow = window.open('', 'temporaryPasswordReveal', 'width=640,height=500');
+      if (!revealWindow) {
+        showToast('Please allow pop-ups to show the one-time temporary password.', 'warning');
+        return;
+      }
+      revealWindow.document.write('<p style="font-family:system-ui;padding:24px">Generating one-time temporary password…</p>');
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/admin/recovery-reveal';
+      form.target = 'temporaryPasswordReveal';
+      for (const [name, value] of Object.entries({ target_id: targetId, target_role: targetRole })) {
+        const input = document.createElement('input');
+        input.type = 'hidden'; input.name = name; input.value = value;
+        form.appendChild(input);
+      }
+      document.body.appendChild(form);
+      form.submit();
+      form.remove();
+    }
 
     function showCredentialsPanel(loginId, tempPassword, userType = 'user', onDone) {
       const type = userType === 'student' ? 'student' : 'teacher';
@@ -2326,16 +2374,22 @@
         fn();
       }
 
+      function toArray(payload) {
+        if (Array.isArray(payload)) return payload;
+        if (payload && typeof payload === 'object') {
+          const msg = payload.error || payload.message || 'Unexpected response';
+          throw new Error(msg);
+        }
+        return [];
+      }
+
       try {
         window.appData.attendanceLoadError = '';
         const [teachers, classes, students, rawAttendance] = await Promise.all([
-          apiFetch('/api/teachers').then(r => r.json()),
-          apiFetch('/api/classes').then(r => r.json()),
-          apiFetch('/api/students').then(r => r.json()),
-          apiFetch('/api/attendance/all').then(r => {
-            if (!r.ok) throw new Error('Attendance failed to load');
-            return r.json();
-          }).catch(err => {
+          apiFetch('/api/teachers').then(r => r.json()).then(toArray),
+          apiFetch('/api/classes').then(r => r.json()).then(toArray),
+          apiFetch('/api/students').then(r => r.json()).then(toArray),
+          apiFetch('/api/attendance/all').then(r => r.json()).then(toArray).catch(err => {
             window.appData.attendanceLoadError = err.message || 'Attendance failed to load';
             return [];
           })
@@ -3359,12 +3413,14 @@
       document.getElementById('teacherName').value = '';
       document.getElementById('teacherClass').value = '';
       document.getElementById('teacherPhone').value = '';
+      document.getElementById('teacherEmail').value = '';
     }
 
     async function saveTeacher() {
       const name = document.getElementById('teacherName').value.trim();
       const classId = parseInt(document.getElementById('teacherClass').value);
       const phone = document.getElementById('teacherPhone').value.trim();
+      const email = document.getElementById('teacherEmail').value.trim();
       const btn = document.querySelector('#addTeacherForm .btn-primary, button[onclick="saveTeacher()"]');
 
       if (!name) {
@@ -3389,14 +3445,13 @@
         const response = await apiFetch('/api/auth/create-teacher', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, phone: phone || null, class_id: classId || null })
+          body: JSON.stringify({ name, phone: phone || null, class_id: classId || null, email: email || null })
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Failed to add teacher');
 
-        // Validate credentials were returned before showing the modal
-        if (!data.teacher_id || !data.temp_password) {
-          throw new Error('Server did not return credentials. Please try again.');
+        if (!data.teacher_id || !data.teacher) {
+          throw new Error('Server did not return the new account. Please try again.');
         }
 
         clearTeacherForm();
@@ -3410,7 +3465,7 @@
         btn.innerHTML = '<i class="fas fa-check"></i> Created';
         if (btn) btn.dataset.originalHtml = btn.innerHTML;
         showToast('✅ Teacher created successfully', 'success');
-        showCredentialsPanel(data.teacher_id, data.temp_password, 'teacher');
+        openAdminRecoveryReveal(data.teacher.id, 'teacher', 'New teacher account: issue a temporary password now?');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       } finally {
@@ -3419,7 +3474,16 @@
     }
 
     async function deleteTeacher(id) {
-      if (!confirm('Remove this teacher?')) return;
+      const confirmed = await showConfirmModal({
+        icon: '🗑️',
+        iconBg: 'rgba(239,68,68,0.12)',
+        title: 'Remove Teacher',
+        message: 'Are you sure you want to remove this teacher? Their account and all associated data will be permanently deleted.',
+        confirmText: 'Yes, Remove',
+        confirmClass: 'danger',
+        cancelText: 'Cancel'
+      });
+      if (!confirmed) return;
       try {
         const response = await apiFetch(`/api/teachers/${id}`, { method: 'DELETE' });
         if (!response.ok) throw new Error('Failed to delete teacher');
@@ -3547,6 +3611,9 @@
             </td>
             <td style="text-align:right;">
               <div class="action-buttons" style="justify-content: flex-end;">
+                <button onclick="openAdminRecoveryReveal(${t.id}, 'teacher')" class="btn-edit" title="Issue one-time temporary password" style="background:var(--warning-bg); color:var(--warning);">
+                  <i class="fas fa-key"></i>
+                </button>
                 <button onclick="openEditTeacherModal(${t.id})" class="btn-edit" title="Edit in modal">
                   <i class="fas fa-expand"></i>
                 </button>
@@ -3582,6 +3649,7 @@
         document.getElementById('studentName').value = '';
         document.getElementById('studentRoll').value = '';
         document.getElementById('studentPhone').value = '';
+        document.getElementById('studentEmail').value = '';
       }
     }
 
@@ -3589,6 +3657,7 @@
       const name = document.getElementById('studentName').value.trim();
       const rollNo = document.getElementById('studentRoll').value.trim();
       const phone = document.getElementById('studentPhone').value.trim();
+      const email = document.getElementById('studentEmail').value.trim();
       const btn = document.querySelector('#addStudentForm .btn-primary, button[onclick="saveStudent()"]');
 
       if (!name) {
@@ -3615,14 +3684,15 @@
             name,
             roll_no: rollNo,
             phone: phone || null,
-            class_id: null
+            class_id: null,
+            email: email || null
           })
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Failed to save student');
 
-        if (!data.student_id || !data.temp_password) {
-          throw new Error('Server did not return credentials. Please try again.');
+        if (!data.student_id || !data.student) {
+          throw new Error('Server did not return the new account. Please try again.');
         }
 
         // 1. Add student to cache immediately
@@ -3638,7 +3708,7 @@
         showToast('✅ Student saved successfully', 'success');
 
         // 5. Show credentials modal
-        showCredentialsModal(data.student_id, data.temp_password);
+        openAdminRecoveryReveal(data.student.id, 'student', 'New student account: issue a temporary password now?');
 
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -3648,7 +3718,16 @@
     }
 
     async function deleteStudent(id) {
-      if (!confirm('Remove this student?')) return;
+      const confirmed = await showConfirmModal({
+        icon: '🗑️',
+        iconBg: 'rgba(239,68,68,0.12)',
+        title: 'Remove Student',
+        message: 'Are you sure you want to remove this student? Their record and all attendance data will be permanently deleted.',
+        confirmText: 'Yes, Remove',
+        confirmClass: 'danger',
+        cancelText: 'Cancel'
+      });
+      if (!confirmed) return;
       try {
         const response = await apiFetch(`/api/students/${id}`, { method: 'DELETE' });
         if (!response.ok) throw new Error('Failed to delete student');
@@ -3765,6 +3844,9 @@
             </td>
             <td style="text-align:right;">
               <div class="action-buttons" style="justify-content: flex-end;">
+                <button onclick="openAdminRecoveryReveal(${s.id}, 'student')" class="btn-edit" title="Issue one-time temporary password" style="background:var(--warning-bg); color:var(--warning);">
+                  <i class="fas fa-key"></i>
+                </button>
                 <button onclick="markDirty('tab-students', ${s.id}, 'is_frozen', ${!dirtyData.is_frozen})" class="btn-edit" title="${dirtyData.is_frozen ? 'Unfreeze Account' : 'Freeze Account'}" style="background: ${dirtyData.is_frozen ? 'var(--danger-bg)' : 'var(--warning-bg)'}; color: ${dirtyData.is_frozen ? 'var(--danger)' : 'var(--warning)'}; border: none;">
                   <i class="fas ${dirtyData.is_frozen ? 'fa-lock' : 'fa-lock-open'}"></i>
                 </button>
@@ -3842,7 +3924,16 @@
     }
 
     async function clearAttendanceHistory() {
-      if (!confirm('Clear all attendance history? This cannot be undone.')) return;
+      const confirmed = await showConfirmModal({
+        icon: '⚠️',
+        iconBg: 'rgba(245,158,11,0.12)',
+        title: 'Clear Attendance History',
+        message: 'This will permanently erase all attendance records. This action cannot be undone.',
+        confirmText: 'Clear All',
+        confirmClass: 'danger',
+        cancelText: 'Cancel'
+      });
+      if (!confirmed) return;
       try {
         showToast('⚠️ Clear operation must be requested through administrator CLI', 'warning');
       } catch (err) {
@@ -3858,7 +3949,16 @@
     // =============================================================
 
     async function deleteAnnouncement(id) {
-      if (!confirm('Remove this announcement?')) return;
+      const confirmed = await showConfirmModal({
+        icon: '📢',
+        iconBg: 'rgba(239,68,68,0.12)',
+        title: 'Remove Announcement',
+        message: 'Are you sure you want to remove this announcement? It will no longer be visible to teachers and students.',
+        confirmText: 'Remove',
+        confirmClass: 'danger',
+        cancelText: 'Keep It'
+      });
+      if (!confirmed) return;
       const response = await apiFetch(`/api/announcements/${id}`, { method: 'DELETE' });
       if (!response.ok) {
         showToast('Failed to remove announcement', 'error');
@@ -4274,7 +4374,7 @@
     async function handleLogout() {
       localStorage.removeItem('auth_token');
       try {
-        await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+        await fetch(API_BASE + '/api/auth/logout', { method: 'POST', credentials: 'include' });
       } catch(e) { /* ignore network errors, still redirect */ }
       window.location.href = '/index.html';
     }
@@ -4363,6 +4463,7 @@
         document.getElementById('editTeacherIndex').value = id;
         document.getElementById('editTeacherName').value = teacher.name;
         document.getElementById('editTeacherPhone').value = teacher.phone || '';
+        document.getElementById('editTeacherEmail').value = teacher.email || '';
 
         // Populate class dropdown
         const select = document.getElementById('editTeacherClass');
@@ -4390,6 +4491,7 @@
       const name = document.getElementById('editTeacherName').value.trim();
       const classId = parseInt(document.getElementById('editTeacherClass').value);
       const phone = document.getElementById('editTeacherPhone').value.trim();
+      const email = document.getElementById('editTeacherEmail').value.trim();
 
       if (!name) {
         showToast('⚠️ Please enter teacher name', 'warning');
@@ -4405,7 +4507,7 @@
         const response = await apiFetch(`/api/teachers/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, phone: phone || null, class_id: classId || null })
+          body: JSON.stringify({ name, phone: phone || null, class_id: classId || null, email: email || null })
         });
 
         if (!response.ok) throw new Error('Failed to update teacher');
@@ -4433,6 +4535,7 @@
       document.getElementById('editStudentName').value = student.name;
       document.getElementById('editStudentRoll').value = student.roll_no || '';
       document.getElementById('editStudentPhone').value = student.phone || '';
+      document.getElementById('editStudentEmail').value = student.email || '';
       document.getElementById('editStudentModal').classList.add('open');
     }
 
@@ -4445,6 +4548,7 @@
       const name = document.getElementById('editStudentName').value.trim();
       const rollNo = document.getElementById('editStudentRoll').value.trim();
       const phone = document.getElementById('editStudentPhone').value.trim();
+      const email = document.getElementById('editStudentEmail').value.trim();
 
       if (!name) {
         showToast('⚠️ Please enter student name', 'warning');
@@ -4468,7 +4572,7 @@
         const response = await apiFetch(`/api/students/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, roll_no: rollNo, phone: phone || null, class_id: classId })
+          body: JSON.stringify({ name, roll_no: rollNo, phone: phone || null, class_id: classId, email: email || null })
         });
 
         if (!response.ok) throw new Error('Failed to update student');
@@ -4572,16 +4676,23 @@
     // INITIALIZATION
     // =============================================================
 
-    function switchTab(newTabId, clearSearch = true) {
+    async function switchTab(newTabId, clearSearch = true) {
       if (activeTabId === newTabId) return;
 
       if (hasAnyDirtyChanges() && (activeTabId === 'tab-teachers' || activeTabId === 'tab-students')) {
         const activeTabDirty = dirtyState[activeTabId] && dirtyState[activeTabId].size > 0;
         if (activeTabDirty) {
           const tabName = document.querySelector(`.tab-btn[data-section="${activeTabId}"]`)?.textContent.trim() || 'this tab';
-          if (!confirm(`You have unsaved changes in ${tabName}. Switch anyway? Your changes will remain but will not be saved yet.`)) {
-            return;
-          }
+          const confirmed = await showConfirmModal({
+            icon: '✏️',
+            iconBg: 'rgba(99,102,241,0.12)',
+            title: 'Unsaved Changes',
+            message: `You have unsaved changes in "${tabName}". Switch anyway? Your changes will remain but will not be saved yet.`,
+            confirmText: 'Switch Tab',
+            confirmClass: 'warning',
+            cancelText: 'Stay Here'
+          });
+          if (!confirmed) return;
         }
       }
 
@@ -4668,7 +4779,9 @@
       const btn = document.getElementById('savebarSaveBtn');
       btn.disabled = true;
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-      
+      let failedCount = 0;
+      let savedCount = 0;
+
       try {
         if (activeTabId === 'tab-teachers') {
           for (let [id, data] of dirtyState['tab-teachers']) {
@@ -4677,10 +4790,14 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(data.current)
             });
-            if (response.ok) {
-              const updated = await response.json();
+            const data2 = await response.json().catch(() => null);
+            if (response.ok && data2) {
               const idx = window.appData.teachers.findIndex(t => t.id === id);
-              if (idx !== -1) window.appData.teachers[idx] = updated;
+              if (idx !== -1) window.appData.teachers[idx] = data2;
+              savedCount++;
+            } else {
+              failedCount++;
+              console.error(`Teacher ${id} save failed:`, data2?.error || response.status);
             }
           }
           dirtyState['tab-teachers'].clear();
@@ -4692,17 +4809,25 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(data.current)
             });
-            if (response.ok) {
-              const updated = await response.json();
+            const data2 = await response.json().catch(() => null);
+            if (response.ok && data2) {
               const idx = window.appData.students.findIndex(s => s.id === id);
-              if (idx !== -1) window.appData.students[idx] = updated;
+              if (idx !== -1) window.appData.students[idx] = data2;
+              savedCount++;
+            } else {
+              failedCount++;
+              console.error(`Student ${id} save failed:`, data2?.error || response.status);
             }
           }
           dirtyState['tab-students'].clear();
           filterStudents();
         }
-        
-        showToast('✅ All changes saved successfully', 'success');
+
+        if (failedCount === 0 && savedCount > 0) {
+          showToast('✅ All changes saved successfully', 'success');
+        } else if (failedCount > 0) {
+          showToast(`⚠️ Saved ${savedCount}, failed ${failedCount}. Check console for details.`, 'warning');
+        }
       } catch (err) {
         showToast(`❌ Error saving changes: ${err.message}`, 'error');
       } finally {
@@ -4802,7 +4927,173 @@
       `;
       modal.classList.add('open');
     }
+
+    // ================================================================
+    // CUSTOM CONFIRM MODAL — HCI-compliant replacement for confirm()
+    // ================================================================
+    let _confirmResolve = null;
+
+    function showConfirmModal({ icon = '⚠️', iconBg = 'rgba(239,68,68,0.12)', title = 'Are you sure?', message = '', confirmText = 'Confirm', confirmClass = 'danger', cancelText = 'Cancel' } = {}) {
+      return new Promise((resolve) => {
+        _confirmResolve = resolve;
+        const modal = document.getElementById('customConfirmModal');
+        document.getElementById('confirmModalIcon').textContent = icon;
+        document.getElementById('confirmModalIcon').style.background = iconBg;
+        document.getElementById('confirmModalTitle').textContent = title;
+        document.getElementById('confirmModalMessage').textContent = message;
+        const confirmBtn = document.getElementById('confirmModalConfirmBtn');
+        confirmBtn.textContent = confirmText;
+        confirmBtn.className = 'confirm-modal-btn confirm-modal-btn--' + confirmClass;
+        document.getElementById('confirmModalCancelBtn').textContent = cancelText;
+        modal.classList.add('open');
+        // Focus the cancel button by default for safety (HCI best practice)
+        setTimeout(() => document.getElementById('confirmModalCancelBtn').focus(), 50);
+      });
+    }
+
+    function _confirmModalResolve(result) {
+      const modal = document.getElementById('customConfirmModal');
+      modal.classList.remove('open');
+      if (_confirmResolve) { _confirmResolve(result); _confirmResolve = null; }
+    }
+
+    // Close on backdrop click
+    document.addEventListener('DOMContentLoaded', () => {
+      const modal = document.getElementById('customConfirmModal');
+      if (modal) {
+        modal.addEventListener('click', (e) => { if (e.target === modal) _confirmModalResolve(false); });
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && modal.classList.contains('open')) _confirmModalResolve(false);
+        });
+      }
+    });
   </script>
+
+  <!-- Custom HCI Confirm Modal -->
+  <div id="customConfirmModal" style="
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    width: 100vw; height: 100vh;
+    z-index: 99999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    padding: 16px;
+  ">
+    <div style="
+      background: var(--bg-card, #1e2130);
+      border: 1px solid var(--border, rgba(255,255,255,0.08));
+      border-radius: 20px;
+      padding: 32px 28px 24px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.45), 0 4px 20px rgba(0,0,0,0.25);
+      animation: confirmModalIn 0.25s cubic-bezier(0.34,1.56,0.64,1) forwards;
+      text-align: center;
+    ">
+      <!-- Icon -->
+      <div id="confirmModalIcon" style="
+        width: 64px; height: 64px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 28px;
+        margin: 0 auto 20px;
+        transition: background 0.2s;
+      "></div>
+      <!-- Title -->
+      <h3 id="confirmModalTitle" style="
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--text, #f0f2f7);
+        margin: 0 0 10px;
+        letter-spacing: -0.01em;
+      "></h3>
+      <!-- Message -->
+      <p id="confirmModalMessage" style="
+        font-size: 0.88rem;
+        color: var(--text-secondary, rgba(240,242,247,0.65));
+        line-height: 1.6;
+        margin: 0 0 28px;
+      "></p>
+      <!-- Buttons -->
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button id="confirmModalCancelBtn"
+          onclick="_confirmModalResolve(false)"
+          style="
+            flex: 1;
+            padding: 11px 20px;
+            border-radius: 12px;
+            border: 1.5px solid var(--border, rgba(255,255,255,0.1));
+            background: transparent;
+            color: var(--text-secondary, rgba(240,242,247,0.7));
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-family: inherit;
+          "
+          onmouseover="this.style.background='var(--bg-hover,rgba(255,255,255,0.06))';this.style.color='var(--text,#f0f2f7)'"
+          onmouseout="this.style.background='transparent';this.style.color='var(--text-secondary,rgba(240,242,247,0.7))'"
+        ></button>
+        <button id="confirmModalConfirmBtn"
+          onclick="_confirmModalResolve(true)"
+          class="confirm-modal-btn confirm-modal-btn--danger"
+          style="flex: 1;"
+        ></button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    #customConfirmModal.open { display: flex !important; }
+    @keyframes confirmModalIn {
+      from { opacity: 0; transform: scale(0.85) translateY(20px); }
+      to   { opacity: 1; transform: scale(1)   translateY(0); }
+    }
+    .confirm-modal-btn {
+      padding: 11px 20px;
+      border-radius: 12px;
+      border: none;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+      letter-spacing: 0.01em;
+    }
+    .confirm-modal-btn--danger {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(239,68,68,0.35);
+    }
+    .confirm-modal-btn--danger:hover {
+      background: linear-gradient(135deg, #f87171, #ef4444);
+      box-shadow: 0 6px 20px rgba(239,68,68,0.5);
+      transform: translateY(-1px);
+    }
+    .confirm-modal-btn--warning {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(245,158,11,0.35);
+    }
+    .confirm-modal-btn--warning:hover {
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      box-shadow: 0 6px 20px rgba(245,158,11,0.5);
+      transform: translateY(-1px);
+    }
+    .confirm-modal-btn--primary {
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(99,102,241,0.35);
+    }
+    .confirm-modal-btn--primary:hover {
+      background: linear-gradient(135deg, #818cf8, #6366f1);
+      box-shadow: 0 6px 20px rgba(99,102,241,0.5);
+      transform: translateY(-1px);
+    }
+  </style>
 
 </body>
 

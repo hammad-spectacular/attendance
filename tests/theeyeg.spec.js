@@ -707,3 +707,230 @@ test('Navigation — back button always works, no dead ends', async ({ page }) =
     }
   }
 });
+
+test('School registration — submits request and verifies Neon record', async ({ page }) => {
+  const uniqueEmail = `playwright-test-${Date.now()}@example.com`;
+
+  const schoolName = 'Playwright Test School';
+  const contactPerson = 'Test Admin';
+  const contactRole = 'School Owner';
+  const message = 'Automated registration test';
+
+  await page.goto(`${BASE_URL}/register.html`);
+
+  await page.locator('#schoolName').fill(schoolName);
+  await page.locator('#contactPerson').fill(contactPerson);
+  await page.locator('#contactRole').fill(contactRole);
+  await page.locator('#contactEmail').fill(uniqueEmail);
+  await page.locator('#message').fill(message);
+
+  await page.locator('#submitBtn').click();
+
+  // Verify successful registration in the UI
+  await expect(page.locator('.msg.success.show')).toContainText(
+    'Your request has been received. You will be contacted shortly.'
+  );
+
+  // Verify the request was actually inserted into Neon
+  const pool = require('../db');
+
+  try {
+    const result = await pool.query(
+      `SELECT id,
+              school_name,
+              contact_person,
+              contact_email,
+              message,
+              status
+       FROM school_requests
+       WHERE contact_email = $1
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [uniqueEmail]
+    );
+
+    expect(result.rows.length).toBe(1);
+
+    const row = result.rows[0];
+
+    expect(row.school_name).toBe(schoolName);
+    expect(row.contact_person).toBe(`${contactPerson} (${contactRole})`);
+    expect(row.contact_email).toBe(uniqueEmail);
+    expect(row.message).toBe(message);
+    expect(row.status).toBe('pending');
+  } finally {
+    // Remove the test record so the real database stays clean
+    await pool.query(
+      'DELETE FROM school_requests WHERE contact_email = $1',
+      [uniqueEmail]
+    );
+
+    await pool.end();
+  }
+});
+
+test('School registration — duplicate email is rejected', async ({ page }) => {
+  const uniqueEmail = `playwright-duplicate-${Date.now()}@example.com`;
+
+  const schoolName = 'Duplicate Test School';
+  const contactPerson = 'Duplicate Admin';
+  const contactRole = 'School Owner';
+  const message = 'Duplicate email test';
+
+  // First registration
+  await page.goto(`${BASE_URL}/register.html`);
+
+  await page.locator('#schoolName').fill(schoolName);
+  await page.locator('#contactPerson').fill(contactPerson);
+  await page.locator('#contactRole').fill(contactRole);
+  await page.locator('#contactEmail').fill(uniqueEmail);
+  await page.locator('#message').fill(message);
+
+  await page.locator('#submitBtn').click();
+
+  await expect(page.locator('.msg.success.show')).toContainText(
+    'Your request has been received. You will be contacted shortly.'
+  );
+
+  // Try registering the SAME email again
+  await page.goto(`${BASE_URL}/register.html`);
+
+  await page.locator('#schoolName').fill('Another Test School');
+  await page.locator('#contactPerson').fill('Another Admin');
+  await page.locator('#contactRole').fill('Owner');
+  await page.locator('#contactEmail').fill(uniqueEmail);
+  await page.locator('#message').fill('This should be rejected');
+
+  await page.locator('#submitBtn').click();
+
+  // Duplicate request must be rejected
+  await expect(page.locator('.msg.error.show')).toBeVisible();
+
+  await expect(page.locator('.msg.error.show')).toContainText(
+    'already pending'
+  );
+});
+
+test('School registration — required fields are enforced', async ({ page }) => {
+  await page.goto(`${BASE_URL}/register.html`);
+
+  const form = page.locator('#registerForm');
+  const submitButton = page.locator('#submitBtn');
+  const registrationRequests = [];
+  page.on('request', request => {
+    if (request.url().includes('/api/auth/register-school')) {
+      registrationRequests.push(request);
+    }
+  });
+
+  // All fields empty: native browser validation must prevent submission.
+  await submitButton.click();
+  expect(await form.evaluate(element => element.checkValidity())).toBe(false);
+  expect(await page.locator('#schoolName').evaluate(element => element.validity.valueMissing)).toBe(true);
+  expect(registrationRequests).toHaveLength(0);
+  await expect(page.locator('.msg.success.show')).toHaveCount(0);
+
+  const requiredFields = [
+    '#schoolName',
+    '#contactPerson',
+    '#contactRole',
+    '#contactEmail',
+  ];
+
+  for (const missingField of requiredFields) {
+    await page.locator('#schoolName').fill('Required Field School');
+    await page.locator('#contactPerson').fill('Required Field Admin');
+    await page.locator('#contactRole').fill('School Owner');
+    await page.locator('#contactEmail').fill(`required-${Date.now()}@example.com`);
+    await page.locator('#message').fill('Optional message');
+    await page.locator(missingField).fill('');
+
+    await submitButton.click();
+
+    expect(await form.evaluate(element => element.checkValidity())).toBe(false);
+    expect(await page.locator(missingField).evaluate(element => element.validity.valueMissing)).toBe(true);
+    expect(registrationRequests).toHaveLength(0);
+    await expect(page.locator('.msg.success.show')).toHaveCount(0);
+  }
+});
+
+test('School registration — invalid email is rejected', async ({ page }) => {
+  await page.goto(`${BASE_URL}/register.html`);
+
+  const form = page.locator('#registerForm');
+  const emailInput = page.locator('#contactEmail');
+  const submitButton = page.locator('#submitBtn');
+  const registrationRequests = [];
+  page.on('request', request => {
+    if (request.url().includes('/api/auth/register-school')) {
+      registrationRequests.push(request);
+    }
+  });
+
+  await page.locator('#schoolName').fill('Invalid Email Test School');
+  await page.locator('#contactPerson').fill('Test Admin');
+  await page.locator('#contactRole').fill('School Owner');
+  await emailInput.fill('not-an-email');
+  await page.locator('#message').fill('Invalid email test');
+
+  await submitButton.click();
+
+  expect(await emailInput.evaluate(element => element.validity.typeMismatch)).toBe(true);
+  expect(await form.evaluate(element => element.checkValidity())).toBe(false);
+  expect(registrationRequests).toHaveLength(0);
+  await expect(page.locator('.msg.success.show')).toHaveCount(0);
+});
+
+test('School registration — optional message can be empty', async ({ page }) => {
+  const uniqueEmail = `playwright-optional-message-${Date.now()}@example.com`;
+  const schoolName = 'Optional Message Test School';
+  const contactPerson = 'Test Admin';
+  const contactRole = 'School Owner';
+
+  await page.goto(`${BASE_URL}/register.html`);
+
+  await page.locator('#schoolName').fill(schoolName);
+  await page.locator('#contactPerson').fill(contactPerson);
+  await page.locator('#contactRole').fill(contactRole);
+  await page.locator('#contactEmail').fill(uniqueEmail);
+  await page.locator('#message').fill('');
+
+  await page.locator('#submitBtn').click();
+
+  await expect(page.locator('.msg.success.show')).toContainText(
+    'Your request has been received. You will be contacted shortly.'
+  );
+
+  const pool = require('../db');
+
+  try {
+    const result = await pool.query(
+      `SELECT school_name,
+              contact_person,
+              contact_email,
+              status,
+              message
+       FROM school_requests
+       WHERE contact_email = $1
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [uniqueEmail]
+    );
+
+    expect(result.rows.length).toBe(1);
+
+    const row = result.rows[0];
+    expect(row.school_name).toBe(schoolName);
+    expect(row.contact_person).toBe(`${contactPerson} (${contactRole})`);
+    expect(row.contact_email).toBe(uniqueEmail);
+    expect(row.status).toBe('pending');
+    expect(row.message).toBeNull();
+  } finally {
+    await pool.query(
+      'DELETE FROM school_requests WHERE contact_email = $1',
+      [uniqueEmail]
+    );
+
+    await pool.end();
+  }
+});
