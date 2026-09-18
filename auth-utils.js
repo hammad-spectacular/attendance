@@ -1,11 +1,6 @@
 // Same-origin — Vercel rewrites /api/* to the Railway backend
 // For local development with Live Server (on any local IP) or file:// protocol:
 let API_BASE = '';
-if (window.location.protocol === 'file:') {
-  API_BASE = '';
-} else if (window.location.hostname !== 'theeye-beta.vercel.app' && window.location.port !== '3000') {
-  API_BASE = `${window.location.protocol}//${window.location.hostname}:3000`;
-}
 
 let isRedirecting = false;
 
