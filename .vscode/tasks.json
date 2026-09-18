@@ -1,0 +1,13 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "git status + last commit",
+			"type": "shell",
+			"command": "git status && echo \"--- LAST COMMIT ---\" && git log -1",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}

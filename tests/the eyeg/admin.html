@@ -3465,10 +3465,7 @@
         btn.innerHTML = '<i class="fas fa-check"></i> Created';
         if (btn) btn.dataset.originalHtml = btn.innerHTML;
         showToast('✅ Teacher created successfully', 'success');
-        // Show the teacher ID and temp password that were already generated
-        showCredentialsPanel(data.teacher_id, data.temp_password, 'teacher', () => {
-          renderTeachers();
-        });
+        openAdminRecoveryReveal(data.teacher.id, 'teacher', 'New teacher account: issue a temporary password now?');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       } finally {
@@ -3617,9 +3614,6 @@
                 <button onclick="openAdminRecoveryReveal(${t.id}, 'teacher')" class="btn-edit" title="Issue one-time temporary password" style="background:var(--warning-bg); color:var(--warning);">
                   <i class="fas fa-key"></i>
                 </button>
-                <button onclick="markDirty('tab-teachers', ${t.id}, 'is_frozen', ${!dirtyData.is_frozen})" class="btn-edit" title="${dirtyData.is_frozen ? 'Unfreeze Account' : 'Freeze Account'}" style="background: ${dirtyData.is_frozen ? 'var(--danger-bg)' : 'var(--warning-bg)'}; color: ${dirtyData.is_frozen ? 'var(--danger)' : 'var(--warning)'}; border: none;">
-                  <i class="fas ${dirtyData.is_frozen ? 'fa-lock' : 'fa-lock-open'}"></i>
-                </button>
                 <button onclick="openEditTeacherModal(${t.id})" class="btn-edit" title="Edit in modal">
                   <i class="fas fa-expand"></i>
                 </button>
@@ -3713,10 +3707,8 @@
         // 4. Show success
         showToast('✅ Student saved successfully', 'success');
 
-        // 5. Show credentials modal with the ID and password that were already generated
-        showCredentialsPanel(data.student_id, data.temp_password, 'student', () => {
-          filterStudents();
-        });
+        // 5. Show credentials modal
+        openAdminRecoveryReveal(data.student.id, 'student', 'New student account: issue a temporary password now?');
 
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');

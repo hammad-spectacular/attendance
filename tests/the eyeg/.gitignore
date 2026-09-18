@@ -1,0 +1,23 @@
+.env
+.env.*
+.neon
+node_modules/
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+.ssh/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+tests/test-failures/
+
+# Agent files
+.agent/
+.qoder/
+skills-lock.json
