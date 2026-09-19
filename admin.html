@@ -3465,7 +3465,10 @@
         btn.innerHTML = '<i class="fas fa-check"></i> Created';
         if (btn) btn.dataset.originalHtml = btn.innerHTML;
         showToast('✅ Teacher created successfully', 'success');
-        openAdminRecoveryReveal(data.teacher.id, 'teacher', 'New teacher account: issue a temporary password now?');
+        // Show the teacher ID and temp password that were already generated
+        showCredentialsPanel(data.teacher_id, data.temp_password, 'teacher', () => {
+          renderTeachers();
+        });
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       } finally {
@@ -3707,8 +3710,10 @@
         // 4. Show success
         showToast('✅ Student saved successfully', 'success');
 
-        // 5. Show credentials modal
-        openAdminRecoveryReveal(data.student.id, 'student', 'New student account: issue a temporary password now?');
+        // 5. Show credentials modal with the ID and password that were already generated
+        showCredentialsPanel(data.student_id, data.temp_password, 'student', () => {
+          filterStudents();
+        });
 
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
