@@ -400,6 +400,42 @@
 
     }
 
+    /* Header action menu */
+
+    .header-menu-wrap {
+
+      position: relative;
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 0.75rem;
+
+    }
+
+    .header-menu-toggle {
+
+      display: none;
+
+    }
+
+    .header-menu-panel {
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 0.75rem;
+
+    }
+
+    .header-menu-label {
+
+      display: none;
+
+    }
+
 
 
     /* Tab navigation */
@@ -595,6 +631,128 @@
         padding: 0.7rem 0.95rem;
 
         font-size: 0.95rem;
+
+      }
+
+      .header-menu-toggle {
+
+        display: flex;
+
+        align-items: center;
+
+        justify-content: center;
+
+        width: 40px;
+
+        height: 40px;
+
+        border-radius: 12px;
+
+        border: 2px solid var(--border);
+
+        background-color: var(--bg);
+
+        color: var(--text-secondary);
+
+        font-size: 16px;
+
+        cursor: pointer;
+
+      }
+
+      .header-menu-toggle:hover {
+
+        background-color: var(--bg-card-hover);
+
+        color: var(--primary-light);
+
+        border-color: var(--primary);
+
+        transform: rotate(60deg);
+
+      }
+
+      .header-menu-panel {
+
+        display: none;
+
+        position: absolute;
+
+        top: calc(100% + 10px);
+
+        right: 0;
+
+        z-index: 100;
+
+        flex-direction: column;
+
+        align-items: stretch;
+
+        gap: 0.35rem;
+
+        min-width: 200px;
+
+        padding: 0.5rem;
+
+        border-radius: 14px;
+
+        background-color: var(--bg-card);
+
+        border: 2px solid var(--border);
+
+        box-shadow: var(--shadow-lg);
+
+      }
+
+      .header-menu-wrap.open .header-menu-panel {
+
+        display: flex;
+
+      }
+
+      .header-menu-panel .header-menu-label {
+
+        display: inline;
+
+        font-size: 0.95rem;
+
+        white-space: nowrap;
+
+      }
+
+      .header-menu-panel > button {
+
+        width: 100%;
+
+        min-height: 48px;
+
+        justify-content: flex-start;
+
+        gap: 0.55rem;
+
+        padding: 0 0.9rem;
+
+        border: none;
+
+        border-radius: 10px;
+
+        background-color: transparent;
+
+        color: var(--text);
+
+        font-size: 0.95rem;
+
+        transform: none;
+
+      }
+
+      .header-menu-panel > button:hover {
+
+        background-color: var(--bg-card-hover);
+
+        color: var(--primary);
+
+        transform: none;
 
       }
 
@@ -1282,29 +1440,51 @@
 
           </div>
 
-          <button onclick="openSettings()" class="settings-btn" aria-label="Settings" id="settingsBtn" title="Settings">
+          <div id="headerMenuWrap" class="header-menu-wrap">
 
-            <i class="fas fa-gear"></i>
+            <button id="headerMenuToggle" class="header-menu-toggle" aria-expanded="false" aria-controls="headerMenuPanel" aria-label="Open menu" title="Menu">
 
-          </button>
+              <i class="fas fa-ellipsis-vertical"></i>
 
-          <button onclick="openChangePasswordModal()" class="theme-toggle" aria-label="Change Password" id="changePwdBtn" title="Change Password" style="font-size:14px;">
+            </button>
 
-            <i class="fas fa-key"></i>
+            <div id="headerMenuPanel" class="header-menu-panel">
 
-          </button>
+              <button onclick="openSettings()" class="settings-btn" aria-label="Settings" id="settingsBtn" title="Settings">
 
-          <button onclick="handleLogout()" class="theme-toggle" aria-label="Logout" id="logoutBtn" title="Logout" style="font-size:14px;">
+                <i class="fas fa-gear"></i>
 
-            <i class="fas fa-sign-out-alt"></i>
+                <span class="header-menu-label">Settings</span>
 
-          </button>
+              </button>
 
-          <button onclick="toggleTheme()" class="theme-toggle" aria-label="Toggle theme" id="themeToggleBtn">
+              <button onclick="openChangePasswordModal()" class="theme-toggle" aria-label="Change Password" id="changePwdBtn" title="Change Password" style="font-size:14px;">
 
-            <i id="themeIcon" class="fas fa-sun"></i>
+                <i class="fas fa-key"></i>
 
-          </button>
+                <span class="header-menu-label">Change Password</span>
+
+              </button>
+
+              <button onclick="handleLogout()" class="theme-toggle" aria-label="Logout" id="logoutBtn" title="Logout" style="font-size:14px;">
+
+                <i class="fas fa-sign-out-alt"></i>
+
+                <span class="header-menu-label">Logout</span>
+
+              </button>
+
+              <button onclick="toggleTheme()" class="theme-toggle" aria-label="Toggle theme" id="themeToggleBtn">
+
+                <i id="themeIcon" class="fas fa-sun"></i>
+
+                <span class="header-menu-label">Toggle theme</span>
+
+              </button>
+
+            </div>
+
+          </div>
 
         </div>
 
@@ -4805,6 +4985,56 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
     }
 
+    function setHeaderMenuOpen(open) {
+
+      const wrap = document.getElementById('headerMenuWrap');
+
+      const toggle = document.getElementById('headerMenuToggle');
+
+      if (wrap) wrap.classList.toggle('open', open);
+
+      if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+
+    }
+
+    function setupHeaderMenu() {
+
+      const toggle = document.getElementById('headerMenuToggle');
+
+      if (toggle) {
+
+        toggle.addEventListener('click', event => {
+
+          event.preventDefault();
+
+          const wrap = document.getElementById('headerMenuWrap');
+
+          setHeaderMenuOpen(wrap ? !wrap.classList.contains('open') : false);
+
+        });
+
+      }
+
+      document.addEventListener('click', event => {
+
+        const wrap = document.getElementById('headerMenuWrap');
+
+        if (wrap && wrap.classList.contains('open') && !wrap.contains(event.target)) {
+
+          setHeaderMenuOpen(false);
+
+        }
+
+      });
+
+      document.addEventListener('keydown', event => {
+
+        if (event.key === 'Escape') setHeaderMenuOpen(false);
+
+      });
+
+    }
+
     function setupSectionTabs() {
 
       const tabs = Array.from(document.querySelectorAll('.tab-btn[data-section]'));
@@ -4958,6 +5188,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
         if (!sessionData) return;
         startSessionKeepAlive();
         setupSectionTabs();
+        setupHeaderMenu();
         loadTheme();
         const today = new Date();
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };

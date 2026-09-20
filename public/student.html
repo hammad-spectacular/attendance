@@ -185,6 +185,27 @@
       transform: scale(1.06);
     }
 
+    .header-menu-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-menu-toggle {
+      display: none;
+    }
+
+    .header-menu-panel {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-menu-label {
+      display: none;
+    }
+
     /* Badges */
     .badge {
       display: inline-flex;
@@ -664,11 +685,75 @@
         display: flex;
       }
 
-      .tab-btn {
+      .header { overflow: visible; }
+
+      .header-menu-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.25);
+        background: rgba(255,255,255,0.1);
+        color: white;
+        font-size: 0.95rem;
+        cursor: pointer;
+        backdrop-filter: blur(10px);
+        flex-shrink: 0;
+      }
+
+      .header-menu-toggle:hover {
+        background: rgba(255,255,255,0.2);
+        border-color: rgba(255,255,255,0.5);
+        transform: scale(1.06);
+      }
+
+      .header-menu-panel {
+        display: none;
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        z-index: 100;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.3rem;
+        min-width: 200px;
+        padding: 0.5rem;
+        border-radius: 14px;
+        background: var(--bg-card);
+        border: 2px solid var(--border);
+        box-shadow: var(--shadow-lg);
+      }
+
+      .header-menu-wrap.open .header-menu-panel {
+        display: flex;
+      }
+
+      .header-menu-panel .header-menu-label {
+        display: inline;
+        font-size: 0.9rem;
+        white-space: nowrap;
+      }
+
+      .header-menu-panel > button {
         width: 100%;
         min-height: 48px;
-        padding: 0.7rem 0.95rem;
+        justify-content: flex-start;
+        gap: 0.5rem;
+        padding: 0 0.9rem;
+        border: none;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--text);
         font-size: 0.9rem;
+        transform: none;
+      }
+
+      .header-menu-panel > button:hover {
+        background: var(--bg-card-hover);
+        color: var(--primary);
+        transform: none;
       }
     }
 
@@ -721,15 +806,25 @@
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:10px;">
-        <button class="theme-toggle" onclick="openChangePasswordModal()" title="Change Password" aria-label="Change Password" style="position:static;">
-          <i class="fas fa-key"></i>
-        </button>
-        <button class="theme-toggle" onclick="handleLogout()" title="Logout" aria-label="Logout" style="position:static;">
-          <i class="fas fa-sign-out-alt"></i>
-        </button>
-        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme" style="position:static;">
-          <i id="themeIcon" class="fas fa-sun"></i>
-        </button>
+        <div id="headerMenuWrap" class="header-menu-wrap">
+          <button id="headerMenuToggle" class="header-menu-toggle" aria-expanded="false" aria-controls="headerMenuPanel" aria-label="Open menu" title="Menu">
+            <i class="fas fa-ellipsis-vertical"></i>
+          </button>
+          <div id="headerMenuPanel" class="header-menu-panel">
+            <button class="theme-toggle" onclick="openChangePasswordModal()" title="Change Password" aria-label="Change Password" style="position:static;">
+              <i class="fas fa-key"></i>
+              <span class="header-menu-label">Change Password</span>
+            </button>
+            <button class="theme-toggle" onclick="handleLogout()" title="Logout" aria-label="Logout" style="position:static;">
+              <i class="fas fa-sign-out-alt"></i>
+              <span class="header-menu-label">Logout</span>
+            </button>
+            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme" style="position:static;">
+              <i id="themeIcon" class="fas fa-sun"></i>
+              <span class="header-menu-label">Toggle theme</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </header>
@@ -1499,6 +1594,35 @@ function setButtonLoading(btn, loading, loadingHtml) {
       if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
     }
 
+    function setHeaderMenuOpen(open) {
+      const wrap = document.getElementById('headerMenuWrap');
+      const toggle = document.getElementById('headerMenuToggle');
+      if (wrap) wrap.classList.toggle('open', open);
+      if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    function setupHeaderMenu() {
+      const toggle = document.getElementById('headerMenuToggle');
+      if (toggle) {
+        toggle.addEventListener('click', event => {
+          event.preventDefault();
+          const wrap = document.getElementById('headerMenuWrap');
+          setHeaderMenuOpen(wrap ? !wrap.classList.contains('open') : false);
+        });
+      }
+
+      document.addEventListener('click', event => {
+        const wrap = document.getElementById('headerMenuWrap');
+        if (wrap && wrap.classList.contains('open') && !wrap.contains(event.target)) {
+          setHeaderMenuOpen(false);
+        }
+      });
+
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') setHeaderMenuOpen(false);
+      });
+    }
+
     function setupSectionTabs() {
       const mobileToggle = document.getElementById('mobileNavToggle');
       if (mobileToggle) {
@@ -1541,6 +1665,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
     window.addEventListener('DOMContentLoaded', async () => {
       setupSectionTabs();
+      setupHeaderMenu();
       const ok = await checkSession();
       if (ok) {
         startSessionKeepAlive();

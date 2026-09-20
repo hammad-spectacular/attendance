@@ -210,6 +210,27 @@
       transform: scale(1.06);
     }
 
+    .header-menu-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-menu-toggle {
+      display: none;
+    }
+
+    .header-menu-panel {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-menu-label {
+      display: none;
+    }
+
     /* ================================
        TAB NAVIGATION (Mobile Scrollable)
        ================================ */
@@ -1318,6 +1339,82 @@
         padding: 0.7rem 0.95rem;
         font-size: 0.9rem;
       }
+
+      .header {
+        overflow: visible;
+      }
+
+      .header-menu-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.25);
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        font-size: 0.95rem;
+        cursor: pointer;
+        backdrop-filter: blur(10px);
+        flex-shrink: 0;
+      }
+
+      .header-menu-toggle:hover {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.5);
+        transform: scale(1.06);
+      }
+
+      .header-menu-panel {
+        display: none;
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        z-index: 100;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.3rem;
+        min-width: 200px;
+        padding: 0.5rem;
+        border-radius: 14px;
+        background: var(--bg-card);
+        border: 2px solid var(--border);
+        box-shadow: var(--shadow-lg);
+      }
+
+      .header-menu-wrap.open .header-menu-panel {
+        display: flex;
+      }
+
+      .header-menu-panel .header-menu-label {
+        display: inline;
+        font-size: 0.9rem;
+        white-space: nowrap;
+      }
+
+      .header-menu-panel > button {
+        width: 100% !important;
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 0.5rem;
+        padding: 0 0.9rem !important;
+        border: none !important;
+        border-radius: 10px !important;
+        background: transparent !important;
+        color: var(--text) !important;
+        font-size: 0.9rem !important;
+        font-weight: 600;
+        transform: none;
+      }
+
+      .header-menu-panel > button:hover {
+        background: var(--bg-card-hover) !important;
+        color: var(--primary) !important;
+        transform: none;
+      }
     }
 
     /* ================================
@@ -1464,11 +1561,19 @@
         </div>
       </div>
       <div class="header-right">
-        <button class="btn" onclick="openChangePasswordModal()" style="padding:8px 14px;font-size:0.75rem;background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.25);color:white;border-radius:10px;font-weight:600;cursor:pointer;transition:all 0.3s ease;font-family:'Inter',sans-serif;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'"><i class="fas fa-key"></i> Change Password</button>
-        <button class="btn" onclick="handleLogout()" style="padding:8px 14px;font-size:0.75rem;background:rgba(239,68,68,0.2);border:2px solid rgba(239,68,68,0.3);color:white;border-radius:10px;font-weight:600;cursor:pointer;transition:all 0.3s ease;font-family:'Inter',sans-serif;" onmouseover="this.style.background='rgba(239,68,68,0.35)'" onmouseout="this.style.background='rgba(239,68,68,0.2)'"><i class="fas fa-sign-out-alt"></i> Logout</button>
-        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
-          <i class="fas fa-moon" id="themeIcon"></i>
-        </button>
+        <div id="headerMenuWrap" class="header-menu-wrap">
+          <button id="headerMenuToggle" class="header-menu-toggle" aria-expanded="false" aria-controls="headerMenuPanel" aria-label="Open menu" title="Menu">
+            <i class="fas fa-ellipsis-vertical"></i>
+          </button>
+          <div id="headerMenuPanel" class="header-menu-panel">
+            <button class="btn" onclick="openChangePasswordModal()" style="padding:8px 14px;font-size:0.75rem;background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.25);color:white;border-radius:10px;font-weight:600;cursor:pointer;transition:all 0.3s ease;font-family:'Inter',sans-serif;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'"><i class="fas fa-key"></i> Change Password</button>
+            <button class="btn" onclick="handleLogout()" style="padding:8px 14px;font-size:0.75rem;background:rgba(239,68,68,0.2);border:2px solid rgba(239,68,68,0.3);color:white;border-radius:10px;font-weight:600;cursor:pointer;transition:all 0.3s ease;font-family:'Inter',sans-serif;" onmouseover="this.style.background='rgba(239,68,68,0.35)'" onmouseout="this.style.background='rgba(239,68,68,0.2)'"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+              <i class="fas fa-moon" id="themeIcon"></i>
+              <span class="header-menu-label">Toggle theme</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -4932,6 +5037,35 @@
       if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
     }
 
+    function setHeaderMenuOpen(open) {
+      const wrap = document.getElementById('headerMenuWrap');
+      const toggle = document.getElementById('headerMenuToggle');
+      if (wrap) wrap.classList.toggle('open', open);
+      if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    function setupHeaderMenu() {
+      const toggle = document.getElementById('headerMenuToggle');
+      if (toggle) {
+        toggle.addEventListener('click', event => {
+          event.preventDefault();
+          const wrap = document.getElementById('headerMenuWrap');
+          setHeaderMenuOpen(wrap ? !wrap.classList.contains('open') : false);
+        });
+      }
+
+      document.addEventListener('click', event => {
+        const wrap = document.getElementById('headerMenuWrap');
+        if (wrap && wrap.classList.contains('open') && !wrap.contains(event.target)) {
+          setHeaderMenuOpen(false);
+        }
+      });
+
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') setHeaderMenuOpen(false);
+      });
+    }
+
     function setupSectionTabs() {
       const tabs = Array.from(document.querySelectorAll('.tab-btn[data-section]'));
 
@@ -4982,6 +5116,7 @@
 
     document.addEventListener('DOMContentLoaded', function () {
       setupSectionTabs();
+      setupHeaderMenu();
       loadTheme();
 
       // Configure dynamic modals close triggers
