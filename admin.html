@@ -1256,6 +1256,164 @@
         padding: 9px 10px;
       }
 
+      /* Teachers & Students — stacked card layout on mobile */
+      #teachersTableWrap .data-table,
+      #studentsTableWrap .data-table {
+        display: block;
+        font-size: 0.95rem;
+      }
+
+      #teachersTableWrap .data-table thead,
+      #studentsTableWrap .data-table thead {
+        display: none;
+      }
+
+      #teachersTableWrap .data-table tbody,
+      #studentsTableWrap .data-table tbody {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 0.35rem 0 0.75rem;
+      }
+
+      #teachersTableWrap .data-table tbody tr,
+      #studentsTableWrap .data-table tbody tr {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin: 0;
+        padding: 0.8rem;
+        background: var(--bg-card);
+        border: 2px solid var(--border);
+        border-radius: 14px;
+        box-shadow: var(--shadow-sm);
+      }
+
+      #teachersTableWrap .data-table tbody tr td,
+      #studentsTableWrap .data-table tbody tr td {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        padding: 0;
+        border-bottom: none;
+        text-align: left !important;
+      }
+
+      #teachersTableWrap .data-table tbody tr td::before,
+      #studentsTableWrap .data-table tbody tr td::before {
+        font-size: 0.6rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--text-muted);
+      }
+
+      #teachersTableWrap .data-table tbody tr td:nth-child(1),
+      #studentsTableWrap .data-table tbody tr td:nth-child(1) {
+        display: none;
+      }
+
+      #teachersTableWrap .data-table tbody tr td:nth-child(2),
+      #studentsTableWrap .data-table tbody tr td:nth-child(2) {
+        order: 1;
+      }
+
+      #teachersTableWrap .data-table tbody tr td:nth-child(2)::before,
+      #studentsTableWrap .data-table tbody tr td:nth-child(2)::before {
+        content: 'Name';
+        display: none;
+      }
+
+      #teachersTableWrap .data-table tbody tr td:nth-child(2) .inline-edit-input,
+      #studentsTableWrap .data-table tbody tr td:nth-child(2) .inline-edit-input {
+        font-size: 1.05rem;
+        padding: 8px 10px;
+      }
+
+      #teachersTableWrap .data-table tbody tr td:nth-child(3) {
+        order: 2;
+      }
+
+      #teachersTableWrap .data-table tbody tr td:nth-child(3)::before {
+        content: 'Class';
+      }
+
+      #teachersTableWrap .data-table tbody tr td:nth-child(3) select.inline-edit-input {
+        max-width: 100% !important;
+      }
+
+      #teachersTableWrap .data-table tbody tr td:nth-child(4) {
+        order: 3;
+      }
+
+      #teachersTableWrap .data-table tbody tr td:nth-child(4)::before {
+        content: 'Phone';
+      }
+
+      #teachersTableWrap .data-table tbody tr td:nth-child(5) {
+        order: 4;
+      }
+
+      #teachersTableWrap .data-table tbody tr td:nth-child(5)::before {
+        content: 'Actions';
+      }
+
+      /* Student: Name, Roll No, Class, Phone, Actions */
+      #studentsTableWrap .data-table tbody tr td:nth-child(3) {
+        order: 2;
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(3)::before {
+        content: 'Roll No';
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(4) {
+        order: 3;
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(4)::before {
+        content: 'Class';
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(4) select.inline-edit-input {
+        max-width: 100% !important;
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(5) {
+        order: 4;
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(5)::before {
+        content: 'Phone';
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(6) {
+        order: 5;
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(6)::before {
+        content: 'Actions';
+      }
+
+      /* Bigger, tappable action buttons */
+      #teachersTableWrap .action-buttons,
+      #studentsTableWrap .action-buttons {
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 2px;
+      }
+
+      #teachersTableWrap .action-buttons .btn-edit,
+      #teachersTableWrap .action-buttons .btn-delete,
+      #studentsTableWrap .action-buttons .btn-edit,
+      #studentsTableWrap .action-buttons .btn-delete {
+        flex: 1;
+        min-width: 0;
+        width: 100%;
+        height: 44px;
+        font-size: 1rem;
+      }
+
       .section-title {
         font-size: 0.9rem;
       }
