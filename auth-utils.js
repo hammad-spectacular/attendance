@@ -17,7 +17,7 @@ function redirectToLogin() {
   if (isRedirecting) return;
   isRedirecting = true;
   localStorage.removeItem('auth_token');
-  window.location.href = '/index.html';
+  window.location.replace('/index.html');
 }
 
 function formatFetchError(err) {

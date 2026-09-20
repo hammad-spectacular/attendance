@@ -1942,7 +1942,7 @@ function redirectToLogin() {
 
   localStorage.removeItem('auth_token');
 
-  window.location.href = '/index.html';
+  window.location.replace('/index.html');
 
 }
 
@@ -3591,7 +3591,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
       if (!data) { redirectToLogin(); return null; }
 
-      if (data.role?.toLowerCase() !== 'teacher') { window.location.href = '/index.html'; return null; }
+      if (data.role?.toLowerCase() !== 'teacher') { window.location.replace('/index.html'); return null; }
 
       window._isFirstLogin = data.is_first_login;
 
@@ -3651,7 +3651,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
       await fetch('http://13.50.106.16/api/auth/logout', { method: 'POST', credentials: 'include' });
 
-      window.location.href = '/index.html';
+      window.location.replace('/index.html');
 
     }
 

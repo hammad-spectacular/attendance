@@ -321,6 +321,10 @@
       box-shadow: 0 2px 8px rgba(34, 197, 94, 0.35);
     }
 
+    .tab-nav-toggle {
+      display: none;
+    }
+
     .notice {
       display: none;
       margin-bottom: 18px;
@@ -607,6 +611,67 @@
       .attendance-grid { grid-template-columns: 1fr; }
     }
 
+    /* Mobile hamburger section menu */
+    @media (max-width: 720px) {
+      .tab-nav {
+        overflow: visible;
+      }
+
+      .tab-nav-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        min-height: 48px;
+        padding: 0.55rem 0.9rem;
+        margin: 0.5rem 0;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--text);
+        background-color: var(--bg-card);
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        cursor: pointer;
+      }
+
+      .tab-nav-toggle:hover {
+        background-color: var(--bg-card-hover);
+        border-color: var(--primary);
+      }
+
+      .tab-nav-toggle-icon {
+        color: var(--text-muted);
+        transition: transform 0.25s ease;
+      }
+
+      .tab-nav.open .tab-nav-toggle-icon {
+        transform: rotate(90deg);
+      }
+
+      .tab-nav-inner {
+        display: none;
+        flex-direction: column;
+        gap: 0.35rem;
+        padding: 0.35rem 0;
+        max-height: calc(100vh - 130px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        white-space: normal;
+      }
+
+      .tab-nav.open .tab-nav-inner {
+        display: flex;
+      }
+
+      .tab-btn {
+        width: 100%;
+        min-height: 48px;
+        padding: 0.7rem 0.95rem;
+        font-size: 0.9rem;
+      }
+    }
+
     /* ================================
        SKELETON SHIMMER LOADERS
        ================================ */
@@ -669,8 +734,12 @@
     </div>
   </header>
 
-  <nav class="tab-nav" aria-label="Student portal sections">
-    <div class="tab-nav-inner">
+  <nav class="tab-nav" id="tabNav" aria-label="Student portal sections">
+    <button id="mobileNavToggle" class="tab-nav-toggle" aria-expanded="false" aria-controls="tabNavInner" aria-label="Open section menu">
+      <span id="mobileNavToggleLabel">Teacher</span>
+      <i class="fas fa-bars tab-nav-toggle-icon"></i>
+    </button>
+    <div class="tab-nav-inner" id="tabNavInner">
       <a href="#tab-teacher" class="tab-btn active" data-section="tab-teacher">
         <i class="fas fa-chalkboard-user"></i>Teacher
       </a>
@@ -798,7 +867,7 @@ function redirectToLogin() {
   if (isRedirecting) return;
   isRedirecting = true;
   localStorage.removeItem('auth_token');
-  window.location.href = '/index.html';
+  window.location.replace('/index.html');
 }
 
 async function refreshSession() {
@@ -921,7 +990,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
     async function checkSession() {
       const data = await refreshSession();
       if (!data) { redirectToLogin(); return false; }
-      if (data.role !== 'student') { window.location.href = '/index.html'; return false; }
+      if (data.role !== 'student') { window.location.replace('/index.html'); return false; }
       window._isFirstLogin = data.is_first_login;
       sessionUser = data;
       return true;
@@ -930,7 +999,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
     async function handleLogout() {
       localStorage.removeItem('auth_token');
       await fetch('/api/auth/logout', { method: 'POST' });
-      window.location.href = '/index.html';
+      window.location.replace('/index.html');
     }
 
     function openChangePasswordModal() {
@@ -1207,7 +1276,9 @@ function setButtonLoading(btn, loading, loadingHtml) {
       if (!select || !select.value) {
         return;
       }
-      window.location.href = `${window.location.pathname}?id=s_${select.value}`;
+      const newUrl = `${window.location.pathname}?id=s_${select.value}`;
+      history.replaceState(null, '', newUrl);
+      window.location.replace(newUrl);
     }
 
     // ============================================================
@@ -1409,18 +1480,53 @@ function setButtonLoading(btn, loading, loadingHtml) {
       if (newTab) newTab.classList.add('active');
       const newBtn = document.querySelector(`.tab-btn[data-section="${newTabId}"]`);
       if (newBtn) newBtn.classList.add('active');
+      updateMobileNavLabel();
 
       activeTabId = newTabId;
       history.replaceState(null, '', '#' + newTabId);
     }
 
+    function updateMobileNavLabel() {
+      const label = document.getElementById('mobileNavToggleLabel');
+      const activeBtn = document.querySelector('.tab-btn.active[data-section]');
+      if (label && activeBtn) label.textContent = activeBtn.textContent.trim();
+    }
+
+    function setMobileNavOpen(open) {
+      const nav = document.getElementById('tabNav');
+      const toggle = document.getElementById('mobileNavToggle');
+      if (nav) nav.classList.toggle('open', open);
+      if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
     function setupSectionTabs() {
+      const mobileToggle = document.getElementById('mobileNavToggle');
+      if (mobileToggle) {
+        mobileToggle.addEventListener('click', event => {
+          event.preventDefault();
+          const nav = document.getElementById('tabNav');
+          setMobileNavOpen(nav ? !nav.classList.contains('open') : false);
+        });
+      }
+
       // Wire up all tab buttons
       document.querySelectorAll('.tab-btn[data-section]').forEach(tab => {
         tab.addEventListener('click', event => {
           event.preventDefault();
+          setMobileNavOpen(false);
           switchTab(tab.dataset.section);
         });
+      });
+
+      document.addEventListener('click', event => {
+        const nav = document.getElementById('tabNav');
+        if (nav && nav.classList.contains('open') && !nav.contains(event.target)) {
+          setMobileNavOpen(false);
+        }
+      });
+
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') setMobileNavOpen(false);
       });
 
       // Honour URL hash on load, else default to Teacher tab
@@ -1430,6 +1536,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
       } else {
         switchTab('tab-teacher');
       }
+      updateMobileNavLabel();
     }
 
     window.addEventListener('DOMContentLoaded', async () => {

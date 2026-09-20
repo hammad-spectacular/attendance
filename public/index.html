@@ -291,7 +291,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     }
 
     if (data.token) setAuthToken(data.token);
-    window.location.href = data.redirect_url || '/';
+    window.location.replace(data.redirect_url || '/');
   } catch (err) {
     errorEl.textContent = formatFetchError(err);
     errorEl.classList.add('show');

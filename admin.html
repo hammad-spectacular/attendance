@@ -280,6 +280,10 @@
       box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
     }
 
+    .tab-nav-toggle {
+      display: none;
+    }
+
     .tab-content {
       display: none;
       animation: fadeInUp 0.3s ease-out both;
@@ -1251,6 +1255,71 @@
       }
     }
 
+    /* Mobile hamburger section menu */
+    @media (max-width: 640px) {
+      .tab-nav {
+        position: sticky;
+        top: 72px;
+        z-index: 25;
+        margin-top: 0;
+        overflow: visible;
+      }
+
+      .tab-nav-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        min-height: 48px;
+        padding: 0.55rem 0.9rem;
+        margin: 0.5rem 0;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--text);
+        background-color: var(--bg-card);
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        cursor: pointer;
+      }
+
+      .tab-nav-toggle:hover {
+        background-color: var(--bg-card-hover);
+        border-color: var(--primary);
+      }
+
+      .tab-nav-toggle-icon {
+        color: var(--text-muted);
+        transition: transform 0.25s ease;
+      }
+
+      .tab-nav.open .tab-nav-toggle-icon {
+        transform: rotate(90deg);
+      }
+
+      .tab-nav-inner {
+        display: none;
+        width: 100%;
+        flex-direction: column;
+        gap: 0.35rem;
+        padding: 0.35rem 0;
+        max-height: calc(100vh - 130px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .tab-nav.open .tab-nav-inner {
+        display: flex;
+      }
+
+      .tab-btn {
+        width: 100%;
+        min-height: 48px;
+        padding: 0.7rem 0.95rem;
+        font-size: 0.9rem;
+      }
+    }
+
     /* ================================
        ANIMATIONS
        ================================ */
@@ -1405,8 +1474,12 @@
   </div>
 
   <!-- ======================== TAB NAVIGATION ======================== -->
-  <nav class="tab-nav">
-    <div class="tab-nav-inner">
+  <nav class="tab-nav" id="tabNav">
+    <button id="mobileNavToggle" class="tab-nav-toggle" aria-expanded="false" aria-controls="tabNavInner" aria-label="Open section menu">
+      <span id="mobileNavToggleLabel">Teachers</span>
+      <i class="fas fa-bars tab-nav-toggle-icon"></i>
+    </button>
+    <div class="tab-nav-inner" id="tabNavInner">
       <a href="#tab-teachers" class="tab-btn active" data-section="tab-teachers">
         <i class="fas fa-chalkboard-user"></i>Teachers
       </a>
@@ -4351,7 +4424,7 @@
     async function checkSession() {
       const session = await refreshSession();
       if (!session) { redirectToLogin(); return; }
-      if (session.role !== 'admin' && session.role !== 'super_admin') { window.location.href = '/index.html'; return; }
+      if (session.role !== 'admin' && session.role !== 'super_admin') { window.location.replace('/index.html'); return; }
       window._isFirstLogin = session.is_first_login;
       if (session.is_first_login) { showPasswordWarningBanner(); }
     }
@@ -4381,7 +4454,7 @@
       try {
         await fetch(API_BASE + '/api/auth/logout', { method: 'POST', credentials: 'include' });
       } catch(e) { /* ignore network errors, still redirect */ }
-      window.location.href = '/index.html';
+      window.location.replace('/index.html');
     }
 
     // Change Password Modal
@@ -4717,6 +4790,7 @@
       
       const newBtn = document.querySelector(`.tab-btn[data-section="${newTabId}"]`);
       if (newBtn) newBtn.classList.add('active');
+      updateMobileNavLabel();
 
       activeTabId = newTabId;
       history.replaceState(null, '', '#' + newTabId);
@@ -4842,13 +4916,48 @@
       }
     }
 
+    function updateMobileNavLabel() {
+      const label = document.getElementById('mobileNavToggleLabel');
+      const activeBtn = document.querySelector('.tab-btn.active[data-section]');
+      if (label && activeBtn) label.textContent = activeBtn.textContent.trim();
+    }
+
+    function setMobileNavOpen(open) {
+      const nav = document.getElementById('tabNav');
+      const toggle = document.getElementById('mobileNavToggle');
+      if (nav) nav.classList.toggle('open', open);
+      if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
     function setupSectionTabs() {
       const tabs = Array.from(document.querySelectorAll('.tab-btn[data-section]'));
+
+      const mobileToggle = document.getElementById('mobileNavToggle');
+      if (mobileToggle) {
+        mobileToggle.addEventListener('click', event => {
+          event.preventDefault();
+          const nav = document.getElementById('tabNav');
+          setMobileNavOpen(nav ? !nav.classList.contains('open') : false);
+        });
+      }
+
       tabs.forEach(tab => {
         tab.addEventListener('click', event => {
           event.preventDefault();
+          setMobileNavOpen(false);
           switchTab(tab.dataset.section);
         });
+      });
+
+      document.addEventListener('click', event => {
+        const nav = document.getElementById('tabNav');
+        if (nav && nav.classList.contains('open') && !nav.contains(event.target)) {
+          setMobileNavOpen(false);
+        }
+      });
+
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') setMobileNavOpen(false);
       });
       
       // Initial tab based on hash or default
