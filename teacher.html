@@ -496,6 +496,110 @@
 
     }
 
+    /* Mobile section menu */
+
+    .tab-nav-toggle {
+
+      display: none;
+
+    }
+
+    @media (max-width: 640px) {
+
+      .tab-nav-toggle {
+
+        display: flex;
+
+        align-items: center;
+
+        justify-content: space-between;
+
+        width: 100%;
+
+        min-height: 48px;
+
+        padding: 0.55rem 0.9rem;
+
+        margin: 0.5rem 0;
+
+        font-family: 'Inter', sans-serif;
+
+        font-size: 0.95rem;
+
+        font-weight: 600;
+
+        color: var(--text);
+
+        background-color: var(--bg-card);
+
+        border: 2px solid var(--border);
+
+        border-radius: 12px;
+
+        cursor: pointer;
+
+      }
+
+      .tab-nav-toggle:hover {
+
+        background-color: var(--bg-card-hover);
+
+        border-color: var(--primary);
+
+      }
+
+      .tab-nav-toggle-icon {
+
+        color: var(--text-muted);
+
+        transition: transform 0.25s ease;
+
+      }
+
+      .tab-nav.open .tab-nav-toggle-icon {
+
+        transform: rotate(90deg);
+
+      }
+
+      .tab-nav-inner {
+
+        display: none;
+
+        flex-direction: column;
+
+        gap: 0.35rem;
+
+        padding: 0.5rem 0;
+
+        max-height: calc(100vh - 160px);
+
+        overflow-y: auto;
+
+        -webkit-overflow-scrolling: touch;
+
+      }
+
+      .tab-nav.open .tab-nav-inner {
+
+        display: flex;
+
+      }
+
+      .tab-btn {
+
+        width: 100%;
+
+        min-height: 48px;
+
+        padding: 0.7rem 0.95rem;
+
+        font-size: 0.95rem;
+
+      }
+
+    }
+
     @keyframes fadeIn {
 
       from { opacity: 0; transform: translateY(10px); }
@@ -1224,11 +1328,19 @@
 
   <!-- ======================== TAB NAVIGATION ======================== -->
 
-  <nav class="tab-nav sticky top-0 z-20">
+  <nav class="tab-nav sticky top-0 z-20" id="tabNav">
 
     <div class="max-w-5xl mx-auto px-4">
 
-      <div class="tab-nav-inner">
+      <button id="mobileNavToggle" class="tab-nav-toggle" aria-expanded="false" aria-controls="tabNavInner" aria-label="Open section menu">
+
+        <span id="mobileNavToggleLabel">Attendance</span>
+
+        <i class="fas fa-bars tab-nav-toggle-icon"></i>
+
+      </button>
+
+      <div class="tab-nav-inner" id="tabNavInner">
 
         <a href="#tab-attendance" class="tab-btn active" data-section="tab-attendance">
 
@@ -4641,6 +4753,8 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
       if (newBtn) newBtn.classList.add('active');
 
+      updateMobileNavLabel();
+
 
 
       activeTabId = newTabId;
@@ -4669,9 +4783,47 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
 
 
+    function updateMobileNavLabel() {
+
+      const label = document.getElementById('mobileNavToggleLabel');
+
+      const activeBtn = document.querySelector('.tab-btn.active[data-section]');
+
+      if (label && activeBtn) label.textContent = activeBtn.textContent.trim();
+
+    }
+
+    function setMobileNavOpen(open) {
+
+      const nav = document.getElementById('tabNav');
+
+      const toggle = document.getElementById('mobileNavToggle');
+
+      if (nav) nav.classList.toggle('open', open);
+
+      if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+
+    }
+
     function setupSectionTabs() {
 
       const tabs = Array.from(document.querySelectorAll('.tab-btn[data-section]'));
+
+      const mobileToggle = document.getElementById('mobileNavToggle');
+
+      if (mobileToggle) {
+
+        mobileToggle.addEventListener('click', event => {
+
+          event.preventDefault();
+
+          const nav = document.getElementById('tabNav');
+
+          setMobileNavOpen(nav ? !nav.classList.contains('open') : false);
+
+        });
+
+      }
 
       tabs.forEach(tab => {
 
@@ -4679,13 +4831,31 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
           event.preventDefault();
 
+          setMobileNavOpen(false);
+
           switchTab(tab.dataset.section);
 
         });
 
       });
 
-      
+      document.addEventListener('click', event => {
+
+        const nav = document.getElementById('tabNav');
+
+        if (nav && nav.classList.contains('open') && !nav.contains(event.target)) {
+
+          setMobileNavOpen(false);
+
+        }
+
+      });
+
+      document.addEventListener('keydown', event => {
+
+        if (event.key === 'Escape') setMobileNavOpen(false);
+
+      });
 
       const hash = window.location.hash.substring(1);
 
@@ -4698,6 +4868,8 @@ function setButtonLoading(btn, loading, loadingHtml) {
         switchTab('tab-attendance');
 
       }
+
+      updateMobileNavLabel();
 
     }
 
