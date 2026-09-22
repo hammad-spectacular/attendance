@@ -66,6 +66,14 @@ const adminRecoveryLimiter = rateLimit({
   legacyHeaders: false
 })
 
+const bulkCreateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 5,
+  message: { error: 'Too many bulk-create requests. Maximum 5 per minute.' },
+  standardHeaders: true,
+  legacyHeaders: false
+})
+
 const ACCOUNT_TABLES = {
   admin: 'admins',
   super_admin: 'admins',
@@ -1040,6 +1048,128 @@ app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) =>
     res.status(500).json({ error: 'Something went wrong while creating the student. Please try again.' })
   }
 })
+
+// POST /api/auth/bulk-create-students
+app.post('/api/auth/bulk-create-students', requireAuth(['admin', 'super_admin']), bulkCreateLimiter, async (req, res) => {
+  let count = parseInt(req.body.count, 10);
+  const class_id = req.body.class_id;
+  if (isNaN(count) || count < 1) return res.status(400).json({ error: 'Valid count is required' });
+  if (count > 500) return res.status(400).json({ error: 'Maximum 500 accounts per batch' });
+  if (!class_id) return res.status(400).json({ error: 'Class ID is required for students' });
+
+  const tenant_id = req.user.tenant_id;
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+
+    const highestResult = await client.query(
+      `SELECT login_id FROM students WHERE tenant_id = $1 AND (login_id LIKE 'S%' OR login_id LIKE $2) ORDER BY login_id DESC LIMIT 1`,
+      [tenant_id, `${tenant_id}-S%`]
+    );
+
+    let nextNum = 1;
+    if (highestResult.rows.length > 0) {
+      const lastId = highestResult.rows[0].login_id;
+      const match = lastId.match(/\d+$/);
+      const numPart = match ? parseInt(match[0], 10) : NaN;
+      if (!isNaN(numPart)) nextNum = numPart + 1;
+    }
+
+    const createdAccounts = [];
+    const values = [];
+    let paramIndex = 1;
+    const queryParams = [];
+
+    for (let i = 0; i < count; i++) {
+      const shortId = `S${String(nextNum + i).padStart(3, '0')}`;
+      const tempPassword = generateTempPassword();
+      const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS);
+      const name = `Student ${i + 1}`;
+      
+      // name, roll_no, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email
+      queryParams.push(name, null, null, class_id, shortId, passwordHash, tenant_id);
+      values.push(`($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, 'student', $${paramIndex++}, true, NULL)`);
+      createdAccounts.push({ login_id: `${tenant_id}-${shortId}`, temp_password: tempPassword, name });
+    }
+
+    const insertQuery = `
+      INSERT INTO students (name, roll_no, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email)
+      VALUES ${values.join(', ')}
+    `;
+
+    await client.query(insertQuery, queryParams);
+    await client.query('COMMIT');
+    
+    res.json({ success: true, accounts: createdAccounts });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Bulk create student error:', err);
+    res.status(500).json({ error: 'Server error during bulk creation' });
+  } finally {
+    client.release();
+  }
+});
+
+// POST /api/auth/bulk-create-teachers
+app.post('/api/auth/bulk-create-teachers', requireAuth(['admin', 'super_admin']), bulkCreateLimiter, async (req, res) => {
+  let count = parseInt(req.body.count, 10);
+  if (isNaN(count) || count < 1) return res.status(400).json({ error: 'Valid count is required' });
+  if (count > 500) return res.status(400).json({ error: 'Maximum 500 accounts per batch' });
+
+  const tenant_id = req.user.tenant_id;
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+
+    const highestResult = await client.query(
+      `SELECT login_id FROM teachers WHERE tenant_id = $1 AND (login_id LIKE 'T%' OR login_id LIKE $2) ORDER BY login_id DESC LIMIT 1`,
+      [tenant_id, `${tenant_id}-T%`]
+    );
+
+    let nextNum = 1;
+    if (highestResult.rows.length > 0) {
+      const lastId = highestResult.rows[0].login_id;
+      const match = lastId.match(/\d+$/);
+      const numPart = match ? parseInt(match[0], 10) : NaN;
+      if (!isNaN(numPart)) nextNum = numPart + 1;
+    }
+
+    const createdAccounts = [];
+    const values = [];
+    let paramIndex = 1;
+    const queryParams = [];
+
+    for (let i = 0; i < count; i++) {
+      const shortId = `T${String(nextNum + i).padStart(3, '0')}`;
+      const tempPassword = generateTempPassword();
+      const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS);
+      const name = `Teacher ${i + 1}`;
+      
+      // name, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email
+      queryParams.push(name, null, null, shortId, passwordHash, tenant_id);
+      values.push(`($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, 'teacher', $${paramIndex++}, true, NULL)`);
+      createdAccounts.push({ login_id: `${tenant_id}-${shortId}`, temp_password: tempPassword, name });
+    }
+
+    const insertQuery = `
+      INSERT INTO teachers (name, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email)
+      VALUES ${values.join(', ')}
+    `;
+
+    await client.query(insertQuery, queryParams);
+    await client.query('COMMIT');
+    
+    res.json({ success: true, accounts: createdAccounts });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Bulk create teacher error:', err);
+    res.status(500).json({ error: 'Server error during bulk creation' });
+  } finally {
+    client.release();
+  }
+});
 
 // This endpoint intentionally renders a one-time, no-store HTML document instead
 // of returning a password in a JSON API response. It is opened by an authorized
