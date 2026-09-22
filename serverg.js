@@ -333,13 +333,9 @@ async function createTables() {
     ALTER TABLE organizations ADD COLUMN IF NOT EXISTS contact_email VARCHAR(200);
   `)
 
-  await pool.query(`
-    DROP TABLE IF EXISTS fee_structures CASCADE;
-    DROP TABLE IF EXISTS fee_payments CASCADE;
-  `)
 
   await pool.query(`
-    CREATE TABLE fee_structures (
+    CREATE TABLE IF NOT EXISTS fee_structures (
       id SERIAL PRIMARY KEY,
       type VARCHAR(20) NOT NULL,
       target_id INTEGER NOT NULL,
@@ -352,7 +348,7 @@ async function createTables() {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
-    CREATE TABLE fee_payments (
+    CREATE TABLE IF NOT EXISTS fee_payments (
       id SERIAL PRIMARY KEY,
       student_id INTEGER NOT NULL,
       month VARCHAR(7) NOT NULL,
@@ -1844,6 +1840,47 @@ app.get('/api/fees/payments', requireAuth(['admin', 'teacher']), async (req, res
   query += ` ORDER BY students.name ASC`
   let result = await pool.query(query, params)
   let rows = result.rows
+
+  // For students with no payment row, look up their applicable fee structure
+  // (student-specific first, class-level fallback) in one batched query.
+  const noPaymentRows = rows.filter(r => r.payment_id == null)
+  if (noPaymentRows.length > 0) {
+    const studentIds = noPaymentRows.map(r => r.student_id)
+    const classIds   = [...new Set(noPaymentRows.map(r => r.class_id).filter(Boolean))]
+
+    const fsResult = await pool.query(
+      `SELECT type, target_id, monthly_fee
+       FROM fee_structures
+       WHERE tenant_id = $1
+         AND (
+           (type = 'student' AND target_id = ANY($2::int[]))
+           OR
+           (type = 'class'   AND target_id = ANY($3::int[]))
+         )`,
+      [tenant_id, studentIds, classIds.length > 0 ? classIds : [0]]
+    )
+
+    // Index by type for O(1) lookup
+    const studentStructures = {}
+    const classStructures   = {}
+    for (const fs of fsResult.rows) {
+      if (fs.type === 'student') studentStructures[fs.target_id] = fs
+      if (fs.type === 'class')   classStructures[fs.target_id]   = fs
+    }
+
+    rows = rows.map(r => {
+      if (r.payment_id != null) return r  // has a real payment — leave untouched
+
+      // Student-specific override first, class fallback second
+      const fs = studentStructures[r.student_id] || classStructures[r.class_id] || null
+
+      if (fs) {
+        return { ...r, amount_due: Number(fs.monthly_fee) || 0, amount_paid: 0, status: 'unpaid', month_year: targetMonth }
+      }
+      // No fee structure — keep not_set_up
+      return { ...r, amount_due: 0, amount_paid: 0, month_year: targetMonth }
+    })
+  }
 
   // Filter by status in JS after query (COALESCE can't be used in WHERE easily)
   if (status) {

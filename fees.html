@@ -751,6 +751,250 @@
       }
     }
 
+    /* Fee Cards Grid */
+    .fee-cards-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    @media (min-width: 720px) {
+      .fee-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (min-width: 1080px) {
+      .fee-cards-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    .fee-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .fee-card:hover {
+      border-color: var(--primary-light);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .fee-card-header {
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .fee-card-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .fee-card-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--primary-light);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    .fee-card-info {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .fee-card-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .fee-card-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .fee-card-header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* Rectangular Status Button */
+    .fee-card-pill, .fee-status-badge {
+      font-size: 0.78rem;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 6px;
+      z-index: 2;
+      border: 1px solid transparent;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      cursor: pointer;
+      line-height: 1.2;
+    }
+
+    .fee-card-pill.unpaid, .fee-status-badge.unpaid {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.6);
+    }
+
+    .fee-card-pill.paid, .fee-status-badge.paid {
+      background: rgba(34, 197, 94, 0.2);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.6);
+    }
+
+    .fee-card-pill.partial, .fee-status-badge.partial {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.6);
+    }
+
+    .fee-card-pill.not_set_up, .fee-status-badge.not_set_up {
+      background: rgba(100, 116, 139, 0.18);
+      color: #cbd5e1;
+      border: 1px solid rgba(100, 116, 139, 0.45);
+      cursor: default;
+    }
+
+    /* Hover & Active Rectangular Button Affordances */
+    .fee-card-pill:hover, .fee-status-badge:hover {
+      transform: translateY(-1.5px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+      filter: brightness(1.25);
+    }
+
+    .fee-card-pill:active, .fee-status-badge:active {
+      transform: translateY(0) scale(0.96);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    }
+
+    .fee-card-chevron {
+      color: var(--text-muted);
+      transition: transform 0.3s ease;
+    }
+
+    .fee-card.expanded .fee-card-chevron {
+      transform: rotate(180deg);
+    }
+
+    .fee-card-body {
+      padding: 0 16px;
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+      background: rgba(0, 0, 0, 0.02);
+    }
+
+    .fee-card.expanded .fee-card-body {
+      max-height: 300px;
+      padding: 16px;
+      opacity: 1;
+      border-top: 1px solid var(--border);
+    }
+
+    .fee-card-amount-due {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .fee-card-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 0.85rem;
+    }
+
+    .fee-card-label {
+      color: var(--text-muted);
+    }
+
+    .fee-card-value {
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .fee-progress-container {
+      width: 100%;
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      margin: 12px 0 16px;
+      overflow: hidden;
+    }
+
+    .fee-progress-bar {
+      height: 100%;
+      background: var(--success);
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    .fee-card-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .btn-icon-secondary {
+      background: var(--badge-bg);
+      color: var(--text);
+      border: none;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      flex-shrink: 0;
+    }
+    
+    .btn-icon-secondary:hover {
+      opacity: 0.8;
+    }
+
     @media (max-width: 640px) {
       .header {
         padding: 16px;
@@ -934,22 +1178,9 @@
             </div>
           </div>
 
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Student Name</th>
-                <th>Class</th>
-                <th>Amount Due</th>
-                <th>Amount Paid</th>
-                <th>Status</th>
-                <th>Payment Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="paymentsTableBody">
-              <tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:24px;">No fee records yet.</td></tr>
-            </tbody>
-          </table>
+          <div class="fee-cards-grid" id="paymentsGrid">
+            <div style="text-align:center; color:var(--text-muted); padding:24px; grid-column: 1 / -1;">No fee records yet.</div>
+          </div>
         </div>
       </div>
     </div>
@@ -1424,8 +1655,8 @@
 
     // Load fee payments
     async function loadFeePayments() {
-      const tbody = document.getElementById('paymentsTableBody');
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px;"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</td></tr>';
+      const grid = document.getElementById('paymentsGrid');
+      grid.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:24px;grid-column:1/-1;"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
       try {
         const month = document.getElementById('monthFilter')?.value || '';
         const classId = document.getElementById('classFilter')?.value || '';
@@ -1438,39 +1669,182 @@
         if (status) params.append('status', status);
         if (search) params.append('search', search);
         
-        // No mode=records: use default LEFT JOIN so ALL students appear
         const payments = await fetchJson(`/api/fees/payments?${params}`);
         
         if (!Array.isArray(payments) || payments.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px;">No students found.</td></tr>';
+          grid.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:24px;grid-column:1/-1;">No students found.</div>';
           return;
         }
 
-        tbody.innerHTML = payments.map(p => {
-          const statusClass = p.status === 'paid' ? 'paid' : p.status === 'partial' ? 'partial' : p.status === 'unpaid' ? 'unpaid' : 'unpaid';
-          const statusIcon = p.status === 'paid' ? 'fa-check' : p.status === 'partial' ? 'fa-minus' : 'fa-xmark';
-          const statusLabel = p.status === 'not_set_up' ? 'Not Set Up' : p.status ? (p.status.charAt(0).toUpperCase() + p.status.slice(1)) : 'Unpaid';
-          const amountDue = p.amount_due != null ? `Rs. ${Number(p.amount_due).toLocaleString()}` : '—';
-          const amountPaid = p.amount_paid != null ? `Rs. ${Number(p.amount_paid).toLocaleString()}` : '—';
-          return `
-          <tr>
-            <td>${p.student_name || '—'}</td>
-            <td>${p.class_name || '—'}</td>
-            <td>${amountDue}</td>
-            <td>${amountPaid}</td>
-            <td><span class="badge ${statusClass}"><i class="fa-solid ${statusIcon}"></i> ${statusLabel}</span></td>
-            <td>${p.payment_date || '—'}</td>
-            <td>
-              <div class="action-buttons">
-                <button class="btn-edit" onclick="openPaymentModal(${p.student_id})" title="Record Payment"><i class="fa-solid fa-money-bill-wave"></i></button>
+        grid.innerHTML = payments.map(p => {
+          const isNotSetUp = p.status === 'not_set_up';
+          const statusClass = p.status === 'paid' ? 'paid' : p.status === 'partial' ? 'partial' : p.status === 'unpaid' ? 'unpaid' : 'not_set_up';
+          const statusLabel = isNotSetUp ? 'Not Set Up' : p.status ? (p.status.charAt(0).toUpperCase() + p.status.slice(1)) : 'Unpaid';
+          
+          const amountDueNum = Number(p.amount_due) || 0;
+          const amountPaidNum = Number(p.amount_paid) || 0;
+          const amountDueStr = isNotSetUp ? '—' : `Rs. ${amountDueNum.toLocaleString()}`;
+          const amountPaidStr = isNotSetUp ? '—' : `Rs. ${amountPaidNum.toLocaleString()}`;
+          const dateStr = p.payment_date || '—';
+          
+          const initials = (p.student_name || '?').substring(0, 2).toUpperCase();
+          const studentName = escapeHtml(p.student_name || 'Unknown');
+          const classRoll = escapeHtml(`${p.class_name || 'N/A'} · ${p.roll_no || 'N/A'}`);
+          
+          let progressHtml = '';
+          if (!isNotSetUp && amountDueNum > 0) {
+            const percent = Math.min(100, Math.round((amountPaidNum / amountDueNum) * 100));
+            progressHtml = `
+              <div class="fee-progress-container">
+                <div class="fee-progress-bar" style="width: ${percent}%;"></div>
               </div>
-            </td>
-          </tr>`;
+            `;
+          }
+
+          // Status pill quick action (only for unpaid/partial)
+          const canQuickPay = (p.status === 'unpaid' || p.status === 'partial');
+          const pillClass = `fee-card-pill ${statusClass} ${canQuickPay ? 'clickable' : ''}`;
+          const pillClick = canQuickPay ? `onclick="quickMarkPaid(event, ${p.student_id}, ${amountDueNum}, this)"` : '';
+
+          const actionBtnHtml = isNotSetUp 
+            ? `<button class="btn btn-primary btn-sm" onclick="openStructureModalFor(event, ${p.student_id})" style="flex:1;">Set Up Fee</button>`
+            : `<button class="btn btn-primary btn-sm" onclick="openPaymentModalWithEvent(event, ${p.student_id})" style="flex:1;">Record Payment</button>`;
+
+          return `
+          <div class="fee-card" id="fee-card-${p.student_id}">
+            <div class="fee-card-header" onclick="toggleFeeCard(${p.student_id})" aria-expanded="false" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') { event.preventDefault(); toggleFeeCard(${p.student_id}); }">
+              <div class="fee-card-header-left">
+                <div class="fee-card-avatar">${initials}</div>
+                <div class="fee-card-info">
+                  <div class="fee-card-name">${studentName}</div>
+                  <div class="fee-card-sub">${classRoll}</div>
+                </div>
+              </div>
+              <div class="fee-card-header-right">
+                <span class="${pillClass}" ${pillClick}>${statusLabel}</span>
+                <i class="fa-solid fa-chevron-down fee-card-chevron"></i>
+              </div>
+            </div>
+            <div class="fee-card-body" id="fee-card-body-${p.student_id}" role="region" aria-hidden="true">
+              <div class="fee-card-amount-due">${amountDueStr}</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px;">Amount Due</div>
+              
+              ${progressHtml}
+
+              <div class="fee-card-row">
+                <span class="fee-card-label">Amount Paid</span>
+                <span class="fee-card-value">${amountPaidStr}</span>
+              </div>
+              <div class="fee-card-row">
+                <span class="fee-card-label">Payment Date</span>
+                <span class="fee-card-value">${dateStr}</span>
+              </div>
+
+              <div class="fee-card-actions">
+                ${actionBtnHtml}
+                <button class="btn-icon-secondary" onclick="openStructureModalFor(event, ${p.student_id})" title="Edit Fee Structure">
+                  <i class="fa-solid fa-gear"></i>
+                </button>
+              </div>
+            </div>
+          </div>`;
         }).join('');
       } catch (err) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--danger);padding:24px;">Failed to load fee data.</td></tr>';
+        grid.innerHTML = '<div style="text-align:center;color:var(--danger);padding:24px;grid-column:1/-1;">Failed to load fee data.</div>';
         console.error('Failed to load fee payments:', err);
       }
+    }
+
+    function toggleFeeCard(id) {
+      const card = document.getElementById(`fee-card-${id}`);
+      const header = card.querySelector('.fee-card-header');
+      const body = document.getElementById(`fee-card-body-${id}`);
+      if (card.classList.contains('expanded')) {
+        card.classList.remove('expanded');
+        header.setAttribute('aria-expanded', 'false');
+        body.setAttribute('aria-hidden', 'true');
+      } else {
+        card.classList.add('expanded');
+        header.setAttribute('aria-expanded', 'true');
+        body.setAttribute('aria-hidden', 'false');
+      }
+    }
+
+    async function quickMarkPaid(event, studentId, amountDue, element) {
+      event.stopPropagation(); // prevent expanding card
+      
+      // Inline confirm
+      if (element.dataset.confirming !== 'true') {
+        const originalText = element.innerText;
+        element.dataset.confirming = 'true';
+        element.innerText = 'Tap again to pay';
+        setTimeout(() => {
+          if (element.dataset.confirming === 'true') {
+            element.dataset.confirming = 'false';
+            element.innerText = originalText;
+          }
+        }, 2500);
+        return;
+      }
+      
+      // Double tap confirmed
+      element.dataset.confirming = 'false';
+      element.style.pointerEvents = 'none';
+      element.style.opacity = '0.5';
+      
+      try {
+        const month = document.getElementById('monthFilter')?.value || new Date().toISOString().slice(0, 7);
+        const data = {
+          student_id: studentId,
+          month: month,
+          amount_due: amountDue,
+          amount_paid: amountDue,
+          payment_method: 'Cash',
+          payment_date: new Date().toISOString().split('T')[0],
+          notes: 'Quick mark paid'
+        };
+        
+        await apiFetch('/api/fees/payments', {
+          method: 'POST',
+          body: JSON.stringify(data)
+        });
+        
+        // Optimistic UI update for the single card
+        const card = document.getElementById(`fee-card-${studentId}`);
+        if (card) {
+          element.className = 'fee-card-pill paid';
+          element.innerText = 'Paid';
+          element.removeAttribute('onclick'); // remove quick action
+          
+          const valSpans = card.querySelectorAll('.fee-card-value');
+          if (valSpans.length >= 2) {
+            valSpans[0].innerText = `Rs. ${amountDue.toLocaleString()}`; // amount paid
+            valSpans[1].innerText = data.payment_date; // payment date
+          }
+          let progress = card.querySelector('.fee-progress-bar');
+          if (progress) progress.style.width = '100%';
+          
+          card.classList.remove('expanded');
+        }
+        
+        loadFeeStats();
+      } catch (err) {
+        alert('Failed to record payment: ' + err.message);
+        element.style.pointerEvents = 'auto';
+        element.style.opacity = '1';
+      }
+    }
+
+    function openStructureModalFor(event, studentId) {
+      if (event) event.stopPropagation();
+      document.getElementById('structureTarget').value = studentId;
+      document.getElementById('structureType').value = 'student';
+      openStructureModal();
+    }
+
+    function openPaymentModalWithEvent(event, studentId) {
+      if (event) event.stopPropagation();
+      openPaymentModal(studentId);
     }
 
     // Load payment history
