@@ -1116,6 +1116,84 @@
 
 
 
+    /* ── Attendance submission status banner ── */
+
+    #attendanceStatusBanner {
+
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+
+      overflow: hidden;
+
+    }
+
+
+
+    #attendanceStatusBanner.status-not-submitted {
+
+      background: rgba(107, 114, 128, 0.07);
+
+      border: 1.5px dashed #d1d5db;
+
+      color: #9ca3af;
+
+    }
+
+
+
+    #attendanceStatusBanner.status-submitted {
+
+      background: linear-gradient(135deg, #dcfce7 0%, #d1fae5 100%);
+
+      border: 1.5px solid #6ee7b7;
+
+      color: #065f46;
+
+      animation: bannerSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    }
+
+
+
+    #attendanceStatusBanner.status-already-submitted {
+
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+
+      border: 1.5px solid #93c5fd;
+
+      color: #1e40af;
+
+      animation: bannerSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    }
+
+
+
+    @keyframes bannerSlideIn {
+
+      from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+
+      to   { opacity: 1; transform: translateY(0)  scale(1); }
+
+    }
+
+
+
+    /* Submitted button style */
+
+    #submitBtn.submitted-state {
+
+      background: linear-gradient(135deg, #059669, #10b981) !important;
+
+      box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4) !important;
+
+      animation: none !important;
+
+      cursor: default;
+
+    }
+
+
+
     /* Hide submit button on non-attendance tabs */
 
     .student-phone-sub {
@@ -1562,7 +1640,33 @@
 
     <div id="tab-attendance" class="tab-content active">
 
-      
+
+
+      <!-- ── Attendance Submission Status Banner ── -->
+
+      <div id="attendanceStatusBanner"
+
+           class="status-not-submitted rounded-xl px-4 py-3 mb-5 flex items-center justify-between gap-3 text-sm font-600">
+
+        <div class="flex items-center gap-2">
+
+          <span id="statusBannerIcon" class="text-base">○</span>
+
+          <div>
+
+            <div id="statusBannerTitle" class="font-700 text-xs uppercase tracking-wider">Attendance not submitted</div>
+
+            <div id="statusBannerSub" class="text-xs font-500 mt-0.5 opacity-70">Mark all students and press Submit</div>
+
+          </div>
+
+        </div>
+
+        <span id="statusBannerBadge" class="hidden text-xs px-2.5 py-1 rounded-full font-700 bg-emerald-100 text-emerald-700"></span>
+
+      </div>
+
+
 
       <!-- Summary Cards -->
 
@@ -1888,9 +1992,9 @@
 
            flex items-center gap-2" aria-label="Submit Attendance">
 
-    <span>Submit</span>
+    <span id="submitBtnLabel">Submit</span>
 
-    <span class="text-lg">→</span>
+    <span id="submitBtnArrow" class="text-lg">→</span>
 
   </button>
 
@@ -2392,61 +2496,117 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
     function loadAttendance() {
 
+      // ── First, reset the banner to "not submitted" (handles class switches) ──
+
+      setNotSubmittedState();
+
+
+
       const saved = localStorage.getItem(STORAGE_KEY);
 
-      if (!saved) return;
+      const todayStr = getTodayDate();
 
 
 
-      try {
+      // ── Restore local state from localStorage (for display only) ──
 
-        const data = JSON.parse(saved);
+      if (saved) {
 
+        try {
 
+          const data = JSON.parse(saved);
 
-        if (!Array.isArray(data) || data.length === 0) return;
+          if (Array.isArray(data) && data.length > 0) {
 
+            const todayRecord = data.find(entry => entry.date === todayStr);
 
+            if (todayRecord && Array.isArray(todayRecord.students)) {
 
-        const todayStr = getTodayDate();
+              todayRecord.students.forEach(record => {
 
-        const todayRecord = data.find(entry => entry.date === todayStr);
+                if (attendanceState.hasOwnProperty(record.id) &&
 
+                    (record.status === 'Present' || record.status === 'Absent' || record.status === 'Leave')) {
 
+                  attendanceState[record.id] = record.status;
 
-        if (!todayRecord || !Array.isArray(todayRecord.students)) return;
+                }
 
+              });
 
+              students.forEach(s => updateRowUI(s.id));
 
-        // Restore each student's status into attendanceState
+              updateCounts();
 
-        todayRecord.students.forEach(record => {
-
-          if (attendanceState.hasOwnProperty(record.id) && (record.status === 'Present' || record.status === 'Absent' || record.status === 'Leave')) {
-
-            attendanceState[record.id] = record.status;
+            }
 
           }
 
-        });
+        } catch (e) {
 
+          console.error('Failed to load local attendance:', e);
 
-
-        // Update all row UIs to reflect restored state
-
-        students.forEach(s => updateRowUI(s.id));
-
-        updateCounts();
-
-
-
-        showToast('📂 Restored today\'s saved attendance', 'info');
-
-      } catch (e) {
-
-        console.error('Failed to load attendance:', e);
+        }
 
       }
+
+
+
+      // ── Then check the backend to see if attendance was already saved ──
+
+      const classId = currentClass ? currentClass.id : null;
+
+      if (!classId) return;
+
+
+
+      apiFetch(`/api/attendance?date=${todayStr}&class_id=${classId}`)
+
+        .then(res => res.ok ? res.json() : Promise.reject(res.status))
+
+        .then(rows => {
+
+          if (!Array.isArray(rows) || rows.length === 0) return;
+
+
+
+          // Backend has records — restore statuses from authoritative source
+
+          rows.forEach(row => {
+
+            if (attendanceState.hasOwnProperty(row.student_id)) {
+
+              attendanceState[row.student_id] = row.status;
+
+            }
+
+          });
+
+          students.forEach(s => updateRowUI(s.id));
+
+          updateCounts();
+
+
+
+          // Show "Already Submitted" banner
+
+          const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+          setSubmittedState(rows.length, timeStr, true);
+
+
+
+          showToast('📂 Attendance already submitted today', 'info');
+
+        })
+
+        .catch(err => {
+
+          // Non-critical — just means we couldn't confirm backend status
+
+          console.warn('Could not verify backend attendance status:', err);
+
+        });
 
     }
 
@@ -3176,6 +3336,172 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
 
 
+    // =============================================================
+
+    // SUBMISSION STATUS HELPERS
+
+    // =============================================================
+
+
+
+    /**
+
+     * Show the green "Attendance Submitted" banner and transform the submit button.
+
+     * @param {number} studentCount  - number of students in the record
+
+     * @param {string} timeStr       - human-readable time string (e.g. "10:45 AM")
+
+     * @param {boolean} alreadySaved - true when loaded from backend on page load
+
+     */
+
+    function setSubmittedState(studentCount, timeStr, alreadySaved) {
+
+      const banner  = document.getElementById('attendanceStatusBanner');
+
+      const icon    = document.getElementById('statusBannerIcon');
+
+      const title   = document.getElementById('statusBannerTitle');
+
+      const sub     = document.getElementById('statusBannerSub');
+
+      const badge   = document.getElementById('statusBannerBadge');
+
+      const btn     = document.getElementById('submitBtn');
+
+      const btnLabel = document.getElementById('submitBtnLabel');
+
+      const btnArrow = document.getElementById('submitBtnArrow');
+
+
+
+      if (!banner) return;
+
+
+
+      // Update banner
+
+      banner.classList.remove('status-not-submitted', 'status-submitted', 'status-already-submitted');
+
+      banner.classList.add(alreadySaved ? 'status-already-submitted' : 'status-submitted');
+
+
+
+      icon.textContent  = '✓';
+
+      title.textContent = alreadySaved ? 'Attendance Already Submitted' : 'Attendance Submitted';
+
+      sub.textContent   = `${studentCount} student${studentCount !== 1 ? 's' : ''} • Saved at ${timeStr}`;
+
+
+
+      badge.textContent = `${studentCount} students`;
+
+      badge.classList.remove('hidden');
+
+      if (alreadySaved) {
+
+        badge.classList.remove('bg-emerald-100', 'text-emerald-700');
+
+        badge.classList.add('bg-blue-100', 'text-blue-700');
+
+      } else {
+
+        badge.classList.remove('bg-blue-100', 'text-blue-700');
+
+        badge.classList.add('bg-emerald-100', 'text-emerald-700');
+
+      }
+
+
+
+      // Update submit button
+
+      if (btn) {
+
+        btn.classList.add('submitted-state');
+
+        btn.classList.remove('submit-ready');
+
+        btn.onclick = null; // disable re-submit
+
+        if (btnLabel) btnLabel.textContent = '✓ Submitted';
+
+        if (btnArrow) btnArrow.textContent = '';
+
+      }
+
+    }
+
+
+
+    /**
+
+     * Reset the banner back to the "not submitted" state.
+
+     * Called when class data is reloaded or a new day is detected.
+
+     */
+
+    function setNotSubmittedState() {
+
+      const banner   = document.getElementById('attendanceStatusBanner');
+
+      const icon     = document.getElementById('statusBannerIcon');
+
+      const title    = document.getElementById('statusBannerTitle');
+
+      const sub      = document.getElementById('statusBannerSub');
+
+      const badge    = document.getElementById('statusBannerBadge');
+
+      const btn      = document.getElementById('submitBtn');
+
+      const btnLabel = document.getElementById('submitBtnLabel');
+
+      const btnArrow = document.getElementById('submitBtnArrow');
+
+
+
+      if (!banner) return;
+
+
+
+      banner.classList.remove('status-submitted', 'status-already-submitted');
+
+      banner.classList.add('status-not-submitted');
+
+
+
+      icon.textContent  = '○';
+
+      title.textContent = 'Attendance not submitted';
+
+      sub.textContent   = 'Mark all students and press Submit';
+
+      badge.classList.add('hidden');
+
+
+
+      if (btn) {
+
+        btn.classList.remove('submitted-state');
+
+        btn.onclick = submitAttendance;
+
+        if (btnLabel) btnLabel.textContent = 'Submit';
+
+        if (btnArrow) btnArrow.textContent = '→';
+
+      }
+
+    }
+
+
+
+
+
     function submitAttendance() {
 
       // Sync UI state into student object (since UI uses attendanceState)
@@ -3250,9 +3576,9 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
       const presentCount = students.filter(s => s.status === "Present").length;
 
-      const absentCount = absentees.length;
+      const absentCount  = absentees.length;
 
-      const leaveCount = leaveStudents.length;
+      const leaveCount   = leaveStudents.length;
 
 
 
@@ -3268,6 +3594,22 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
 
 
+      // Snapshot of the records to submit (before any state change)
+
+      const recordsSnapshot = students.map(s => ({
+
+        student_id: s.id,
+
+        name:       s.name,
+
+        phone:      s.phone,
+
+        status:     attendanceState[s.id]
+
+      }));
+
+
+
       // 6. Send to Express server
 
       apiFetch('/api/attendance/submit', {
@@ -3278,23 +3620,13 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
         body: JSON.stringify({
 
-          date: today,
+          date:       today,
 
-          class_id: currentClass ? currentClass.id : null,
+          class_id:   currentClass   ? currentClass.id   : null,
 
           teacher_id: currentTeacher ? currentTeacher.id : null,
 
-          records: students.map(s => ({
-
-            student_id: s.id,
-
-            name: s.name,
-
-            phone: s.phone,
-
-            status: attendanceState[s.id]
-
-          }))
+          records:    recordsSnapshot
 
         })
 
@@ -3312,6 +3644,18 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
           console.log('✅ Server response:', data);
 
+
+
+          // ── Only now, after backend confirms, update the status banner ──
+
+          const now = new Date();
+
+          const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+          setSubmittedState(students.length, timeStr, false);
+
+
+
           showSmsOverlay('success', absentCount);
 
         })
@@ -3321,6 +3665,10 @@ function setButtonLoading(btn, loading, loadingHtml) {
           console.error('❌ Server error:', error);
 
           showSmsOverlay('error');
+
+          // Restore button so teacher can retry
+
+          setButtonLoading(submitBtn, false);
 
         })
 
@@ -3340,19 +3688,9 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
 
 
-      // Reset for next day
+      // NOTE: Do NOT reset student rows here — keep statuses visible so the
 
-      students.forEach(s => {
-
-        attendanceState[s.id] = null;
-
-        s.status = null;
-
-        updateRowUI(s.id);
-
-      });
-
-      updateCounts();
+      // teacher can see what was recorded. Reset happens only on a new class load.
 
     }
 
