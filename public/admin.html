@@ -5929,9 +5929,10 @@
       <div style="padding: 20px;">
         <div class="form-group">
           <label class="form-label" for="bulkStudentClass">Class</label>
-          <select class="form-input" id="bulkStudentClass" required>
+          <select class="form-input" id="bulkStudentClass" required onchange="document.getElementById('bulkClassError').style.display='none'">
             <option value="">-- Select a class --</option>
           </select>
+          <div id="bulkClassError" style="color: #dc2626; font-size: 0.85rem; margin-top: 6px; display: none; font-weight: 500;">Please select a class</div>
         </div>
         <div class="form-group">
           <label class="form-label" for="bulkStudentCount">How many students?</label>
@@ -6050,7 +6051,10 @@
       const classId = document.getElementById('bulkStudentClass').value;
       const count = parseInt(document.getElementById('bulkStudentCount').value, 10);
 
-      if (!classId) return showToast('Please select a class.', 'warning');
+      if (!classId) {
+        document.getElementById('bulkClassError').style.display = 'block';
+        return showToast('Please select a class.', 'warning');
+      }
       if (!count || count < 1 || count > 500) {
         return showToast('Please enter a valid count (1-500).', 'warning');
       }

@@ -1055,7 +1055,7 @@ app.post('/api/auth/bulk-create-students', requireAuth(['admin', 'super_admin'])
   const class_id = req.body.class_id;
   if (isNaN(count) || count < 1) return res.status(400).json({ error: 'Valid count is required' });
   if (count > 500) return res.status(400).json({ error: 'Maximum 500 accounts per batch' });
-  if (!class_id) return res.status(400).json({ error: 'Class ID is required for students' });
+  if (!class_id) return res.status(400).json({ error: 'class_id is required' });
 
   const tenant_id = req.user.tenant_id;
   const client = await pool.connect();
