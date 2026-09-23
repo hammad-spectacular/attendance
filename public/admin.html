@@ -2339,6 +2339,25 @@
                 <i class="fas fa-file-csv"></i> Export CSV
               </button>
             </div>
+            <!-- Status filter pills -->
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;" id="attendanceStatusFilters">
+              <button onclick="setAttendanceStatusFilter('')" id="attSF-all"
+                style="padding:5px 14px; border-radius:20px; border:1.5px solid var(--border); background:var(--primary); color:#fff; font-size:0.8rem; font-weight:600; cursor:pointer;">
+                All
+              </button>
+              <button onclick="setAttendanceStatusFilter('Present')" id="attSF-Present"
+                style="padding:5px 14px; border-radius:20px; border:1.5px solid #6ee7b7; background:transparent; color:#059669; font-size:0.8rem; font-weight:600; cursor:pointer;">
+                ✅ Present
+              </button>
+              <button onclick="setAttendanceStatusFilter('Absent')" id="attSF-Absent"
+                style="padding:5px 14px; border-radius:20px; border:1.5px solid #fca5a5; background:transparent; color:#dc2626; font-size:0.8rem; font-weight:600; cursor:pointer;">
+                ❌ Absent
+              </button>
+              <button onclick="setAttendanceStatusFilter('Leave')" id="attSF-Leave"
+                style="padding:5px 14px; border-radius:20px; border:1.5px solid #fcd34d; background:transparent; color:#b45309; font-size:0.8rem; font-weight:600; cursor:pointer;">
+                📝 Leave
+              </button>
+            </div>
           </div>
           <div id="attendanceTableWrap">
             <!-- Rendered by JS -->
@@ -4708,6 +4727,24 @@
       showToast('Announcement removed', 'success');
     }
 
+    // Tracks the active status pill filter — empty string = All
+    let attendanceStatusFilter = '';
+
+    function setAttendanceStatusFilter(status) {
+      attendanceStatusFilter = status;
+      const allBtn = document.getElementById('attSF-all');
+      const presentBtn = document.getElementById('attSF-Present');
+      const absentBtn = document.getElementById('attSF-Absent');
+      const leaveBtn = document.getElementById('attSF-Leave');
+      const primary = 'var(--primary)';
+      const reset = 'transparent';
+      if (allBtn) { allBtn.style.background = status === '' ? primary : reset; allBtn.style.color = status === '' ? '#fff' : 'var(--text)'; }
+      if (presentBtn) { presentBtn.style.background = status === 'Present' ? 'rgba(5,150,105,0.12)' : reset; presentBtn.style.fontWeight = status === 'Present' ? '700' : '600'; }
+      if (absentBtn) { absentBtn.style.background = status === 'Absent' ? 'rgba(220,38,38,0.10)' : reset; absentBtn.style.fontWeight = status === 'Absent' ? '700' : '600'; }
+      if (leaveBtn) { leaveBtn.style.background = status === 'Leave' ? 'rgba(180,83,9,0.10)' : reset; leaveBtn.style.fontWeight = status === 'Leave' ? '700' : '600'; }
+      renderAttendance();
+    }
+
     function getFilteredAttendanceRecords() {
       const records = window.appData.attendance || [];
       const search = (document.getElementById('attendanceSearchInput')?.value || '').toLowerCase().trim();
@@ -4723,7 +4760,8 @@
         const matchesSearch = !search || (record.studentName || '').toLowerCase().includes(search);
         const matchesMonth = !month || record.month === month;
         const matchesClass = !classFilter || String(record.classId) === String(classFilter);
-        return matchesSearch && matchesMonth && matchesClass;
+        const matchesStatus = !attendanceStatusFilter || (record.status || '').toLowerCase() === attendanceStatusFilter.toLowerCase();
+        return matchesSearch && matchesMonth && matchesClass && matchesStatus;
       });
     }
 
