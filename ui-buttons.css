@@ -1,0 +1,521 @@
+/* ==========================================================================
+   The Eye — Shared Button System (ui-buttons.css)
+   One consistent, semantic button language across every page and role.
+
+   Class map:
+     .btn                base button (default = primary)
+     .btn-primary        primary action (indigo)
+     .btn-secondary      neutral / secondary (card background + border)
+     .btn-success        success action (green)   — also .btn.success
+     .btn-danger         destructive action (red) — also .btn.danger
+     .btn-warning        caution action (amber)   — also .btn.warning
+     .btn-ghost          quiet / low-emphasis      — also .btn.ghost
+     .btn-sm / .btn-lg   sizes (works with dash and dot compound forms)
+     .btn-filter         attendance/status filter pill (add .active)
+     .filter-all / .filter-present / .filter-absent / .filter-leave
+     .att-btn            in-table attendance status buttons
+     .btn-edit / .btn-delete / .btn-icon / .btn-icon-secondary
+     .confirm-modal-btn  modal confirmation actions (--danger/--warning/--primary)
+
+   Design rules:
+     - Everything is a real button: distinct shape, depth, hover elevation,
+       pressed feedback, visible focus ring, muted disabled state.
+     - Semantic color per action (green = present/success, red = absent/danger,
+       amber = leave/warning, indigo = primary), using page theme variables
+       with robust dark-first fallbacks.
+     - One ripple-free transition; keyboard-accessible :focus-visible.
+   ========================================================================== */
+
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-success,
+.btn-danger,
+.btn-warning,
+.btn-ghost,
+.btn-edit,
+.btn-delete,
+.btn-icon,
+.btn-icon-secondary,
+.confirm-modal-btn {
+  font-family: inherit;
+}
+
+/* --------------------------------------------------------------------------
+   Base button
+   -------------------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  background: var(--gradient, linear-gradient(135deg, #6366f1 0%, #4f46e5 100%));
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.15s ease,
+    opacity 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+}
+
+.btn:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  transition-duration: 0.08s;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--primary-light, #818cf8);
+  outline-offset: 2px;
+}
+
+.btn:disabled,
+.btn[disabled],
+.btn.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none;
+  box-shadow: none;
+}
+
+/* --------------------------------------------------------------------------
+   Variants — dash form and dot compound form are both supported
+   -------------------------------------------------------------------------- */
+.btn-primary,
+.btn.primary {
+  background: var(--gradient, linear-gradient(135deg, #6366f1 0%, #4f46e5 100%));
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+}
+
+.btn-primary:hover,
+.btn.primary:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 6px 18px rgba(99, 102, 241, 0.5);
+}
+
+.btn-secondary,
+.btn.secondary {
+  background: var(--bg-card, #1e293b);
+  color: var(--text, #f1f5f9);
+  border-color: var(--border, #334155);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.btn-secondary:hover,
+.btn.secondary:hover {
+  background: var(--bg-card-hover, #273449);
+  border-color: var(--primary-light, #818cf8);
+  color: var(--primary-light, #818cf8);
+}
+
+.btn-success,
+.btn.success {
+  background: var(--success, #22c55e);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.35);
+}
+
+.btn-success:hover,
+.btn.success:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 6px 16px rgba(34, 197, 94, 0.45);
+}
+
+.btn-danger,
+.btn.danger {
+  background: var(--danger, #ef4444);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
+}
+
+.btn-danger:hover,
+.btn.danger:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.5);
+}
+
+.btn-warning,
+.btn.warning {
+  background: var(--warning, #f59e0b);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);
+}
+
+.btn-warning:hover,
+.btn.warning:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.5);
+}
+
+.btn-ghost,
+.btn.ghost {
+  background: transparent;
+  color: var(--text-secondary, #94a3b8);
+  border-color: var(--border, #334155);
+  box-shadow: none;
+}
+
+.btn-ghost:hover,
+.btn.ghost:hover {
+  background: var(--bg-card-hover, rgba(148, 163, 184, 0.12));
+  color: var(--text, #f1f5f9);
+  border-color: var(--primary-light, #818cf8);
+  box-shadow: none;
+}
+
+/* --------------------------------------------------------------------------
+   Sizes
+   -------------------------------------------------------------------------- */
+.btn-sm,
+.btn-sm.primary,
+.btn-sm.danger,
+.btn-sm.success,
+.btn-sm.warning,
+.btn-sm.ghost {
+  padding: 7px 14px;
+  font-size: 0.8rem;
+  border-radius: 8px;
+  gap: 0.4rem;
+}
+
+.btn-lg {
+  padding: 13px 26px;
+  font-size: 0.95rem;
+  border-radius: 12px;
+}
+
+/* --------------------------------------------------------------------------
+   Icon buttons — small square actions
+   -------------------------------------------------------------------------- */
+.btn-icon,
+.btn-icon-secondary,
+.btn-edit,
+.btn-delete {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  font-size: 0.85rem;
+  border: 1px solid var(--border, #334155);
+  background: transparent;
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.12s ease;
+}
+
+.btn-icon:hover,
+.btn-icon-secondary:hover {
+  color: var(--primary-light, #818cf8);
+  border-color: var(--primary-light, #818cf8);
+  background: rgba(99, 102, 241, 0.12);
+  transform: translateY(-1px);
+}
+
+.btn-edit:hover {
+  color: var(--primary-light, #818cf8);
+  border-color: var(--primary-light, #818cf8);
+  background: rgba(99, 102, 241, 0.12);
+  transform: translateY(-1px);
+}
+
+.btn-delete:hover {
+  color: #f87171;
+  border-color: #f87171;
+  background: rgba(239, 68, 68, 0.12);
+  transform: translateY(-1px);
+}
+
+.btn-icon:active,
+.btn-icon-secondary:active,
+.btn-edit:active,
+.btn-delete:active {
+  transform: translateY(0) scale(0.94);
+  box-shadow: none;
+}
+
+.btn-icon:focus-visible,
+.btn-icon-secondary:focus-visible,
+.btn-edit:focus-visible,
+.btn-delete:focus-visible {
+  outline: 2px solid var(--primary-light, #818cf8);
+  outline-offset: 2px;
+}
+
+.btn-icon:disabled,
+.btn-icon[disabled],
+.btn-edit:disabled,
+.btn-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none;
+}
+
+/* --------------------------------------------------------------------------
+   Status filter pills — attendance & summary filters
+   Usage: <button class="btn btn-filter filter-present active">✅ Present</button>
+   -------------------------------------------------------------------------- */
+.btn-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 6px 16px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border, #334155);
+  background: transparent;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+  font-family: inherit;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.12s ease;
+}
+
+.btn-filter:hover {
+  color: var(--text, #f1f5f9);
+  border-color: var(--primary-light, #818cf8);
+  background: var(--bg-card-hover, rgba(148, 163, 184, 0.14));
+  transform: translateY(-1px);
+}
+
+.btn-filter:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.btn-filter:focus-visible {
+  outline: 2px solid var(--primary-light, #818cf8);
+  outline-offset: 2px;
+}
+
+.btn-filter.active,
+.btn-filter[aria-pressed="true"] {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  font-weight: 700;
+}
+
+.btn-filter.filter-present {
+  color: #059669;
+  border-color: rgba(5, 150, 105, 0.45);
+}
+
+.btn-filter.filter-present:hover {
+  border-color: #6ee7b7;
+  background: rgba(5, 150, 105, 0.1);
+}
+
+.btn-filter.filter-present.active,
+.btn-filter.filter-present[aria-pressed="true"] {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.45);
+}
+
+.btn-filter.filter-absent {
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, 0.45);
+}
+
+.btn-filter.filter-absent:hover {
+  border-color: #fca5a5;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.btn-filter.filter-absent.active,
+.btn-filter.filter-absent[aria-pressed="true"] {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.45);
+}
+
+.btn-filter.filter-leave {
+  color: #b45309;
+  border-color: rgba(217, 119, 6, 0.45);
+}
+
+.btn-filter.filter-leave:hover {
+  border-color: #fcd34d;
+  background: rgba(217, 119, 6, 0.1);
+}
+
+.btn-filter.filter-leave.active,
+.btn-filter.filter-leave[aria-pressed="true"] {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.45);
+}
+
+/* --------------------------------------------------------------------------
+   In-table attendance status buttons (teacher / attendance roll-call)
+   Colours are supplied by markup utilities; this layer adds the structure
+   that makes them read as buttons: depth, press, hover lift, focus ring.
+   -------------------------------------------------------------------------- */
+.att-btn {
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.12);
+  will-change: transform;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.15s ease,
+    filter 0.2s ease;
+}
+
+.att-btn:not(.present-active):not(.absent-active):not(.leave-active):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.26);
+  filter: saturate(1.12) brightness(1.03);
+}
+
+.att-btn:active {
+  transform: translateY(0) scale(0.97);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  transition-duration: 0.08s;
+}
+
+.att-btn:focus-visible {
+  outline: 2px solid var(--primary-light, #818cf8);
+  outline-offset: 2px;
+}
+
+.att-btn:disabled,
+.att-btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none;
+  box-shadow: none;
+}
+
+/* --------------------------------------------------------------------------
+   Modal confirmation actions
+   -------------------------------------------------------------------------- */
+.confirm-modal-btn {
+  padding: 11px 20px;
+  border-radius: 12px;
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.confirm-modal-btn:hover {
+  transform: translateY(-1px);
+}
+
+.confirm-modal-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.confirm-modal-btn:focus-visible {
+  outline: 2px solid var(--primary-light, #818cf8);
+  outline-offset: 2px;
+}
+
+.confirm-modal-btn--danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+}
+
+.confirm-modal-btn--danger:hover {
+  background: linear-gradient(135deg, #f87171, #ef4444);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+}
+
+.confirm-modal-btn--warning {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+}
+
+.confirm-modal-btn--warning:hover {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5);
+}
+
+.confirm-modal-btn--primary {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+}
+
+.confirm-modal-btn--primary:hover {
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+}
+
+/* --------------------------------------------------------------------------
+   Responsive — never let buttons overflow or collapse on small screens
+   -------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .btn {
+    padding: 9px 14px;
+    font-size: 0.83rem;
+  }
+  .btn-sm,
+  .btn-sm.primary,
+  .btn-sm.danger,
+  .btn-sm.success,
+  .btn-sm.warning,
+  .btn-sm.ghost {
+    padding: 6px 11px;
+    font-size: 0.76rem;
+  }
+  .btn-filter {
+    padding: 5px 12px;
+    font-size: 0.76rem;
+  }
+}

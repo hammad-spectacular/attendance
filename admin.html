@@ -1999,6 +1999,7 @@
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
     }
   </style>
+    <link rel="stylesheet" href="ui-buttons.css">
 </head>
 
 <body>
@@ -2341,20 +2342,16 @@
             </div>
             <!-- Status filter pills -->
             <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;" id="attendanceStatusFilters">
-              <button onclick="setAttendanceStatusFilter('')" id="attSF-all"
-                style="padding:5px 14px; border-radius:20px; border:1.5px solid var(--border); background:var(--primary); color:#fff; font-size:0.8rem; font-weight:600; cursor:pointer;">
+              <button type="button" onclick="setAttendanceStatusFilter('')" id="attSF-all" class="btn btn-filter filter-all active" aria-pressed="true">
                 All
               </button>
-              <button onclick="setAttendanceStatusFilter('Present')" id="attSF-Present"
-                style="padding:5px 14px; border-radius:20px; border:1.5px solid #6ee7b7; background:transparent; color:#059669; font-size:0.8rem; font-weight:600; cursor:pointer;">
+              <button type="button" onclick="setAttendanceStatusFilter('Present')" id="attSF-Present" class="btn btn-filter filter-present" aria-pressed="false">
                 ✅ Present
               </button>
-              <button onclick="setAttendanceStatusFilter('Absent')" id="attSF-Absent"
-                style="padding:5px 14px; border-radius:20px; border:1.5px solid #fca5a5; background:transparent; color:#dc2626; font-size:0.8rem; font-weight:600; cursor:pointer;">
+              <button type="button" onclick="setAttendanceStatusFilter('Absent')" id="attSF-Absent" class="btn btn-filter filter-absent" aria-pressed="false">
                 ❌ Absent
               </button>
-              <button onclick="setAttendanceStatusFilter('Leave')" id="attSF-Leave"
-                style="padding:5px 14px; border-radius:20px; border:1.5px solid #fcd34d; background:transparent; color:#b45309; font-size:0.8rem; font-weight:600; cursor:pointer;">
+              <button type="button" onclick="setAttendanceStatusFilter('Leave')" id="attSF-Leave" class="btn btn-filter filter-leave" aria-pressed="false">
                 📝 Leave
               </button>
             </div>
@@ -4736,12 +4733,15 @@
       const presentBtn = document.getElementById('attSF-Present');
       const absentBtn = document.getElementById('attSF-Absent');
       const leaveBtn = document.getElementById('attSF-Leave');
-      const primary = 'var(--primary)';
-      const reset = 'transparent';
-      if (allBtn) { allBtn.style.background = status === '' ? primary : reset; allBtn.style.color = status === '' ? '#fff' : 'var(--text)'; }
-      if (presentBtn) { presentBtn.style.background = status === 'Present' ? 'rgba(5,150,105,0.12)' : reset; presentBtn.style.fontWeight = status === 'Present' ? '700' : '600'; }
-      if (absentBtn) { absentBtn.style.background = status === 'Absent' ? 'rgba(220,38,38,0.10)' : reset; absentBtn.style.fontWeight = status === 'Absent' ? '700' : '600'; }
-      if (leaveBtn) { leaveBtn.style.background = status === 'Leave' ? 'rgba(180,83,9,0.10)' : reset; leaveBtn.style.fontWeight = status === 'Leave' ? '700' : '600'; }
+      const set = (btn, active) => {
+        if (!btn) return;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-pressed', String(active));
+      };
+      set(allBtn, status === '');
+      set(presentBtn, status === 'Present');
+      set(absentBtn, status === 'Absent');
+      set(leaveBtn, status === 'Leave');
       renderAttendance();
     }
 
