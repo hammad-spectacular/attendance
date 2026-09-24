@@ -3014,8 +3014,8 @@ function setButtonLoading(btn, loading, loadingHtml) {
                   <i class="fas fa-gear"></i>
 
                 </button>
-                <span id="saved-badge-${student.id}" style="display:none; align-items:center; gap:3px; font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px; background:rgba(16,185,129,0.12); color:#059669; border:1px solid rgba(16,185,129,0.3);"><i class="fas fa-check"></i> Saved</span>
-                <button type="button" id="edit-att-btn-${student.id}" onclick="unlockStudentForEdit(${student.id})" title="Edit attendance" style="display:none; align-items:center; gap:4px; font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px; background:rgba(79,70,229,0.08); color:#4f46e5; border:1px solid rgba(79,70,229,0.25); cursor:pointer;"><i class="fas fa-pen"></i> Edit</button>
+                <span id="saved-badge-${student.id}" style="display:none; align-items:center; gap:3px; font-size:10px; font-weight:600; padding:1px 8px; border-radius:12px; background:rgba(16,185,129,0.10); color:#059669;"><i class="fas fa-check"></i> Saved</span>
+                <button type="button" id="edit-att-btn-${student.id}" onclick="unlockStudentForEdit(${student.id})" title="Edit attendance" style="display:none; align-items:center; gap:4px; font-size:11px; font-weight:600; padding:2px 10px; border-radius:12px; background:#fff; color:#4f46e5; border:1.5px solid #4f46e5; cursor:pointer; font-family:inherit;" onmouseover="this.style.background='#eef2ff';" onmouseout="this.style.background='#fff';"><i class="fas fa-pen"></i> Edit</button>
 
               </div>
 
@@ -3529,10 +3529,10 @@ function setButtonLoading(btn, loading, loadingHtml) {
       // Sync UI state into student object (since UI uses attendanceState)
       students.forEach(s => s.status = attendanceState[s.id]);
 
-      // 1. VALIDATION - At least one student marked
-      const markedStudents = students.filter(s => s.status !== null);
-      if (markedStudents.length === 0) {
-        showToast('⚠️ Please mark attendance for at least one student', 'warning');
+      // 1. VALIDATION - Every student must be marked before submit
+      const unmarkedStudents = students.filter(s => s.status === null || s.status === undefined);
+      if (unmarkedStudents.length > 0) {
+        showToast(`⚠️ ${unmarkedStudents.length} student${unmarkedStudents.length !== 1 ? 's' : ''} not yet marked`, 'warning');
         return;
       }
 
@@ -3590,6 +3590,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
           return response.json();
         })
         .then(data => {
+          setButtonLoading(submitBtn, false);
           console.log('✅ Server response:', data);
 
           // Update submittedStudentIds with confirmed saved students
