@@ -297,8 +297,8 @@
   gap: 0.4rem;
   padding: 6px 16px;
   border-radius: 999px;
-  border: 1.5px solid var(--border, #334155);
-  background: transparent;
+  border: 2px solid var(--border, #334155);
+  background: rgba(148, 163, 184, 0.14);
   color: var(--text-secondary, #94a3b8);
   font-size: 0.8rem;
   font-weight: 600;
@@ -308,6 +308,7 @@
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.12);
   transition:
     background 0.18s ease,
     color 0.18s ease,
@@ -317,14 +318,16 @@
 }
 
 .btn-filter:hover {
-  color: var(--text, #f1f5f9);
+  color: #fff;
   border-color: var(--primary-light, #818cf8);
-  background: var(--bg-card-hover, rgba(148, 163, 184, 0.14));
+  background: rgba(148, 163, 184, 0.28);
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .btn-filter:active {
-  transform: translateY(0) scale(0.97);
+  transform: translateY(0) scale(0.96);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .btn-filter:focus-visible {
@@ -337,18 +340,23 @@
   color: #fff;
   border-color: transparent;
   background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.45);
   font-weight: 700;
+  transform: translateY(-1px);
 }
 
 .btn-filter.filter-present {
-  color: #059669;
-  border-color: rgba(5, 150, 105, 0.45);
+  color: #34d399;
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.16);
+  box-shadow: 0 1px 2px rgba(16, 185, 129, 0.22);
 }
 
 .btn-filter.filter-present:hover {
-  border-color: #6ee7b7;
-  background: rgba(5, 150, 105, 0.1);
+  color: #fff;
+  border-color: #34d399;
+  background: rgba(16, 185, 129, 0.38);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
 }
 
 .btn-filter.filter-present.active,
@@ -356,17 +364,21 @@
   color: #fff;
   border-color: transparent;
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.45);
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.5);
 }
 
 .btn-filter.filter-absent {
-  color: #dc2626;
-  border-color: rgba(220, 38, 38, 0.45);
+  color: #fca5a5;
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.16);
+  box-shadow: 0 1px 2px rgba(220, 38, 38, 0.22);
 }
 
 .btn-filter.filter-absent:hover {
-  border-color: #fca5a5;
-  background: rgba(220, 38, 38, 0.1);
+  color: #fff;
+  border-color: #f87171;
+  background: rgba(220, 38, 38, 0.38);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35);
 }
 
 .btn-filter.filter-absent.active,
@@ -374,17 +386,21 @@
   color: #fff;
   border-color: transparent;
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.45);
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.5);
 }
 
 .btn-filter.filter-leave {
-  color: #b45309;
-  border-color: rgba(217, 119, 6, 0.45);
+  color: #fbbf24;
+  border-color: #d97706;
+  background: rgba(217, 119, 6, 0.16);
+  box-shadow: 0 1px 2px rgba(217, 119, 6, 0.22);
 }
 
 .btn-filter.filter-leave:hover {
+  color: #fff;
   border-color: #fcd34d;
-  background: rgba(217, 119, 6, 0.1);
+  background: rgba(217, 119, 6, 0.38);
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.35);
 }
 
 .btn-filter.filter-leave.active,
@@ -392,7 +408,7 @@
   color: #fff;
   border-color: transparent;
   background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.45);
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.5);
 }
 
 /* --------------------------------------------------------------------------

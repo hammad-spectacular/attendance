@@ -2046,6 +2046,12 @@
     </div>
   </div>
 
+  <!-- ======================== CAPACITY ======================== -->
+  <div class="capacity-strip" id="capacityStrip" style="display:none;border-bottom:1px solid var(--border);padding:8px 18px;font-size:0.82rem;color:var(--text-secondary);gap:24px;flex-wrap:wrap;align-items:center;background:var(--bg-card);">
+    <span style="display:flex;align-items:center;gap:8px;"><strong style="color:var(--text);">Students:</strong> <span id="capStudents">—</span></span>
+    <span style="display:flex;align-items:center;gap:8px;"><strong style="color:var(--text);">Teachers:</strong> <span id="capTeachers">—</span></span>
+  </div>
+
   <!-- ======================== TAB NAVIGATION ======================== -->
   <nav class="tab-nav" id="tabNav">
     <button id="mobileNavToggle" class="tab-nav-toggle" aria-expanded="false" aria-controls="tabNavInner" aria-label="Open section menu">
@@ -5705,10 +5711,29 @@
       }
     });
 
+    function loadCapacity() {
+      const strip = document.getElementById('capacityStrip');
+      if (!strip) return;
+      apiFetch('/api/auth/capacity').then(r => r.json().catch(() => ({}))).then(data => {
+        const students = Number(data.student_limit) > 0 && data.student_count !== undefined && data.student_count !== null
+          ? `${Number(data.student_count)} / ${Number(data.student_limit)}`
+          : '';
+        const teachers = Number(data.teacher_limit) > 0 && data.teacher_count !== undefined && data.teacher_count !== null
+          ? `${Number(data.teacher_count)} / ${Number(data.teacher_limit)}`
+          : '';
+        const sEl = document.getElementById('capStudents');
+        const tEl = document.getElementById('capTeachers');
+        if (students && sEl) sEl.textContent = students;
+        if (teachers && tEl) tEl.textContent = teachers;
+        if ((students || teachers)) strip.style.display = 'flex';
+      }).catch(() => {});
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
       setupSectionTabs();
       setupHeaderMenu();
       loadTheme();
+      loadCapacity();
 
       // Configure dynamic modals close triggers
       const setupModalDismiss = (modalId, closeFn) => {

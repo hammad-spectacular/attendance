@@ -476,6 +476,26 @@
     .summary-card.absent { border-color: rgba(239, 68, 68, 0.25); background: var(--danger-bg); }
     .summary-card.leave { border-color: rgba(245, 158, 11, 0.25); background: var(--warning-bg); }
 
+    .fee-status-badge {
+      font-size: 0.78rem;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: 1px solid transparent;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    .fee-status-badge.paid { background: rgba(34, 197, 94, 0.16); color: #4ade80; border-color: rgba(34, 197, 94, 0.55); }
+    .fee-status-badge.unpaid { background: rgba(239, 68, 68, 0.16); color: #f87171; border-color: rgba(239, 68, 68, 0.55); }
+    .fee-status-badge.partial { background: rgba(245, 158, 11, 0.16); color: #fbbf24; border-color: rgba(245, 158, 11, 0.55); }
+    .fee-status-badge.pending_approval { background: rgba(99, 102, 241, 0.16); color: #a5b4fc; border-color: rgba(99, 102, 241, 0.55); }
+    .fee-status-badge.not_set_up { background: rgba(100, 116, 139, 0.18); color: #cbd5e1; border-color: rgba(100, 116, 139, 0.45); }
+
     .summary-number {
       font-size: 1.7rem;
       font-weight: 800;
@@ -1278,15 +1298,27 @@ function setButtonLoading(btn, loading, loadingHtml) {
       `;
     }
 
-    function renderFees(records) {
+    function renderFees(records, structure) {
       const feeHistory = Array.isArray(records) ? records : [];
       state.fees = feeHistory;
       const currentMonth = feeHistory[0];
       const currentStatus = String(currentMonth?.status || 'not_set_up').toLowerCase();
       const statusLabel = currentStatus === 'paid' ? 'Paid' : currentStatus === 'partial' ? 'Partial' : currentStatus === 'pending_approval' ? 'Pending Approval' : currentStatus === 'not_set_up' ? 'Not Set Up' : 'Unpaid';
-      const statusColor = currentStatus === 'paid' ? 'var(--success)' : currentStatus === 'partial' ? 'var(--warning)' : currentStatus === 'pending_approval' ? 'var(--primary)' : currentStatus === 'not_set_up' ? 'var(--text-muted)' : 'var(--danger)';
 
-      if (!feeHistory.length) {
+      const hasStructure = structure && typeof structure === 'object';
+      const money = value => Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+      const structureRows = hasStructure
+        ? [
+            { label: 'Monthly / Tuition', value: money(structure.monthly_fee) },
+            { label: 'Admission Fee', value: money(structure.admission_fee) },
+            { label: 'Transport Fee', value: money(structure.transport_fee) },
+            { label: 'Discount', value: money(structure.discount) }
+          ]
+        : [];
+
+      const statusBadge = cls => `<span class="fee-status-badge ${escapeHtml(cls || 'unpaid')}">${escapeHtml(statusLabel)}</span>`;
+
+      if (!feeHistory.length && !hasStructure) {
         document.getElementById('feesSection').innerHTML = `
           <div style="text-align:center; padding:40px 20px; color:var(--text-muted);">
             <div style="font-size:2rem; margin-bottom:12px;">💳</div>
@@ -1297,14 +1329,17 @@ function setButtonLoading(btn, loading, loadingHtml) {
         return;
       }
 
+      const planSource = hasStructure && structure.type === 'student' ? 'Personal fee plan' : 'Class fee plan';
+
       document.getElementById('feesSection').innerHTML = `
+        ${feeHistory.length ? `
         <div class="attendance-grid" style="margin-bottom:14px;">
           <div class="summary-card">
             <div class="summary-number">${escapeHtml(currentMonth?.month_year || '-')}</div>
             <div class="summary-label">Current Month</div>
           </div>
-          <div class="summary-card" style="border-color:${statusColor};">
-            <div class="summary-number">${escapeHtml(statusLabel)}</div>
+          <div class="summary-card">
+            <div>${statusBadge(currentStatus === 'not_set_up' ? 'not_set_up' : currentStatus)}</div>
             <div class="summary-label">Fee Status</div>
           </div>
           <div class="summary-card">
@@ -1315,28 +1350,65 @@ function setButtonLoading(btn, loading, loadingHtml) {
             <div class="summary-number">${escapeHtml(String(currentMonth?.amount_paid || 0))}</div>
             <div class="summary-label">Amount Paid</div>
           </div>
-        </div>
+        </div>` : ''}
+        ${hasStructure ? `
+        <section class="section-card" style="margin-bottom:14px;">
+          <div class="section-header">
+            <div class="section-icon ${structure.type === 'student' ? 'blue' : 'orange'}"><i class="fas fa-receipt"></i></div>
+            <div>
+              <div class="section-title">Fee Structure</div>
+              <div class="section-subtitle">${planSource}${escapeHtml(currentMonth?.class_name ? ` — ${currentMonth.class_name}` : '')}</div>
+            </div>
+          </div>
+          <div class="section-body" style="padding:0;">
+            <div class="item-list" style="margin:0;">
+              ${structureRows.map(r => `
+                <div class="list-item" style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                  <div class="item-title">${escapeHtml(r.label)}</div>
+                  <div style="font-weight:700; color:var(--text); white-space:nowrap;">${escapeHtml(r.value)}</div>
+                </div>`).join('')}
+            </div>
+          </div>
+        </section>` : `
+        <div class="item-list" style="margin-bottom:14px;">
+          <div class="list-item">
+            <div class="item-title">No fee structure assigned yet</div>
+            <div class="item-text">Ask the admin to set up fee structures for this class.</div>
+          </div>
+        </div>`}
+        ${feeHistory.length ? `
         <div class="item-list">
           <div style="font-size:0.9rem; font-weight:700; color:var(--text); margin-bottom:8px;">Recent Fee History</div>
-          ${feeHistory.map(item => `
+          ${feeHistory.map(item => {
+            const st = String(item.status || 'unpaid').toLowerCase();
+            const stLabel = st === 'paid' ? 'Paid' : st === 'partial' ? 'Partial' : st === 'pending_approval' ? 'Pending Approval' : st === 'not_set_up' ? 'Not Set Up' : 'Unpaid';
+            return `
             <div class="list-item">
               <div class="item-topline">
                 <div class="item-title">${escapeHtml(item.month_year || 'Month')}</div>
-                <div class="item-date">${escapeHtml(item.payment_date || 'Pending')}</div>
+                <span class="fee-status-badge ${st === 'not_set_up' ? 'not_set_up' : escapeHtml(st)}">${escapeHtml(stLabel)}</span>
               </div>
-              <div class="item-text">Due ${escapeHtml(String(item.amount_due || 0))} • Paid ${escapeHtml(String(item.amount_paid || 0))} • ${escapeHtml(item.notes || '')}</div>
-            </div>
-          `).join('')}
-        </div>
+              <div class="item-text">Due ${escapeHtml(String(item.amount_due || 0))} • Paid ${escapeHtml(String(item.amount_paid || 0))} • ${escapeHtml(item.payment_date || 'Pending')}</div>
+            </div>`;
+          }).join('')}
+        </div>` : ''}
       `;
     }
 
     async function loadFees() {
       try {
         const payload = await fetchOptional([`${API}/api/fees/me`, `${API}/api/fees`]);
-        renderFees(Array.isArray(payload) ? payload : []);
+        let records = [];
+        let structure = null;
+        if (Array.isArray(payload)) {
+          records = payload;
+        } else if (payload && Array.isArray(payload.records)) {
+          records = payload.records;
+          structure = payload.structure || null;
+        }
+        renderFees(records, structure);
       } catch (err) {
-        renderFees([]);
+        renderFees([], null);
       }
     }
 

@@ -212,9 +212,38 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
       <label for="schoolCode">School Code (4 uppercase letters)</label>
       <input type="text" id="schoolCode" placeholder="e.g. HARV" maxlength="4" style="text-transform:uppercase;font-family:monospace;font-size:1.1rem;letter-spacing:4px;text-align:center;">
     </div>
+    <div class="form-group">
+      <label for="studentLimitInput">Student Capacity</label>
+      <input type="number" id="studentLimitInput" min="1" step="1" value="500" placeholder="e.g. 500">
+    </div>
+    <div class="form-group">
+      <label for="teacherLimitInput">Teacher Capacity</label>
+      <input type="number" id="teacherLimitInput" min="1" step="1" value="50" placeholder="e.g. 50">
+    </div>
     <div class="modal-actions">
       <button class="btn primary" onclick="confirmApprove()">Approve</button>
       <button class="btn ghost" onclick="closeModal('approveModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Capacity Modal -->
+<div class="modal" id="capacityModal">
+  <div class="modal-card">
+    <h3><i class="fas fa-sliders-h"></i> School Capacity</h3>
+    <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px;"><strong id="capacitySchoolDisplay"></strong></p>
+    <input type="hidden" id="capacitySchoolCode">
+    <div class="form-group">
+      <label for="capacityStudentInput">Student Capacity</label>
+      <input type="number" id="capacityStudentInput" min="1" step="1" placeholder="Current value">
+    </div>
+    <div class="form-group">
+      <label for="capacityTeacherInput">Teacher Capacity</label>
+      <input type="number" id="capacityTeacherInput" min="1" step="1" placeholder="Current value">
+    </div>
+    <div class="modal-actions">
+      <button class="btn primary" onclick="saveCapacity()">Save</button>
+      <button class="btn ghost" onclick="closeModal('capacityModal')">Cancel</button>
     </div>
   </div>
 </div>
@@ -333,6 +362,8 @@ function openApproveModal(id, name) {
   document.getElementById('approveSchoolName').value = name;
   document.getElementById('approveSchoolDisplay').textContent = name;
   document.getElementById('schoolCode').value = '';
+  document.getElementById('studentLimitInput').value = '500';
+  document.getElementById('teacherLimitInput').value = '50';
   openModal('approveModal');
 }
 
@@ -341,11 +372,13 @@ async function confirmApprove() {
   const school_name = document.getElementById('approveSchoolName').value;
   const school_code = document.getElementById('schoolCode').value.trim().toUpperCase();
   if (!school_code || school_code.length !== 4) { showToast('⚠️ Enter a valid 4-letter code', 'warning'); return; }
+  const student_limit = document.getElementById('studentLimitInput').value.trim();
+  const teacher_limit = document.getElementById('teacherLimitInput').value.trim();
   try {
     const res = await fetch(API_BASE + '/api/auth/approve-school', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeader() },
-      body: JSON.stringify({ request_id, school_code, school_name })
+      body: JSON.stringify({ request_id, school_code, school_name, student_limit, teacher_limit })
     });
     const data = await res.json();
     if (!res.ok) { showToast('⚠️ ' + (data.error || 'Failed'), 'error'); return; }
@@ -497,13 +530,41 @@ async function fetchActiveSchools() {
     if (!res.ok) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🔒</div><div class="msg">Access denied</div></div>'; return; }
     const data = await res.json();
     if (data.length === 0) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🏫</div><div class="msg">No active schools</div></div>'; return; }
-    let html = '<table class="data-table"><thead><tr><th>Code</th><th>School Name</th><th>Status</th><th>Created</th><th class="actions-col">Actions</th></tr></thead><tbody>';
+    let html = '<table class="data-table"><thead><tr><th>Code</th><th>School Name</th><th>Capacity</th><th>Status</th><th>Created</th><th class="actions-col">Actions</th></tr></thead><tbody>';
     data.forEach(s => {
-      html += `<tr><td><span class="badge" style="background:var(--badge-bg);color:var(--badge-text);font-family:monospace;">${escapeHtml(s.school_code)}</span></td><td>${escapeHtml(s.school_name)}</td><td><span class="badge active">Active</span></td><td style="font-size:0.75rem;">${new Date(s.created_at).toLocaleDateString()}</td><td class="actions-col"><div class="actions"><button class="btn-sm danger" onclick="suspendSchool(${s.id})"><i class="fas fa-ban"></i> Suspend</button></div></td></tr>`;
+      const capHtml = `Students ${Number(s.student_count)}/${Number(s.student_limit)} &mdash; Teachers ${Number(s.teacher_count)}/${Number(s.teacher_limit)}`;
+      html += `<tr><td><span class="badge" style="background:var(--badge-bg);color:var(--badge-text);font-family:monospace;">${escapeHtml(s.school_code)}</span></td><td>${escapeHtml(s.school_name)}</td><td style="font-size:0.78rem;">${capHtml}</td><td><span class="badge active">Active</span></td><td style="font-size:0.75rem;">${new Date(s.created_at).toLocaleDateString()}</td><td class="actions-col"><div class="actions"><button class="btn-sm" onclick="openCapacityModal('${escapeHtml(s.school_code)}','${escapeHtml(s.school_name)}',${Number(s.student_limit)},${Number(s.teacher_limit)})"><i class="fas fa-sliders-h"></i> Capacity</button><button class="btn-sm danger" onclick="suspendSchool(${s.id})"><i class="fas fa-ban"></i> Suspend</button></div></td></tr>`;
     });
     html += '</tbody></table>';
     wrap.innerHTML = html;
   } catch(e) { wrap.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div class="msg">Failed to load</div></div>'; }
+}
+
+function openCapacityModal(code, name, studentLimit, teacherLimit) {
+  document.getElementById('capacitySchoolCode').value = code;
+  document.getElementById('capacitySchoolDisplay').textContent = `${name} (${code})`;
+  document.getElementById('capacityStudentInput').value = studentLimit;
+  document.getElementById('capacityTeacherInput').value = teacherLimit;
+  openModal('capacityModal');
+}
+
+async function saveCapacity() {
+  const school_code = document.getElementById('capacitySchoolCode').value;
+  const student_limit = document.getElementById('capacityStudentInput').value.trim();
+  const teacher_limit = document.getElementById('capacityTeacherInput').value.trim();
+  if (!student_limit && !teacher_limit) { showToast('⚠️ Provide at least one capacity value', 'warning'); return; }
+  try {
+    const res = await fetch(API_BASE + '/api/auth/update-school-capacity', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ school_code, student_limit: student_limit || undefined, teacher_limit: teacher_limit || undefined })
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast('⚠️ ' + (data.error || 'Failed'), 'error'); return; }
+    closeModal('capacityModal');
+    fetchActiveSchools();
+    showToast('✅ Capacity updated', 'success');
+  } catch(e) { showToast('Connection error. Please check your internet and try again.', 'error'); }
 }
 
 async function fetchSuspendedSchools() {

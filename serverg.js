@@ -46,6 +46,8 @@ if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
 const APP_URL = process.env.APP_URL || 'http://localhost:3000'
 const SMTP_FROM = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@theeye.app'
 const RESET_TOKEN_EXPIRY_MINUTES = 30
+const DEFAULT_STUDENT_LIMIT = Math.max(1, Number.parseInt(process.env.DEFAULT_STUDENT_LIMIT, 10) || 500)
+const DEFAULT_TEACHER_LIMIT = Math.max(1, Number.parseInt(process.env.DEFAULT_TEACHER_LIMIT, 10) || 50)
 
 // ============================================
 // RATE LIMITER — forgot-password
@@ -106,6 +108,37 @@ function generateTempPassword() {
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char])
+}
+
+function parsePositiveLimit(value, fallback) {
+  if (value === undefined || value === null || value === '') return fallback
+  const n = Number(value)
+  if (!Number.isInteger(n) || n <= 0) return null
+  return n
+}
+
+async function fetchCapacity(q, tenantId) {
+  const result = await q.query(
+    `SELECT student_limit, teacher_limit,
+            (SELECT COUNT(*) FROM students WHERE tenant_id = o.school_code) AS student_count,
+            (SELECT COUNT(*) FROM teachers WHERE tenant_id = o.school_code) AS teacher_count
+     FROM organizations o WHERE o.school_code = $1`,
+    [tenantId]
+  )
+  return result.rows[0] || null
+}
+
+async function capacityViolation(q, tenantId, type, batchSize = 1) {
+  const cap = await fetchCapacity(q, tenantId)
+  if (!cap) return null
+  const isStudent = type === 'student'
+  const limit = Number(cap[isStudent ? 'student_limit' : 'teacher_limit'])
+  const current = Number(cap[isStudent ? 'student_count' : 'teacher_count'])
+  const needing = Math.max(1, Math.floor(Number(batchSize) || 1))
+  if (current + needing <= limit) return null
+  const label = isStudent ? 'Student' : 'Teacher'
+  if (needing === 1) return `${label} capacity reached (${limit}). Contact Super Admin to increase your capacity.`
+  return `Not enough ${label.toLowerCase()} capacity: ${current} / ${limit} used, and this batch of ${needing} would exceed the limit. Contact Super Admin to increase your capacity.`
 }
 
 function parseFullId(full_id) {
@@ -276,6 +309,11 @@ async function createTables() {
       status VARCHAR(20) DEFAULT 'active',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS student_limit INTEGER NOT NULL DEFAULT ${DEFAULT_STUDENT_LIMIT};
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS teacher_limit INTEGER NOT NULL DEFAULT ${DEFAULT_TEACHER_LIMIT};
+    UPDATE organizations SET student_limit = GREATEST(student_limit, (SELECT COUNT(*) FROM students s WHERE s.tenant_id = organizations.school_code));
+    UPDATE organizations SET teacher_limit = GREATEST(teacher_limit, (SELECT COUNT(*) FROM teachers t WHERE t.tenant_id = organizations.school_code));
 
     CREATE TABLE IF NOT EXISTS school_requests (
       id SERIAL PRIMARY KEY,
@@ -970,6 +1008,9 @@ app.post('/api/auth/create-teacher', requireAuth(['admin']), async (req, res) =>
 
     const tenant_id = req.user.tenant_id
 
+    const capErr = await capacityViolation(pool, tenant_id, 'teacher')
+    if (capErr) return res.status(400).json({ error: capErr })
+
     const highestResult = await pool.query(
       `SELECT login_id FROM teachers WHERE tenant_id = $1 AND (login_id LIKE 'T%' OR login_id LIKE $2) ORDER BY login_id DESC LIMIT 1`,
       [tenant_id, `${tenant_id}-T%`]
@@ -1011,6 +1052,9 @@ app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) =>
     if (email === undefined) return res.status(400).json({ error: 'Enter a valid email address' })
 
     const tenant_id = req.user.tenant_id
+
+    const capErr = await capacityViolation(pool, tenant_id, 'student')
+    if (capErr) return res.status(400).json({ error: capErr })
 
     const highestResult = await pool.query(
       `SELECT login_id FROM students WHERE tenant_id = $1 AND (login_id LIKE 'S%' OR login_id LIKE $2) ORDER BY login_id DESC LIMIT 1`,
@@ -1062,6 +1106,12 @@ app.post('/api/auth/bulk-create-students', requireAuth(['admin', 'super_admin'])
   
   try {
     await client.query('BEGIN');
+
+    const capErr = await capacityViolation(client, tenant_id, 'student', count);
+    if (capErr) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: capErr });
+    }
 
     const highestResult = await client.query(
       `SELECT login_id FROM students WHERE tenant_id = $1 AND (login_id LIKE 'S%' OR login_id LIKE $2) ORDER BY login_id DESC LIMIT 1`,
@@ -1122,6 +1172,12 @@ app.post('/api/auth/bulk-create-teachers', requireAuth(['admin', 'super_admin'])
   
   try {
     await client.query('BEGIN');
+
+    const capErr = await capacityViolation(client, tenant_id, 'teacher', count);
+    if (capErr) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: capErr });
+    }
 
     const highestResult = await client.query(
       `SELECT login_id FROM teachers WHERE tenant_id = $1 AND (login_id LIKE 'T%' OR login_id LIKE $2) ORDER BY login_id DESC LIMIT 1`,
@@ -1279,7 +1335,7 @@ app.post('/api/auth/register-school', async (req, res) => {
 // POST /api/auth/approve-school
 app.post('/api/auth/approve-school', requireAuth(['super_admin']), async (req, res) => {
   try {
-    const { request_id, school_code, school_name } = req.body
+    const { request_id, school_code, school_name, student_limit, teacher_limit } = req.body
 
     if (!request_id || !school_code || !school_name) {
       return res.status(400).json({ error: 'All fields are required' })
@@ -1288,6 +1344,15 @@ app.post('/api/auth/approve-school', requireAuth(['super_admin']), async (req, r
     const code = school_code.toUpperCase()
     if (!/^[A-Z]{4}$/.test(code)) {
       return res.status(400).json({ error: 'School code must be exactly 4 uppercase letters' })
+    }
+
+    const parsedStudentLimit = parsePositiveLimit(student_limit, DEFAULT_STUDENT_LIMIT)
+    const parsedTeacherLimit = parsePositiveLimit(teacher_limit, DEFAULT_TEACHER_LIMIT)
+    if (parsedStudentLimit === null) {
+      return res.status(400).json({ error: 'Student capacity must be a positive whole number' })
+    }
+    if (parsedTeacherLimit === null) {
+      return res.status(400).json({ error: 'Teacher capacity must be a positive whole number' })
     }
 
     const requestResult = await pool.query('SELECT contact_person, contact_email FROM school_requests WHERE id = $1', [request_id])
@@ -1310,8 +1375,8 @@ app.post('/api/auth/approve-school', requireAuth(['super_admin']), async (req, r
       await client.query('BEGIN')
 
       await client.query(
-        'INSERT INTO organizations (school_code, school_name, contact_email, status) VALUES ($1, $2, $3, $4)',
-        [code, school_name, contactEmail, 'active']
+        'INSERT INTO organizations (school_code, school_name, contact_email, status, student_limit, teacher_limit) VALUES ($1, $2, $3, $4, $5, $6)',
+        [code, school_name, contactEmail, 'active', parsedStudentLimit, parsedTeacherLimit]
       )
 
       tempPasswordToReturn = generateTempPassword()
@@ -1368,10 +1433,73 @@ app.get('/api/auth/pending-requests', requireAuth(['super_admin']), async (req, 
 app.get('/api/auth/active-schools', requireAuth(['super_admin']), async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT * FROM organizations WHERE status = 'active' ORDER BY created_at DESC"
+      `SELECT o.*,
+              (SELECT COUNT(*) FROM students s WHERE s.tenant_id = o.school_code) AS student_count,
+              (SELECT COUNT(*) FROM teachers t WHERE t.tenant_id = o.school_code) AS teacher_count
+       FROM organizations o WHERE o.status = 'active' ORDER BY o.created_at DESC`
     )
     res.json(result.rows)
   } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/auth/update-school-capacity
+app.post('/api/auth/update-school-capacity', requireAuth(['super_admin']), async (req, res) => {
+  try {
+    const { school_code, student_limit, teacher_limit } = req.body
+    const code = String(school_code || '').trim().toUpperCase()
+    if (!/^[A-Z]{4}$/.test(code)) {
+      return res.status(400).json({ error: 'Valid 4-letter school code is required' })
+    }
+
+    const hasStudent = !(student_limit === undefined || student_limit === null || student_limit === '')
+    const hasTeacher = !(teacher_limit === undefined || teacher_limit === null || teacher_limit === '')
+    if (!hasStudent && !hasTeacher) {
+      return res.status(400).json({ error: 'Provide at least one capacity value' })
+    }
+    const parsedStudent = hasStudent ? parsePositiveLimit(student_limit, null) : undefined
+    const parsedTeacher = hasTeacher ? parsePositiveLimit(teacher_limit, null) : undefined
+    if (parsedStudent === null) return res.status(400).json({ error: 'Student capacity must be a positive whole number' })
+    if (parsedTeacher === null) return res.status(400).json({ error: 'Teacher capacity must be a positive whole number' })
+
+    const sets = []
+    const params = []
+    let index = 1
+    if (parsedStudent !== undefined) {
+      sets.push(`student_limit = $${index++}`)
+      params.push(parsedStudent)
+    }
+    if (parsedTeacher !== undefined) {
+      sets.push(`teacher_limit = $${index++}`)
+      params.push(parsedTeacher)
+    }
+    params.push(code)
+
+    const result = await pool.query(
+      `UPDATE organizations SET ${sets.join(', ')} WHERE school_code = $${index} RETURNING school_code, student_limit, teacher_limit`,
+      params
+    )
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'School not found' })
+    }
+    res.json({ success: true, school: result.rows[0] })
+  } catch (err) {
+    console.error('Update school capacity error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/auth/capacity
+app.get('/api/auth/capacity', requireAuth(['admin']), async (req, res) => {
+  try {
+    const cap = await fetchCapacity(pool, req.user.tenant_id)
+    if (!cap) {
+      return res.status(404).json({ error: 'School not found' })
+    }
+    res.json(cap)
+  } catch (err) {
+    console.error('Fetch capacity error:', err)
     res.status(500).json({ error: 'Server error' })
   }
 })
@@ -1511,6 +1639,8 @@ app.get('/api/teachers', requireAuth(['admin', 'teacher', 'student', 'super_admi
 app.post('/api/teachers', requireAuth(['admin', 'super_admin']), async (req, res) => {
   const { name, phone, class_id } = req.body
   const tenant_id = req.user.tenant_id
+  const capErr = await capacityViolation(pool, tenant_id, 'teacher')
+  if (capErr) return res.status(400).json({ error: capErr })
   const result = await pool.query(
     'INSERT INTO teachers (name, phone, class_id, tenant_id) VALUES ($1, $2, $3, $4) RETURNING *',
     [name, phone, class_id, tenant_id]
@@ -1592,6 +1722,8 @@ app.get('/api/students/:id', requireAuth(['admin', 'teacher', 'super_admin']), a
 app.post('/api/students', requireAuth(['admin', 'super_admin']), async (req, res) => {
   const { name, roll_no, phone, class_id } = req.body
   const tenant_id = req.user.tenant_id
+  const capErr = await capacityViolation(pool, tenant_id, 'student')
+  if (capErr) return res.status(400).json({ error: capErr })
   const result = await pool.query(
     'INSERT INTO students (name, roll_no, phone, class_id, tenant_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
     [name, roll_no, phone, class_id, tenant_id]
@@ -2126,15 +2258,24 @@ app.get('/api/fees/me', requireAuth(['student']), async (req, res) => {
   // Find fee structure — student override first, then class default (same as getStudentMonthlyFee)
   let monthlyFee = 0
   let feeStructureExists = false
-  const fsResult = await pool.query(
-    `SELECT monthly_fee FROM fee_structures WHERE type = 'student' AND target_id = $1 AND tenant_id = $2
-     UNION ALL
-     SELECT monthly_fee FROM fee_structures WHERE type = 'class' AND target_id = $3 AND tenant_id = $2
-     LIMIT 1`,
-    [student_id, tenant_id, student.class_id || 0]
+  let feeStructure = null
+  const studentFs = await pool.query(
+    `SELECT type, monthly_fee, admission_fee, transport_fee, discount
+     FROM fee_structures WHERE type = 'student' AND target_id = $1 AND tenant_id = $2`,
+    [student_id, tenant_id]
   )
-  if (fsResult.rows.length > 0) {
-    monthlyFee = Number(fsResult.rows[0].monthly_fee) || 0
+  if (studentFs.rows.length > 0) {
+    feeStructure = studentFs.rows[0]
+  } else {
+    const classFs = await pool.query(
+      `SELECT type, monthly_fee, admission_fee, transport_fee, discount
+       FROM fee_structures WHERE type = 'class' AND target_id = $1 AND tenant_id = $2`,
+      [student.class_id || 0, tenant_id]
+    )
+    feeStructure = classFs.rows[0] || null
+  }
+  if (feeStructure) {
+    monthlyFee = Number(feeStructure.monthly_fee) || 0
     feeStructureExists = true
   }
 
@@ -2178,7 +2319,7 @@ app.get('/api/fees/me', requireAuth(['student']), async (req, res) => {
     })
   }
 
-  res.json(records)
+  res.json({ records, structure: feeStructure })
 })
 
 
