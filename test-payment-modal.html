@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Payment Modal</title>
+    <style>
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.5);
+        }
+        .modal.open {
+            display: flex !important;
+        }
+        .modal-card {
+            background: white;
+            border-radius: 16px;
+            padding: 28px 24px;
+            width: 90%;
+            max-width: 480px;
+        }
+        .form-group {
+            margin-bottom: 14px;
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 6px;
+        }
+        .form-input, .form-select {
+            width: 100%;
+            padding: 11px 14px;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+        }
+        .btn {
+            padding: 11px 22px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-primary {
+            background: #4f46e5;
+            color: white;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <button onclick="openPaymentModal()">Open Payment Modal</button>
+
+    <div class="modal" id="paymentModal">
+        <div class="modal-card">
+            <h3>Record Payment</h3>
+            <form id="paymentForm">
+                <div class="form-group">
+                    <label class="form-label">Student</label>
+                    <select class="form-select" id="paymentStudent">
+                        <option value="23">Student 1 (ID: 23)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Month</label>
+                    <select class="form-select" id="paymentMonth">
+                        <option value="2025-09">September 2025</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Amount Due</label>
+                    <input type="text" class="form-input" id="amountDue" value="6000" readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Amount Paid</label>
+                    <input type="number" class="form-input" id="amountPaid" value="6000">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Payment Method</label>
+                    <select class="form-select" id="paymentMethod">
+                        <option value="cash">Cash</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Payment Date</label>
+                    <input type="date" class="form-input" id="paymentDate" value="2025-09-25">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <input type="text" class="form-input" id="paymentNotes" value="Test payment">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn" onclick="closePaymentModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Payment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function openPaymentModal() {
+            document.getElementById('paymentModal').classList.add('open');
+        }
+
+        function closePaymentModal() {
+            document.getElementById('paymentModal').classList.remove('open');
+        }
+
+        document.getElementById('paymentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const data = {
+                    student_id: parseInt(document.getElementById('paymentStudent').value),
+                    month: document.getElementById('paymentMonth').value,
+                    amount_due: parseFloat(document.getElementById('amountDue').value.replace(/[^0-9.]/g, '')) || 0,
+                    amount_paid: parseFloat(document.getElementById('amountPaid').value) || 0,
+                    payment_method: document.getElementById('paymentMethod').value,
+                    payment_date: document.getElementById('paymentDate').value,
+                    notes: document.getElementById('paymentNotes').value
+                };
+
+                console.log('Submitting payment data:', data);
+
+                const response = await fetch('http://localhost:3000/api/fees/payments', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                console.log('Response status:', response.status);
+                const result = await response.json();
+                console.log('Response data:', result);
+
+                if (response.ok) {
+                    alert('Payment recorded successfully!');
+                    closePaymentModal();
+                } else {
+                    alert('Failed to record payment: ' + (result.error || 'Unknown error'));
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                alert('Failed to record payment: ' + err.message);
+            }
+        });
+    </script>
+</body>
+</html>

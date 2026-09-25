@@ -20,4 +20,5 @@ tests/test-failures/
 # Agent files
 .agent/
 .qoder/
+.freebuff/
 skills-lock.json
