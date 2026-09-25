@@ -1934,23 +1934,26 @@
           method: 'POST',
           body: JSON.stringify(data)
         });
-        
+
         if (!res.ok) {
           if (res.status === 401) {
-            alert('Session expired, please log in again');
+            alert('⚠️ Session expired, please log in again');
             return;
           }
           const errorData = await res.json().catch(() => ({}));
-          throw new Error(errorData.error || `Server returned ${res.status}`);
+          const errorMsg = errorData.error || `Server returned ${res.status}`;
+          alert('❌ Failed to record payment: ' + errorMsg);
+          throw new Error(errorMsg);
         }
-        
-        alert('Payment recorded successfully!');
+
+        alert('✅ Payment recorded successfully!');
         closePaymentModal();
         loadFeePayments();
         loadPaymentHistory();
         loadFeeStats();
       } catch (err) {
-        alert('Failed to record payment: ' + err.message);
+        // Error is already handled above with alert, this is just for logging
+        console.error('Payment save error:', err);
       }
     });
 
@@ -1979,18 +1982,21 @@
         const res = await apiFetch(url, { method, body: JSON.stringify(data) });
         if (!res.ok) {
           if (res.status === 401) {
-            alert('Session expired, please log in again');
+            alert('⚠️ Session expired, please log in again');
             return;
           }
           const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || `Server returned ${res.status}`);
+          const errorMsg = errData.error || `Server returned ${res.status}`;
+          alert('❌ Failed to save fee structure: ' + errorMsg);
+          throw new Error(errorMsg);
         }
 
-        alert('Fee structure saved successfully!');
+        alert('✅ Fee structure saved successfully!');
         closeStructureModal();
         loadFeeStructures();
       } catch (err) {
-        alert('Failed to save fee structure: ' + err.message);
+        // Error is already handled above with alert, this is just for logging
+        console.error('Fee structure save error:', err);
       }
     });
 

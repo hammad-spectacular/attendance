@@ -1721,39 +1721,87 @@ app.get('/api/fees/structures', requireAuth(['admin', 'teacher']), async (req, r
 
 // POST /api/fees/structures - Create a new fee structure
 app.post('/api/fees/structures', requireAuth(['admin']), async (req, res) => {
-  const { type, target_id, monthly_fee, admission_fee, transport_fee, discount } = req.body
-  const tenant_id = req.user.tenant_id
+  try {
+    const { type, target_id, monthly_fee, admission_fee, transport_fee, discount } = req.body
+    const tenant_id = req.user.tenant_id
 
-  if (!type || !target_id) {
-    return res.status(400).json({ error: 'type and target_id are required' })
+    if (!type || !target_id) {
+      return res.status(400).json({ error: 'type and target_id are required' })
+    }
+
+    // Validate fee amounts are valid numbers
+    const monthlyFee = Number(monthly_fee)
+    const admissionFee = Number(admission_fee)
+    const transportFee = Number(transport_fee)
+    const discountFee = Number(discount)
+
+    if (isNaN(monthlyFee) || monthlyFee < 0) {
+      return res.status(400).json({ error: 'monthly_fee must be a valid non-negative number' })
+    }
+    if (isNaN(admissionFee) || admissionFee < 0) {
+      return res.status(400).json({ error: 'admission_fee must be a valid non-negative number' })
+    }
+    if (isNaN(transportFee) || transportFee < 0) {
+      return res.status(400).json({ error: 'transport_fee must be a valid non-negative number' })
+    }
+    if (isNaN(discountFee) || discountFee < 0) {
+      return res.status(400).json({ error: 'discount must be a valid non-negative number' })
+    }
+
+    const result = await pool.query(
+      `INSERT INTO fee_structures (type, target_id, monthly_fee, admission_fee, transport_fee, discount, tenant_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [type, target_id, monthlyFee, admissionFee, transportFee, discountFee, tenant_id]
+    )
+    res.json(result.rows[0])
+  } catch (err) {
+    console.error('Error creating fee structure:', err)
+    res.status(500).json({ error: 'Failed to save fee structure: ' + err.message })
   }
-
-  const result = await pool.query(
-    `INSERT INTO fee_structures (type, target_id, monthly_fee, admission_fee, transport_fee, discount, tenant_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-    [type, target_id, monthly_fee || 0, admission_fee || 0, transport_fee || 0, discount || 0, tenant_id]
-  )
-  res.json(result.rows[0])
 })
 
 // PUT /api/fees/structures/:id - Update an existing fee structure
 app.put('/api/fees/structures/:id', requireAuth(['admin']), async (req, res) => {
-  const { type, target_id, monthly_fee, admission_fee, transport_fee, discount } = req.body
-  const tenant_id = req.user.tenant_id
+  try {
+    const { type, target_id, monthly_fee, admission_fee, transport_fee, discount } = req.body
+    const tenant_id = req.user.tenant_id
 
-  const result = await pool.query(
-    `UPDATE fee_structures 
-     SET type = $1, target_id = $2, monthly_fee = $3, admission_fee = $4, transport_fee = $5, discount = $6, updated_at = CURRENT_TIMESTAMP
-     WHERE id = $7 AND tenant_id = $8
-     RETURNING *`,
-    [type, target_id, monthly_fee || 0, admission_fee || 0, transport_fee || 0, discount || 0, req.params.id, tenant_id]
-  )
+    // Validate fee amounts are valid numbers
+    const monthlyFee = Number(monthly_fee)
+    const admissionFee = Number(admission_fee)
+    const transportFee = Number(transport_fee)
+    const discountFee = Number(discount)
 
-  if (result.rows.length === 0) {
-    return res.status(404).json({ error: 'Fee structure not found' })
+    if (isNaN(monthlyFee) || monthlyFee < 0) {
+      return res.status(400).json({ error: 'monthly_fee must be a valid non-negative number' })
+    }
+    if (isNaN(admissionFee) || admissionFee < 0) {
+      return res.status(400).json({ error: 'admission_fee must be a valid non-negative number' })
+    }
+    if (isNaN(transportFee) || transportFee < 0) {
+      return res.status(400).json({ error: 'transport_fee must be a valid non-negative number' })
+    }
+    if (isNaN(discountFee) || discountFee < 0) {
+      return res.status(400).json({ error: 'discount must be a valid non-negative number' })
+    }
+
+    const result = await pool.query(
+      `UPDATE fee_structures 
+       SET type = $1, target_id = $2, monthly_fee = $3, admission_fee = $4, transport_fee = $5, discount = $6, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $7 AND tenant_id = $8
+       RETURNING *`,
+      [type, target_id, monthlyFee, admissionFee, transportFee, discountFee, req.params.id, tenant_id]
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Fee structure not found' })
+    }
+
+    res.json(result.rows[0])
+  } catch (err) {
+    console.error('Error updating fee structure:', err)
+    res.status(500).json({ error: 'Failed to update fee structure: ' + err.message })
   }
-
-  res.json(result.rows[0])
 })
 
 // GET /api/fees/payments - List fee payments with filters
@@ -1892,49 +1940,63 @@ app.get('/api/fees/payments', requireAuth(['admin', 'teacher']), async (req, res
 
 // POST /api/fees/payments - Upsert fee payment record
 app.post('/api/fees/payments', requireAuth(['admin']), async (req, res) => {
-  const { student_id, month, amount_due, amount_paid, payment_method, payment_date, notes } = req.body
-  const tenant_id = req.user.tenant_id
+  try {
+    const { student_id, month, amount_due, amount_paid, payment_method, payment_date, notes } = req.body
+    const tenant_id = req.user.tenant_id
 
-  if (!student_id || !month) {
-    return res.status(400).json({ error: 'student_id and month are required' })
-  }
+    if (!student_id || !month) {
+      return res.status(400).json({ error: 'student_id and month are required' })
+    }
 
-  // Auto-calculate status
-  const due = Number(amount_due) || 0
-  const paid = Number(amount_paid) || 0
-  let status = 'unpaid'
-  if (paid >= due) {
-    status = 'paid'
-  } else if (paid > 0) {
-    status = 'partial'
-  }
+    // Validate amount_due and amount_paid are valid numbers
+    const due = Number(amount_due)
+    const paid = Number(amount_paid)
 
-  // Check if record exists
-  const existing = await pool.query(
-    'SELECT id FROM fee_payments WHERE student_id = $1 AND month = $2 AND tenant_id = $3',
-    [student_id, month, tenant_id]
-  )
+    if (isNaN(due) || due < 0) {
+      return res.status(400).json({ error: 'amount_due must be a valid non-negative number' })
+    }
+    if (isNaN(paid) || paid < 0) {
+      return res.status(400).json({ error: 'amount_paid must be a valid non-negative number' })
+    }
 
-  let result
-  if (existing.rows.length > 0) {
-    // Update existing
-    result = await pool.query(
-      `UPDATE fee_payments 
-       SET amount_due = $1, amount_paid = $2, status = $3, payment_method = $4, payment_date = $5, notes = $6, updated_at = CURRENT_TIMESTAMP
-       WHERE student_id = $7 AND month = $8 AND tenant_id = $9
-       RETURNING *`,
-      [due, paid, status, payment_method, payment_date, notes, student_id, month, tenant_id]
+    // Auto-calculate status
+    let status = 'unpaid'
+    if (paid >= due) {
+      status = 'paid'
+    } else if (paid > 0) {
+      status = 'partial'
+    }
+
+    // Check if record exists
+    const existing = await pool.query(
+      'SELECT id FROM fee_payments WHERE student_id = $1 AND month = $2 AND tenant_id = $3',
+      [student_id, month, tenant_id]
     )
-  } else {
-    // Insert new
-    result = await pool.query(
-      `INSERT INTO fee_payments (student_id, month, amount_due, amount_paid, status, payment_method, payment_date, notes, tenant_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [student_id, month, due, paid, status, payment_method, payment_date, notes, tenant_id]
-    )
-  }
 
-  res.json(result.rows[0])
+    let result
+    if (existing.rows.length > 0) {
+      // Update existing
+      result = await pool.query(
+        `UPDATE fee_payments 
+         SET amount_due = $1, amount_paid = $2, status = $3, payment_method = $4, payment_date = $5, notes = $6, updated_at = CURRENT_TIMESTAMP
+         WHERE student_id = $7 AND month = $8 AND tenant_id = $9
+         RETURNING *`,
+        [due, paid, status, payment_method, payment_date, notes, student_id, month, tenant_id]
+      )
+    } else {
+      // Insert new
+      result = await pool.query(
+        `INSERT INTO fee_payments (student_id, month, amount_due, amount_paid, status, payment_method, payment_date, notes, tenant_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+        [student_id, month, due, paid, status, payment_method, payment_date, notes, tenant_id]
+      )
+    }
+
+    res.json(result.rows[0])
+  } catch (err) {
+    console.error('Error saving fee payment:', err)
+    res.status(500).json({ error: 'Failed to save payment: ' + err.message })
+  }
 })
 
 // GET /api/fees/stats - Get fee statistics for a month
