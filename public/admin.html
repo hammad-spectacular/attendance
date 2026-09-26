@@ -2338,8 +2338,15 @@
                 <input type="text" id="attendanceSearchInput" class="form-input"
                   placeholder="Search by student name..." oninput="filterAttendance()">
               </div>
-              <input type="date" id="attendanceDateFilter" class="form-input" style="max-width:180px;" onchange="onAttendanceDateChange(this)">
-              <input type="month" id="attendanceMonthFilter" class="form-input" style="max-width:180px;" onchange="onAttendanceMonthChange(this)">
+              <select id="attendanceDayFilter" class="form-input" style="max-width:130px;" onchange="onAttendancePeriodChange()">
+                <option value="">All Days</option>
+              </select>
+              <select id="attendanceMonthFilter" class="form-input" style="max-width:150px;" onchange="onAttendancePeriodChange()">
+                <option value="">All Months</option>
+              </select>
+              <select id="attendanceYearFilter" class="form-input" style="max-width:130px;" onchange="onAttendancePeriodChange()">
+                <option value="">All Years</option>
+              </select>
               <select id="attendanceClassFilter" class="form-input" style="max-width:220px;" onchange="filterAttendance()">
                 <option value="">All Classes</option>
               </select>
@@ -3115,6 +3122,7 @@
         }
 
         window.appData.attendance = groupAttendanceRecords(rawAttendance);
+        populateAttendancePeriodFilters();
         isDataLoaded = true;
 
         // Populate dropdowns used globally
@@ -3178,6 +3186,7 @@
         const payload = await res.json();
         window.appData.attendance = groupAttendanceRecords(Array.isArray(payload) ? payload : []);
         window.appData.attendanceLoadError = '';
+        populateAttendancePeriodFilters();
       } catch (err) {
         console.error('Failed to refresh attendance:', err);
         window.appData.attendanceLoadError = err.message || 'Attendance failed to load';
@@ -3244,17 +3253,11 @@
         if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
         const data = await resp.json();
         window.appData.fees = Array.isArray(data) ? data : [];
-
-        const statsResp = await apiFetch(`/api/fees/stats?month=${encodeURIComponent(targetMonth)}`);
-        if (statsResp.ok) {
-          window.appData.feeStats = await statsResp.json();
-        } else {
-          window.appData.feeStats = null;
-        }
+        // The summary cards are computed from these rows in renderFees(), so the
+        // month-only /api/fees/stats endpoint is not needed here.
         window.appData.feesLoadError = '';
       } catch (err) {
         window.appData.fees = [];
-        window.appData.feeStats = null;
         window.appData.feesLoadError = err.message;
       }
       renderFees();
@@ -3350,29 +3353,40 @@
         return matchesQuery && matchesClass && matchesMonth && matchesStatus;
       });
 
-      const stats = window.appData.feeStats;
-      const totalStudents = stats ? Number(stats.total_students) || 0 : filtered.length;
-      const totalDue = stats ? Number(stats.total_due) || 0 : filtered.reduce((acc, item) => acc + Number(item.amount_due || 0), 0);
-      const totalCollected = stats ? Number(stats.total_collected) || 0 : filtered.reduce((acc, item) => acc + Number(item.amount_paid || 0), 0);
+      // Summarise the records actually on screen. Using the server's month stats here
+      // made the cards ignore the active search/class/status filters, so the totals
+      // never matched the rows underneath them.
+      const totalStudents = filtered.length;
+      const totalDue = filtered.reduce((acc, item) => acc + (Number(item.amount_due) || 0), 0);
+      const totalCollected = filtered.reduce((acc, item) => acc + (Number(item.amount_paid) || 0), 0);
+      const totalOutstanding = Math.max(0, totalDue - totalCollected);
       const collectionRate = totalDue > 0 ? Math.round((totalCollected / totalDue) * 100) : 0;
 
       if (cards) {
         cards.innerHTML = `
           <div class="section-card" style="padding:14px; border:1px solid var(--border); box-shadow:none;">
-            <div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:6px;">Total Students</div>
+            <div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:6px;">Students</div>
             <div style="font-size:1.25rem; font-weight:800; color:var(--text);">${totalStudents}</div>
           </div>
           <div class="section-card" style="padding:14px; border:1px solid var(--border); box-shadow:none;">
             <div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:6px;">Total Due</div>
             <div style="font-size:1.25rem; font-weight:800; color:var(--text);">${formatFeeCurrency(totalDue)}</div>
+            <div style="font-size:0.72rem; color:var(--text-secondary);">To be collected</div>
           </div>
           <div class="section-card" style="padding:14px; border:1px solid var(--border); box-shadow:none;">
             <div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:6px;">Total Collected</div>
             <div style="font-size:1.25rem; font-weight:800; color:var(--text);">${formatFeeCurrency(totalCollected)}</div>
+            <div style="font-size:0.72rem; color:var(--text-secondary);">Received from students</div>
+          </div>
+          <div class="section-card" style="padding:14px; border:1px solid var(--border); box-shadow:none;">
+            <div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:6px;">Outstanding</div>
+            <div style="font-size:1.25rem; font-weight:800; color:${totalOutstanding > 0 ? 'var(--danger, #dc2626)' : 'var(--text)'};">${formatFeeCurrency(totalOutstanding)}</div>
+            <div style="font-size:0.72rem; color:var(--text-secondary);">Still unpaid</div>
           </div>
           <div class="section-card" style="padding:14px; border:1px solid var(--border); box-shadow:none;">
             <div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:6px;">Collection Rate</div>
             <div style="font-size:1.25rem; font-weight:800; color:var(--text);">${collectionRate}%</div>
+            <div style="font-size:0.72rem; color:var(--text-secondary);">of total due</div>
           </div>`;
       }
 
@@ -4873,70 +4887,117 @@
       renderAttendance();
     }
 
-    // Attendance cannot be recorded for a future day, so the picker refuses those.
+    const ATTENDANCE_MONTH_NAMES = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    // Attendance cannot be recorded for a future day, so future periods are not offered.
     function isFutureAttendanceDate(value) {
       if (!value) return false;
       const today = getTodayDate();
       return String(value) > today;
     }
 
-    function syncAttendanceDateBounds() {
-      const dateInput = document.getElementById('attendanceDateFilter');
-      const monthInput = document.getElementById('attendanceMonthFilter');
+    // Day / Month / Year selects. Years come from the loaded records (plus the current
+    // year) and days are capped at today for the current month, so a future period
+    // cannot be selected.
+    function populateAttendancePeriodFilters() {
+      const daySel = document.getElementById('attendanceDayFilter');
+      const monthSel = document.getElementById('attendanceMonthFilter');
+      const yearSel = document.getElementById('attendanceYearFilter');
+      if (!daySel || !monthSel || !yearSel) return;
+
+      const keepDay = daySel.value;
+      const keepMonth = monthSel.value;
+      const keepYear = yearSel.value;
+
       const today = getTodayDate();
-      if (dateInput) dateInput.max = today;
-      if (monthInput) monthInput.max = today.slice(0, 7);
+      const thisYear = today.slice(0, 4);
+      const thisMonth = today.slice(5, 7);
+
+      const years = new Set([thisYear]);
+      for (const r of window.appData.attendance || []) {
+        const y = String(r.date || '').slice(0, 4);
+        if (/^\d{4}$/.test(y)) years.add(y);
+      }
+      // Also offer the last few years so the filter is useful before any data exists.
+      const baseYear = Number(thisYear);
+      for (let i = 1; i <= 3; i++) years.add(String(baseYear - i));
+
+      yearSel.innerHTML = '<option value="">All Years</option>';
+      [...years].sort((a, b) => b - a).forEach(y => {
+        const o = document.createElement('option');
+        o.value = y;
+        o.textContent = y;
+        yearSel.appendChild(o);
+      });
+
+      monthSel.innerHTML = '<option value="">All Months</option>';
+      ATTENDANCE_MONTH_NAMES.forEach((name, i) => {
+        const value = String(i + 1).padStart(2, '0');
+        const o = document.createElement('option');
+        o.value = value;
+        o.textContent = name;
+        monthSel.appendChild(o);
+      });
+
+      daySel.innerHTML = '<option value="">All Days</option>';
+      for (let d = 1; d <= 31; d++) {
+        const value = String(d).padStart(2, '0');
+        // Hide days that cannot exist in the selected month (e.g. 31 in February).
+        if (keepYear === thisYear && keepMonth === thisMonth && d > Number(today.slice(8, 10))) continue;
+        if (keepYear === thisYear && keepMonth && Number(value) > daysInMonth(keepYear, keepMonth)) continue;
+        if (keepMonth && !keepYear && Number(value) > daysInMonth(thisYear, keepMonth)) continue;
+        const o = document.createElement('option');
+        o.value = value;
+        o.textContent = String(d);
+        daySel.appendChild(o);
+      }
+
+      // Restore the previous selection where it is still valid.
+      if (yearSel.querySelector(`option[value="${keepYear}"]`)) yearSel.value = keepYear;
+      if (monthSel.querySelector(`option[value="${keepMonth}"]`)) monthSel.value = keepMonth;
+      if (daySel.querySelector(`option[value="${keepDay}"]`)) daySel.value = keepDay;
     }
 
-    function onAttendanceDateChange(el) {
-      syncAttendanceDateBounds();
-      if (isFutureAttendanceDate(el.value)) {
-        showToast('⚠️ Attendance cannot be recorded for a future date', 'warning');
-        el.value = getTodayDate();
-      }
-      // Keep the month filter consistent so the two controls never contradict.
-      const monthInput = document.getElementById('attendanceMonthFilter');
-      if (monthInput && el.value) monthInput.value = el.value.slice(0, 7);
+    function daysInMonth(year, month) {
+      return new Date(Number(year), Number(month), 0).getDate();
+    }
+
+    function onAttendancePeriodChange() {
+      populateAttendancePeriodFilters();
       filterAttendance();
     }
 
-    function onAttendanceMonthChange(el) {
-      syncAttendanceDateBounds();
-      const today = getTodayDate();
-      if (el.value && el.value > today.slice(0, 7)) {
-        showToast('⚠️ Attendance cannot be recorded for a future month', 'warning');
-        el.value = today.slice(0, 7);
-      }
-      const dateInput = document.getElementById('attendanceDateFilter');
-      if (dateInput && dateInput.value && el.value && dateInput.value.slice(0, 7) !== el.value) {
-        dateInput.value = '';
-      }
-      filterAttendance();
+    function getAttendancePeriodLabel() {
+      const day = document.getElementById('attendanceDayFilter')?.value || '';
+      const month = document.getElementById('attendanceMonthFilter')?.value || '';
+      const year = document.getElementById('attendanceYearFilter')?.value || '';
+      const parts = [];
+      if (day) parts.push(Number(day));
+      if (month) parts.push(ATTENDANCE_MONTH_NAMES[Number(month) - 1]);
+      if (year) parts.push(year);
+      return parts.join(' ');
     }
 
     function getFilteredAttendanceRecords() {
       const records = window.appData.attendance || [];
       const search = (document.getElementById('attendanceSearchInput')?.value || '').toLowerCase().trim();
-      const dateInput = document.getElementById('attendanceDateFilter');
-      const monthInput = document.getElementById('attendanceMonthFilter');
+      const day = document.getElementById('attendanceDayFilter')?.value || '';
+      const month = document.getElementById('attendanceMonthFilter')?.value || '';
+      const year = document.getElementById('attendanceYearFilter')?.value || '';
       const classFilter = document.getElementById('attendanceClassFilter')?.value || '';
 
-      syncAttendanceDateBounds();
-
-      // Default to today (local date, not UTC) on first load.
-      if (dateInput && !dateInput.value) dateInput.value = getTodayDate();
-      if (monthInput && !monthInput.value) monthInput.value = getTodayDate().slice(0, 7);
-
-      const date = dateInput?.value || '';
-      const month = monthInput?.value || '';
-
       return records.filter(record => {
+        const d = String(record.date || '');
         const matchesSearch = !search || (record.studentName || '').toLowerCase().includes(search);
-        const matchesDate = !date || record.date === date;
-        const matchesMonth = !month || record.month === month;
+        const matchesDay = !day || d.slice(8, 10) === day;
+        const matchesMonth = !month || d.slice(5, 7) === month;
+        const matchesYear = !year || d.slice(0, 4) === year;
         const matchesClass = !classFilter || String(record.classId) === String(classFilter);
         const matchesStatus = !attendanceStatusFilter || (record.status || '').toLowerCase() === attendanceStatusFilter.toLowerCase();
-        return matchesSearch && matchesDate && matchesMonth && matchesClass && matchesStatus;
+        return matchesSearch && matchesDay && matchesMonth && matchesYear && matchesClass && matchesStatus;
       });
     }
 
@@ -4975,8 +5036,8 @@
         wrap.innerHTML = `
           <div class="empty-state" style="padding:36px 16px;">
             <div class="icon"><i class="fas fa-search"></i></div>
-            <div class="msg">No matching attendance records found</div>
-            <div class="sub">Try another student name, date, or class</div>
+            <div class="msg">No attendance records for ${escapeHtml(getAttendancePeriodLabel() || 'the selected filters')}</div>
+            <div class="sub">Nothing was recorded for this period. Try another day, month, year, or class.</div>
           </div>`;
         return;
       }
@@ -5053,10 +5114,9 @@
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      const date = document.getElementById('attendanceDateFilter')?.value || '';
-      const month = document.getElementById('attendanceMonthFilter')?.value || 'all';
+      const period = getAttendancePeriodLabel().replace(/\s+/g, '-') || 'all';
       link.href = url;
-      link.download = `attendance-${date || month}.csv`;
+      link.download = `attendance-${period}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

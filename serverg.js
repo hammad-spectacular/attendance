@@ -2042,8 +2042,30 @@ app.put('/api/students/:id/name', requireAuth(['admin', 'super_admin']), async (
 
 app.delete('/api/students/:id', requireAuth(['admin', 'super_admin']), async (req, res) => {
   const tenant_id = req.user.tenant_id
-  await pool.query('DELETE FROM students WHERE id = $1 AND tenant_id = $2', [req.params.id, tenant_id])
-  res.json({ success: true })
+  const studentId = req.params.id
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    // fee_payments has no foreign key to students, so deleting a student used to
+    // leave the payment rows behind. They then vanished from the fee list (which
+    // joins students) while the money was still counted as never collected.
+    // attendance does have a FK with NO ACTION, so clear it first to avoid a
+    // constraint error. Both scoped to the caller's tenant.
+    await client.query('DELETE FROM fee_payments WHERE student_id = $1 AND tenant_id = $2', [studentId, tenant_id])
+    await client.query('DELETE FROM attendance WHERE student_id = $1 AND tenant_id = $2', [studentId, tenant_id])
+    const result = await client.query('DELETE FROM students WHERE id = $1 AND tenant_id = $2', [studentId, tenant_id])
+    await client.query('COMMIT')
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Student not found' })
+    }
+    res.json({ success: true })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    console.error('Error deleting student:', err)
+    res.status(500).json({ error: 'Failed to delete student: ' + err.message })
+  } finally {
+    client.release()
+  }
 })
 
 // ATTENDANCE
@@ -2408,12 +2430,15 @@ app.put('/api/fees/structures/:id', requireAuth(['admin']), async (req, res) => 
 // GET /api/fees/payments - List fee payments with filters
 app.get('/api/fees/payments', requireAuth(['admin', 'teacher']), async (req, res) => {
   const tenant_id = req.user.tenant_id
-  const { mode, month, class_id, status, search } = req.query
+  const { mode, month, year, class_id, status, search } = req.query
 
   // Default mode: LEFT JOIN from students so every student appears.
   // Students without a payment record get status='not_set_up'.
   // mode=records uses the old INNER JOIN (only students with actual payments).
-  if (mode === 'records') {
+  // A year with no month means "every month of that year", which the per-student
+  // LEFT JOIN cannot express because it joins on a single month, so fall back to
+  // the recorded-rows view.
+  if (mode === 'records' || (year && !month)) {
     let query = `
       SELECT fee_payments.*, students.name as student_name, students.roll_no, classes.name as class_name
       FROM fee_payments
@@ -2427,6 +2452,10 @@ app.get('/api/fees/payments', requireAuth(['admin', 'teacher']), async (req, res
     if (month) {
       query += ` AND fee_payments.month = $${paramIndex}`
       params.push(month)
+      paramIndex++
+    } else if (year) {
+      query += ` AND fee_payments.month LIKE $${paramIndex}`
+      params.push(`${year}-%`)
       paramIndex++
     }
     if (class_id) {

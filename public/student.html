@@ -536,6 +536,103 @@
       margin-top: 16px;
     }
 
+    .attendance-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .attendance-filters .form-select {
+      flex: 1 1 110px;
+      min-width: 96px;
+      padding: 8px 10px;
+      font-size: 0.8rem;
+      font-family: inherit;
+      font-weight: 600;
+      color: var(--text);
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      cursor: pointer;
+    }
+
+    .attendance-filters .form-select:focus {
+      outline: 2px solid var(--primary);
+      outline-offset: 1px;
+    }
+
+    .attendance-filters .btn {
+      flex: 0 0 auto;
+      align-self: stretch;
+      padding: 8px 14px;
+      font-size: 0.78rem;
+      font-family: inherit;
+      font-weight: 700;
+      color: var(--text-secondary);
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      cursor: pointer;
+    }
+
+    .attendance-filters .btn:hover {
+      color: var(--text);
+      background: var(--bg-card-hover);
+    }
+
+    .attendance-days {
+      margin-top: 18px;
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+    }
+
+    .attendance-days-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .attendance-day-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 7px;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .attendance-day-row .day-date {
+      color: var(--text);
+    }
+
+    .attendance-day-row .day-weekday {
+      color: var(--text-muted);
+      font-weight: 500;
+      font-size: 0.74rem;
+      margin-left: 6px;
+    }
+
+    .attendance-day-row .day-badge {
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .day-badge.present { background: var(--success-bg, rgba(34,197,94,0.12)); color: var(--success, #16a34a); }
+    .day-badge.absent  { background: var(--danger-bg,  rgba(239,68,68,0.12));  color: var(--danger,  #dc2626); }
+    .day-badge.leave   { background: var(--warning-bg, rgba(245,158,11,0.12)); color: var(--warning, #d97706); }
+
     .bar-present { background: var(--success); }
     .bar-absent { background: var(--danger); }
     .bar-leave { background: var(--warning); }
@@ -918,7 +1015,21 @@
             <div class="section-subtitle">Summary from submitted attendance records</div>
           </div>
         </div>
-        <div class="section-body" id="attendanceSection"></div>
+        <div class="section-body">
+          <div class="attendance-filters" id="attendanceFilters">
+            <select id="studentAttDayFilter" class="form-select" onchange="renderStudentAttendance()" aria-label="Filter by day">
+              <option value="">All Days</option>
+            </select>
+            <select id="studentAttMonthFilter" class="form-select" onchange="renderStudentAttendance()" aria-label="Filter by month">
+              <option value="">All Months</option>
+            </select>
+            <select id="studentAttYearFilter" class="form-select" onchange="renderStudentAttendance()" aria-label="Filter by year">
+              <option value="">All Years</option>
+            </select>
+            <button type="button" class="btn btn-sm" id="studentAttResetBtn" onclick="resetStudentAttendanceFilter()">Clear</button>
+          </div>
+          <div id="attendanceSection"></div>
+        </div>
       </section>
     </div>
 
@@ -1073,7 +1184,8 @@ function setButtonLoading(btn, loading, loadingHtml) {
       student: null,
       classInfo: null,
       teacher: null,
-      fees: []
+      fees: [],
+      attendance: []
     };
 
     function escapeHtml(value) {
@@ -1228,18 +1340,150 @@ function setButtonLoading(btn, loading, loadingHtml) {
       `;
     }
 
+    const STUDENT_MONTH_NAMES = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    function studentLocalDate() {
+      const d = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    }
+
+    function studentDaysInMonth(year, month) {
+      return new Date(Number(year), Number(month), 0).getDate();
+    }
+
+    // Populate the day/month/year selects. Years come from the student's own records
+    // plus the current year, so a past year stays selectable.
+    function populateStudentAttendanceFilters() {
+      const daySel = document.getElementById('studentAttDayFilter');
+      const monthSel = document.getElementById('studentAttMonthFilter');
+      const yearSel = document.getElementById('studentAttYearFilter');
+      if (!daySel || !monthSel || !yearSel) return;
+
+      const keepDay = daySel.value;
+      const keepMonth = monthSel.value;
+      const keepYear = yearSel.value;
+      const today = studentLocalDate();
+
+      const years = new Set([today.slice(0, 4)]);
+      for (const r of state.attendance || []) {
+        const y = studentRecordDate(r).slice(0, 4);
+        if (/^\d{4}$/.test(y)) years.add(y);
+      }
+
+      yearSel.innerHTML = '<option value="">All Years</option>';
+      [...years].sort((a, b) => b - a).forEach(y => {
+        const o = document.createElement('option');
+        o.value = y;
+        o.textContent = y;
+        yearSel.appendChild(o);
+      });
+
+      monthSel.innerHTML = '<option value="">All Months</option>';
+      STUDENT_MONTH_NAMES.forEach((name, i) => {
+        const o = document.createElement('option');
+        o.value = String(i + 1).padStart(2, '0');
+        o.textContent = name;
+        monthSel.appendChild(o);
+      });
+
+      daySel.innerHTML = '<option value="">All Days</option>';
+      const limitYear = keepYear || today.slice(0, 4);
+      const limitMonth = keepMonth || today.slice(5, 7);
+      const maxDay = (keepYear === today.slice(0, 4) && keepMonth === today.slice(5, 7))
+        ? Number(today.slice(8, 10))
+        : studentDaysInMonth(limitYear, limitMonth);
+      for (let d = 1; d <= Math.min(31, maxDay); d++) {
+        const o = document.createElement('option');
+        o.value = String(d).padStart(2, '0');
+        o.textContent = String(d);
+        daySel.appendChild(o);
+      }
+
+      if (yearSel.querySelector(`option[value="${keepYear}"]`)) yearSel.value = keepYear;
+      if (monthSel.querySelector(`option[value="${keepMonth}"]`)) monthSel.value = keepMonth;
+      if (daySel.querySelector(`option[value="${keepDay}"]`)) daySel.value = keepDay;
+    }
+
+    function resetStudentAttendanceFilter() {
+      ['studentAttDayFilter', 'studentAttMonthFilter', 'studentAttYearFilter'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      populateStudentAttendanceFilters();
+      renderStudentAttendance();
+    }
+
+    // Normalises the many date shapes the attendance API can return to YYYY-MM-DD.
+    function studentRecordDate(row) {
+      const raw = row && (row.date || row.attendance_date);
+      if (!raw) return '';
+      const s = String(raw);
+      if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+      const d = new Date(s);
+      if (isNaN(d.getTime())) return '';
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    }
+
+    function getFilteredStudentAttendance() {
+      const day = document.getElementById('studentAttDayFilter')?.value || '';
+      const month = document.getElementById('studentAttMonthFilter')?.value || '';
+      const year = document.getElementById('studentAttYearFilter')?.value || '';
+
+      return (state.attendance || []).filter(row => {
+        const d = studentRecordDate(row);
+        if (!d) return false;
+        if (day && d.slice(8, 10) !== day) return false;
+        if (month && d.slice(5, 7) !== month) return false;
+        if (year && d.slice(0, 4) !== year) return false;
+        return true;
+      }).sort((a, b) => studentRecordDate(b).localeCompare(studentRecordDate(a)));
+    }
+
+    function studentAttendancePeriodLabel() {
+      const day = document.getElementById('studentAttDayFilter')?.value || '';
+      const month = document.getElementById('studentAttMonthFilter')?.value || '';
+      const year = document.getElementById('studentAttYearFilter')?.value || '';
+      const parts = [];
+      if (day) parts.push(Number(day));
+      if (month) parts.push(STUDENT_MONTH_NAMES[Number(month) - 1]);
+      if (year) parts.push(year);
+      return parts.join(' ');
+    }
+
     function renderAttendance(records) {
-      const filtered = Array.isArray(records)
+      state.attendance = Array.isArray(records)
         ? records.filter(row => Number(row.student_id) === Number(state.student.id))
         : [];
+      populateStudentAttendanceFilters();
+      renderStudentAttendance();
+    }
 
+    function renderStudentAttendance() {
+      const section = document.getElementById('attendanceSection');
+      if (!section) return;
+
+      const filtered = getFilteredStudentAttendance();
       const present = filtered.filter(row => normalizeStatus(row.status) === 'present').length;
       const absent = filtered.filter(row => normalizeStatus(row.status) === 'absent').length;
       const leave = filtered.filter(row => normalizeStatus(row.status) === 'leave').length;
       const total = filtered.length;
 
-      if (total === 0) {
+      if ((state.attendance || []).length === 0) {
         setStateBox('attendanceSection', 'fas fa-calendar-xmark', 'No attendance records yet', 'Submitted attendance will appear here.');
+        return;
+      }
+
+      if (total === 0) {
+        section.innerHTML = `<div class="state" style="padding:28px 12px;">
+          <i class="fas fa-calendar-day"></i>
+          <div class="msg">No attendance for ${escapeHtml(studentAttendancePeriodLabel() || 'this filter')}</div>
+          <div class="sub">You have no records for this day, month or year.</div>
+        </div>`;
         return;
       }
 
@@ -1247,8 +1491,21 @@ function setButtonLoading(btn, loading, loadingHtml) {
       const absentWidth = (absent / total) * 100;
       const leaveWidth = (leave / total) * 100;
       const percentage = Math.round((present / total) * 100);
+      const period = studentAttendancePeriodLabel();
 
-      document.getElementById('attendanceSection').innerHTML = `
+      const dayRows = filtered.map(row => {
+        const d = studentRecordDate(row);
+        const status = normalizeStatus(row.status);
+        const label = status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : status === 'leave' ? 'On Leave' : 'Unmarked';
+        const weekday = d ? new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short' }) : '';
+        return `<div class="attendance-day-row">
+          <div><span class="day-date">${escapeHtml(d || '—')}</span><span class="day-weekday">${escapeHtml(weekday)}</span></div>
+          <div class="day-badge ${escapeHtml(status)}">${escapeHtml(label)}</div>
+        </div>`;
+      }).join('');
+
+      section.innerHTML = `
+        ${period ? `<div style="margin-bottom:12px; font-size:0.78rem; color:var(--text-muted); font-weight:600;">Showing ${total} record${total === 1 ? '' : 's'} for ${escapeHtml(period)}</div>` : ''}
         <div class="attendance-grid">
           <div class="summary-card">
             <div class="summary-number">${total}</div>
@@ -1274,6 +1531,10 @@ function setButtonLoading(btn, loading, loadingHtml) {
         </div>
         <div style="margin-top:10px; color:var(--text-muted); font-size:0.78rem; font-weight:600;">
           ${percentage}% attendance based on submitted records
+        </div>
+        <div class="attendance-days">
+          <div class="attendance-days-title">Day by day</div>
+          ${dayRows}
         </div>
       `;
     }
