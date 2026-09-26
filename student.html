@@ -163,6 +163,23 @@
       font-weight: 500;
     }
 
+    .header-title span.student-roll-chip {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 2px 9px;
+      border: 1px solid rgba(255,255,255,0.28);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.9);
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+
+    .header-title span.student-roll-chip[hidden] {
+      display: none;
+    }
+
     .theme-toggle {
       width: 40px;
       height: 40px;
@@ -824,6 +841,7 @@
         <div class="header-title">
           <strong id="studentName">Loading student...</strong>
           <span id="studentClass">Class details loading</span>
+          <span id="studentRollNo" class="student-roll-chip" hidden></span>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:10px;">
@@ -1175,6 +1193,18 @@ function setButtonLoading(btn, loading, loadingHtml) {
       const className = state.classInfo ? state.classInfo.name : 'No class assigned';
       document.getElementById('studentName').textContent = state.student ? state.student.name : 'Student Portal';
       document.getElementById('studentClass').textContent = className;
+
+      const rollChip = document.getElementById('studentRollNo');
+      if (rollChip) {
+        const rollNo = state.student ? (state.student.roll_no || state.student.rollNo) : '';
+        if (rollNo) {
+          rollChip.textContent = `Roll No: ${rollNo}`;
+          rollChip.hidden = false;
+        } else {
+          rollChip.textContent = '';
+          rollChip.hidden = true;
+        }
+      }
     }
 
     function renderTeacher() {
@@ -1566,7 +1596,12 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
       try {
         teacherData = await fetchJson(`${API}/api/teachers?class_id=${state.student?.class_id ?? ''}`);
-        state.teacher = Array.isArray(teacherData) ? teacherData[0] || null : null;
+        // Prefer the highest teacher id: a class can still have legacy duplicate
+        // assignments before the unique index cleanup runs, and [0] would show
+        // the teacher who was replaced.
+        state.teacher = Array.isArray(teacherData)
+          ? teacherData.slice().sort((a, b) => Number(b.id) - Number(a.id))[0] || null
+          : null;
       } catch (err) {
         state.teacher = null;
         setStateBox('teacherCard', 'fas fa-circle-exclamation', 'Failed to load teacher info', err.message);

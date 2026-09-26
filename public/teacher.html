@@ -2409,7 +2409,14 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
     function getTodayDate() {
 
-      return new Date().toISOString().split('T')[0];
+      // Local calendar date, not UTC. toISOString() rolls back to yesterday for
+      // anyone east of UTC before 05:00, which would file attendance under the
+      // wrong day and skew the stats.
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
 
     }
 
@@ -3536,6 +3543,13 @@ function setButtonLoading(btn, loading, loadingHtml) {
         showToast(`⚠️ ${unmarkedStudents.length} student${unmarkedStudents.length !== 1 ? 's' : ''} not yet marked`, 'warning');
         return;
       }
+      if (students.length === 0) {
+        showToast('⚠️ No students loaded for this class', 'warning');
+        return;
+      }
+
+      // Guard above guarantees every student has a status, so all of them are marked.
+      const markedStudents = students;
 
       // Highlight any unmarked rows subtly
       students.forEach(s => {
@@ -3550,7 +3564,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
       });
 
       // 2. Date
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const today = getTodayDate(); // local YYYY-MM-DD
 
       // 3. Detect absentees and leave students
       const absentees = markedStudents.filter(s => s.status === "Absent");
@@ -3586,8 +3600,15 @@ function setButtonLoading(btn, loading, loadingHtml) {
           records:    recordsSnapshot
         })
       })
-        .then(response => {
-          if (!response.ok) throw new Error('Submit failed');
+        .then(async response => {
+          if (!response.ok) {
+            let detail = '';
+            try {
+              const body = await response.json();
+              detail = body && body.error ? body.error : '';
+            } catch (e) { /* response had no JSON body */ }
+            throw new Error(detail || `Submit failed (HTTP ${response.status})`);
+          }
           return response.json();
         })
         .then(data => {
@@ -3620,6 +3641,8 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
           students.forEach(s => updateRowUI(s.id));
           updateCounts();
+          if (typeof renderStats === 'function') renderStats();
+          if (typeof renderSavedRecords === 'function') renderSavedRecords();
 
           showSmsOverlay('success', absentCount);
         })
@@ -3628,7 +3651,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
           showSmsOverlay('error');
           setButtonLoading(submitBtn, false);
           enableSubmitButton(submittedStudentIds.size > 0 ? 'Update / Submit Attendance' : 'Submit');
-          showToast('❌ Submission failed. Please retry.', 'error');
+          showToast('❌ ' + (error && error.message ? error.message : 'Submission failed. Please retry.'), 'error');
         });
     }
 

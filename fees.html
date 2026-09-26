@@ -1325,14 +1325,14 @@
       <h3><i class="fa-solid fa-sliders"></i> Add Fee Structure</h3>
       <form id="structureForm">
         <div class="form-group">
-          <label class="form-label">Type</label>
+          <label class="form-label">Fee applies to</label>
           <select class="form-select" id="structureType">
-            <option value="class">Class-wise</option>
-            <option value="student">Student-wise</option>
+            <option value="class">Whole class (Class-wise)</option>
+            <option value="student">One student (Student-wise)</option>
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Select Class/Student</label>
+          <label class="form-label" id="structureTargetLabel">Select Class</label>
           <select class="form-select" id="structureTarget">
             <option value="">Select...</option>
           </select>
@@ -1444,9 +1444,47 @@
       }
     }
 
+    // Local calendar date (YYYY-MM-DD). toISOString() shifts to UTC, which lands on
+    // the wrong day for users east or west of Greenwich near midnight.
+    function getTodayDate() {
+      const d = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    }
+
+    // Parses rupee input that may be formatted ("Rs. 12,000", "1,20,000", "12000.50")
+    // into a number. Stripping non-digits and keeping "." turned "Rs. 12,000" into
+    // 0.12, because the dot in "Rs." survived as a decimal point.
+    function parseRupeesInput(value) {
+      if (value === null || value === undefined) return 0;
+      // Drop currency words/symbols first so "Rs." does not leave a stray dot.
+      let cleaned = String(value)
+        .replace(/[A-Za-z\u20B9\u20A8]/g, '')
+        .replace(/[,\s\u00A0']/g, '');
+      // Keep at most the final dot as the decimal separator, and drop any leading
+      // dot left behind by the "Rs." prefix.
+      cleaned = cleaned.replace(/^\.+/, '');
+      const lastDot = cleaned.lastIndexOf('.');
+      if (lastDot !== -1) {
+        cleaned = cleaned.slice(0, lastDot).replace(/\./g, '') + cleaned.slice(lastDot);
+      }
+      const num = parseFloat(cleaned);
+      return Number.isFinite(num) ? num : 0;
+    }
+
+    // Must stay in sync with monthlyAmountDue() in serverg.js.
+    function monthlyDueFromStructure(fs) {      if (!fs) return 0;
+      const monthly = Number(fs.monthly_fee) || 0;
+      const transport = Number(fs.transport_fee) || 0;
+      const discount = Number(fs.discount) || 0;
+      return Math.max(0, monthly + transport - discount);
+    }
+
     function populateStructureTarget(type) {
       const sel = document.getElementById('structureTarget');
+      const label = document.getElementById('structureTargetLabel');
       sel.innerHTML = '<option value="">Select...</option>';
+      if (label) label.textContent = type === 'class' ? 'Select Class' : 'Select Student';
       if (type === 'class') {
         (window._classesCache || []).forEach(cls => {
           const opt = document.createElement('option');
@@ -1511,8 +1549,8 @@
             : null;
         }
         if (structure) {
-          const monthly = Number(structure.monthly_fee) || 0;
-          amountDueEl.value = `Rs. ${monthly.toLocaleString()}`;
+          // Mirrors the backend formula: admission is one-time, so it is excluded.
+          amountDueEl.value = `Rs. ${monthlyDueFromStructure(structure).toLocaleString()}`;
         } else {
           amountDueEl.value = 'N/A';
         }
@@ -1794,19 +1832,21 @@
       element.style.opacity = '0.5';
       
       try {
-        const month = document.getElementById('monthFilter')?.value || new Date().toISOString().slice(0, 7);
+        const today = getTodayDate();
+        const month = document.getElementById('monthFilter')?.value || today.slice(0, 7);
         const data = {
           student_id: studentId,
           month: month,
           amount_due: amountDue,
           amount_paid: amountDue,
           payment_method: 'Cash',
-          payment_date: new Date().toISOString().split('T')[0],
+          payment_date: today,
           notes: 'Quick mark paid'
         };
         
         const res = await apiFetch('/api/fees/payments', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data)
         });
         
@@ -1849,8 +1889,11 @@
 
     function openStructureModalFor(event, studentId) {
       if (event) event.stopPropagation();
-      document.getElementById('structureTarget').value = studentId;
+      // Repopulate for the type FIRST, otherwise setting .value on a dropdown
+      // that still lists classes silently drops the preselected student.
       document.getElementById('structureType').value = 'student';
+      populateStructureTarget('student');
+      document.getElementById('structureTarget').value = String(studentId);
       openStructureModal();
     }
 
@@ -1899,12 +1942,15 @@
 
     // Structure Modal
     function openStructureModal() {
+      // Keep the target list in sync with the selected type every time the modal opens.
+      populateStructureTarget(document.getElementById('structureType').value);
       document.getElementById('structureModal').classList.add('open');
     }
 
     function closeStructureModal() {
       document.getElementById('structureModal').classList.remove('open');
       document.getElementById('structureForm').reset();
+      populateStructureTarget('class');
     }
 
     // Close modals on backdrop click
@@ -1923,8 +1969,8 @@
         const data = {
           student_id: parseInt(document.getElementById('paymentStudent').value),
           month: document.getElementById('paymentMonth').value,
-          amount_due: parseFloat(document.getElementById('amountDue').value.replace(/[^0-9.]/g, '')) || 0,
-          amount_paid: parseFloat(document.getElementById('amountPaid').value) || 0,
+          amount_due: parseRupeesInput(document.getElementById('amountDue').value),
+          amount_paid: parseRupeesInput(document.getElementById('amountPaid').value),
           payment_method: document.getElementById('paymentMethod').value,
           payment_date: document.getElementById('paymentDate').value,
           notes: document.getElementById('paymentNotes').value

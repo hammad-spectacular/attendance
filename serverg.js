@@ -128,6 +128,52 @@ async function fetchCapacity(q, tenantId) {
   return result.rows[0] || null
 }
 
+// Amount to be collected for one month, derived from a fee structure.
+// admission_fee is deliberately excluded: it is a one-time charge, so adding it
+// to every month would re-bill it. Never returns a negative amount.
+function monthlyAmountDue(fs) {
+  if (!fs) return 0
+  const monthly   = Number(fs.monthly_fee)   || 0
+  const transport = Number(fs.transport_fee) || 0
+  const discount  = Number(fs.discount)      || 0
+  return Math.max(0, monthly + transport - discount)
+}
+
+// Rejects a roll number or full name that is already used by another student in
+// the same school. excludeId lets the edit paths ignore the student being edited.
+// Returns an error string, or null when the values are acceptable.
+async function findStudentDuplicate(q, tenantId, { roll_no, name }, excludeId = null) {
+  if (roll_no !== undefined && roll_no !== null && String(roll_no).trim()) {
+    const dupeRoll = await q.query(
+      `SELECT id, name FROM students
+       WHERE tenant_id = $1
+         AND lower(btrim(roll_no)) = lower(btrim($2))
+         AND ($3::int IS NULL OR id <> $3::int)
+       LIMIT 1`,
+      [tenantId, String(roll_no).trim(), excludeId]
+    )
+    if (dupeRoll.rows.length) {
+      return `Roll number "${String(roll_no).trim()}" is already used by another student in this school. Please choose a different one.`
+    }
+  }
+
+  if (name !== undefined && name !== null && String(name).trim()) {
+    const dupeName = await q.query(
+      `SELECT id, roll_no FROM students
+       WHERE tenant_id = $1
+         AND lower(btrim(regexp_replace(name, '\\s+', ' ', 'g'))) = lower(btrim(regexp_replace($2, '\\s+', ' ', 'g')))
+         AND ($3::int IS NULL OR id <> $3::int)
+       LIMIT 1`,
+      [tenantId, String(name).trim(), excludeId]
+    )
+    if (dupeName.rows.length) {
+      return `A student named "${String(name).trim()}" already exists in this school. Names must be unique.`
+    }
+  }
+
+  return null
+}
+
 async function capacityViolation(q, tenantId, type, batchSize = 1) {
   const cap = await fetchCapacity(q, tenantId)
   if (!cap) return null
@@ -514,6 +560,37 @@ async function createTables() {
   await pool.query(`UPDATE admins SET token_generation = 0 WHERE token_generation IS NULL`)
   await pool.query(`UPDATE teachers SET token_generation = 0 WHERE token_generation IS NULL`)
   await pool.query(`UPDATE students SET token_generation = 0 WHERE token_generation IS NULL`)
+
+  // A class must have at most ONE assigned teacher. Without this, two teachers can
+  // share a class_id, which duplicates every attendance row for that class and makes
+  // the student portal show whichever teacher happens to have the lowest id.
+  // Resolve existing conflicts by keeping the most recently created teacher.
+  const dupeClasses = await pool.query(`
+    SELECT class_id, tenant_id, COUNT(*) AS n,
+           ARRAY_AGG(id ORDER BY id) AS teacher_ids
+    FROM teachers
+    WHERE class_id IS NOT NULL
+    GROUP BY class_id, tenant_id
+    HAVING COUNT(*) > 1
+  `)
+  if (dupeClasses.rows.length) {
+    for (const row of dupeClasses.rows) {
+      const keep = row.teacher_ids[row.teacher_ids.length - 1]
+      const drop = row.teacher_ids.slice(0, -1)
+      await pool.query(
+        'UPDATE teachers SET class_id = NULL WHERE id = ANY($1::int[]) AND tenant_id = $2',
+        [drop, row.tenant_id]
+      )
+      console.warn(
+        `[migration] class ${row.class_id} had ${row.n} teachers; kept ${keep}, unassigned ${drop.join(', ')}`
+      )
+    }
+  }
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS teachers_one_class_per_tenant_idx
+      ON teachers (class_id) WHERE class_id IS NOT NULL
+  `)
 
   console.log('Tables ready')
 }
@@ -1011,6 +1088,17 @@ app.post('/api/auth/create-teacher', requireAuth(['admin']), async (req, res) =>
     const capErr = await capacityViolation(pool, tenant_id, 'teacher')
     if (capErr) return res.status(400).json({ error: capErr })
 
+    // One teacher per class: assigning a new teacher takes the class over.
+    if (class_id) {
+      const prevHolder = await pool.query(
+        'SELECT id FROM teachers WHERE class_id = $1 AND tenant_id = $2',
+        [class_id, tenant_id]
+      )
+      for (const h of prevHolder.rows) {
+        await pool.query('UPDATE teachers SET class_id = NULL WHERE id = $1', [h.id])
+      }
+    }
+
     const highestResult = await pool.query(
       `SELECT login_id FROM teachers WHERE tenant_id = $1 AND (login_id LIKE 'T%' OR login_id LIKE $2) ORDER BY login_id DESC LIMIT 1`,
       [tenant_id, `${tenant_id}-T%`]
@@ -1055,6 +1143,9 @@ app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) =>
 
     const capErr = await capacityViolation(pool, tenant_id, 'student')
     if (capErr) return res.status(400).json({ error: capErr })
+
+    const dupErr = await findStudentDuplicate(pool, tenant_id, { roll_no, name })
+    if (dupErr) return res.status(400).json({ error: dupErr })
 
     const highestResult = await pool.query(
       `SELECT login_id FROM students WHERE tenant_id = $1 AND (login_id LIKE 'S%' OR login_id LIKE $2) ORDER BY login_id DESC LIMIT 1`,
@@ -1140,16 +1231,27 @@ app.post('/api/auth/bulk-create-students', requireAuth(['admin', 'super_admin'])
       // name, roll_no, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email
       queryParams.push(name, null, null, class_id, shortId, passwordHash, tenant_id);
       values.push(`($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, 'student', $${paramIndex++}, true, NULL)`);
-      createdAccounts.push({ login_id: `${tenant_id}-${shortId}`, temp_password: tempPassword, name });
+      createdAccounts.push({ login_id: `${tenant_id}-${shortId}`, db_login_id: shortId, temp_password: tempPassword, name });
     }
 
     const insertQuery = `
       INSERT INTO students (name, roll_no, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email)
       VALUES ${values.join(', ')}
+      RETURNING id, login_id
     `;
 
-    await client.query(insertQuery, queryParams);
+    const insertResult = await client.query(insertQuery, queryParams);
     await client.query('COMMIT');
+
+    // Map generated ids back onto the accounts by login_id (robust against row order).
+    const idByLoginId = new Map();
+    for (const row of insertResult.rows) {
+      idByLoginId.set(row.login_id, row.id);
+    }
+    for (const acct of createdAccounts) {
+      acct.id = idByLoginId.get(acct.db_login_id) ?? null;
+      delete acct.db_login_id;
+    }
     
     res.json({ success: true, accounts: createdAccounts });
   } catch (err) {
@@ -1590,10 +1692,86 @@ app.delete('/api/classes/:id', requireAuth(['admin', 'super_admin']), async (req
   res.json({ success: true })
 })
 
+// Assign a teacher to a class. The class<->teacher link lives on teachers.class_id,
+// so this clears any previous holder of the class and points the new teacher at it.
+app.post('/api/classes/:id/assign-teacher', requireAuth(['admin', 'super_admin']), async (req, res) => {
+  try {
+    const tenant_id = req.user.tenant_id
+    const classId = parseInt(req.params.id, 10)
+    if (!classId) return res.status(400).json({ error: 'Invalid class id' })
+
+    const classCheck = await pool.query(
+      'SELECT id FROM classes WHERE id = $1 AND tenant_id = $2', [classId, tenant_id]
+    )
+    if (classCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Class not found' })
+    }
+
+    const rawTeacherId = req.body ? req.body.teacher_id : null
+    const teacherId = rawTeacherId === null || rawTeacherId === undefined || rawTeacherId === ''
+      ? null
+      : parseInt(rawTeacherId, 10)
+
+    if (teacherId !== null) {
+      if (Number.isNaN(teacherId)) return res.status(400).json({ error: 'Invalid teacher id' })
+      const teacherCheck = await pool.query(
+        'SELECT id FROM teachers WHERE id = $1 AND tenant_id = $2', [teacherId, tenant_id]
+      )
+      if (teacherCheck.rows.length === 0) {
+        return res.status(404).json({ error: 'Teacher not found' })
+      }
+    }
+
+    await pool.query(
+      'UPDATE teachers SET class_id = NULL WHERE class_id = $1 AND tenant_id = $2',
+      [classId, tenant_id]
+    )
+
+    if (teacherId !== null) {
+      await pool.query(
+        'UPDATE teachers SET class_id = $1 WHERE id = $2 AND tenant_id = $3',
+        [classId, teacherId, tenant_id]
+      )
+    }
+
+    res.json({ success: true, class_id: classId, teacher_id: teacherId })
+  } catch (err) {
+    console.error('Error assigning teacher to class:', err)
+    res.status(500).json({ error: 'Failed to assign teacher: ' + err.message })
+  }
+})
+
+// Update a class (name and optional section).
+app.put('/api/classes/:id', requireAuth(['admin', 'super_admin']), async (req, res) => {
+  try {
+    const tenant_id = req.user.tenant_id
+    const classId = parseInt(req.params.id, 10)
+    if (!classId) return res.status(400).json({ error: 'Invalid class id' })
+
+    const { name } = req.body
+    if (!name || !String(name).trim()) {
+      return res.status(400).json({ error: 'Class name is required' })
+    }
+
+    const result = await pool.query(
+      'UPDATE classes SET name = $1 WHERE id = $2 AND tenant_id = $3 RETURNING *',
+      [String(name).trim(), classId, tenant_id]
+    )
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Class not found' })
+    }
+    res.json(result.rows[0])
+  } catch (err) {
+    console.error('Error updating class:', err)
+    res.status(500).json({ error: 'Failed to update class: ' + err.message })
+  }
+})
+
 // TEACHERS
 app.get('/api/teachers', requireAuth(['admin', 'teacher', 'student', 'super_admin']), async (req, res) => {
   const tenant_id = req.user.tenant_id
   const { class_id } = req.query
+  let effectiveClassId = class_id
 
   if (req.user.role === 'student') {
     if (!class_id) {
@@ -1613,21 +1791,29 @@ app.get('/api/teachers', requireAuth(['admin', 'teacher', 'student', 'super_admi
     if (Number(class_id) !== Number(studentClassId)) {
       return res.status(403).json({ error: 'Forbidden' })
     }
+
+    // Always scope students to their own class, regardless of what was passed in.
+    effectiveClassId = studentClassId
   }
 
   const params = [tenant_id]
-  let query = `
-    SELECT teachers.id, teachers.name, teachers.phone, teachers.class_id, teachers.login_id,
+  // Students only need display details for their own class teacher.
+  const columns = req.user.role === 'student'
+    ? `teachers.id, teachers.name, teachers.phone, teachers.class_id, classes.name as class_name`
+    : `teachers.id, teachers.name, teachers.phone, teachers.class_id, teachers.login_id,
            teachers.role, teachers.tenant_id, teachers.is_first_login, teachers.email,
-           teachers.email_verified_at, teachers.created_at, teachers.is_frozen, classes.name as class_name
+           teachers.email_verified_at, teachers.created_at, teachers.is_frozen, classes.name as class_name`
+
+  let query = `
+    SELECT ${columns}
     FROM teachers 
     LEFT JOIN classes ON teachers.class_id = classes.id 
     WHERE teachers.tenant_id = $1
   `
 
-  if (class_id && req.user.role !== 'student') {
+  if (effectiveClassId) {
     query += ' AND teachers.class_id = $2'
-    params.push(class_id)
+    params.push(effectiveClassId)
   }
 
   query += ' ORDER BY teachers.id'
@@ -1637,40 +1823,80 @@ app.get('/api/teachers', requireAuth(['admin', 'teacher', 'student', 'super_admi
 })
 
 app.post('/api/teachers', requireAuth(['admin', 'super_admin']), async (req, res) => {
-  const { name, phone, class_id } = req.body
-  const tenant_id = req.user.tenant_id
-  const capErr = await capacityViolation(pool, tenant_id, 'teacher')
-  if (capErr) return res.status(400).json({ error: capErr })
-  const result = await pool.query(
-    'INSERT INTO teachers (name, phone, class_id, tenant_id) VALUES ($1, $2, $3, $4) RETURNING *',
-    [name, phone, class_id, tenant_id]
-  )
-  res.json(result.rows[0])
+  try {
+    const { name, phone, class_id } = req.body
+    const tenant_id = req.user.tenant_id
+    if (!name || !String(name).trim()) return res.status(400).json({ error: 'Teacher name is required' })
+    const capErr = await capacityViolation(pool, tenant_id, 'teacher')
+    if (capErr) return res.status(400).json({ error: capErr })
+
+    // One teacher per class.
+    if (class_id) {
+      const prev = await pool.query(
+        'SELECT id FROM teachers WHERE class_id = $1 AND tenant_id = $2', [class_id, tenant_id]
+      )
+      for (const h of prev.rows) {
+        await pool.query('UPDATE teachers SET class_id = NULL WHERE id = $1', [h.id])
+      }
+    }
+
+    const result = await pool.query(
+      'INSERT INTO teachers (name, phone, class_id, tenant_id) VALUES ($1, $2, $3, $4) RETURNING *',
+      [String(name).trim(), phone, class_id || null, tenant_id]
+    )
+    res.json(result.rows[0])
+  } catch (err) {
+    if (err.code === '23505' && String(err.constraint || '').includes('one_class_per_tenant')) {
+      return res.status(400).json({ error: 'That class already has a teacher assigned.' })
+    }
+    console.error('Error creating teacher:', err)
+    res.status(500).json({ error: 'Failed to create teacher: ' + err.message })
+  }
 })
 
 app.put('/api/teachers/:id', requireAuth(['admin', 'super_admin']), async (req, res) => {
-  const { name, phone, class_id, is_frozen } = req.body
-  const rawEmail = req.body.email
-  // Only call normalizeEmail when the field is a non-empty string (not null/undefined/empty)
-  // normalizeEmail(String(null)) = "null" → fails regex → undefined ❌
-  // normalizeEmail(undefined)  = "undefined" → fails regex → undefined ❌
-  let email = null
-  if (typeof rawEmail === 'string' && rawEmail.trim()) {
-    const normalized = normalizeEmail(rawEmail)
-    if (normalized === undefined) return res.status(400).json({ error: 'Enter a valid email address' })
-    email = normalized
-  }
-  const tenant_id = req.user.tenant_id
-  const result = await pool.query(
-    `UPDATE teachers SET name=$1, phone=$2, class_id=$3, email=$4::text,
+  try {
+    const { name, phone, class_id, is_frozen } = req.body
+    const rawEmail = req.body.email
+    // Only call normalizeEmail when the field is a non-empty string (not null/undefined/empty)
+    // normalizeEmail(String(null)) = "null" → fails regex → undefined ❌
+    // normalizeEmail(undefined)  = "undefined" → fails regex → undefined ❌
+    let email = null
+    if (typeof rawEmail === 'string' && rawEmail.trim()) {
+      const normalized = normalizeEmail(rawEmail)
+      if (normalized === undefined) return res.status(400).json({ error: 'Enter a valid email address' })
+      email = normalized
+    }
+    const tenant_id = req.user.tenant_id
+
+    // One teacher per class: hand the class over rather than creating a second holder.
+    if (class_id) {
+      const prev = await pool.query(
+        'SELECT id FROM teachers WHERE class_id = $1 AND tenant_id = $2 AND id <> $3',
+        [class_id, tenant_id, req.params.id]
+      )
+      for (const h of prev.rows) {
+        await pool.query('UPDATE teachers SET class_id = NULL WHERE id = $1', [h.id])
+      }
+    }
+
+    const result = await pool.query(
+      `UPDATE teachers SET name=$1, phone=$2, class_id=$3, email=$4::text,
      is_frozen=$7,
      email_verified_at = CASE WHEN email IS NOT DISTINCT FROM $4::text THEN email_verified_at ELSE NULL END
      WHERE id=$5 AND tenant_id=$6
      RETURNING id, name, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at, is_frozen, created_at`,
-    [name, phone, class_id, email, req.params.id, tenant_id, is_frozen === true]
-  )
-  if (result.rows[0]?.email && !result.rows[0].email_verified_at) issueEmailVerification(result.rows[0]).catch(err => console.error('Verification email send failed:', err.message))
-  res.json(result.rows[0])
+      [name, phone, class_id || null, email, req.params.id, tenant_id, is_frozen === true]
+    )
+    if (result.rows[0]?.email && !result.rows[0].email_verified_at) issueEmailVerification(result.rows[0]).catch(err => console.error('Verification email send failed:', err.message))
+    res.json(result.rows[0])
+  } catch (err) {
+    if (err.code === '23505' && String(err.constraint || '').includes('one_class_per_tenant')) {
+      return res.status(400).json({ error: 'That class already has a teacher assigned.' })
+    }
+    console.error('Error updating teacher:', err)
+    res.status(500).json({ error: 'Failed to update teacher: ' + err.message })
+  }
 })
 
 app.delete('/api/teachers/:id', requireAuth(['admin', 'super_admin']), async (req, res) => {
@@ -1720,40 +1946,98 @@ app.get('/api/students/:id', requireAuth(['admin', 'teacher', 'super_admin']), a
 })
 
 app.post('/api/students', requireAuth(['admin', 'super_admin']), async (req, res) => {
-  const { name, roll_no, phone, class_id } = req.body
-  const tenant_id = req.user.tenant_id
-  const capErr = await capacityViolation(pool, tenant_id, 'student')
-  if (capErr) return res.status(400).json({ error: capErr })
-  const result = await pool.query(
-    'INSERT INTO students (name, roll_no, phone, class_id, tenant_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-    [name, roll_no, phone, class_id, tenant_id]
-  )
-  res.json(result.rows[0])
+  try {
+    const { name, roll_no, phone, class_id } = req.body
+    const tenant_id = req.user.tenant_id
+    if (!name || !String(name).trim()) return res.status(400).json({ error: 'Student name is required' })
+    const capErr = await capacityViolation(pool, tenant_id, 'student')
+    if (capErr) return res.status(400).json({ error: capErr })
+
+    const dupErr = await findStudentDuplicate(pool, tenant_id, { roll_no, name })
+    if (dupErr) return res.status(400).json({ error: dupErr })
+
+    const result = await pool.query(
+      'INSERT INTO students (name, roll_no, phone, class_id, tenant_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [String(name).trim(), roll_no, phone, class_id, tenant_id]
+    )
+    res.json(result.rows[0])
+  } catch (err) {
+    if (err.code === '23505' && String(err.constraint || '').includes('roll')) {
+      return res.status(400).json({ error: `Roll number "${roll_no}" is already used by another student in this school. Please choose a different one.` })
+    }
+    console.error('Error creating student:', err)
+    res.status(500).json({ error: 'Failed to create student: ' + err.message })
+  }
 })
 
 app.put('/api/students/:id', requireAuth(['admin', 'super_admin']), async (req, res) => {
-  const { name, roll_no, phone, class_id, is_frozen } = req.body
-  const rawEmail = req.body.email
-  // Only call normalizeEmail when the field is a non-empty string (not null/undefined/empty)
-  // normalizeEmail(String(null)) = "null" → fails regex → undefined ❌
-  // normalizeEmail(undefined)  = "undefined" → fails regex → undefined ❌
-  let email = null
-  if (typeof rawEmail === 'string' && rawEmail.trim()) {
-    const normalized = normalizeEmail(rawEmail)
-    if (normalized === undefined) return res.status(400).json({ error: 'Enter a valid email address' })
-    email = normalized
-  }
-  const tenant_id = req.user.tenant_id
-  const result = await pool.query(
-    `UPDATE students SET name=$1, roll_no=$2, phone=$3, class_id=$4, email=$5::text,
+  try {
+    const { name, roll_no, phone, class_id, is_frozen } = req.body
+    const rawEmail = req.body.email
+    // Only call normalizeEmail when the field is a non-empty string (not null/undefined/empty)
+    // normalizeEmail(String(null)) = "null" → fails regex → undefined ❌
+    // normalizeEmail(undefined)  = "undefined" → fails regex → undefined ❌
+    let email = null
+    if (typeof rawEmail === 'string' && rawEmail.trim()) {
+      const normalized = normalizeEmail(rawEmail)
+      if (normalized === undefined) return res.status(400).json({ error: 'Enter a valid email address' })
+      email = normalized
+    }
+    const tenant_id = req.user.tenant_id
+    const id = parseInt(req.params.id, 10)
+    if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid student id' })
+    if (!name || !String(name).trim()) return res.status(400).json({ error: 'Student name is required' })
+
+    // Ignore this student's own row so re-saving unchanged values is allowed.
+    const dupErr = await findStudentDuplicate(pool, tenant_id, { roll_no, name }, id)
+    if (dupErr) return res.status(400).json({ error: dupErr })
+
+    const result = await pool.query(
+      `UPDATE students SET name=$1, roll_no=$2, phone=$3, class_id=$4, email=$5::text,
      is_frozen=$8,
      email_verified_at = CASE WHEN email IS NOT DISTINCT FROM $5::text THEN email_verified_at ELSE NULL END
      WHERE id=$6 AND tenant_id=$7
      RETURNING id, name, roll_no, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at, is_frozen, created_at`,
-    [name, roll_no, phone, class_id, email, req.params.id, tenant_id, is_frozen === true]
-  )
-  if (result.rows[0]?.email && !result.rows[0].email_verified_at) issueEmailVerification(result.rows[0]).catch(err => console.error('Verification email send failed:', err.message))
-  res.json(result.rows[0])
+      [String(name).trim(), roll_no, phone, class_id, email, id, tenant_id, is_frozen === true]
+    )
+    if (result.rows[0]?.email && !result.rows[0].email_verified_at) issueEmailVerification(result.rows[0]).catch(err => console.error('Verification email send failed:', err.message))
+    res.json(result.rows[0])
+  } catch (err) {
+    if (err.code === '23505' && String(err.constraint || '').includes('roll')) {
+      return res.status(400).json({ error: `Roll number "${roll_no}" is already used by another student in this school. Please choose a different one.` })
+    }
+    console.error('Error updating student:', err)
+    res.status(500).json({ error: 'Failed to update student: ' + err.message })
+  }
+})
+
+// Name-only update. Unlike PUT /api/students/:id (a full replace that would clobber
+// is_frozen / email / roll_no / class_id), this touches the name column alone.
+app.put('/api/students/:id/name', requireAuth(['admin', 'super_admin']), async (req, res) => {
+  try {
+    const tenant_id = req.user.tenant_id
+    const id = parseInt(req.params.id, 10)
+    if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid student id' })
+
+    const name = typeof req.body.name === 'string' ? req.body.name.trim().replace(/\s+/g, ' ') : ''
+    if (!name) return res.status(400).json({ error: 'Name is required' })
+    if (name.length > 100) return res.status(400).json({ error: 'Name must be 100 characters or fewer' })
+
+    const dupErr = await findStudentDuplicate(pool, tenant_id, { name }, id)
+    if (dupErr) return res.status(400).json({ error: dupErr })
+
+    const result = await pool.query(
+      'UPDATE students SET name = $1 WHERE id = $2 AND tenant_id = $3 RETURNING id, name',
+      [name, id, tenant_id]
+    )
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Student not found' })
+    }
+    res.json(result.rows[0])
+  } catch (err) {
+    console.error('Error renaming student:', err)
+    res.status(500).json({ error: 'Failed to rename student: ' + err.message })
+  }
 })
 
 app.delete('/api/students/:id', requireAuth(['admin', 'super_admin']), async (req, res) => {
@@ -1827,12 +2111,16 @@ app.get('/api/attendance/all', requireAuth(['admin', 'super_admin']), async (req
       COALESCE(marking_teacher.name, assigned_teacher.name) as marked_by,
       COALESCE(marking_teacher.id, assigned_teacher.id) as marked_by_id
     FROM attendance
-    JOIN students ON attendance.student_id = students.id
-    JOIN classes ON students.class_id = classes.id
+    JOIN students ON attendance.student_id = students.id AND students.tenant_id = $1
+    LEFT JOIN classes ON students.class_id = classes.id
     LEFT JOIN teachers marking_teacher ON attendance.teacher_id = marking_teacher.id
-    LEFT JOIN teachers assigned_teacher ON assigned_teacher.class_id = students.class_id
+    LEFT JOIN LATERAL (
+      SELECT t.id, t.name FROM teachers t
+      WHERE t.class_id = students.class_id AND t.tenant_id = $1
+      ORDER BY t.id DESC LIMIT 1
+    ) assigned_teacher ON TRUE
     WHERE attendance.tenant_id = $1
-    ORDER BY attendance.date DESC, classes.name ASC, students.name ASC
+    ORDER BY attendance.date DESC, classes.name ASC NULLS LAST, students.name ASC
   `, [tenant_id])
   res.json(result.rows)
 })
@@ -1842,24 +2130,75 @@ app.post('/api/attendance/submit', requireAuth(['teacher', 'admin']), async (req
     const { date, teacher_id, records } = req.body
     const tenant_id = req.user.tenant_id
 
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ error: 'A valid date (YYYY-MM-DD) is required' })
+    }
+    if (!Array.isArray(records) || records.length === 0) {
+      return res.status(400).json({ error: 'No attendance records supplied' })
+    }
+    if (records.length > 1000) {
+      return res.status(400).json({ error: 'Too many records in one submission' })
+    }
+
+    const validStatuses = ['Present', 'Absent', 'Leave']
     for (const record of records) {
-      const updated = await pool.query(
-        `UPDATE attendance
-         SET teacher_id = $1, status = $2, tenant_id = $3
-         WHERE student_id = $4 AND date = $5`,
-        [teacher_id || null, record.status, tenant_id, record.student_id, date]
-      )
-      if (updated.rowCount === 0) {
-        await pool.query(
-          `INSERT INTO attendance (student_id, teacher_id, date, status, tenant_id)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [record.student_id, teacher_id || null, date, record.status, tenant_id]
-        )
+      if (!record || record.student_id === undefined || record.student_id === null) {
+        return res.status(400).json({ error: 'Each record needs a student_id' })
+      }
+      if (!validStatuses.includes(record.status)) {
+        return res.status(400).json({ error: `Invalid attendance status: ${record.status}` })
       }
     }
 
-    res.json({ success: true, saved: records.length })
+    // Only touch students that actually belong to the caller's tenant.
+    const studentIds = [...new Set(records.map(r => parseInt(r.student_id, 10)).filter(n => !Number.isNaN(n)))]
+    if (studentIds.length === 0) {
+      return res.status(400).json({ error: 'No valid student ids supplied' })
+    }
+    const allowed = await pool.query(
+      'SELECT id FROM students WHERE id = ANY($1::int[]) AND tenant_id = $2',
+      [studentIds, tenant_id]
+    )
+    const allowedIds = new Set(allowed.rows.map(r => r.id))
+    const rejected = studentIds.filter(id => !allowedIds.has(id))
+    if (rejected.length) {
+      return res.status(403).json({ error: `Student(s) not found in your school: ${rejected.join(', ')}` })
+    }
+
+    const client = await pool.connect()
+    let saved = 0
+    try {
+      await client.query('BEGIN')
+      for (const record of records) {
+        const studentId = parseInt(record.student_id, 10)
+        // tenant_id is part of the match so a submit can never claim another
+        // school's row (which would then vanish from that school's stats).
+        const updated = await client.query(
+          `UPDATE attendance
+           SET teacher_id = $1, status = $2, tenant_id = $3
+           WHERE student_id = $4 AND date = $5 AND tenant_id = $6`,
+          [teacher_id || null, record.status, tenant_id, studentId, date, tenant_id]
+        )
+        if (updated.rowCount === 0) {
+          await client.query(
+            `INSERT INTO attendance (student_id, teacher_id, date, status, tenant_id)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [studentId, teacher_id || null, date, record.status, tenant_id]
+          )
+        }
+        saved++
+      }
+      await client.query('COMMIT')
+    } catch (txErr) {
+      await client.query('ROLLBACK')
+      throw txErr
+    } finally {
+      client.release()
+    }
+
+    res.json({ success: true, saved })
   } catch (err) {
+    console.error('Error submitting attendance:', err)
     res.status(500).json({ error: err.message })
   }
 })
@@ -2159,7 +2498,7 @@ app.get('/api/fees/payments', requireAuth(['admin', 'teacher']), async (req, res
     const classIds   = [...new Set(noPaymentRows.map(r => r.class_id).filter(Boolean))]
 
     const fsResult = await pool.query(
-      `SELECT type, target_id, monthly_fee
+      `SELECT type, target_id, monthly_fee, transport_fee, discount
        FROM fee_structures
        WHERE tenant_id = $1
          AND (
@@ -2185,7 +2524,7 @@ app.get('/api/fees/payments', requireAuth(['admin', 'teacher']), async (req, res
       const fs = studentStructures[r.student_id] || classStructures[r.class_id] || null
 
       if (fs) {
-        return { ...r, amount_due: Number(fs.monthly_fee) || 0, amount_paid: 0, status: 'unpaid', month_year: targetMonth }
+        return { ...r, amount_due: monthlyAmountDue(fs), amount_paid: 0, status: 'unpaid', month_year: targetMonth }
       }
       // No fee structure — keep not_set_up
       return { ...r, amount_due: 0, amount_paid: 0, month_year: targetMonth }
@@ -2337,7 +2676,7 @@ app.get('/api/fees/me', requireAuth(['student']), async (req, res) => {
     feeStructure = classFs.rows[0] || null
   }
   if (feeStructure) {
-    monthlyFee = Number(feeStructure.monthly_fee) || 0
+    monthlyFee = monthlyAmountDue(feeStructure)
     feeStructureExists = true
   }
 

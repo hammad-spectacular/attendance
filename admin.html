@@ -2338,7 +2338,8 @@
                 <input type="text" id="attendanceSearchInput" class="form-input"
                   placeholder="Search by student name..." oninput="filterAttendance()">
               </div>
-              <input type="month" id="attendanceMonthFilter" class="form-input" style="max-width:180px;" onchange="filterAttendance()">
+              <input type="date" id="attendanceDateFilter" class="form-input" style="max-width:180px;" onchange="onAttendanceDateChange(this)">
+              <input type="month" id="attendanceMonthFilter" class="form-input" style="max-width:180px;" onchange="onAttendanceMonthChange(this)">
               <select id="attendanceClassFilter" class="form-input" style="max-width:220px;" onchange="filterAttendance()">
                 <option value="">All Classes</option>
               </select>
@@ -2388,11 +2389,14 @@
               <div style="font-size: 1.1rem; font-weight: 700; color: var(--text);">Overall Leaderboard</div>
               <div style="font-size: 0.85rem; color: var(--text-secondary);">Filter by class or teacher to view top students</div>
             </div>
-            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
               <input type="text" id="statsSearchInput" class="form-input" style="min-width:220px;" placeholder="Search class or teacher..." oninput="renderStats()">
               <select id="statsClassSelect" class="form-input" style="max-width: 250px;" onchange="renderStats()">
                 <option value="">All Classes</option>
               </select>
+              <button class="btn ghost" id="statsRefreshBtn" onclick="refreshAttendanceData().then(() => { renderStats(); showToast('Attendance stats refreshed', 'success'); })" title="Fetch the latest attendance records">
+                <i class="fas fa-sync-alt"></i> Refresh
+              </button>
             </div>
           </div>
           <div id="statsTableWrap">
@@ -3162,6 +3166,32 @@
       }
     }
 
+    // Attendance is the one dataset that changes while the admin panel is open
+    // (teachers submit throughout the day), so it is refetched on demand rather
+    // than served from the one-shot snapshot taken by reloadAllData().
+    async function refreshAttendanceData() {
+      if (window.__attendanceRefreshInFlight) return;
+      window.__attendanceRefreshInFlight = true;
+      try {
+        const res = await apiFetch('/api/attendance/all');
+        if (!res.ok) throw new Error(`Server returned ${res.status}`);
+        const payload = await res.json();
+        window.appData.attendance = groupAttendanceRecords(Array.isArray(payload) ? payload : []);
+        window.appData.attendanceLoadError = '';
+      } catch (err) {
+        console.error('Failed to refresh attendance:', err);
+        window.appData.attendanceLoadError = err.message || 'Attendance failed to load';
+      } finally {
+        window.__attendanceRefreshInFlight = false;
+      }
+    }
+
+    async function renderAttendanceTabLive() {
+      await refreshAttendanceData();
+      if (activeTabId === 'tab-stats') renderStats();
+      else if (activeTabId === 'tab-attendance') renderAttendance();
+    }
+
     function renderCurrentTab() {
       if (activeTabId === 'tab-classes') renderClasses();
       else if (activeTabId === 'tab-teachers') renderTeachers();
@@ -3240,6 +3270,8 @@
       });
       if (subTabName === 'dashboard') {
         renderFees();
+      } else if (subTabName === 'structure') {
+        renderFeeStructureTable();
       } else if (subTabName === 'history') {
         renderPaymentHistoryTab();
       }
@@ -3391,10 +3423,11 @@
 
             const amountDueNum = Number(record.amount_due || 0);
             const amountPaidNum = Number(record.amount_paid || 0);
+            const remainingNum = Math.max(0, amountDueNum - amountPaidNum);
             const progressPct = amountDueNum > 0 ? Math.min(100, Math.round((amountPaidNum / amountDueNum) * 100)) : (status === 'paid' ? 100 : 0);
 
             const canQuickPay = status === 'unpaid' || status === 'partial';
-            const pillOnClick = canQuickPay ? `onclick="quickMarkPaidAdmin(event, ${student.id}, ${amountDueNum}, this)"` : '';
+            const pillOnClick = canQuickPay ? `onclick="quickMarkPaidAdmin(event, ${student.id}, ${amountDueNum}, ${amountPaidNum}, this)"` : '';
             const pillClass = `fee-card-pill ${status} ${canQuickPay ? 'clickable' : ''}`;
             const pillLabel = status === 'paid' ? 'Paid' : (status === 'partial' ? 'Partial' : (status === 'unpaid' ? 'Unpaid' : 'Not Set Up'));
 
@@ -3428,6 +3461,10 @@
                   <span class="fee-card-value">Rs. ${amountPaidNum.toLocaleString()}</span>
                 </div>
                 <div class="fee-card-row">
+                  <span class="fee-card-label">Remaining</span>
+                  <span class="fee-card-value" style="color:${remainingNum > 0 ? 'var(--danger)' : 'var(--success)'};">Rs. ${remainingNum.toLocaleString()}</span>
+                </div>
+                <div class="fee-card-row">
                   <span class="fee-card-label">Payment Date</span>
                   <span class="fee-card-value">${escapeHtml(record.payment_date || '—')}</span>
                 </div>
@@ -3457,7 +3494,7 @@
       }
     }
 
-    async function quickMarkPaidAdmin(event, studentId, amountDue, element) {
+    async function quickMarkPaidAdmin(event, studentId, amountDue, amountPaidSoFar, element) {
       event.stopPropagation();
       if (element.dataset.confirming !== 'true') {
         const originalText = element.innerText;
@@ -3476,33 +3513,26 @@
       element.style.opacity = '0.5';
       try {
         const month = document.getElementById('feeMonthFilter')?.value || new Date().toISOString().slice(0, 7);
+        const due = Number(amountDue) || 0;
         const data = {
           student_id: studentId,
           month: month,
-          amount_due: amountDue,
-          amount_paid: amountDue,
-          payment_method: 'Cash',
+          amount_due: due,
+          amount_paid: due,
+          payment_method: 'cash',
           payment_date: new Date().toISOString().split('T')[0],
           notes: 'Quick mark paid'
         };
-        await apiFetch('/api/fees/payments', {
+        const res = await apiFetch('/api/fees/payments', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data)
         });
-        const card = document.getElementById(`fee-card-${studentId}`);
-        if (card) {
-          element.className = 'fee-card-pill paid';
-          element.innerText = 'Paid';
-          element.removeAttribute('onclick');
-          const valSpans = card.querySelectorAll('.fee-card-value');
-          if (valSpans.length >= 2) {
-            valSpans[0].innerText = `Rs. ${Number(amountDue).toLocaleString()}`;
-            valSpans[1].innerText = data.payment_date;
-          }
-          let progress = card.querySelector('.fee-progress-bar');
-          if (progress) progress.style.width = '100%';
-          card.classList.remove('expanded');
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `Server returned ${res.status}`);
         }
+        await loadFeeData(month);
         showToast('Payment recorded successfully', 'success');
       } catch (err) {
         showToast('Failed to record payment: ' + err.message, 'error');
@@ -3612,14 +3642,14 @@
       try {
         // Check if a structure already exists for this type+target_id
         const existingList = window._feeStructuresCache || [];
-        const existing = existingList.find(s => s.type === type && Number(s.target_id) === Number(target));
+        const existing = existingList.find(s => String(s.type) === String(type) && String(s.target_id) === String(target));
         const url = existing ? `/api/fees/structures/${existing.id}` : '/api/fees/structures';
         const method = existing ? 'PUT' : 'POST';
 
         const res = await apiFetch(url, {
           method,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type, target_id: parseInt(target), monthly_fee: monthly, admission_fee: admission, transport_fee: transport, discount })
+          body: JSON.stringify({ type, target_id: parseInt(target, 10), monthly_fee: monthly, admission_fee: admission, transport_fee: transport, discount })
         });
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
@@ -3627,8 +3657,10 @@
         }
         showToast('✅ Fee structure saved', 'success');
         closeFeeStructureModal();
-        // Reload fee structures and refresh UI
-        if (typeof loadFeeStructures === 'function') await loadFeeStructures();
+        await loadFeeStructures();
+        const month = document.getElementById('feeMonthFilter')?.value || new Date().toISOString().slice(0, 7);
+        await loadFeeData(month);
+        renderFeeStructureTable();
         if (typeof renderStudentTable === 'function') renderStudentTable();
       } catch (err) {
         showToast(`❌ ${err.message}`, 'error');
@@ -3640,14 +3672,81 @@
 
     async function loadFeeStructures() {
       try {
-        const data = await apiFetch('/api/fees/structures');
-        if (data.ok) {
-          const json = await data.json();
+        const res = await apiFetch('/api/fees/structures');
+        if (res.ok) {
+          const json = await res.json();
           window._feeStructuresCache = Array.isArray(json) ? json : [];
+        } else {
+          window._feeStructuresCache = [];
         }
       } catch (err) {
         window._feeStructuresCache = [];
       }
+      renderFeeStructureTable();
+    }
+
+    function renderFeeStructureTable() {
+      const wrap = document.getElementById('feeStructureTableWrap');
+      if (!wrap) return;
+      const list = window._feeStructuresCache || [];
+      if (!list.length) {
+        wrap.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">📋</div>
+            <div class="msg">No fee structures yet</div>
+            <div class="sub">Add a class or student fee — it will show here and drive the paid / unpaid dashboard.</div>
+          </div>`;
+        return;
+      }
+      const sorted = [...list].sort((a, b) => {
+        if (a.type !== b.type) return a.type === 'class' ? -1 : 1;
+        return String(a.name || '').localeCompare(String(b.name || ''));
+      });
+      wrap.innerHTML = `
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="text-align:left;">Type</th>
+                <th style="text-align:left;">Class / Student</th>
+                <th style="text-align:right;">Monthly</th>
+                <th style="text-align:right;">Admission</th>
+                <th style="text-align:right;">Transport</th>
+                <th style="text-align:right;">Discount</th>
+                <th style="text-align:center;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sorted.map(s => `
+                <tr>
+                  <td style="text-align:left;"><span class="badge">${escapeHtml(s.type === 'class' ? 'Class' : 'Student')}</span></td>
+                  <td style="text-align:left;"><strong>${escapeHtml(s.name || '—')}</strong></td>
+                  <td style="text-align:right;">Rs. ${Number(s.monthly_fee || 0).toLocaleString()}</td>
+                  <td style="text-align:right;">Rs. ${Number(s.admission_fee || 0).toLocaleString()}</td>
+                  <td style="text-align:right;">Rs. ${Number(s.transport_fee || 0).toLocaleString()}</td>
+                  <td style="text-align:right;">Rs. ${Number(s.discount || 0).toLocaleString()}</td>
+                  <td style="text-align:center;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="editFeeStructure(${Number(s.id)})"><i class="fas fa-pen"></i> Edit</button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    }
+
+    function editFeeStructure(structureId) {
+      const s = (window._feeStructuresCache || []).find(x => Number(x.id) === Number(structureId));
+      if (!s) return;
+      const modal = document.getElementById('feeStructureModal');
+      if (modal) modal.style.display = 'flex';
+      document.getElementById('feeStructureType').value = s.type;
+      populateFeeStructureTarget();
+      document.getElementById('feeStructureTarget').value = s.target_id;
+      document.getElementById('feeStructureMonthly').value = Number(s.monthly_fee) || '';
+      document.getElementById('feeStructureAdmission').value = Number(s.admission_fee) || '';
+      document.getElementById('feeStructureTransport').value = Number(s.transport_fee) || '';
+      document.getElementById('feeStructureDiscount').value = Number(s.discount) || '';
     }
 
     function getStudentMonthlyFee(student) {
@@ -3815,7 +3914,7 @@
     }
 
     function groupAttendanceRecords(flatRecords) {
-      return (flatRecords || []).map(row => {
+      const out = (flatRecords || []).map(row => {
         let dateStr = row.date;
         if (dateStr && String(dateStr).includes('T')) {
           dateStr = String(dateStr).split('T')[0];
@@ -3826,8 +3925,10 @@
         const classObj = row.class_id
           ? window.appData.classes.find(c => String(c.id) === String(row.class_id))
           : window.appData.classes.find(c => c.name === row.class_name);
+        // Prefer the highest teacher id so legacy duplicate class assignments
+        // resolve to the same teacher the backend reports.
         const assignedTeacher = classObj
-          ? window.appData.teachers.find(t => String(t.class_id) === String(classObj.id))
+          ? teacherForClass(window.appData.teachers, classObj.id)
           : null;
 
         return {
@@ -3845,18 +3946,42 @@
           markedById: row.marked_by_id || (assignedTeacher ? assignedTeacher.id : ''),
           createdAt: row.created_at || ''
         };
-      }).sort((a, b) => (b.date || '').localeCompare(a.date || '') || a.studentName.localeCompare(b.studentName));
+      });
+
+      const seen = new Set();
+      const unique = [];
+      for (const r of out) {
+        const key = r.id != null
+          ? `id:${r.id}`
+          : `sd:${r.studentId}|${r.date}|${r.status}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        unique.push(r);
+      }
+
+      return unique.sort((a, b) => (b.date || '').localeCompare(a.date || '') || a.studentName.localeCompare(b.studentName));
     }
 
     // =============================================================
     // CLASSES SECTION & INLINE ASSIGNMENT
     // =============================================================
+
+    // A class has at most one teacher, but legacy data can still hold duplicates
+    // until the startup cleanup runs. Always resolve to the highest teacher id so
+    // the UI shows the current teacher rather than the one who was replaced.
+    function teacherForClass(teachers, classId) {
+      if (classId === null || classId === undefined || classId === '') return null;
+      return (teachers || [])
+        .filter(t => String(t.class_id) === String(classId))
+        .sort((a, b) => Number(b.id) - Number(a.id))[0] || null;
+    }
+
     function filterClasses() {
       const query = document.getElementById('classesSearchInput')?.value.toLowerCase().trim() || '';
       let filtered = window.appData.classes;
       if (query) {
         filtered = filtered.filter(c => {
-          const assigned = window.appData.teachers.find(t => t.class_id === c.id);
+          const assigned = teacherForClass(window.appData.teachers, c.id);
           return (c.name && c.name.toLowerCase().includes(query)) ||
                  (assigned && assigned.name && assigned.name.toLowerCase().includes(query));
         });
@@ -3902,7 +4027,7 @@
           <tbody>`;
 
       classes.forEach((cls, i) => {
-        const assignedTeacher = teachers.find(t => t.class_id === cls.id);
+        const assignedTeacher = teacherForClass(teachers, cls.id);
         const studentCount = studentCounts[cls.id] || 0;
 
         html += `
@@ -4050,7 +4175,7 @@
       isolatedView.classList.add('active'); // trigger animation if we want
 
       const teachers = window.appData.teachers;
-      const assignedTeacher = teachers.find(t => t.class_id === cls.id);
+      const assignedTeacher = teacherForClass(teachers, cls.id);
       
       const classStudents = window.appData.students.filter(s => s.class_id === cls.id);
 
@@ -4271,19 +4396,16 @@
         if (conflictInCache || conflictInDirty) {
           const cls = window.appData.classes.find(c => c.id === value);
           const clsName = cls ? cls.name : 'this class';
-          showToast(`Another teacher is already assigned to ${clsName}. A class can only have one teacher.`, 'error');
-          
-          // Revert the UI select element back to its previous value
-          const tr = document.getElementById(`row-tab-teachers-${id}`);
-          if (tr) {
-            const select = tr.querySelector('select');
-            if (select) {
-              const previousValue = dirtyState[tabId]?.get(id)?.current?.class_id || 
-                                   window.appData.teachers.find(t => t.id === id)?.class_id || '';
-              select.value = previousValue;
-            }
-          }
-          return; // Block the change
+          const previousHolder = window.appData.teachers.find(t => t.class_id === value && t.id !== id);
+
+          // Don't silently revert: the select snaps back and it looks like nothing was
+          // saved. The backend transfers the class (the previous teacher is set back to
+          // unassigned), so allow the change and say what will happen.
+          showToast(
+            `${previousHolder ? previousHolder.name : 'Another teacher'} is currently assigned to ${clsName}. ` +
+            `Saving will move ${clsName} to this teacher and unassign the other.`,
+            'warning'
+          );
         }
       }
 
@@ -4751,23 +4873,70 @@
       renderAttendance();
     }
 
+    // Attendance cannot be recorded for a future day, so the picker refuses those.
+    function isFutureAttendanceDate(value) {
+      if (!value) return false;
+      const today = getTodayDate();
+      return String(value) > today;
+    }
+
+    function syncAttendanceDateBounds() {
+      const dateInput = document.getElementById('attendanceDateFilter');
+      const monthInput = document.getElementById('attendanceMonthFilter');
+      const today = getTodayDate();
+      if (dateInput) dateInput.max = today;
+      if (monthInput) monthInput.max = today.slice(0, 7);
+    }
+
+    function onAttendanceDateChange(el) {
+      syncAttendanceDateBounds();
+      if (isFutureAttendanceDate(el.value)) {
+        showToast('⚠️ Attendance cannot be recorded for a future date', 'warning');
+        el.value = getTodayDate();
+      }
+      // Keep the month filter consistent so the two controls never contradict.
+      const monthInput = document.getElementById('attendanceMonthFilter');
+      if (monthInput && el.value) monthInput.value = el.value.slice(0, 7);
+      filterAttendance();
+    }
+
+    function onAttendanceMonthChange(el) {
+      syncAttendanceDateBounds();
+      const today = getTodayDate();
+      if (el.value && el.value > today.slice(0, 7)) {
+        showToast('⚠️ Attendance cannot be recorded for a future month', 'warning');
+        el.value = today.slice(0, 7);
+      }
+      const dateInput = document.getElementById('attendanceDateFilter');
+      if (dateInput && dateInput.value && el.value && dateInput.value.slice(0, 7) !== el.value) {
+        dateInput.value = '';
+      }
+      filterAttendance();
+    }
+
     function getFilteredAttendanceRecords() {
       const records = window.appData.attendance || [];
       const search = (document.getElementById('attendanceSearchInput')?.value || '').toLowerCase().trim();
+      const dateInput = document.getElementById('attendanceDateFilter');
       const monthInput = document.getElementById('attendanceMonthFilter');
       const classFilter = document.getElementById('attendanceClassFilter')?.value || '';
 
-      if (monthInput && !monthInput.value) {
-        monthInput.value = new Date().toISOString().slice(0, 7);
-      }
+      syncAttendanceDateBounds();
+
+      // Default to today (local date, not UTC) on first load.
+      if (dateInput && !dateInput.value) dateInput.value = getTodayDate();
+      if (monthInput && !monthInput.value) monthInput.value = getTodayDate().slice(0, 7);
+
+      const date = dateInput?.value || '';
       const month = monthInput?.value || '';
 
       return records.filter(record => {
         const matchesSearch = !search || (record.studentName || '').toLowerCase().includes(search);
+        const matchesDate = !date || record.date === date;
         const matchesMonth = !month || record.month === month;
         const matchesClass = !classFilter || String(record.classId) === String(classFilter);
         const matchesStatus = !attendanceStatusFilter || (record.status || '').toLowerCase() === attendanceStatusFilter.toLowerCase();
-        return matchesSearch && matchesMonth && matchesClass && matchesStatus;
+        return matchesSearch && matchesDate && matchesMonth && matchesClass && matchesStatus;
       });
     }
 
@@ -4807,14 +4976,17 @@
           <div class="empty-state" style="padding:36px 16px;">
             <div class="icon"><i class="fas fa-search"></i></div>
             <div class="msg">No matching attendance records found</div>
-            <div class="sub">Try another student name, month, or class</div>
+            <div class="sub">Try another student name, date, or class</div>
           </div>`;
         return;
       }
 
+      const distinctStudents = new Set(records.map(r => r.studentId ?? r.studentName)).size;
+
       let html = `
         <div style="padding:12px 18px; color:var(--text-secondary); font-size:0.82rem; border-bottom:1px solid var(--border);">
-          Showing <strong style="color:var(--text);">${records.length}</strong> read-only record${records.length === 1 ? '' : 's'}
+          Showing <strong style="color:var(--text);">${distinctStudents}</strong> student${distinctStudents === 1 ? '' : 's'}
+          &middot; <strong style="color:var(--text);">${records.length}</strong> attendance record${records.length === 1 ? '' : 's'}
         </div>
         <div style="overflow-x:auto;">
         <table class="data-table">
@@ -4881,9 +5053,10 @@
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
+      const date = document.getElementById('attendanceDateFilter')?.value || '';
       const month = document.getElementById('attendanceMonthFilter')?.value || 'all';
       link.href = url;
-      link.download = `attendance-${month}.csv`;
+      link.download = `attendance-${date || month}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -5358,7 +5531,12 @@
           body: JSON.stringify({ name, roll_no: rollNo, phone: phone || null, class_id: classId, email: email || null })
         });
 
-        if (!response.ok) throw new Error('Failed to update student');
+        if (!response.ok) {
+          // Surface the server's reason (duplicate roll number / duplicate name)
+          // instead of a generic failure.
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || `Failed to update student (${response.status})`);
+        }
         
         const updatedStudent = await response.json();
         const idx = window.appData.students.findIndex(s => s.id === id);
@@ -5505,6 +5683,12 @@
         renderFees();
       }
 
+      // Stats and attendance views are backed by live attendance data, so pull a
+      // fresh copy instead of rendering the stale snapshot.
+      if (newTabId === 'tab-stats' || newTabId === 'tab-attendance') {
+        renderAttendanceTabLive();
+      }
+
       if (clearSearch) {
         if (newTabId === 'tab-classes') {
           closeClassIsolation();
@@ -5563,8 +5747,9 @@
       const btn = document.getElementById('savebarSaveBtn');
       btn.disabled = true;
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-      let failedCount = 0;
-      let savedCount = 0;
+    let failedCount = 0;
+    let savedCount = 0;
+    let firstError = null;
 
       try {
         if (activeTabId === 'tab-teachers') {
@@ -5600,6 +5785,7 @@
               savedCount++;
             } else {
               failedCount++;
+              if (!firstError) firstError = data2?.error || `HTTP ${response.status}`;
               console.error(`Student ${id} save failed:`, data2?.error || response.status);
             }
           }
@@ -5610,7 +5796,8 @@
         if (failedCount === 0 && savedCount > 0) {
           showToast('✅ All changes saved successfully', 'success');
         } else if (failedCount > 0) {
-          showToast(`⚠️ Saved ${savedCount}, failed ${failedCount}. Check console for details.`, 'warning');
+          const detail = firstError ? ` — ${firstError}` : '';
+          showToast(`⚠️ Saved ${savedCount}, failed ${failedCount}${detail}`, 'warning');
         }
       } catch (err) {
         showToast(`❌ Error saving changes: ${err.message}`, 'error');
@@ -6020,6 +6207,9 @@
         <p style="margin-bottom:15px; color:var(--text-secondary);">
           Please download or copy these credentials now. You will not be able to see these temporary passwords again.
         </p>
+        <p style="margin-bottom:10px; color:var(--text-secondary); font-size:0.85rem;">
+          <i class="fas fa-pen"></i> You can edit the names below and save them all at once.
+        </p>
         <div style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px;">
           <table class="data-table" id="bulkResultsTable">
             <thead>
@@ -6033,9 +6223,10 @@
           </table>
         </div>
         <div class="edit-modal-actions">
+          <button class="btn primary" id="bulkSaveNamesBtn" onclick="saveBulkNames()"><i class="fas fa-save"></i> Save Names</button>
           <button class="btn ghost" onclick="copyBulkResults()"><i class="fas fa-copy"></i> Copy All</button>
           <button class="btn ghost" onclick="downloadBulkCSV()"><i class="fas fa-download"></i> Download CSV</button>
-          <button class="btn primary" onclick="closeBulkResultsModal()">Done</button>
+          <button class="btn ghost" onclick="closeBulkResultsModal()">Done</button>
         </div>
       </div>
     </div>
@@ -6164,19 +6355,93 @@
     function showBulkResults(accounts) {
       bulkGeneratedAccounts = accounts;
       const tbody = document.querySelector('#bulkResultsTable tbody');
-      tbody.innerHTML = accounts.map(function(a) {
+      tbody.innerHTML = accounts.map(function(a, idx) {
+        if (a.original_name === undefined) a.original_name = a.name;
+        const nameCell = (a.id !== null && a.id !== undefined)
+          ? '<input type="text" class="form-input" maxlength="100" style="padding:5px 8px; font-size:0.8rem; height:auto;" ' +
+            'value="' + escapeHtml(a.name) + '" oninput="updateBulkName(' + idx + ', this.value)">'
+          : '<span>' + escapeHtml(a.name) + '</span>';
         return '<tr>' +
-          '<td>' + escapeHtml(a.name) + '</td>' +
+          '<td>' + nameCell + '</td>' +
           '<td style="font-family:monospace;">' + escapeHtml(a.login_id) + '</td>' +
           '<td style="font-family:monospace;">' + escapeHtml(a.temp_password) + '</td>' +
           '</tr>';
       }).join('');
       document.getElementById('bulkResultsModal').classList.add('open');
+      const saveBtn = document.getElementById('bulkSaveNamesBtn');
+      if (saveBtn) saveBtn.style.display = '';
+    }
+
+    function updateBulkName(index, value) {
+      if (bulkGeneratedAccounts[index]) bulkGeneratedAccounts[index].name = value;
+    }
+
+    async function saveBulkNames() {
+      if (!bulkGeneratedAccounts.length) return;
+      const renames = bulkGeneratedAccounts
+        .map(function(a, idx) {
+          const orig = a.original_name !== undefined ? a.original_name : a.name;
+          const next = String(a.name || '').trim().replace(/\s+/g, ' ');
+          return { idx: idx, id: a.id, orig: orig, next: next };
+        })
+        .filter(function(r) { return r.id != null && r.next && r.next !== r.orig; });
+
+      if (!renames.length) {
+        showToast('No name changes to save', 'info');
+        return;
+      }
+
+      const invalid = renames.filter(function(r) { return r.next.length > 100; });
+      if (invalid.length) {
+        showToast('⚠️ Name must be 100 characters or fewer', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('bulkSaveNamesBtn');
+      if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; }
+
+      let saved = 0;
+      const failures = [];
+      for (const r of renames) {
+        try {
+          const response = await apiFetch('/api/students/' + r.id + '/name', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: r.next })
+          });
+          if (!response.ok) {
+            let msg = 'Failed';
+            try { const b = await response.json(); if (b && b.error) msg = b.error; } catch (e) {}
+            failures.push(r.next + ' (' + msg + ')');
+            continue;
+          }
+          saved++;
+          const acct = bulkGeneratedAccounts[r.idx];
+          acct.original_name = r.next;
+          acct.name = r.next;
+          // Keep the in-memory student list consistent with what we just wrote.
+          const st = (window.appData.students || []).find(function(s) { return s.id === r.id; });
+          if (st) st.name = r.next;
+        } catch (err) {
+          failures.push(r.next + ' (' + err.message + ')');
+        }
+      }
+
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Save Names'; }
+
+      if (failures.length) {
+        showToast('⚠️ Saved ' + saved + ', failed ' + failures.length + ': ' + failures.slice(0, 3).join(', '), 'error');
+      } else {
+        showToast('✅ Saved ' + saved + ' name' + (saved !== 1 ? 's' : ''), 'success');
+        showBulkResults(bulkGeneratedAccounts);
+      }
     }
 
     function closeBulkResultsModal() {
       document.getElementById('bulkResultsModal').classList.remove('open');
       bulkGeneratedAccounts = [];
+      const saveBtn = document.getElementById('bulkSaveNamesBtn');
+      if (saveBtn) saveBtn.style.display = 'none';
     }
 
     function copyBulkResults() {

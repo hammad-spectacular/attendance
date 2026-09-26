@@ -1021,7 +1021,11 @@
 
         classes.forEach((cls) => {
           const classStudents = studentsByClass[cls.id] || [];
-          const teacherForClass = teachers.find(t => t.class_id === cls.id);
+          // Highest id wins: a class can briefly hold legacy duplicate assignments,
+          // and the first match would be the teacher who was replaced.
+          const teacherForClass = teachers
+            .filter(t => String(t.class_id) === String(cls.id))
+            .sort((a, b) => Number(b.id) - Number(a.id))[0] || null;
 
           html += `
             <div class="class-card">
@@ -1244,7 +1248,11 @@
           body: JSON.stringify({ name, roll_no: rollNo, phone: phone || null, class_id: classId })
         });
 
-        if (!response.ok) throw new Error('Failed to add student');
+        if (!response.ok) {
+          // Show the server's reason (duplicate roll number / duplicate name).
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || `Failed to add student (${response.status})`);
+        }
 
         document.getElementById(`studentName${classId}`).value = '';
         document.getElementById(`studentRoll${classId}`).value = '';
@@ -1288,12 +1296,14 @@
         const student = students.find(s => s.id === studentId);
         if (!student) return;
 
-        document.getElementById('editStudentClassId').value = student.class_id;
-        document.getElementById('editStudentIndex').value = studentId;
-        document.getElementById('editStudentName').value = student.name;
-        document.getElementById('editStudentRoll').value = student.roll_no || '';
-        document.getElementById('editStudentPhone').value = student.phone || '';
-        document.getElementById('editStudentModal').classList.add('open');
+      document.getElementById('editStudentClassId').value = student.class_id;
+      document.getElementById('editStudentIndex').value = studentId;
+      document.getElementById('editStudentName').value = student.name;
+      document.getElementById('editStudentRoll').value = student.roll_no || '';
+      document.getElementById('editStudentPhone').value = student.phone || '';
+      // Remembered so the full-replace PUT does not unfreeze the student.
+      window._editingStudentFrozen = student.is_frozen === true;
+      document.getElementById('editStudentModal').classList.add('open');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       }
@@ -1323,13 +1333,25 @@
       }
 
       try {
+        // PUT /api/students/:id is a full replace, so class_id and is_frozen must be
+        // resent. Omitting them used to null the class and unfreeze the student.
+        const classId = document.getElementById('editStudentClassId').value;
         const response = await fetch(`${API}/api/students/${studentId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, roll_no: rollNo, phone: phone || null })
+          body: JSON.stringify({
+            name,
+            roll_no: rollNo,
+            phone: phone || null,
+            class_id: classId ? classId : null,
+            is_frozen: window._editingStudentFrozen === true
+          })
         });
 
-        if (!response.ok) throw new Error('Failed to update student');
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || `Failed to update student (${response.status})`);
+        }
 
         closeEditStudentModal();
         renderClasses();

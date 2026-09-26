@@ -81,13 +81,22 @@ async function refreshSession(retries = 2) {
 
 async function apiFetch(url, options = {}, retries = 2) {
   const fullUrl = url.startsWith('/api') ? API_BASE + url : url;
+  const headers = {
+    ...authHeader(),
+    ...(options.headers || {})
+  };
+  if (
+    options.body &&
+    typeof options.body === 'string' &&
+    !headers['Content-Type'] &&
+    !headers['content-type']
+  ) {
+    headers['Content-Type'] = 'application/json';
+  }
   const doFetch = () => fetch(fullUrl, {
     credentials: 'include',
     ...options,
-    headers: {
-      ...authHeader(),
-      ...(options.headers || {})
-    }
+    headers
   });
 
   let res;
