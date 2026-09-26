@@ -587,6 +587,40 @@
       padding-top: 14px;
     }
 
+    .att-today-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .att-today-banner i {
+      font-size: 1rem;
+      margin-top: 1px;
+      flex: 0 0 auto;
+    }
+
+    .att-today-banner.ok {
+      background: var(--success-bg);
+      color: var(--success);
+    }
+
+    .att-today-banner.missing {
+      background: var(--warning-bg);
+      color: var(--warning);
+    }
+
+    .att-today-sub {
+      font-weight: 500;
+      font-size: 0.75rem;
+      opacity: 0.85;
+      margin-top: 3px;
+    }
+
     .attendance-days-title {
       font-size: 0.78rem;
       font-weight: 700;
@@ -1026,7 +1060,10 @@
             <select id="studentAttYearFilter" class="form-select" onchange="renderStudentAttendance()" aria-label="Filter by year">
               <option value="">All Years</option>
             </select>
-            <button type="button" class="btn btn-sm" id="studentAttResetBtn" onclick="resetStudentAttendanceFilter()">Clear</button>
+            <button type="button" class="btn" id="studentAttRefreshBtn" onclick="refreshStudentAttendance()" title="Check for newly submitted attendance">
+              <i class="fas fa-rotate"></i> Refresh
+            </button>
+            <button type="button" class="btn" id="studentAttResetBtn" onclick="resetStudentAttendanceFilter()">Clear</button>
           </div>
           <div id="attendanceSection"></div>
         </div>
@@ -1185,7 +1222,8 @@ function setButtonLoading(btn, loading, loadingHtml) {
       classInfo: null,
       teacher: null,
       fees: [],
-      attendance: []
+      attendance: [],
+      schoolToday: null
     };
 
     function escapeHtml(value) {
@@ -1296,7 +1334,14 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
     function formatDate(value) {
       if (!value) return 'No date';
-      const date = new Date(value);
+      const s = String(value);
+      // A date-only value is a calendar day, not an instant: build the Date from
+      // local parts so a browser west of UTC cannot shift it a day. A value that
+      // carries a time is a real instant and keeps normal parsing.
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+      const date = m
+        ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+        : new Date(s);
       if (Number.isNaN(date.getTime())) return String(value);
       return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
     }
@@ -1345,10 +1390,24 @@ function setButtonLoading(btn, loading, loadingHtml) {
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
 
+    // Keep in sync with SCHOOL_TIMEZONE / schoolToday() in serverg.js. Using the
+    // school timezone rather than the device's is what makes "today" match what
+    // the teacher actually submitted.
+    const SCHOOL_TIMEZONE = 'Asia/Karachi';
+
     function studentLocalDate() {
-      const d = new Date();
-      const pad = n => String(n).padStart(2, '0');
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: SCHOOL_TIMEZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(new Date());
+    }
+
+    // The server's own answer, preferred once it arrives so the page agrees with
+    // whatever day the teacher submitted against.
+    function studentSchoolToday() {
+      return state.schoolToday || studentLocalDate();
     }
 
     function studentDaysInMonth(year, month) {
@@ -1455,12 +1514,51 @@ function setButtonLoading(btn, loading, loadingHtml) {
       return parts.join(' ');
     }
 
+    // Re-fetch attendance so a freshly submitted day shows up without a full reload.
+    async function refreshStudentAttendance() {
+      const section = document.getElementById('attendanceSection');
+      try {
+        const t = await fetchJson(`${API}/api/attendance/today`);
+        if (t && t.today) state.schoolToday = t.today;
+        const attendance = await fetchJson(`${API}/api/attendance/me`);
+        renderAttendance(attendance);
+      } catch (err) {
+        if (section) {
+          section.innerHTML = `<div class="state" style="padding:20px 12px;">
+            <i class="fas fa-circle-exclamation"></i>
+            <div class="msg">Could not refresh attendance</div>
+            <div class="sub">${escapeHtml(err.message)}</div>
+          </div>`;
+        }
+      }
+    }
+
     function renderAttendance(records) {
       state.attendance = Array.isArray(records)
         ? records.filter(row => Number(row.student_id) === Number(state.student.id))
         : [];
       populateStudentAttendanceFilters();
       renderStudentAttendance();
+    }
+
+    // Whether the school has attendance for today, so the page can say so out loud
+    // instead of silently showing an older day. This was the confusing part: the
+    // list simply showed the most recent record, so a missing submission for today
+    // looked exactly like the portal being a day behind.
+    function studentTodayStatus() {
+      const today = studentSchoolToday();
+      const todays = (state.attendance || []).filter(row => studentRecordDate(row) === today);
+      if (!todays.length) {
+        return {
+          today,
+          state: 'missing',
+          text: `Today's attendance (${today}) has not been submitted yet.`,
+          sub: 'The most recent entry below is from an earlier day.'
+        };
+      }
+      const status = normalizeStatus(todays[0].status);
+      const label = status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : status === 'leave' ? 'On Leave' : 'Marked';
+      return { today, state: 'ok', text: `Today's attendance (${today}): ${label}`, sub: '' };
     }
 
     function renderStudentAttendance() {
@@ -1474,7 +1572,12 @@ function setButtonLoading(btn, loading, loadingHtml) {
       const total = filtered.length;
 
       if ((state.attendance || []).length === 0) {
-        setStateBox('attendanceSection', 'fas fa-calendar-xmark', 'No attendance records yet', 'Submitted attendance will appear here.');
+        const t = studentSchoolToday();
+        section.innerHTML = `<div class="state" style="padding:28px 12px;">
+          <i class="fas fa-calendar-xmark"></i>
+          <div class="msg">No attendance records yet</div>
+          <div class="sub">Nothing has been submitted for ${escapeHtml(t)}. Records appear here as soon as your teacher submits them.</div>
+        </div>`;
         return;
       }
 
@@ -1492,6 +1595,18 @@ function setButtonLoading(btn, loading, loadingHtml) {
       const leaveWidth = (leave / total) * 100;
       const percentage = Math.round((present / total) * 100);
       const period = studentAttendancePeriodLabel();
+      const todayInfo = studentTodayStatus();
+      // Only nag about today when the view is not narrowed to some other day.
+      const periodIsAll = !document.getElementById('studentAttDayFilter')?.value
+        && !document.getElementById('studentAttMonthFilter')?.value
+        && !document.getElementById('studentAttYearFilter')?.value;
+      const todayBanner = periodIsAll ? `<div class="att-today-banner ${todayInfo.state}">
+          <i class="fas ${todayInfo.state === 'ok' ? 'fa-circle-check' : 'fa-clock'}"></i>
+          <div>
+            <div class="att-today-text">${escapeHtml(todayInfo.text)}</div>
+            ${todayInfo.sub ? `<div class="att-today-sub">${escapeHtml(todayInfo.sub)}</div>` : ''}
+          </div>
+        </div>` : '';
 
       const dayRows = filtered.map(row => {
         const d = studentRecordDate(row);
@@ -1505,6 +1620,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
       }).join('');
 
       section.innerHTML = `
+        ${todayBanner}
         ${period ? `<div style="margin-bottom:12px; font-size:0.78rem; color:var(--text-muted); font-weight:600;">Showing ${total} record${total === 1 ? '' : 's'} for ${escapeHtml(period)}</div>` : ''}
         <div class="attendance-grid">
           <div class="summary-card">
@@ -1888,6 +2004,12 @@ function setButtonLoading(btn, loading, loadingHtml) {
       // Section 2 — Attendance (300ms stagger after min-time)
       await delay(300);
       try {
+        // Ask the server what day it considers "today" so this page agrees with the
+        // date the teacher submitted against, whatever timezone this device uses.
+        try {
+          const t = await fetchJson(`${API}/api/attendance/today`);
+          if (t && t.today) state.schoolToday = t.today;
+        } catch (e) { /* fall back to the school-timezone calculation below */ }
         const attendance = await fetchJson(`${API}/api/attendance/me`);
         renderAttendance(attendance);
       } catch (err) {

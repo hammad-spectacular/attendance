@@ -139,6 +139,25 @@ function monthlyAmountDue(fs) {
   return Math.max(0, monthly + transport - discount)
 }
 
+// The school's calendar day, as YYYY-MM-DD.
+//
+// Attendance used to be dated by the browser, so a device in a timezone behind
+// UTC filed the day's attendance under the previous date. A row created at
+// 08:46 PKT landed on the 25th instead of the 26th, and because the portal
+// simply shows the most recent record, it looked like the portal was a day
+// behind. The school timezone is the single source of truth for "today" now.
+// Keep in sync with SCHOOL_TIMEZONE in the public pages.
+const SCHOOL_TIMEZONE = process.env.APP_TIMEZONE || 'Asia/Karachi'
+function schoolToday(date = new Date()) {
+  // 'en-CA' formats as YYYY-MM-DD, unlike toLocaleDateString whose order varies.
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: SCHOOL_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(date)
+}
+
 // Rejects a roll number or full name that is already used by another student in
 // the same school. excludeId lets the edit paths ignore the student being edited.
 // Returns an error string, or null when the values are acceptable.
@@ -2083,6 +2102,12 @@ app.post('/api/attendance', requireAuth(['teacher', 'admin']), async (req, res) 
   res.json({ success: true })
 })
 
+// The school's current calendar day. Both the teacher and student pages call this
+// so "today" means the same thing on every device, whatever its timezone is.
+app.get('/api/attendance/today', requireAuth(['admin', 'teacher', 'student', 'super_admin']), (req, res) => {
+  res.json({ today: schoolToday(), timezone: SCHOOL_TIMEZONE })
+})
+
 app.get('/api/attendance/me', requireAuth(['student']), async (req, res) => {
   const tenant_id = req.user.tenant_id
   const studentResult = await pool.query(
@@ -2095,8 +2120,17 @@ app.get('/api/attendance/me', requireAuth(['student']), async (req, res) => {
   }
 
   const student = studentResult.rows[0]
+  // attendance.date is cast to text on purpose. A DATE column would be serialised
+  // as a UTC instant (e.g. 2026-09-25T19:00:00.000Z for the 26th), so any client
+  // in a timezone behind UTC rendered the record under the previous day. A plain
+  // YYYY-MM-DD string cannot be misread.
   const result = await pool.query(`
-    SELECT attendance.*, students.name, students.phone, students.roll_no, students.class_id, classes.name as class_name
+    SELECT attendance.id,
+           attendance.date::text AS date,
+           attendance.status,
+           attendance.teacher_id,
+           to_char(attendance.created_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at,
+           students.name, students.phone, students.roll_no, students.class_id, classes.name as class_name
     FROM attendance
     JOIN students ON attendance.student_id = students.id
     LEFT JOIN classes ON students.class_id = classes.id
@@ -2111,7 +2145,13 @@ app.get('/api/attendance', requireAuth(['admin', 'teacher', 'student', 'super_ad
   const tenant_id = req.user.tenant_id
   const { date, class_id } = req.query
   const result = await pool.query(`
-    SELECT attendance.*, students.name, students.phone, students.roll_no
+    SELECT attendance.id,
+           attendance.student_id,
+           attendance.teacher_id,
+           attendance.date::text AS date,
+           attendance.status,
+           to_char(attendance.created_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at,
+           students.name, students.phone, students.roll_no
     FROM attendance
     JOIN students ON attendance.student_id = students.id
     WHERE attendance.date = $1 AND students.class_id = $2 AND attendance.tenant_id = $3
@@ -2124,7 +2164,12 @@ app.get('/api/attendance/all', requireAuth(['admin', 'super_admin']), async (req
   const tenant_id = req.user.tenant_id
   const result = await pool.query(`
     SELECT
-      attendance.*,
+      attendance.id,
+      attendance.student_id,
+      attendance.teacher_id,
+      attendance.date::text AS date,
+      attendance.status,
+      to_char(attendance.created_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at,
       students.name,
       students.phone,
       students.roll_no,
@@ -2152,8 +2197,20 @@ app.post('/api/attendance/submit', requireAuth(['teacher', 'admin']), async (req
     const { date, teacher_id, records } = req.body
     const tenant_id = req.user.tenant_id
 
-    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    // A submitted date is honoured so teachers can backfill a previous day, but
+    // it must never be in the future. When the client sends nothing usable we
+    // fall back to the school calendar day, which is the only trustworthy source
+    // for "today" (the browser's own clock can be hours off).
+    if (date !== undefined && date !== null && !/^\d{4}-\d{2}-\d{2}$/.test(String(date))) {
       return res.status(400).json({ error: 'A valid date (YYYY-MM-DD) is required' })
+    }
+    const today = schoolToday()
+    if (date && date > today) {
+      return res.status(400).json({ error: `Cannot mark attendance for a future date (${date}); today is ${today}` })
+    }
+    const attendanceDate = date || today
+    if (date && date !== today) {
+      console.log(`Backfilled attendance for ${date} (school date is ${today}, ${SCHOOL_TIMEZONE})`)
     }
     if (!Array.isArray(records) || records.length === 0) {
       return res.status(400).json({ error: 'No attendance records supplied' })
@@ -2199,13 +2256,13 @@ app.post('/api/attendance/submit', requireAuth(['teacher', 'admin']), async (req
           `UPDATE attendance
            SET teacher_id = $1, status = $2, tenant_id = $3
            WHERE student_id = $4 AND date = $5 AND tenant_id = $6`,
-          [teacher_id || null, record.status, tenant_id, studentId, date, tenant_id]
+          [teacher_id || null, record.status, tenant_id, studentId, attendanceDate, tenant_id]
         )
         if (updated.rowCount === 0) {
           await client.query(
             `INSERT INTO attendance (student_id, teacher_id, date, status, tenant_id)
              VALUES ($1, $2, $3, $4, $5)`,
-            [studentId, teacher_id || null, date, record.status, tenant_id]
+            [studentId, teacher_id || null, attendanceDate, record.status, tenant_id]
           )
         }
         saved++
@@ -2218,7 +2275,7 @@ app.post('/api/attendance/submit', requireAuth(['teacher', 'admin']), async (req
       client.release()
     }
 
-    res.json({ success: true, saved })
+    res.json({ success: true, saved, date: attendanceDate, timezone: SCHOOL_TIMEZONE })
   } catch (err) {
     console.error('Error submitting attendance:', err)
     res.status(500).json({ error: err.message })

@@ -2996,7 +2996,14 @@
     }
 
     function getTodayDate() {
-      return new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+      // Render the current day in the school timezone, not the device timezone,
+      // so the default date matches the school calendar everywhere.
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Karachi',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(new Date()); // YYYY-MM-DD
     }
 
     function escapeHtml(str) {
@@ -3929,12 +3936,10 @@
 
     function groupAttendanceRecords(flatRecords) {
       const out = (flatRecords || []).map(row => {
-        let dateStr = row.date;
-        if (dateStr && String(dateStr).includes('T')) {
-          dateStr = String(dateStr).split('T')[0];
-        } else if (dateStr) {
-          dateStr = new Date(dateStr).toLocaleDateString('en-CA');
-        }
+        // Take the leading YYYY-MM-DD verbatim. Never run the value through
+        // new Date(): a bare "2026-09-26" parses as UTC midnight, so any browser
+        // in a timezone behind UTC rendered the record under the previous day.
+        const dateStr = String(row.date || '').slice(0, 10);
 
         const classObj = row.class_id
           ? window.appData.classes.find(c => String(c.id) === String(row.class_id))

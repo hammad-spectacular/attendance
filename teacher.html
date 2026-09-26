@@ -2405,18 +2405,24 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
 
 
-    /** Get today's date as YYYY-MM-DD string */
+    /** Get the school's today as YYYY-MM-DD string */
+
+    // Keep in sync with SCHOOL_TIMEZONE / schoolToday() in serverg.js.
+    // This deliberately does NOT use the device timezone: a laptop set to a
+    // timezone behind UTC was filing the day's attendance under the previous
+    // date, which then made the portal look a day behind.
+    const SCHOOL_TIMEZONE = 'Asia/Karachi';
 
     function getTodayDate() {
 
-      // Local calendar date, not UTC. toISOString() rolls back to yesterday for
-      // anyone east of UTC before 05:00, which would file attendance under the
-      // wrong day and skew the stats.
-      const d = new Date();
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${y}-${m}-${day}`;
+      // 'en-CA' formats as YYYY-MM-DD. Formatting in the school timezone keeps
+      // the result correct whatever timezone the browser or laptop is set to.
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: SCHOOL_TIMEZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(new Date());
 
     }
 
@@ -3564,7 +3570,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
       });
 
       // 2. Date
-      const today = getTodayDate(); // local YYYY-MM-DD
+      const today = getTodayDate(); // school-timezone YYYY-MM-DD
 
       // 3. Detect absentees and leave students
       const absentees = markedStudents.filter(s => s.status === "Absent");
@@ -5452,7 +5458,9 @@ function setButtonLoading(btn, loading, loadingHtml) {
         setupHeaderMenu();
         loadTheme();
         const today = new Date();
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        // Render the header date in the school timezone, otherwise a device set to
+        // a timezone behind UTC shows yesterday's date in the teacher's header.
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: SCHOOL_TIMEZONE };
         document.getElementById('dateDisplay').textContent = today.toLocaleDateString('en-US', options);
         initTeacherSelection();
       });
