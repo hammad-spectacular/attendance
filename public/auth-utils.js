@@ -4,6 +4,59 @@ let API_BASE = '';
 
 let isRedirecting = false;
 
+// One browser, one origin, one localStorage key. Signing in as a teacher in a second
+// tab therefore REPLACES the school admin's token, and the still-open admin page keeps
+// looking normal until it saves something and gets a bare "Forbidden". These helpers
+// read the token's own claims so a 403 can say who you actually are and what went wrong,
+// instead of leaving the caller to print a one-word error.
+const ROLE_LABELS = {
+  super_admin: 'Super Admin',
+  admin: 'School Admin',
+  coordinator: 'Coordinator',
+  teacher: 'Teacher',
+  student: 'Student'
+}
+
+function currentIdentity() {
+  const token = localStorage.getItem('auth_token')
+  if (!token) return null
+  const parts = token.split('.')
+  if (parts.length !== 3) return null
+  try {
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const claims = JSON.parse(decodeURIComponent(escape(atob(base64))))
+    if (!claims || !claims.role) return null
+    return {
+      role: claims.role,
+      roleLabel: ROLE_LABELS[claims.role] || claims.role,
+      loginId: claims.login_id || null,
+      tenant: claims.tenant_id || null
+    }
+  } catch (err) {
+    return null
+  }
+}
+
+/**
+ * Turn a 403 into something actionable. Called by pages that want to explain rather
+ * than surface the server's generic "Forbidden".
+ */
+function describeForbidden(res, requiredRole) {
+  const me = currentIdentity()
+  if (!me) {
+    return 'You are not signed in, or your sign-in has expired. Please log in again.'
+  }
+  if (requiredRole && me.role !== requiredRole) {
+    return `You are signed in as ${me.roleLabel}` +
+      (me.loginId ? ` (${me.loginId})` : '') +
+      `, but this page needs a ${ROLE_LABELS[requiredRole] || requiredRole}. ` +
+      `You are probably signed in on another tab or browser window - sign in here again as the right role.`
+  }
+  return `Signed in as ${me.roleLabel}` +
+    (me.loginId ? ` (${me.loginId})` : '') +
+    `. Your account does not have permission for this action. If you were expecting access, ask your Super Admin to grant it.`
+}
+
 function authHeader() {
   const token = localStorage.getItem('auth_token');
   return token ? { Authorization: 'Bearer ' + token } : {};

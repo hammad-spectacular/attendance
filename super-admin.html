@@ -8,8 +8,21 @@
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- The webfont and the icon font both come off third-party CDNs, and a plain
+     <link rel=stylesheet> to a CDN blocks first paint until that CDN answers. On a
+     slow or distant connection that alone was about a second of a blank screen before
+     any data could be requested. media="print" takes the stylesheet out of the
+     critical path, then onload flips it to "all" the moment it arrives. The page is
+     fully usable in the meantime: icons briefly render as text, the Inter fallback in
+     the CSS stack takes over for the font. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" media="print" onload="this.media='all';this.onload=null">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"></noscript>
+<link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all';this.onload=null">
+<noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
 <style>
 [data-theme="dark"] {
   --bg: #0f172a; --bg-card: #1e293b; --bg-card-hover: #263348; --border: #334155;
@@ -85,6 +98,48 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
 .badge.flagged { background:var(--warning-bg); color:var(--warning); }
 .badge.unreviewed { background:var(--badge-bg); color:var(--text-muted); }
 .filter-bar { display:flex; gap:10px; padding:14px 16px; border-bottom:1px solid var(--border); flex-wrap:wrap; align-items:center; }
+/* One block per school, then a responsive grid of feature switches inside it. */
+.tenant-feature-block { border-bottom:1px solid var(--border); padding:16px; }
+.tenant-feature-block:last-child { border-bottom:none; }
+.tenant-feature-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+.tenant-feature-name { font-weight:700; color:var(--text); font-size:0.95rem; }
+.tenant-feature-meta { display:flex; align-items:center; gap:8px; margin-top:5px; flex-wrap:wrap; }
+.tenant-feature-count { font-size:0.75rem; color:var(--text-muted); }
+.tenant-usage { display:flex; gap:8px; flex-wrap:wrap; }
+.tenant-usage-item { display:flex; align-items:center; gap:5px; font-size:0.75rem; font-weight:600; color:var(--text-secondary); padding:5px 10px; border:1px solid var(--border); border-radius:8px; background:var(--bg-card-hover); font-family:ui-monospace, SFMono-Regular, Menlo, monospace; }
+.tenant-feature-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:8px; }
+.tenant-feature-toggle { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-card-hover); cursor:pointer; transition:border-color .15s, background .15s; }
+.tenant-feature-toggle:hover { border-color:var(--primary); }
+.tenant-feature-toggle.read-only { cursor:default; opacity:0.75; }
+.tenant-feature-toggle.read-only:hover { border-color:var(--border); }
+.tenant-feature-toggle input:disabled { cursor:not-allowed; }
+.tenant-readonly-note { display:flex; align-items:center; gap:8px; margin:0; padding:12px 16px; background:var(--warning-bg); color:var(--text); font-size:0.82rem; border-bottom:1px solid var(--border); }
+.tenant-feature-toggle input { width:16px; height:16px; accent-color:var(--primary); cursor:pointer; flex-shrink:0; }
+.tenant-feature-text { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1; }
+.tenant-feature-label { font-size:0.82rem; font-weight:600; color:var(--text); }
+.tenant-feature-desc { font-size:0.7rem; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tenant-feature-dep { display:block; font-size:0.68rem; color:#f59e0b; margin-top:3px; }
+.tenant-feature-dep i { margin-right:3px; }
+.tenant-feature-state { font-size:0.65rem; font-weight:800; letter-spacing:0.5px; padding:3px 8px; border-radius:20px; flex-shrink:0; }
+.tenant-feature-state.on { background:rgba(34,197,94,0.15); color:#22c55e; }
+.tenant-feature-state.off { background:rgba(100,116,139,0.15); color:var(--text-muted); }
+/* Portal logins strip, under the feature grid of each school. */
+.tenant-credentials { margin-top:12px; padding:12px 14px; border:1px dashed var(--border); border-radius:10px; background:var(--bg-card-hover); }
+.tenant-cred-title { font-size:0.75rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.6px; margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+.tenant-cred-rows { display:flex; flex-direction:column; gap:8px; }
+.tenant-cred-row { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.tenant-cred-text { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.tenant-cred-text strong { font-size:0.83rem; color:var(--text); }
+.tenant-cred-count { font-size:0.72rem; color:var(--text-muted); }
+.tenant-cred-row button[disabled] { opacity:0.45; cursor:not-allowed; }
+/* One-time credentials reveal. */
+.cred-warn { display:flex; align-items:flex-start; gap:8px; padding:10px 12px; background:var(--warning-bg); color:var(--text); border-radius:8px; font-size:0.78rem; line-height:1.5; margin-bottom:12px; }
+.cred-actions { display:flex; gap:8px; margin-bottom:12px; }
+.cred-table-wrap { max-height:320px; overflow:auto; border:1px solid var(--border); border-radius:8px; }
+.cred-table { width:100%; border-collapse:collapse; font-size:0.78rem; }
+.cred-table th { position:sticky; top:0; background:var(--bg-card-hover); text-align:left; padding:8px 10px; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); border-bottom:1px solid var(--border); }
+.cred-table td { padding:7px 10px; border-bottom:1px solid var(--border); color:var(--text); }
+.cred-table .mono { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; }
 .filter-input { padding:9px 12px; border-radius:10px; border:2px solid var(--border); background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; font-size:0.8rem; outline:none; }
 .filter-input:focus { border-color:var(--primary); }
 .branch-reason { font-size:0.75rem; color:var(--warning); font-weight:600; max-width:220px; }
@@ -163,6 +218,7 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
     <button class="tab-btn" data-tab="active" onclick="switchTab('active')"><i class="fas fa-check-circle"></i> Active Schools</button>
     <button class="tab-btn" data-tab="suspended" onclick="switchTab('suspended')"><i class="fas fa-ban"></i> Suspended</button>
     <button class="tab-btn" data-tab="branches" onclick="switchTab('branches')"><i class="fas fa-code-branch"></i> Branches</button>
+    <button class="tab-btn" data-tab="features" onclick="switchTab('features')"><i class="fas fa-toggle-on"></i> Features</button>
   </div>
 </nav>
 
@@ -233,6 +289,29 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
       </div>
       <div class="section-body" style="padding:0;">
         <div id="branchesTableWrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-features" class="tab-content">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-header-left">
+          <div class="section-icon green"><i class="fas fa-toggle-on"></i></div>
+          <div><div class="section-title">Tenant Features</div><div class="section-subtitle">Decide which modules each school is allowed to use</div></div>
+        </div>
+        <button class="btn-sm primary" onclick="fetchTenantFeatures()"><i class="fas fa-rotate"></i> Refresh</button>
+      </div>
+      <div class="filter-bar">
+        <input type="text" id="featureSchoolSearch" class="filter-input" placeholder="Search school..." oninput="renderTenantFeatures()">
+        <select id="featureStateFilter" class="filter-input" onchange="renderTenantFeatures()">
+          <option value="">All states</option>
+          <option value="on">Has features on</option>
+          <option value="off">All features off</option>
+        </select>
+      </div>
+      <div class="section-body" style="padding:0;">
+        <div id="tenantFeaturesWrap"></div>
       </div>
     </div>
   </div>
@@ -341,6 +420,17 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
   </div>
 </div>
 
+<!-- Shown once, after credentials are issued. The passwords cannot be looked up again. -->
+<div class="modal" id="credModal">
+  <div class="modal-card" style="max-width:720px;">
+    <div id="credModalTitle" style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:12px;"></div>
+    <div id="credModalBody"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal('credModal'); _lastIssued = null;" style="flex:1;">Done</button>
+    </div>
+  </div>
+</div>
+
 <!-- Deactivate Branch Modal -->
 <div class="modal" id="deactivateBranchModal">
   <div class="modal-card">
@@ -397,7 +487,8 @@ function switchTab(name) {
   if (name === 'pending') fetchPendingRequests();
   if (name === 'active') fetchActiveSchools();
   if (name === 'suspended') fetchSuspendedSchools();
-  if (name === 'branches') fetchBranches();
+      if (name === 'branches') fetchBranches();
+      if (name === 'features') fetchTenantFeatures();
 }
 
 function showToast(msg, type='info') {
@@ -741,6 +832,291 @@ async function branchAction(id, action) {
   } catch(e) { showToast('Connection error. Please check your internet and try again.', 'error'); }
 }
 
+// ── Tenant features ─────────────────────────────────────────────
+// The feature list comes from the database (tenant_features), never from a list
+// hard-coded here, so adding a module later is a data change and this screen picks
+// it up on refresh. A school with no explicit grant row shows the catalogue default,
+// which is what stops a brand new school from looking locked out of everything.
+let _tenantFeatures = { features: [], schools: [] };
+
+async function fetchTenantFeatures() {
+  const wrap = document.getElementById('tenantFeaturesWrap');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="empty-state"><div class="icon"><i class="fas fa-spinner fa-spin"></i></div><div class="msg">Loading features...</div></div>';
+  try {
+    const res = await fetch(API_BASE + '/api/tenant-features', { headers: authHeader() });
+    if (!res.ok) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🔒</div><div class="msg">Access denied</div></div>'; return; }
+    _tenantFeatures = await res.json();
+    renderTenantFeatures();
+  } catch (e) {
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div class="msg">Failed to load</div></div>';
+  }
+}
+
+function renderTenantFeatures() {
+  const wrap = document.getElementById('tenantFeaturesWrap');
+  if (!wrap) return;
+  const schools = _tenantFeatures.schools || [];
+  if (!schools.length) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🏫</div><div class="msg">No schools yet</div></div>'; return; }
+
+  const q = (document.getElementById('featureSchoolSearch')?.value || '').trim().toLowerCase();
+  const state = document.getElementById('featureStateFilter')?.value || '';
+  const rows = schools.filter(s => {
+    if (q && !`${s.school_name} ${s.school_id}`.toLowerCase().includes(q)) return false;
+    if (state === 'on') { if (!s.features.some(f => f.enabled)) return false; }
+    else if (state === 'off') { if (s.features.some(f => f.enabled)) return false; }
+    return true;
+  });
+  if (!rows.length) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><div class="msg">No schools match these filters</div></div>'; return; }
+
+  let html = '';
+  if (_tenantFeatures.can_edit === false) {
+    html += `<div class="tenant-readonly-note"><i class="fas fa-lock"></i>
+      Read-only &mdash; only a Super Admin can change a school's features.
+      You are signed in as <strong>${escapeHtml(_tenantFeatures.role || 'a school admin')}</strong>.</div>`;
+  }
+  for (const s of rows) {
+    const on = s.features.filter(f => f.enabled).length;
+    const sMgmt = s.features.find(f => f.key === 'student_management');
+    const tMgmt = s.features.find(f => f.key === 'teacher_management');
+    const sPortal = s.features.find(f => f.key === 'student_portal');
+    const tPortal = s.features.find(f => f.key === 'teacher_portal');
+    // A portal cannot be granted on its own: it only exists together with the
+    // management feature underneath it. So the counts live behind the management
+    // feature (the school is doing the managing) and the credential button lives
+    // behind the portal - a school with its features switched off shows no counts
+    // and no credentials at all, rather than pretending either exists.
+    const usage = (total, limit) => {
+      if (limit === null || limit === undefined) return `${total}`;
+      const pct = limit > 0 ? Math.round((total / limit) * 100) : 0;
+      return `${total} / ${limit}${pct >= 80 ? ' ⚠' : ''}`;
+    };
+    const usageItems = [];
+    if (sMgmt && sMgmt.enabled) {
+      usageItems.push(`<span class="tenant-usage-item" title="Students enrolled against the school's limit">
+            <i class="fas fa-user-graduate"></i> ${usage(s.students_total, s.students_limit)}
+          </span>`);
+    }
+    if (tMgmt && tMgmt.enabled) {
+      usageItems.push(`<span class="tenant-usage-item" title="Teachers against the school's limit">
+            <i class="fas fa-chalkboard-teacher"></i> ${usage(s.teachers_total, s.teachers_limit)}
+          </span>`);
+    }
+    html += `<div class="tenant-feature-block">
+      <div class="tenant-feature-head">
+        <div>
+          <div class="tenant-feature-name">${escapeHtml(s.school_name || s.school_id)}</div>
+          <div class="tenant-feature-meta">
+            <span class="badge" style="background:var(--badge-bg);color:var(--badge-text);font-family:monospace;">${escapeHtml(s.school_id)}</span>
+            <span class="badge ${s.status === 'suspended' ? 'suspended' : 'active'}">${escapeHtml(String(s.status || '').replace(/^\w/, c => c.toUpperCase()))}</span>
+            <span class="tenant-feature-count">${on} of ${s.features.length} features on</span>
+          </div>
+        </div>
+        ${usageItems.length ? `<div class="tenant-usage">${usageItems.join('')}</div>` : ''}
+      </div>
+      <div class="tenant-feature-grid">`;
+    const portalNeeds = { student_portal: 'student_management', teacher_portal: 'teacher_management' };
+    for (const f of s.features) {
+      // The label, key and blurb all come from the server so the UI never has its own list.
+      // can_edit comes from the same response: a school admin can read this screen but
+      // must not be given a live switch that the PATCH would reject.
+      const editable = _tenantFeatures.can_edit !== false;
+      let depHint = '';
+      const need = portalNeeds[f.key];
+      if (need) {
+        const mgmt = s.features.find(x => x.key === need);
+        if (mgmt && !mgmt.enabled) {
+          depHint = `<span class="tenant-feature-dep"><i class="fas fa-link"></i> Requires ${escapeHtml(mgmt.label || need)} — turning this on turns that on too</span>`;
+        }
+      }
+      html += `<label class="tenant-feature-toggle${editable ? '' : ' read-only'}" title="${escapeHtml(f.description || '')}">
+        <input type="checkbox" ${f.enabled ? 'checked' : ''} ${editable ? '' : 'disabled'}
+               onchange="setTenantFeature('${escapeHtml(s.school_id)}','${escapeHtml(f.key)}',this.checked)">
+        <span class="tenant-feature-text">
+          <span class="tenant-feature-label">${escapeHtml(f.label)}</span>
+          ${f.description ? `<span class="tenant-feature-desc">${escapeHtml(f.description)}</span>` : ''}
+          ${depHint}
+        </span>
+        <span class="tenant-feature-state ${f.enabled ? 'on' : 'off'}">${f.enabled ? 'ON' : 'OFF'}</span>
+      </label>`;
+    }
+    html += `</div>`;
+    // Portal logins. This is the answer to "the school already has these people, they
+    // just need their logins" - it fills in credentials on the rows that are already
+    // there. Nobody is re-added and nothing is deleted. The counts come from the
+    // server, so the button always states exactly what it is about to do. A row is
+    // only shown when its portal is actually on: there is nothing to hand out for a
+    // portal that does not exist yet.
+    const credRows = [];
+    if (sPortal && sPortal.enabled) {
+      credRows.push({ audience: 'student', label: 'Students', total: s.students_total, need: s.students_needing });
+    }
+    if (tPortal && tPortal.enabled) {
+      credRows.push({ audience: 'teacher', label: 'Teachers', total: s.teachers_total, need: s.teachers_needing });
+    }
+    if (credRows.length) {
+      html += `<div class="tenant-credentials">
+        <div class="tenant-cred-title"><i class="fas fa-key"></i> Portal logins</div>
+        <div class="tenant-cred-rows">`;
+      for (const g of credRows) {
+        const ready = g.need > 0;
+        const why = g.need === 0 ? 'Everyone already has a login' : '';
+        html += `<div class="tenant-cred-row">
+          <div class="tenant-cred-text">
+            <strong>${g.label}</strong>
+            <span class="tenant-cred-count">${g.need > 0 ? g.need + ' of ' + g.total + ' need a login' : g.total + ' total, all covered'}</span>
+          </div>
+          <button class="btn-sm ${ready ? 'primary' : ''}" ${ready ? '' : 'disabled title="' + escapeHtml(why) + '"'}
+                  onclick="issueCredentials('${escapeHtml(s.school_id)}','${g.audience}','${escapeHtml(s.school_name || s.school_id)}',${g.need})">
+            <i class="fas fa-file-arrow-down"></i> Get credentials
+          </button>
+        </div>`;
+      }
+      html += `</div></div>`;
+    }
+    html += `</div>`;
+  }
+  wrap.innerHTML = html;
+}
+
+async function setTenantFeature(schoolId, featureKey, enabled) {
+  // Optimistic: the checkbox already moved, so put it straight back if the save fails
+  // rather than leaving the screen claiming something the server rejected.
+  try {
+    const res = await fetch(API_BASE + '/api/tenant-features', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ school_id: schoolId, feature_key: featureKey, enabled })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      // A bare "Forbidden" tells the user nothing. Say who they are and what to do.
+      if (res.status === 403) {
+        showToast('⚠️ Your session cannot change features. Log out and sign in as Super Admin.', 'error');
+      } else {
+        showToast('⚠️ ' + (data.error || 'Could not save'), 'error');
+      }
+      await fetchTenantFeatures();
+      return;
+    }
+    // Keep the local copy in step so a re-render below shows what was saved.
+    // The response carries every key the server actually wrote, which includes
+    // cascade partners (a portal forces its management on; dropping a management
+    // drops its portal) - mirroring those prevents the screen from rendering
+    // stale, self-contradictory toggles.
+    const school = (_tenantFeatures.schools || []).find(s => s.school_id === schoolId);
+    const updated = (data && data.updated) || [];
+    for (const row of updated) {
+      const ff = school && school.features.find(x => x.key === row.feature_key);
+      if (ff) { ff.enabled = row.enabled; ff.is_default = false; }
+    }
+    // Re-render rather than patching the one pill in place. The credentials strip below
+    // the grid is derived from whether a portal is on, so patching the pill alone left
+    // "Get credentials" stale and disabled until a manual refresh.
+    renderTenantFeatures();
+    showToast(`✅ ${enabled ? 'Enabled' : 'Disabled'}`, 'success');
+  } catch (e) {
+    showToast('Connection error. Please check your internet and try again.', 'error');
+    await fetchTenantFeatures();
+  }
+}
+
+// ── Issuing portal logins to people who already exist ──────────────────
+// The school already has these students/teachers on file. This hands the missing
+// portal logins to the rows that are already there. Nobody is re-added, nothing is
+// deleted, and anyone who already has a login is left completely alone.
+//
+// The generated passwords are only ever returned by this one call. They are not stored
+// in readable form, so the results are offered as a download immediately and the user
+// is warned before starting, not after.
+let _lastIssued = null;
+
+function issueCredentials(schoolId, audience, schoolName, count) {
+  const who = audience === 'student' ? 'students' : 'teachers';
+  openConfirmModal({
+    title: `Give portal logins to ${count} existing ${who}?`,
+    body: `This fills in a login ID and a one-time password for the ${count} ${who} at <strong>${escapeHtml(schoolName)}</strong> who do not have one yet. `
+        + `<br><br><strong>Nobody is added, removed or re-created</strong> - these are the same records, and anyone who already has a login is untouched. `
+        + `Each person must change their password the first time they sign in. `
+        + `<br><br><strong>The passwords are shown only once</strong>, so download the file before closing this.`,
+    confirmText: 'Create logins',
+    iconClass: 'fas fa-key',
+    iconBg: 'var(--warning-bg)',
+    iconColor: 'var(--warning)',
+    btnClass: 'btn primary',
+    onConfirm: () => runIssueCredentials(schoolId, audience, schoolName)
+  });
+}
+
+async function runIssueCredentials(schoolId, audience, schoolName) {
+  showToast('Creating logins...', 'info');
+  try {
+    const res = await fetch(API_BASE + '/api/tenant-features/issue-credentials', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ school_id: schoolId, audience })
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast('⚠️ ' + (data.error || 'Could not create logins'), 'error'); return; }
+    if (!data.count) { showToast('ℹ️ ' + (data.message || 'Everyone already has a login'), 'info'); await fetchTenantFeatures(); return; }
+    _lastIssued = data;
+    showCredentials(data, schoolName);
+    await fetchTenantFeatures();
+  } catch (e) {
+    showToast('Connection error. Please check your internet and try again.', 'error');
+  }
+}
+
+function showCredentials(data, schoolName) {
+  const who = data.audience === 'student' ? 'Students' : 'Teachers';
+  const rows = data.issued.map(p =>
+    `<tr><td>${escapeHtml(p.name)}</td><td class="mono">${escapeHtml(p.full_id)}</td><td class="mono">${escapeHtml(p.password)}</td></tr>`).join('');
+  document.getElementById('credModalTitle').innerHTML = `<i class="fas fa-key"></i> ${data.count} ${who} can now sign in`;
+  document.getElementById('credModalBody').innerHTML =
+    `<div class="cred-warn"><i class="fas fa-triangle-exclamation"></i>
+       These passwords are shown once and cannot be recovered. Download the file now and share it securely with ${escapeHtml(schoolName)}.
+     </div>
+     <div class="cred-actions">
+       <button class="btn primary" onclick="downloadCredentialsCSV()"><i class="fas fa-download"></i> Download CSV</button>
+       <button class="btn" onclick="copyCredentialsCSV()"><i class="fas fa-copy"></i> Copy</button>
+     </div>
+     <div class="cred-table-wrap"><table class="cred-table"><thead><tr><th>Name</th><th>Full ID</th><th>Temporary password</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  openModal('credModal');
+}
+
+function credentialsCSV() {
+  if (!_lastIssued) return '';
+  const esc = v => `"${String(v).replace(/"/g, '""')}"`;
+  const head = 'Name,Full ID,Temporary Password';
+  const body = _lastIssued.issued.map(p => [p.name, p.full_id, p.password].map(esc).join(',')).join('\n');
+  return head + '\n' + body;
+}
+
+function downloadCredentialsCSV() {
+  if (!_lastIssued) return;
+  // The BOM is what makes Excel read UTF-8 names correctly instead of mangling them.
+  const blob = new Blob(['\uFEFF' + credentialsCSV()], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${_lastIssued.school_id}-${_lastIssued.audience}-logins.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('✅ CSV downloaded', 'success');
+}
+
+async function copyCredentialsCSV() {
+  if (!_lastIssued) return;
+  try {
+    await navigator.clipboard.writeText(credentialsCSV());
+    showToast('✅ Copied to clipboard', 'success');
+  } catch (e) {
+    showToast('⚠️ Could not copy. Use Download instead.', 'error');
+  }
+}
+
 function flagBranch(id) {
   openConfirmModal({
     title: 'Flag this branch?',
@@ -842,9 +1218,10 @@ async function checkSession() {
     if (!res.ok) { localStorage.removeItem('auth_token'); window.location.href = '/index.html'; return; }
     const data = await res.json();
     currentRole = data.role;
-    if (data.role !== 'super_admin') { window.location.href = '/index.html'; return; }
+    if (data.role !== 'super_admin') { window.location.href = '/index.html?reason=not-super-admin'; return; }
     window._isFirstLogin = data.is_first_login;
     if (data.is_first_login) { showPasswordWarningBanner(); }
+    explainRedirect();
     fetchPendingRequests();
   } catch(e) { window.location.href = '/index.html'; }
 }
@@ -869,6 +1246,15 @@ function dismissPasswordBanner() {
   hidePasswordWarningBanner();
 }
 
+// admin.html turns a super admin away, because enrolling students and teachers is the
+// school admin's job. Say so here instead of leaving them to wonder why they bounced.
+function explainRedirect() {
+  const reason = new URLSearchParams(window.location.search).get('reason');
+  if (reason !== 'enrolment-is-school-admin') return;
+  showToast('Adding students and teachers is done by the school admin. You approve requests and manage features.', 'info');
+  history.replaceState({}, '', '/super-admin.html');
+}
+
 (function() {
   const saved = localStorage.getItem('attendance-theme') || 'dark';
   document.documentElement.setAttribute('data-theme', saved);
@@ -876,6 +1262,14 @@ function dismissPasswordBanner() {
 })();
 
 document.addEventListener('DOMContentLoaded', checkSession);
+
+// auth_token lives in localStorage, which every page on this origin shares. Logging in
+// as a school admin in another tab therefore silently replaces the token this page is
+// still holding, and the already-rendered page starts failing writes with a bare 403.
+// Re-check whenever the tab comes back to the foreground so a swapped session is caught
+// here, with a clear reason, instead of surfacing later as "Forbidden" on a toggle.
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkSession(); });
+window.addEventListener('focus', checkSession);
 </script>
 </body>
 </html>

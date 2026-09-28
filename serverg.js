@@ -94,6 +94,32 @@ function normalizeEmail(value) {
   return email
 }
 
+// Is a portal switched on for this school?
+// An explicit grant row always wins. With no row we fall back to the catalogue default,
+// so a brand new school is usable immediately. If the feature is missing from the
+// catalogue entirely we fail OPEN (allow) rather than locking a real school out over a
+// data problem - a broken catalogue must never become "nobody can log in".
+const PORTAL_FEATURE_FOR_ROLE = { student: 'student_portal', teacher: 'teacher_portal' }
+
+async function isPortalEnabled(tenantId, role) {
+  const featureKey = PORTAL_FEATURE_FOR_ROLE[role]
+  if (!featureKey) return true
+  try {
+    const r = await pool.query(
+      `SELECT COALESCE(g.enabled, f.default_enabled) AS enabled
+       FROM tenant_features f
+       LEFT JOIN tenant_grants g ON g.feature_key = f.key AND g.school_id = $1
+       WHERE f.key = $2`,
+      [tenantId, featureKey]
+    )
+    if (r.rows.length === 0) return true
+    return r.rows[0].enabled === true
+  } catch (err) {
+    console.error('Portal feature lookup failed:', err.message)
+    return true
+  }
+}
+
 function generateTempPassword() {
   const chars = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   const specials = '!@#$%^&*'
@@ -104,6 +130,24 @@ function generateTempPassword() {
     ;[password[index], password[swapIndex]] = [password[swapIndex], password[index]]
   }
   return password.join('')
+}
+
+/**
+ * A school that has not been granted a portal must not be handed portal logins.
+ * We still create the person and reserve their stable login_id, but leave
+ * password_hash NULL and never return a plaintext password. The existing
+ * issue-credentials endpoint picks up exactly these rows (login_id IS NULL OR
+ * password_hash IS NULL) once the Super Admin switches the portal on.
+ *
+ * So: no portal -> no credentials to leak, copy, or hand out. Portal granted ->
+ * the school admin's normal "Get credentials" flow fills the gap.
+ */
+async function mintCredentialIfPortalEnabled(tenantId, role) {
+  if (await isPortalEnabled(tenantId, role)) {
+    const tempPassword = generateTempPassword()
+    return { tempPassword, passwordHash: await bcrypt.hash(tempPassword, BCRYPT_ROUNDS) }
+  }
+  return { tempPassword: null, passwordHash: null }
 }
 
 function escapeHtml(value) {
@@ -338,7 +382,17 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
 app.use(cookieParser())
 
-app.use(express.static('public'))
+  // HTML is never cached. The permission switches live inside these pages, so a browser
+  // sitting on a cached admin.html keeps showing tabs the Super Admin has since switched
+  // off, which looks exactly like the feature "not working". No-store costs nothing here
+  // and removes that whole class of confusion.
+  app.use(express.static('public', {
+    setHeaders(res, filePath) {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-store, must-revalidate')
+      }
+    }
+  }))
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'))
@@ -547,6 +601,59 @@ async function createTables() {
   await pool.query(`
     ALTER TABLE admins ALTER COLUMN login_id DROP NOT NULL;
     ALTER TABLE admins ALTER COLUMN password_hash DROP NOT NULL;
+  `)
+
+  // --- Tenant feature grants -------------------------------------------------
+  // Which modules a school is allowed to use. The Super Admin owns this.
+  //
+  // The catalogue of features lives in the database rather than in the frontend, so
+  // adding a module later is a data change and every screen that renders the list
+  // picks it up automatically. A school that has no row for a feature falls back to
+  // the default below, which means a brand new school is usable from day one instead
+  // of locked out of everything.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS tenant_features (
+      key VARCHAR(40) PRIMARY KEY,
+      label VARCHAR(80) NOT NULL,
+      description TEXT,
+      default_enabled BOOLEAN NOT NULL DEFAULT false,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    );
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS tenant_grants (
+      school_id VARCHAR(10) NOT NULL REFERENCES organizations(school_code) ON DELETE CASCADE,
+      feature_key VARCHAR(40) NOT NULL REFERENCES tenant_features(key) ON DELETE CASCADE,
+      enabled BOOLEAN NOT NULL DEFAULT false,
+      updated_by INTEGER,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (school_id, feature_key)
+    );
+  `)
+
+  // Seeded with INSERT ... ON CONFLICT DO NOTHING so restarts never overwrite a label
+  // or reset a default that has since been changed deliberately.
+  //
+  // Both portals default to false on purpose. A portal is not part of a school until the
+  // Super Admin grants it, so a fresh install must not hand out working student/teacher
+  // sign-ins nobody asked for. Management and attendance default on because a school
+  // cannot run without them.
+  await pool.query(`
+    INSERT INTO tenant_features (key, label, description, default_enabled, sort_order) VALUES
+      ('attendance',          'Attendance',          'Daily attendance marking and records',            true,  10),
+      ('student_management',  'Student Management',  'Add, edit and remove students',                 true,  20),
+      ('student_portal',      'Student Portal',      'Student sign-in to see their own records',        false, 30),
+      ('teacher_management',  'Teacher Management',  'Add, edit and remove teachers',                 true,  40),
+      ('teacher_portal',      'Teacher Portal',      'Teacher sign-in and class tools',                false, 50),
+      ('fees',                'Fees',                'Fee structures, invoices and payments',         true,  60),
+      ('whatsapp',            'WhatsApp',            'WhatsApp notifications and messaging',            false, 70),
+      ('biometric',           'Biometric',           'Biometric attendance device integration',        false, 80)
+    ON CONFLICT (key) DO NOTHING;
+  `)
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_tenant_grants_school ON tenant_grants(school_id);
   `)
 
 
@@ -789,6 +896,16 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(403).json({ error: 'Your account is not assigned to a branch yet. Please contact your admin.' })
     }
 
+    // A person enrolled while their portal was switched off has a login_id but no
+    // password yet. They were never given one, so say that instead of comparing
+    // against NULL and throwing a 500.
+    if (!user.password_hash) {
+      return res.status(403).json({
+        error: 'No login has been set up for this account yet. Please contact your school admin.',
+        credentials_not_issued: true
+      })
+    }
+
     const passwordMatch = await bcrypt.compare(password, user.password_hash)
     if (!passwordMatch) {
       return res.status(401).json({ error: 'Invalid Organization, ID, or Password' })
@@ -796,6 +913,19 @@ app.post('/api/auth/login', async (req, res) => {
 
     if (user.is_frozen === true) {
       return res.status(403).json({ error: 'Your account has been frozen. Please contact administration.' })
+    }
+
+    // A portal that the school has not been given is switched off, and its people
+    // cannot sign in. This blocks the SIGN IN only - the student and teacher records,
+    // their classes and their attendance are all left exactly as they are, and the
+    // school can get in the moment a Super Admin grants the portal.
+    const portalOn = await isPortalEnabled(tenant_id, user.role)
+    if (!portalOn) {
+      const label = user.role === 'student' ? 'Student' : 'Teacher'
+      return res.status(403).json({
+        error: `The ${label} Portal has not been enabled for your school yet. Please ask your school admin to request it.`,
+        portal_disabled: true
+      })
     }
 
     const redirectMap = {
@@ -947,7 +1077,7 @@ const token = jwt.sign(
         maxAge: 8 * 60 * 60 * 1000
       })
 
-      const redirectMap = { super_admin: '/super-admin.html', admin: '/admin.html', teacher: '/teacher.html', student: '/student.html' }
+      const redirectMap = { super_admin: '/super-admin.html', admin: '/admin.html', teacher: '/teacher.html', student: '/student.html', coordinator: '/coordinator.html' }
       const redirect_url = redirectMap[role] || '/'
 
     res.json({ success: true, token, redirect_url, message: 'Password changed successfully' })
@@ -1235,6 +1365,11 @@ app.get('/api/auth/me', async (req, res) => {
 })
 
 // POST /api/auth/create-teacher
+// Enrolment belongs to the school admin, not the platform owner. A super admin is not
+// a member of any school, so their token carries tenant_id 'SUPER' - a tenant that is
+// not a school. Letting them call this would create the row in a tenant that does not
+// exist, which is why the role is deliberately not accepted here. See admin.html, which
+// turns a super admin away with a readable reason instead of a 403 mid-form.
 app.post('/api/auth/create-teacher', requireAuth(['admin']), async (req, res) => {
   try {
     const { name, phone, class_id } = req.body
@@ -1291,8 +1426,7 @@ app.post('/api/auth/create-teacher', requireAuth(['admin']), async (req, res) =>
 
     const shortId = `T${String(nextNum).padStart(3, '0')}`
     const teacherId = `${tenant_id}-${shortId}`
-    const tempPassword = generateTempPassword()
-    const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS)
+    const { tempPassword, passwordHash } = await mintCredentialIfPortalEnabled(tenant_id, 'teacher')
 
     const result = await pool.query(
       `INSERT INTO teachers (name, phone, class_id, login_id, password_hash, role, tenant_id, branch_id, is_first_login, email, email_verified_at)
@@ -1302,13 +1436,17 @@ app.post('/api/auth/create-teacher', requireAuth(['admin']), async (req, res) =>
     )
     if (email) issueEmailVerification(result.rows[0]).catch(err => console.error('Verification email send failed:', err.message))
     // capacity_notice is advisory only - the record is created either way.
-    res.json({
+    const body = {
       success: true,
       teacher_id: teacherId,
       teacher: result.rows[0],
-      temp_password: tempPassword,
+      credentials_issued: tempPassword !== null,
       capacity_notice: await capacityNotice(pool, tenant_id, 'teacher')
-    })
+    }
+    if (tempPassword !== null) {
+      body.temp_password = tempPassword
+    }
+    res.json(body)
   } catch (err) {
     console.error('Create teacher error:', err)
     res.status(500).json({ error: 'Server error' })
@@ -1363,8 +1501,7 @@ app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) =>
 
     const shortId = `S${String(nextNum).padStart(3, '0')}`
     const studentId = `${tenant_id}-${shortId}`
-    const tempPassword = generateTempPassword()
-    const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS)
+    const { tempPassword, passwordHash } = await mintCredentialIfPortalEnabled(tenant_id, 'student')
 
     const result = await pool.query(
       `INSERT INTO students (name, roll_no, phone, class_id, login_id, password_hash, role, tenant_id, branch_id, is_first_login, email, email_verified_at)
@@ -1373,13 +1510,17 @@ app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) =>
       [name, roll_no || null, phone || null, class_id || null, shortId, passwordHash, tenant_id, branchId, email]
     )
     if (email) issueEmailVerification(result.rows[0]).catch(err => console.error('Verification email send failed:', err.message))
-    res.json({
+    const body = {
       success: true,
       student_id: studentId,
       student: result.rows[0],
-      temp_password: tempPassword,
+      credentials_issued: tempPassword !== null,
       capacity_notice: await capacityNotice(pool, tenant_id, 'student')
-    })
+    }
+    if (tempPassword !== null) {
+      body.temp_password = tempPassword
+    }
+    res.json(body)
   } catch (err) {
     console.error('Create student error:', err)
 
@@ -1411,6 +1552,15 @@ app.post('/api/auth/bulk-create-students', requireAuth(['admin', 'super_admin'])
       return res.status(400).json({ error: capErr });
     }
 
+    // A batch lands in one branch, so it has to clear the same branch gate as a single
+    // create: optional while the school has no branches, required once it has one.
+    const branchPick = await resolveBranchForWrite(client, tenant_id, req.body.branch_id);
+    if (branchPick.error) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: branchPick.error });
+    }
+    const branchId = branchPick.branch ? branchPick.branch.id : null;
+
     const highestResult = await client.query(
       `SELECT login_id FROM students WHERE tenant_id = $1 AND (login_id LIKE 'S%' OR login_id LIKE $2) ORDER BY login_id DESC LIMIT 1`,
       [tenant_id, `${tenant_id}-S%`]
@@ -1429,20 +1579,24 @@ app.post('/api/auth/bulk-create-students', requireAuth(['admin', 'super_admin'])
     let paramIndex = 1;
     const queryParams = [];
 
+    // One decision for the whole batch: if the portal is off, nobody gets a password.
+    const { tempPassword: batchTempPassword, passwordHash: batchHash } =
+      await mintCredentialIfPortalEnabled(tenant_id, 'student');
+
     for (let i = 0; i < count; i++) {
       const shortId = `S${String(nextNum + i).padStart(3, '0')}`;
-      const tempPassword = generateTempPassword();
-      const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS);
       const name = `Student ${i + 1}`;
-      
-      // name, roll_no, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email
-      queryParams.push(name, null, null, class_id, shortId, passwordHash, tenant_id);
-      values.push(`($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, 'student', $${paramIndex++}, true, NULL)`);
-      createdAccounts.push({ login_id: `${tenant_id}-${shortId}`, db_login_id: shortId, temp_password: tempPassword, name });
+
+      // name, roll_no, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email, branch_id
+      queryParams.push(name, null, null, class_id, shortId, batchHash, tenant_id, branchId);
+      values.push(`($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, 'student', $${paramIndex++}, true, NULL, $${paramIndex++})`);
+      const acct = { login_id: `${tenant_id}-${shortId}`, db_login_id: shortId, name };
+      if (batchTempPassword !== null) acct.temp_password = batchTempPassword;
+      createdAccounts.push(acct);
     }
 
     const insertQuery = `
-      INSERT INTO students (name, roll_no, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email)
+      INSERT INTO students (name, roll_no, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email, branch_id)
       VALUES ${values.join(', ')}
       RETURNING id, login_id
     `;
@@ -1459,8 +1613,9 @@ app.post('/api/auth/bulk-create-students', requireAuth(['admin', 'super_admin'])
       acct.id = idByLoginId.get(acct.db_login_id) ?? null;
       delete acct.db_login_id;
     }
-    
-    res.json({ success: true, accounts: createdAccounts });
+
+    const bulkStudentBody = { success: true, accounts: createdAccounts, credentials_issued: batchTempPassword !== null };
+    res.json(bulkStudentBody);
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Bulk create student error:', err);
@@ -1475,6 +1630,10 @@ app.post('/api/auth/bulk-create-teachers', requireAuth(['admin', 'super_admin'])
   let count = parseInt(req.body.count, 10);
   if (isNaN(count) || count < 1) return res.status(400).json({ error: 'Valid count is required' });
   if (count > 500) return res.status(400).json({ error: 'Maximum 500 accounts per batch' });
+  // These are read from the body below. Without this destructuring `phone` and
+  // `class_id` are undefined identifiers and the insert 500s.
+  const phone = req.body.phone || null;
+  const class_id = req.body.class_id != null ? parseInt(req.body.class_id, 10) : null;
 
   const tenant_id = req.user.tenant_id;
   const client = await pool.connect();
@@ -1487,6 +1646,14 @@ app.post('/api/auth/bulk-create-teachers', requireAuth(['admin', 'super_admin'])
       await client.query('ROLLBACK');
       return res.status(400).json({ error: capErr });
     }
+
+    // Same branch gate as a single teacher create.
+    const branchPick = await resolveBranchForWrite(client, tenant_id, req.body.branch_id);
+    if (branchPick.error) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: branchPick.error });
+    }
+    const branchId = branchPick.branch ? branchPick.branch.id : null;
 
     const highestResult = await client.query(
       `SELECT login_id FROM teachers WHERE tenant_id = $1 AND (login_id LIKE 'T%' OR login_id LIKE $2) ORDER BY login_id DESC LIMIT 1`,
@@ -1506,27 +1673,32 @@ app.post('/api/auth/bulk-create-teachers', requireAuth(['admin', 'super_admin'])
     let paramIndex = 1;
     const queryParams = [];
 
+    // One decision for the whole batch: if the portal is off, nobody gets a password.
+    const { tempPassword: batchTempPassword, passwordHash: batchHash } =
+      await mintCredentialIfPortalEnabled(tenant_id, 'teacher');
+
     for (let i = 0; i < count; i++) {
       const shortId = `T${String(nextNum + i).padStart(3, '0')}`;
-      const tempPassword = generateTempPassword();
-      const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS);
       const name = `Teacher ${i + 1}`;
-      
-      // name, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email
-      queryParams.push(name, null, null, shortId, passwordHash, tenant_id);
-      values.push(`($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, 'teacher', $${paramIndex++}, true, NULL)`);
-      createdAccounts.push({ login_id: `${tenant_id}-${shortId}`, temp_password: tempPassword, name });
+
+      // name, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email, branch_id
+      queryParams.push(name, phone || null, class_id || null, shortId, batchHash, tenant_id, branchId);
+      values.push(`($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, 'teacher', $${paramIndex++}, true, NULL, $${paramIndex++})`);
+      const acct = { login_id: `${tenant_id}-${shortId}`, name };
+      if (batchTempPassword !== null) acct.temp_password = batchTempPassword;
+      createdAccounts.push(acct);
     }
 
     const insertQuery = `
-      INSERT INTO teachers (name, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email)
+      INSERT INTO teachers (name, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email, branch_id)
       VALUES ${values.join(', ')}
     `;
 
     await client.query(insertQuery, queryParams);
     await client.query('COMMIT');
-    
-    res.json({ success: true, accounts: createdAccounts });
+
+    const bulkBody = { success: true, accounts: createdAccounts, credentials_issued: batchTempPassword !== null };
+    res.json(bulkBody);
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Bulk create teacher error:', err);
@@ -1939,6 +2111,367 @@ app.patch('/api/branches/:id', requireAuth(['super_admin']), async (req, res) =>
   }
 })
 
+// PATCH /api/branches/:id/admin - Academy Admin deactivates/reactives their own tenant's branch.
+// Only allows 'deactivate' and 'reactivate' (not review/flag which Super Admin owns).
+// Enforces the branch belongs to the admin's tenant.
+app.patch('/api/branches/:id/admin', requireAuth(['admin']), async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id)) return res.status(400).json({ error: 'Invalid branch' })
+
+    const { action, reason } = req.body
+    const adminAllowed = ['deactivate', 'reactivate']
+    if (!adminAllowed.includes(action)) {
+      return res.status(403).json({ error: 'You do not have permission for that action.' })
+    }
+
+    // Verify this branch belongs to the admin's tenant
+    const existing = await pool.query(
+      'SELECT * FROM branches WHERE id = $1 AND school_id = $2',
+      [id, req.user.tenant_id]
+    )
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: 'Branch not found in your academy.' })
+    }
+
+    let updated
+    if (action === 'reactivate') {
+      updated = await pool.query(
+        `UPDATE branches SET status = 'active', deactivation_reason = NULL WHERE id = $1 RETURNING *`,
+        [id]
+      )
+    } else {
+      // deactivate — reason is optional for admin (Super Admin needs it)
+      updated = await pool.query(
+        `UPDATE branches SET status = 'deactivated', deactivation_reason = $1 WHERE id = $2 RETURNING *`,
+        [reason ? String(reason).trim() : null, id]
+      )
+    }
+
+    res.json(updated.rows[0])
+  } catch (err) {
+    console.error('Admin branch update error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// --- Tenant feature grants ---------------------------------------------------
+// Phase 1 scope: Super Admin configures what a school is allowed to use, and the
+// school admin can read its own list. This is configuration only. Nothing in the
+// request path is gated on it yet - enforcement is the next layer, on purpose, so the
+// switches can be switched around first and the blast radius of enforcing them later
+// is a known, separate change.
+
+// GET /api/tenant-features
+//   super admin : every school, with the full feature grid
+//   admin       : their own school only
+// A missing grant row resolves to the feature's default, so a new school is never
+// accidentally locked out of everything.
+app.get('/api/tenant-features', requireAuth(['super_admin', 'admin']), async (req, res) => {
+  try {
+    const isSuper = req.user.role === 'super_admin'
+    const params = isSuper ? [] : [req.user.tenant_id]
+    const whereSchool = isSuper ? '' : 'WHERE o.school_code = $1'
+
+    const [features, schools, grants] = await Promise.all([
+      pool.query('SELECT key, label, description, default_enabled, sort_order FROM tenant_features ORDER BY sort_order, key'),
+      pool.query(`SELECT o.school_code, o.school_name, o.status, o.student_limit, o.teacher_limit FROM organizations o ${whereSchool} ORDER BY o.school_name`, params),
+      pool.query(
+        `SELECT g.school_id, g.feature_key, g.enabled, g.updated_at, g.updated_by
+         FROM tenant_grants g
+         ${isSuper ? '' : 'WHERE g.school_id = $1'}
+         ORDER BY g.school_id, g.feature_key`, params)
+    ])
+
+    // How many people exist, and how many are still missing a portal login. This is
+    // what lets the Super Admin see, before pressing anything, exactly how many
+    // credentials a button is about to hand out.
+    const [studentCounts, teacherCounts] = await Promise.all([
+      pool.query(
+        `SELECT tenant_id, COUNT(*)::int AS total,
+                COUNT(*) FILTER (WHERE login_id IS NULL OR password_hash IS NULL)::int AS needing
+         FROM students ${isSuper ? '' : 'WHERE tenant_id = $1'} GROUP BY tenant_id`, params),
+      pool.query(
+        `SELECT tenant_id, COUNT(*)::int AS total,
+                COUNT(*) FILTER (WHERE login_id IS NULL OR password_hash IS NULL)::int AS needing
+         FROM teachers ${isSuper ? '' : 'WHERE tenant_id = $1'} GROUP BY tenant_id`, params)
+    ])
+    const sc = new Map(studentCounts.rows.map(r => [r.tenant_id, r]))
+    const tc = new Map(teacherCounts.rows.map(r => [r.tenant_id, r]))
+
+    const enabled = new Map()
+    for (const g of grants.rows) enabled.set(`${g.school_id}::${g.feature_key}`, g)
+
+    const payload = schools.rows.map(school => ({
+      school_id: school.school_code,
+      school_name: school.school_name,
+      status: school.status,
+      students_total: sc.get(school.school_code) ? sc.get(school.school_code).total : 0,
+      students_needing: sc.get(school.school_code) ? sc.get(school.school_code).needing : 0,
+      students_limit: school.student_limit === null || school.student_limit === undefined ? null : Number(school.student_limit),
+      teachers_total: tc.get(school.school_code) ? tc.get(school.school_code).total : 0,
+      teachers_needing: tc.get(school.school_code) ? tc.get(school.school_code).needing : 0,
+      teachers_limit: school.teacher_limit === null || school.teacher_limit === undefined ? null : Number(school.teacher_limit),
+      features: features.rows.map(f => {
+        const grant = enabled.get(`${school.school_code}::${f.key}`)
+        return {
+          key: f.key,
+          label: f.label,
+          description: f.description,
+          // An explicit grant wins; otherwise fall back to the catalogue default.
+          enabled: grant ? grant.enabled : f.default_enabled,
+          is_default: !grant,
+          updated_at: grant ? grant.updated_at : null
+        }
+      })
+    }))
+
+    // can_edit travels with the payload so the UI can render read-only switches
+    // instead of handing out live toggles that are guaranteed to bounce off the
+    // PATCH's role check. Without it a school admin just sees "Forbidden" per click.
+    res.json({ can_edit: isSuper, role: req.user.role, features: features.rows, schools: payload })
+  } catch (err) {
+    console.error('Fetch tenant features error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PATCH /api/tenant-features - Super Admin only.
+app.patch('/api/tenant-features', requireAuth(['super_admin']), async (req, res) => {
+  try {
+    const schoolId = String(req.body.school_id || '').trim()
+    const key = String(req.body.feature_key || '').trim()
+    if (!schoolId || !key) {
+      return res.status(400).json({ error: 'school_id and feature_key are required' })
+    }
+    if (typeof req.body.enabled !== 'boolean') {
+      return res.status(400).json({ error: 'enabled must be true or false' })
+    }
+
+    const feature = await pool.query('SELECT key FROM tenant_features WHERE key = $1', [key])
+    if (feature.rows.length === 0) return res.status(400).json({ error: 'Unknown feature' })
+
+    const school = await pool.query('SELECT school_code FROM organizations WHERE school_code = $1', [schoolId])
+    if (school.rows.length === 0) return res.status(404).json({ error: 'School not found' })
+
+    // A portal can never exist without the management feature underneath it. This is a
+    // hard business rule, not a convenience: the school does the managing or nobody can
+    // sign in — there is no "just the portal, no management" mode. Two consequences:
+    //   • switching a portal ON silently switches its management ON too
+    //   • switching a management OFF silently switches its portal OFF with it
+    // Both updates are returned so the UI re-renders from the payload, never from hope.
+    const PORTAL_DEPENDS_ON = {
+      student_portal: 'student_management',
+      teacher_portal: 'teacher_management'
+    }
+    const MANAGEMENT_OWNS = {
+      student_management: 'student_portal',
+      teacher_management: 'teacher_portal'
+    }
+    const cascades = []
+    const otherKeys = []
+    if (req.body.enabled && PORTAL_DEPENDS_ON[key]) otherKeys.push(PORTAL_DEPENDS_ON[key])
+    if (!req.body.enabled && MANAGEMENT_OWNS[key]) otherKeys.push(MANAGEMENT_OWNS[key])
+    const changedPairs = [{ key, enabled: req.body.enabled }, ...otherKeys.map(k => ({ key: k, enabled: req.body.enabled }))]
+    for (const pair of changedPairs) {
+      const saved = await pool.query(
+        `INSERT INTO tenant_grants (school_id, feature_key, enabled, updated_by, updated_at)
+         VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+         ON CONFLICT (school_id, feature_key)
+         DO UPDATE SET enabled = EXCLUDED.enabled,
+                       updated_by = EXCLUDED.updated_by,
+                       updated_at = CURRENT_TIMESTAMP
+         RETURNING school_id, feature_key, enabled, updated_at`,
+        [schoolId, pair.key, pair.enabled, req.user.user_id]
+      )
+      cascades.push(saved.rows[0])
+    }
+    res.json({ updated: cascades })
+  } catch (err) {
+    if (err.code === '23503') {
+      return res.status(400).json({ error: 'That school or feature no longer exists. Please reload the page.' })
+    }
+    console.error('Update tenant feature error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// --- Admin Bootstrap -------------------------------------------------------
+// Returns everything the admin page needs on load in one call:
+// branches for the selector, feature grants for tab visibility.
+// POST-only roles (coordinator, student, teacher) are intentionally excluded.
+app.get('/api/admin/bootstrap', requireAuth(['admin', 'super_admin']), async (req, res) => {
+  try {
+    const tenant_id = req.user.tenant_id
+    const isSuper = req.user.role === 'super_admin'
+
+    // Branches: admins see all their own tenant's branches.
+    // Super admin sees all branches across all tenants.
+    let branchesQuery
+    let branchesParams
+    if (isSuper) {
+      branchesQuery = `
+        SELECT b.id, b.name, b.status, b.school_id, o.school_name
+        FROM branches b
+        JOIN organizations o ON o.school_code = b.school_id
+        ORDER BY b.school_id, b.name`
+      branchesParams = []
+    } else {
+      branchesQuery = `
+        SELECT b.id, b.name, b.status
+        FROM branches b
+        WHERE b.school_id = $1
+        ORDER BY b.name`
+      branchesParams = [tenant_id]
+    }
+
+    // Feature grants: every feature key, with the enabled flag resolved
+    // against the grant or the catalogue default.
+    const grantsQuery = `
+      SELECT tg.feature_key, tg.enabled
+      FROM tenant_grants tg
+      WHERE tg.school_id = $1`
+    const featuresQuery = `
+      SELECT tf.key, tf.label, tf.sort_order
+      FROM tenant_features tf
+      ORDER BY tf.sort_order, tf.key`
+
+    const [branchesResult, grantsResult, featuresResult] = await Promise.all([
+      pool.query(branchesQuery, branchesParams),
+      isSuper ? pool.query('SELECT school_id, feature_key, enabled FROM tenant_grants WHERE school_id = $1', [tenant_id]) : pool.query(grantsQuery, [tenant_id]),
+      pool.query(featuresQuery)
+    ])
+
+    // Build enabled map: explicit grant wins, else catalogue default
+    const enabledMap = new Map()
+    for (const g of grantsResult.rows) {
+      enabledMap.set(g.feature_key, g.enabled)
+    }
+
+    const features = featuresResult.rows.map(f => ({
+      key: f.key,
+      label: f.label,
+      // true if there's an explicit grant set to true, or no grant but default is true
+      enabled: enabledMap.has(f.key) ? enabledMap.get(f.key) : f.default_enabled
+    }))
+
+    res.json({
+      branches: branchesResult.rows,
+      features
+    })
+  } catch (err) {
+    console.error('Admin bootstrap error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// --- Issuing portal credentials to people who already exist ------------------
+// The case this exists for: a school has 200 students on file, none of whom were ever
+// given a portal login. The school asks for the Student Portal, the Super Admin grants
+// it, and then this hands the EXISTING people their credentials.
+//
+// It never creates a person, never deletes one, and never changes an existing login.
+// It only fills in what is missing, so records keep their id, name, class, attendance
+// and history exactly as they were. A student who already has a login is left alone.
+app.post('/api/tenant-features/issue-credentials', requireAuth(['super_admin']), async (req, res) => {
+  try {
+    const schoolId = String(req.body.school_id || '').trim().toUpperCase()
+    const audience = String(req.body.audience || '').trim()
+    if (!schoolId || !audience) {
+      return res.status(400).json({ error: 'school_id and audience are required' })
+    }
+    const table = audience === 'student' ? 'students'
+      : audience === 'teacher' ? 'teachers'
+        : null
+    if (!table) return res.status(400).json({ error: 'audience must be student or teacher' })
+    const prefix = audience === 'student' ? 'S' : 'T'
+    const portalKey = audience === 'student' ? 'student_portal' : 'teacher_portal'
+    const label = audience === 'student' ? 'Student' : 'Teacher'
+
+    const school = await pool.query('SELECT school_code FROM organizations WHERE school_code = $1', [schoolId])
+    if (school.rows.length === 0) return res.status(404).json({ error: 'School not found' })
+
+    // The portal has to be granted before credentials mean anything, otherwise the
+    // people would be handed a login that the login gate immediately refuses.
+    const portal = await pool.query(
+      `SELECT COALESCE(g.enabled, f.default_enabled) AS enabled
+       FROM tenant_features f
+       LEFT JOIN tenant_grants g ON g.feature_key = f.key AND g.school_id = $1
+       WHERE f.key = $2`,
+      [schoolId, portalKey]
+    )
+    if (portal.rows.length === 0 || portal.rows[0].enabled !== true) {
+      return res.status(400).json({
+        error: `Turn on the ${label} Portal for this school first, then issue credentials.`
+      })
+    }
+
+    // Only rows that are genuinely missing something. An existing login_id is never
+    // replaced, and a row that already has both is skipped entirely.
+    const pending = await pool.query(
+      `SELECT id, name, login_id FROM ${table}
+       WHERE tenant_id = $1 AND (login_id IS NULL OR password_hash IS NULL)
+       ORDER BY id`,
+      [schoolId]
+    )
+    if (pending.rows.length === 0) {
+      return res.json({ issued: [], count: 0, message: `Every ${label.toLowerCase()} at this school already has portal credentials.` })
+    }
+
+    // Continue the school's existing numbering (S001, S002, ...) without ever
+    // colliding with a login_id that is already taken.
+    const takenRows = await pool.query(`SELECT login_id FROM ${table} WHERE tenant_id = $1 AND login_id IS NOT NULL`, [schoolId])
+    const taken = new Set(takenRows.rows.map(r => r.login_id))
+    let highest = 0
+    for (const loginId of taken) {
+      const m = /^([ST])(\d+)$/.exec(loginId)
+      if (m && m[1] === prefix) highest = Math.max(highest, parseInt(m[2], 10))
+    }
+
+    const client = await pool.connect()
+    const issued = []
+    try {
+      await client.query('BEGIN')
+      for (const person of pending.rows) {
+        let loginId = person.login_id
+        if (!loginId) {
+          let candidate
+          do {
+            highest += 1
+            candidate = `${prefix}${String(highest).padStart(3, '0')}`
+          } while (taken.has(candidate))
+          loginId = candidate
+          taken.add(candidate)
+        }
+        const tempPassword = generateTempPassword()
+        const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS)
+        await client.query(
+          `UPDATE ${table} SET login_id = $1, password_hash = $2, is_first_login = true
+           WHERE id = $3 AND tenant_id = $4`,
+          [loginId, passwordHash, person.id, schoolId]
+        )
+        issued.push({ name: person.name, login_id: loginId, full_id: `${schoolId}-${loginId}`, password: tempPassword })
+      }
+      await client.query('COMMIT')
+    } catch (err) {
+      await client.query('ROLLBACK')
+      throw err
+    } finally {
+      client.release()
+    }
+
+    // These are the only moment the plaintext exists. It is not stored anywhere and
+    // cannot be looked up again, which is why the UI downloads it immediately.
+    res.json({ issued, count: issued.length, school_id: schoolId, audience })
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'A login ID clashed with an existing one. Please try again.' })
+    }
+    console.error('Issue credentials error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // --- Coordinators ----------------------------------------------------------
 // A coordinator is a row in admins with role='coordinator', always tied to one
 // branch, and gated by two independent grants the school controls:
@@ -2008,10 +2541,17 @@ app.post('/api/coordinators', requireAuth(['admin']), async (req, res) => {
       const taken = await pool.query('SELECT 1 FROM admins WHERE tenant_id = $1 AND login_id = $2', [req.user.tenant_id, loginId])
       if (taken.rows.length) return res.status(409).json({ error: `Login ID ${loginId} is already taken. Try again.` })
 
-      const created = await pool.query(
+    // The password hash never leaves the server. The plaintext goes back exactly once,
+    // in the credentials block, so the school can hand it over and then forget it.
+    // Every RETURNING list below names its columns explicitly instead of using
+    // RETURNING *, which is what kept the hash out of the response.
+    const created = await pool.query(
         `INSERT INTO admins (login_id, name, password_hash, role, tenant_id, branch_id,
                              grant_management, grant_credentials, is_first_login, phone)
-         VALUES ($1, $2, $3, 'coordinator', $4, $5, $6, $7, true, $8) RETURNING *`,
+         VALUES ($1, $2, $3, 'coordinator', $4, $5, $6, $7, true, $8)
+         RETURNING id, login_id, name, role, tenant_id, branch_id, grant_management,
+                   grant_credentials, is_first_login, phone, email, email_verified_at,
+                   token_generation, created_at`,
         [loginId, name, passwordHash, req.user.tenant_id, branchId, grantManagement, grantCredentials, phone]
       )
       // Returned once, at creation only, so the school can hand it over.
@@ -2025,7 +2565,9 @@ app.post('/api/coordinators', requireAuth(['admin']), async (req, res) => {
       `INSERT INTO admins (login_id, name, role, tenant_id, branch_id,
                            grant_management, grant_credentials, is_first_login, phone)
        VALUES ($1, $2, 'coordinator', $3, $4, $5, false, true, $6)
-       RETURNING *`,
+       RETURNING id, login_id, name, role, tenant_id, branch_id, grant_management,
+                 grant_credentials, is_first_login, phone, email, email_verified_at,
+                 token_generation, created_at`,
       [null, name, req.user.tenant_id, branchId, grantManagement, phone]
     )
     res.status(201).json({ coordinator: created.rows[0], credentials: null })
@@ -2076,17 +2618,31 @@ app.patch('/api/coordinators/:id', requireAuth(['admin']), async (req, res) => {
       })
     }
 
+    // A live JWT carries the old branch_id and the old grants, and requireAuth only
+    // compares token_generation. Moving the coordinator to another branch, or taking a
+    // permission away, would otherwise keep working until the token expired. Bump the
+    // generation on any real change so the old token is dead immediately; the
+    // coordinator is bounced to the login page and gets fresh claims.
+    const permissionsChanged =
+      branchId !== current.branch_id ||
+      nextManagement !== current.grant_management ||
+      nextCredentials !== current.grant_credentials
+
     const updated = await pool.query(
       `UPDATE admins SET name = $1, phone = $2, branch_id = $3,
-                         grant_management = $4, grant_credentials = $5
-       WHERE id = $6 RETURNING *`,
+                         grant_management = $4, grant_credentials = $5,
+                         token_generation = token_generation + $6
+       WHERE id = $7
+       RETURNING id, login_id, name, role, tenant_id, branch_id, grant_management,
+                 grant_credentials, is_first_login, phone, email, email_verified_at,
+                 token_generation, created_at`,
       [
         name !== undefined ? String(name).trim() || current.name : current.name,
         phone !== undefined ? (String(phone).trim() || null) : current.phone,
-        branchId, nextManagement, nextCredentials, id
+        branchId, nextManagement, nextCredentials, permissionsChanged ? 1 : 0, id
       ]
     )
-    res.json(updated.rows[0])
+    res.json({ ...updated.rows[0], sessions_revoked: permissionsChanged })
   } catch (err) {
     console.error('Update coordinator error:', err)
     res.status(500).json({ error: 'Server error' })
@@ -2125,17 +2681,21 @@ app.get('/api/coordinator/me', requireAuth(['coordinator']), async (req, res) =>
     }
 
     if (payload.grants.management) {
-      const classes = await pool.query(
-        `SELECT id, name FROM classes WHERE tenant_id = $1 AND branch_id = $2 ORDER BY name`,
-        [tenant_id, branch_id]
-      )
       const teachers = await pool.query(
         `SELECT id, name FROM teachers WHERE tenant_id = $1 AND branch_id = $2 ORDER BY name`,
         [tenant_id, branch_id]
       )
-      payload.classes = classes.rows
       payload.teachers = teachers.rows
     }
+
+    // Classes are always provided: attendance is the coordinator's core job, so
+    // the class filter must work even when the management grant is switched off.
+    // Every row is already confined to the coordinator's own branch.
+    const classes = await pool.query(
+      `SELECT id, name FROM classes WHERE tenant_id = $1 AND branch_id = $2 ORDER BY name`,
+      [tenant_id, branch_id]
+    )
+    payload.classes = classes.rows
 
     res.json(payload)
   } catch (err) {
@@ -2211,7 +2771,26 @@ app.get('/api/classes/me', requireAuth(['student']), async (req, res) => {
 
 app.get('/api/classes', requireAuth(['admin', 'teacher', 'super_admin']), async (req, res) => {
   const tenant_id = req.user.tenant_id
-  const result = await pool.query('SELECT * FROM classes WHERE tenant_id = $1 ORDER BY id', [tenant_id])
+  const { branch_id } = req.query
+
+  let effectiveBranchId = null
+  if (branch_id !== undefined && branch_id !== null && branch_id !== 'all' && branch_id !== '') {
+    const parsed = parseInt(branch_id, 10)
+    if (Number.isInteger(parsed) && parsed > 0) effectiveBranchId = parsed
+  }
+
+  let result
+  if (effectiveBranchId) {
+    result = await pool.query(
+      'SELECT * FROM classes WHERE tenant_id = $1 AND branch_id = $2 ORDER BY id',
+      [tenant_id, effectiveBranchId]
+    )
+  } else {
+    result = await pool.query(
+      'SELECT * FROM classes WHERE tenant_id = $1 ORDER BY id',
+      [tenant_id]
+    )
+  }
   res.json(result.rows)
 })
 
@@ -2314,8 +2893,15 @@ app.put('/api/classes/:id', requireAuth(['admin', 'super_admin']), async (req, r
 // TEACHERS
 app.get('/api/teachers', requireAuth(['admin', 'teacher', 'student', 'super_admin']), async (req, res) => {
   const tenant_id = req.user.tenant_id
-  const { class_id } = req.query
+  const { class_id, branch_id } = req.query
   let effectiveClassId = class_id
+
+  // Parse branch_id: 'all' or absent means all branches (admin view).
+  let effectiveBranchId = null
+  if (branch_id !== undefined && branch_id !== null && branch_id !== 'all' && branch_id !== '') {
+    const parsed = parseInt(branch_id, 10)
+    if (Number.isInteger(parsed) && parsed > 0) effectiveBranchId = parsed
+  }
 
   if (req.user.role === 'student') {
     if (!class_id) {
@@ -2346,18 +2932,25 @@ app.get('/api/teachers', requireAuth(['admin', 'teacher', 'student', 'super_admi
     ? `teachers.id, teachers.name, teachers.phone, teachers.class_id, classes.name as class_name`
     : `teachers.id, teachers.name, teachers.phone, teachers.class_id, teachers.login_id,
            teachers.role, teachers.tenant_id, teachers.is_first_login, teachers.email,
-           teachers.email_verified_at, teachers.created_at, teachers.is_frozen, classes.name as class_name`
+           teachers.email_verified_at, teachers.created_at, teachers.is_frozen, classes.name as class_name,
+           teachers.branch_id, branches.name as branch_name`
 
   let query = `
     SELECT ${columns}
-    FROM teachers 
-    LEFT JOIN classes ON teachers.class_id = classes.id 
+    FROM teachers
+    LEFT JOIN classes ON teachers.class_id = classes.id
+    LEFT JOIN branches ON teachers.branch_id = branches.id
     WHERE teachers.tenant_id = $1
   `
 
   if (effectiveClassId) {
     query += ' AND teachers.class_id = $2'
     params.push(effectiveClassId)
+  }
+
+  if (effectiveBranchId) {
+    params.push(effectiveBranchId)
+    query += ` AND teachers.branch_id = $${params.length}`
   }
 
   query += ' ORDER BY teachers.id'
@@ -2374,6 +2967,9 @@ app.post('/api/teachers', requireAuth(['admin', 'super_admin']), async (req, res
     const capErr = await capacityViolation(pool, tenant_id, 'teacher')
     if (capErr) return res.status(400).json({ error: capErr })
 
+    const branchPick = await resolveBranchForWrite(pool, tenant_id, req.body.branch_id)
+    if (branchPick.error) return res.status(400).json({ error: branchPick.error })
+
     // One teacher per class.
     if (class_id) {
       const prev = await pool.query(
@@ -2385,10 +2981,10 @@ app.post('/api/teachers', requireAuth(['admin', 'super_admin']), async (req, res
     }
 
     const result = await pool.query(
-      'INSERT INTO teachers (name, phone, class_id, tenant_id) VALUES ($1, $2, $3, $4) RETURNING *',
-      [String(name).trim(), phone, class_id || null, tenant_id]
+      'INSERT INTO teachers (name, phone, class_id, tenant_id, branch_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [String(name).trim(), phone, class_id || null, tenant_id, branchPick.branch ? branchPick.branch.id : null]
     )
-    res.json(result.rows[0])
+    res.json({ ...result.rows[0], capacity_notice: await capacityNotice(pool, tenant_id, 'teacher') })
   } catch (err) {
     if (err.code === '23505' && String(err.constraint || '').includes('one_class_per_tenant')) {
       return res.status(400).json({ error: 'That class already has a teacher assigned.' })
@@ -2413,6 +3009,17 @@ app.put('/api/teachers/:id', requireAuth(['admin', 'super_admin']), async (req, 
     }
     const tenant_id = req.user.tenant_id
 
+    // Only touch branch_id when the client sends it, so an ordinary edit never knocks a
+    // teacher out of their branch. SET and the parameter list are built together.
+    let branchClause = ''
+    const params = [name, phone, class_id || null, email, req.params.id, tenant_id, is_frozen === true]
+    if (req.body.branch_id !== undefined) {
+      const branchPick = await resolveBranchForWrite(pool, tenant_id, req.body.branch_id)
+      if (branchPick.error) return res.status(400).json({ error: branchPick.error })
+      branchClause = `, branch_id = $${params.length + 1}`
+      params.push(branchPick.branch ? branchPick.branch.id : null)
+    }
+
     // One teacher per class: hand the class over rather than creating a second holder.
     if (class_id) {
       const prev = await pool.query(
@@ -2427,10 +3034,11 @@ app.put('/api/teachers/:id', requireAuth(['admin', 'super_admin']), async (req, 
     const result = await pool.query(
       `UPDATE teachers SET name=$1, phone=$2, class_id=$3, email=$4::text,
      is_frozen=$7,
-     email_verified_at = CASE WHEN email IS NOT DISTINCT FROM $4::text THEN email_verified_at ELSE NULL END
+     email_verified_at = CASE WHEN email IS NOT DISTINCT FROM $4::text THEN email_verified_at ELSE NULL END${branchClause}
      WHERE id=$5 AND tenant_id=$6
-     RETURNING id, name, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at, is_frozen, created_at`,
-      [name, phone, class_id || null, email, req.params.id, tenant_id, is_frozen === true]
+     RETURNING id, name, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at, is_frozen, created_at, branch_id,
+       (SELECT b.name FROM branches b WHERE b.id = teachers.branch_id) AS branch_name`,
+      params
     )
     if (result.rows[0]?.email && !result.rows[0].email_verified_at) issueEmailVerification(result.rows[0]).catch(err => console.error('Verification email send failed:', err.message))
     res.json(result.rows[0])
@@ -2464,18 +3072,57 @@ app.get('/api/students/me', requireAuth(['student']), async (req, res) => {
   res.json(result.rows[0])
 })
 
-app.get('/api/students', requireAuth(['admin', 'teacher', 'student', 'super_admin']), async (req, res) => {
+app.get('/api/students', requireAuth(['admin', 'teacher', 'student', 'super_admin', 'coordinator']), async (req, res) => {
   const tenant_id = req.user.tenant_id
-  const { class_id } = req.query
+  const { class_id, branch_id } = req.query
+
+  // Parse branch_id: 'all' or absent means all branches (admin view).
+  // A specific integer means filter to that branch.
+  // A coordinator is always pinned to their own branch here, whatever the
+  // client asks for, so the branch scope is enforced by the database filter.
+  let effectiveBranchId = null
+  if (branch_id !== undefined && branch_id !== null && branch_id !== 'all' && branch_id !== '') {
+    const parsed = parseInt(branch_id, 10)
+    if (Number.isInteger(parsed) && parsed > 0) effectiveBranchId = parsed
+  }
+  const coordinatorBranch = branchFilter(req.user)
+  if (coordinatorBranch) effectiveBranchId = coordinatorBranch
+
+  // A coordinator may only list students of classes inside their branch, so a
+  // class id from another branch (or another school) can never leak its roster.
+  if (coordinatorBranch && class_id) {
+    const classCheck = await pool.query(
+      'SELECT id FROM classes WHERE id = $1 AND tenant_id = $2 AND branch_id = $3',
+      [class_id, tenant_id, coordinatorBranch]
+    )
+    if (classCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'This class does not belong to your branch.' })
+    }
+  }
+
+  // branch_name comes along so the admin table can label a row without a second request.
+  const columns = `id, name, roll_no, phone, class_id, login_id, role, tenant_id,
+                   is_first_login, email, email_verified_at, is_frozen, created_at,
+                   branch_id, (SELECT b.name FROM branches b WHERE b.id = students.branch_id) AS branch_name`
   let result
-  if (class_id) {
+  if (class_id && effectiveBranchId) {
     result = await pool.query(
-      'SELECT id, name, roll_no, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at, is_frozen, created_at FROM students WHERE tenant_id = $1 AND class_id = $2 ORDER BY id',
+      `SELECT ${columns} FROM students WHERE tenant_id = $1 AND class_id = $2 AND branch_id = $3 ORDER BY id`,
+      [tenant_id, class_id, effectiveBranchId]
+    )
+  } else if (class_id) {
+    result = await pool.query(
+      `SELECT ${columns} FROM students WHERE tenant_id = $1 AND class_id = $2 ORDER BY id`,
       [tenant_id, class_id]
+    )
+  } else if (effectiveBranchId) {
+    result = await pool.query(
+      `SELECT ${columns} FROM students WHERE tenant_id = $1 AND branch_id = $2 ORDER BY id`,
+      [tenant_id, effectiveBranchId]
     )
   } else {
     result = await pool.query(
-      'SELECT id, name, roll_no, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at, is_frozen, created_at FROM students WHERE tenant_id = $1 ORDER BY id',
+      `SELECT ${columns} FROM students WHERE tenant_id = $1 ORDER BY id`,
       [tenant_id]
     )
   }
@@ -2484,7 +3131,12 @@ app.get('/api/students', requireAuth(['admin', 'teacher', 'student', 'super_admi
 
 app.get('/api/students/:id', requireAuth(['admin', 'teacher', 'super_admin']), async (req, res) => {
   const tenant_id = req.user.tenant_id
-  const result = await pool.query('SELECT id, name, roll_no, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at, is_frozen, created_at FROM students WHERE id = $1 AND tenant_id = $2', [req.params.id, tenant_id])
+  const result = await pool.query(
+    `SELECT id, name, roll_no, phone, class_id, login_id, role, tenant_id, is_first_login,
+            email, email_verified_at, is_frozen, created_at, branch_id,
+            (SELECT b.name FROM branches b WHERE b.id = students.branch_id) AS branch_name
+     FROM students WHERE id = $1 AND tenant_id = $2`, [req.params.id, tenant_id]
+  )
   if (result.rows.length === 0) return res.status(404).json({ error: 'Student not found' })
   res.json(result.rows[0])
 })
@@ -2497,14 +3149,17 @@ app.post('/api/students', requireAuth(['admin', 'super_admin']), async (req, res
     const capErr = await capacityViolation(pool, tenant_id, 'student')
     if (capErr) return res.status(400).json({ error: capErr })
 
+    const branchPick = await resolveBranchForWrite(pool, tenant_id, req.body.branch_id)
+    if (branchPick.error) return res.status(400).json({ error: branchPick.error })
+
     const dupErr = await findStudentDuplicate(pool, tenant_id, { roll_no, name })
     if (dupErr) return res.status(400).json({ error: dupErr })
 
     const result = await pool.query(
-      'INSERT INTO students (name, roll_no, phone, class_id, tenant_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [String(name).trim(), roll_no, phone, class_id, tenant_id]
+      'INSERT INTO students (name, roll_no, phone, class_id, tenant_id, branch_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [String(name).trim(), roll_no, phone, class_id, tenant_id, branchPick.branch ? branchPick.branch.id : null]
     )
-    res.json(result.rows[0])
+    res.json({ ...result.rows[0], capacity_notice: await capacityNotice(pool, tenant_id, 'student') })
   } catch (err) {
     if (err.code === '23505' && String(err.constraint || '').includes('roll')) {
       return res.status(400).json({ error: `Roll number "${roll_no}" is already used by another student in this school. Please choose a different one.` })
@@ -2532,6 +3187,20 @@ app.put('/api/students/:id', requireAuth(['admin', 'super_admin']), async (req, 
     if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid student id' })
     if (!name || !String(name).trim()) return res.status(400).json({ error: 'Student name is required' })
 
+    // branch_id is only touched when the client actually sends it. An edit that omits
+    // it (the common case - the admin is fixing a phone number) must not silently drop
+    // a student back out of their branch. The SET list and the parameter list are built
+    // together, because Postgres rejects a statement handed more values than it names.
+    let branchClause = ''
+    let branchValue = null
+    const params = [String(name).trim(), roll_no, phone, class_id, email, id, tenant_id, is_frozen === true]
+    if (req.body.branch_id !== undefined) {
+      const branchPick = await resolveBranchForWrite(pool, tenant_id, req.body.branch_id)
+      if (branchPick.error) return res.status(400).json({ error: branchPick.error })
+      branchClause = `, branch_id = $${params.length + 1}`
+      params.push(branchPick.branch ? branchPick.branch.id : null)
+    }
+
     // Ignore this student's own row so re-saving unchanged values is allowed.
     const dupErr = await findStudentDuplicate(pool, tenant_id, { roll_no, name }, id)
     if (dupErr) return res.status(400).json({ error: dupErr })
@@ -2539,10 +3208,11 @@ app.put('/api/students/:id', requireAuth(['admin', 'super_admin']), async (req, 
     const result = await pool.query(
       `UPDATE students SET name=$1, roll_no=$2, phone=$3, class_id=$4, email=$5::text,
      is_frozen=$8,
-     email_verified_at = CASE WHEN email IS NOT DISTINCT FROM $5::text THEN email_verified_at ELSE NULL END
+     email_verified_at = CASE WHEN email IS NOT DISTINCT FROM $5::text THEN email_verified_at ELSE NULL END${branchClause}
      WHERE id=$6 AND tenant_id=$7
-     RETURNING id, name, roll_no, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at, is_frozen, created_at`,
-      [String(name).trim(), roll_no, phone, class_id, email, id, tenant_id, is_frozen === true]
+     RETURNING id, name, roll_no, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at, is_frozen, created_at, branch_id,
+       (SELECT b.name FROM branches b WHERE b.id = students.branch_id) AS branch_name`,
+      params
     )
     if (result.rows[0]?.email && !result.rows[0].email_verified_at) issueEmailVerification(result.rows[0]).catch(err => console.error('Verification email send failed:', err.message))
     res.json(result.rows[0])
@@ -2613,15 +3283,36 @@ app.delete('/api/students/:id', requireAuth(['admin', 'super_admin']), async (re
 })
 
 // ATTENDANCE
-app.post('/api/attendance', requireAuth(['teacher', 'admin']), async (req, res) => {
+// The batch endpoint kept for older clients. It has no branch picker, so each row
+// simply inherits the branch of the student it marks. A coordinator's own branch is
+// enforced by requireWritableBranch() below, which stops writes once the Super Admin
+// deactivates that branch.
+app.post('/api/attendance', requireAuth(['teacher', 'admin']), requireWritableBranch(), async (req, res) => {
   const { date, records } = req.body
   const tenant_id = req.user.tenant_id
+  if (!Array.isArray(records) || records.length === 0) {
+    return res.status(400).json({ error: 'No attendance records supplied' })
+  }
+  if (records.length > 1000) {
+    return res.status(400).json({ error: 'Too many records in one submission' })
+  }
+  const studentIds = [...new Set(records.map(r => parseInt(r.student_id, 10)).filter(n => !Number.isNaN(n)))]
+  const allowed = await pool.query(
+    'SELECT id, branch_id FROM students WHERE id = ANY($1::int[]) AND tenant_id = $2',
+    [studentIds, tenant_id]
+  )
+  const branchByStudent = new Map(allowed.rows.map(r => [r.id, r.branch_id]))
+  const rejected = studentIds.filter(id => !branchByStudent.has(id))
+  if (rejected.length) {
+    return res.status(403).json({ error: `Student(s) not found in your school: ${rejected.join(', ')}` })
+  }
   for (const record of records) {
+    const studentId = parseInt(record.student_id, 10)
     await pool.query(
-      `INSERT INTO attendance (student_id, date, status, tenant_id)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO attendance (student_id, date, status, tenant_id, branch_id)
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT DO NOTHING`,
-      [record.student_id, date, record.status, tenant_id]
+      [studentId, date, record.status, tenant_id, branchByStudent.get(studentId) ?? null]
     )
   }
   res.json({ success: true })
@@ -2629,7 +3320,7 @@ app.post('/api/attendance', requireAuth(['teacher', 'admin']), async (req, res) 
 
 // The school's current calendar day. Both the teacher and student pages call this
 // so "today" means the same thing on every device, whatever its timezone is.
-app.get('/api/attendance/today', requireAuth(['admin', 'teacher', 'student', 'super_admin']), (req, res) => {
+app.get('/api/attendance/today', requireAuth(['admin', 'teacher', 'student', 'super_admin', 'coordinator']), (req, res) => {
   res.json({ today: schoolToday(), timezone: SCHOOL_TIMEZONE })
 })
 
@@ -2666,9 +3357,20 @@ app.get('/api/attendance/me', requireAuth(['student']), async (req, res) => {
   res.json(result.rows)
 })
 
-app.get('/api/attendance', requireAuth(['admin', 'teacher', 'student', 'super_admin']), async (req, res) => {
+app.get('/api/attendance', requireAuth(['admin', 'teacher', 'student', 'super_admin', 'coordinator']), async (req, res) => {
   const tenant_id = req.user.tenant_id
-  const { date, class_id } = req.query
+  const { date, class_id, branch_id } = req.query
+
+  let effectiveBranchId = null
+  if (branch_id !== undefined && branch_id !== null && branch_id !== 'all' && branch_id !== '') {
+    const parsed = parseInt(branch_id, 10)
+    if (Number.isInteger(parsed) && parsed > 0) effectiveBranchId = parsed
+  }
+  // A coordinator is confined to their own branch in the database query, no matter
+  // what branch_id the client sends. The filter cannot be spoofed from the UI.
+  const coordinatorBranch = branchFilter(req.user)
+  if (coordinatorBranch) effectiveBranchId = coordinatorBranch
+
   const result = await pool.query(`
     SELECT attendance.id,
            attendance.student_id,
@@ -2680,44 +3382,91 @@ app.get('/api/attendance', requireAuth(['admin', 'teacher', 'student', 'super_ad
     FROM attendance
     JOIN students ON attendance.student_id = students.id
     WHERE attendance.date = $1 AND students.class_id = $2 AND attendance.tenant_id = $3
+      ${effectiveBranchId ? 'AND students.branch_id = $4' : ''}
     ORDER BY students.id
-  `, [date, class_id, tenant_id])
+  `, effectiveBranchId ? [date, class_id, tenant_id, effectiveBranchId] : [date, class_id, tenant_id])
   res.json(result.rows)
 })
 
-app.get('/api/attendance/all', requireAuth(['admin', 'super_admin']), async (req, res) => {
+app.get('/api/attendance/all', requireAuth(['admin', 'super_admin', 'coordinator']), async (req, res) => {
   const tenant_id = req.user.tenant_id
-  const result = await pool.query(`
-    SELECT
-      attendance.id,
-      attendance.student_id,
-      attendance.teacher_id,
-      attendance.date::text AS date,
-      attendance.status,
-      to_char(attendance.created_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at,
-      students.name,
-      students.phone,
-      students.roll_no,
-      students.class_id,
-      classes.name as class_name,
-      COALESCE(marking_teacher.name, assigned_teacher.name) as marked_by,
-      COALESCE(marking_teacher.id, assigned_teacher.id) as marked_by_id
-    FROM attendance
-    JOIN students ON attendance.student_id = students.id AND students.tenant_id = $1
-    LEFT JOIN classes ON students.class_id = classes.id
-    LEFT JOIN teachers marking_teacher ON attendance.teacher_id = marking_teacher.id
-    LEFT JOIN LATERAL (
-      SELECT t.id, t.name FROM teachers t
-      WHERE t.class_id = students.class_id AND t.tenant_id = $1
-      ORDER BY t.id DESC LIMIT 1
-    ) assigned_teacher ON TRUE
-    WHERE attendance.tenant_id = $1
-    ORDER BY attendance.date DESC, classes.name ASC NULLS LAST, students.name ASC
-  `, [tenant_id])
+  const { branch_id } = req.query
+
+  let effectiveBranchId = null
+  if (branch_id !== undefined && branch_id !== null && branch_id !== 'all' && branch_id !== '') {
+    const parsed = parseInt(branch_id, 10)
+    if (Number.isInteger(parsed) && parsed > 0) effectiveBranchId = parsed
+  }
+  // A coordinator always gets their own branch back, whatever they ask for, and
+  // can never fall through to the tenant-wide query below.
+  const coordinatorBranch = branchFilter(req.user)
+  if (isCoordinator(req.user) && !coordinatorBranch) {
+    return res.status(403).json({ error: 'Your account is not assigned to a branch. Please contact your admin.' })
+  }
+  if (coordinatorBranch) effectiveBranchId = coordinatorBranch
+
+  let result
+  if (effectiveBranchId) {
+    result = await pool.query(`
+      SELECT
+        attendance.id,
+        attendance.student_id,
+        attendance.teacher_id,
+        attendance.date::text AS date,
+        attendance.status,
+        to_char(attendance.created_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at,
+        students.name,
+        students.phone,
+        students.roll_no,
+        students.class_id,
+        classes.name as class_name,
+        COALESCE(marking_teacher.name, assigned_teacher.name) as marked_by,
+        COALESCE(marking_teacher.id, assigned_teacher.id) as marked_by_id
+      FROM attendance
+      JOIN students ON attendance.student_id = students.id AND students.tenant_id = $1
+      LEFT JOIN classes ON students.class_id = classes.id
+      LEFT JOIN teachers marking_teacher ON attendance.teacher_id = marking_teacher.id
+      LEFT JOIN LATERAL (
+        SELECT t.id, t.name FROM teachers t
+        WHERE t.class_id = students.class_id AND t.tenant_id = $1
+        ORDER BY t.id DESC LIMIT 1
+      ) assigned_teacher ON TRUE
+      WHERE attendance.tenant_id = $1 AND students.branch_id = $2
+      ORDER BY attendance.date DESC, classes.name ASC NULLS LAST, students.name ASC
+    `, [tenant_id, effectiveBranchId])
+  } else {
+    result = await pool.query(`
+      SELECT
+        attendance.id,
+        attendance.student_id,
+        attendance.teacher_id,
+        attendance.date::text AS date,
+        attendance.status,
+        to_char(attendance.created_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at,
+        students.name,
+        students.phone,
+        students.roll_no,
+        students.class_id,
+        classes.name as class_name,
+        COALESCE(marking_teacher.name, assigned_teacher.name) as marked_by,
+        COALESCE(marking_teacher.id, assigned_teacher.id) as marked_by_id
+      FROM attendance
+      JOIN students ON attendance.student_id = students.id AND students.tenant_id = $1
+      LEFT JOIN classes ON students.class_id = classes.id
+      LEFT JOIN teachers marking_teacher ON attendance.teacher_id = marking_teacher.id
+      LEFT JOIN LATERAL (
+        SELECT t.id, t.name FROM teachers t
+        WHERE t.class_id = students.class_id AND t.tenant_id = $1
+        ORDER BY t.id DESC LIMIT 1
+      ) assigned_teacher ON TRUE
+      WHERE attendance.tenant_id = $1
+      ORDER BY attendance.date DESC, classes.name ASC NULLS LAST, students.name ASC
+    `, [tenant_id])
+  }
   res.json(result.rows)
 })
 
-app.post('/api/attendance/submit', requireAuth(['teacher', 'admin']), async (req, res) => {
+app.post('/api/attendance/submit', requireAuth(['teacher', 'admin', 'coordinator']), requireWritableBranch(), async (req, res) => {
   try {
     const { date, teacher_id, records } = req.body
     const tenant_id = req.user.tenant_id
@@ -2760,10 +3509,20 @@ app.post('/api/attendance/submit', requireAuth(['teacher', 'admin']), async (req
       return res.status(400).json({ error: 'No valid student ids supplied' })
     }
     const allowed = await pool.query(
-      'SELECT id FROM students WHERE id = ANY($1::int[]) AND tenant_id = $2',
+      'SELECT id, branch_id FROM students WHERE id = ANY($1::int[]) AND tenant_id = $2',
       [studentIds, tenant_id]
     )
-    const allowedIds = new Set(allowed.rows.map(r => r.id))
+    // A coordinator may only submit attendance for students inside their own
+    // branch, so a forged class roster cannot write outside their scope. The
+    // branch stored on each row still comes from the student's own branch_id.
+    const coordinatorBranch = branchFilter(req.user)
+    const branchScoped = coordinatorBranch
+      ? allowed.rows.filter(r => r.branch_id === coordinatorBranch)
+      : allowed.rows
+    const allowedIds = new Set(branchScoped.map(r => r.id))
+    // Attendance belongs to the branch of the student it is about, so the coordinator
+    // view stays branch-scoped without anyone having to pick a branch per row.
+    const branchByStudent = new Map(branchScoped.map(r => [r.id, r.branch_id]))
     const rejected = studentIds.filter(id => !allowedIds.has(id))
     if (rejected.length) {
       return res.status(403).json({ error: `Student(s) not found in your school: ${rejected.join(', ')}` })
@@ -2775,19 +3534,20 @@ app.post('/api/attendance/submit', requireAuth(['teacher', 'admin']), async (req
       await client.query('BEGIN')
       for (const record of records) {
         const studentId = parseInt(record.student_id, 10)
+        const branchId = branchByStudent.get(studentId) ?? null
         // tenant_id is part of the match so a submit can never claim another
         // school's row (which would then vanish from that school's stats).
         const updated = await client.query(
           `UPDATE attendance
-           SET teacher_id = $1, status = $2, tenant_id = $3
+           SET teacher_id = $1, status = $2, tenant_id = $3, branch_id = $7
            WHERE student_id = $4 AND date = $5 AND tenant_id = $6`,
-          [teacher_id || null, record.status, tenant_id, studentId, attendanceDate, tenant_id]
+          [teacher_id || null, record.status, tenant_id, studentId, attendanceDate, tenant_id, branchId]
         )
         if (updated.rowCount === 0) {
           await client.query(
-            `INSERT INTO attendance (student_id, teacher_id, date, status, tenant_id)
-             VALUES ($1, $2, $3, $4, $5)`,
-            [studentId, teacher_id || null, attendanceDate, record.status, tenant_id]
+            `INSERT INTO attendance (student_id, teacher_id, date, status, tenant_id, branch_id)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [studentId, teacher_id || null, attendanceDate, record.status, tenant_id, branchId]
           )
         }
         saved++
@@ -2809,11 +3569,26 @@ app.post('/api/attendance/submit', requireAuth(['teacher', 'admin']), async (req
 
 // HOMEWORK
 app.get('/api/homework', requireAuth(['admin', 'teacher', 'student', 'super_admin']), async (req, res) => {
-  const { class_id } = req.query
+  const { class_id, branch_id } = req.query
   const tenant_id = req.user.tenant_id
-  let result
 
-  if (class_id) {
+  let effectiveBranchId = null
+  if (branch_id !== undefined && branch_id !== null && branch_id !== 'all' && branch_id !== '') {
+    const parsed = parseInt(branch_id, 10)
+    if (Number.isInteger(parsed) && parsed > 0) effectiveBranchId = parsed
+  }
+
+  let result
+  if (class_id && effectiveBranchId) {
+    result = await pool.query(`
+      SELECT homework.*, classes.name as class_name, teachers.name as teacher_name
+      FROM homework
+      LEFT JOIN classes ON homework.class_id = classes.id
+      LEFT JOIN teachers ON homework.teacher_id = teachers.id
+      WHERE homework.class_id = $1 AND homework.tenant_id = $2 AND classes.branch_id = $3
+      ORDER BY homework.created_at DESC
+    `, [class_id, tenant_id, effectiveBranchId])
+  } else if (class_id) {
     result = await pool.query(`
       SELECT homework.*, classes.name as class_name, teachers.name as teacher_name
       FROM homework
@@ -2822,6 +3597,15 @@ app.get('/api/homework', requireAuth(['admin', 'teacher', 'student', 'super_admi
       WHERE homework.class_id = $1 AND homework.tenant_id = $2
       ORDER BY homework.created_at DESC
     `, [class_id, tenant_id])
+  } else if (effectiveBranchId) {
+    result = await pool.query(`
+      SELECT homework.*, classes.name as class_name, teachers.name as teacher_name
+      FROM homework
+      LEFT JOIN classes ON homework.class_id = classes.id
+      LEFT JOIN teachers ON homework.teacher_id = teachers.id
+      WHERE homework.tenant_id = $1 AND classes.branch_id = $2
+      ORDER BY homework.created_at DESC
+    `, [tenant_id, effectiveBranchId])
   } else {
     result = await pool.query(`
       SELECT homework.*, classes.name as class_name, teachers.name as teacher_name
@@ -2836,7 +3620,7 @@ app.get('/api/homework', requireAuth(['admin', 'teacher', 'student', 'super_admi
   res.json(result.rows)
 })
 
-app.post('/api/homework', requireAuth(['teacher', 'admin']), async (req, res) => {
+app.post('/api/homework', requireAuth(['teacher', 'admin']), requireWritableBranch(), async (req, res) => {
   const { subject, task, class_id, teacher_id } = req.body
   const tenant_id = req.user.tenant_id
   if (!subject || !task) return res.status(400).json({ error: 'Subject and task are required' })
@@ -2848,7 +3632,7 @@ app.post('/api/homework', requireAuth(['teacher', 'admin']), async (req, res) =>
   res.json(result.rows[0])
 })
 
-app.delete('/api/homework/:id', requireAuth(['teacher', 'admin']), async (req, res) => {
+app.delete('/api/homework/:id', requireAuth(['teacher', 'admin']), requireWritableBranch(), async (req, res) => {
   const tenant_id = req.user.tenant_id
   await pool.query('DELETE FROM homework WHERE id = $1 AND tenant_id = $2', [req.params.id, tenant_id])
   res.json({ success: true })
@@ -2856,11 +3640,26 @@ app.delete('/api/homework/:id', requireAuth(['teacher', 'admin']), async (req, r
 
 // ANNOUNCEMENTS
 app.get('/api/announcements', requireAuth(['admin', 'teacher', 'student', 'super_admin']), async (req, res) => {
-  const { class_id } = req.query
+  const { class_id, branch_id } = req.query
   const tenant_id = req.user.tenant_id
-  let result
 
-  if (class_id) {
+  let effectiveBranchId = null
+  if (branch_id !== undefined && branch_id !== null && branch_id !== 'all' && branch_id !== '') {
+    const parsed = parseInt(branch_id, 10)
+    if (Number.isInteger(parsed) && parsed > 0) effectiveBranchId = parsed
+  }
+
+  let result
+  if (class_id && effectiveBranchId) {
+    result = await pool.query(`
+      SELECT announcements.*, classes.name as class_name, teachers.name as teacher_name
+      FROM announcements
+      LEFT JOIN classes ON announcements.class_id = classes.id
+      LEFT JOIN teachers ON announcements.teacher_id = teachers.id
+      WHERE (announcements.class_id IS NULL OR announcements.class_id = $1) AND announcements.tenant_id = $2 AND classes.branch_id = $3
+      ORDER BY announcements.created_at DESC
+    `, [class_id, tenant_id, effectiveBranchId])
+  } else if (class_id) {
     result = await pool.query(`
       SELECT announcements.*, classes.name as class_name, teachers.name as teacher_name
       FROM announcements
@@ -2869,6 +3668,15 @@ app.get('/api/announcements', requireAuth(['admin', 'teacher', 'student', 'super
       WHERE (announcements.class_id IS NULL OR announcements.class_id = $1) AND announcements.tenant_id = $2
       ORDER BY announcements.created_at DESC
     `, [class_id, tenant_id])
+  } else if (effectiveBranchId) {
+    result = await pool.query(`
+      SELECT announcements.*, classes.name as class_name, teachers.name as teacher_name
+      FROM announcements
+      LEFT JOIN classes ON announcements.class_id = classes.id
+      LEFT JOIN teachers ON announcements.teacher_id = teachers.id
+      WHERE announcements.tenant_id = $1 AND (classes.branch_id = $2 OR classes.branch_id IS NULL)
+      ORDER BY announcements.created_at DESC
+    `, [tenant_id, effectiveBranchId])
   } else {
     result = await pool.query(`
       SELECT announcements.*, classes.name as class_name, teachers.name as teacher_name
@@ -2883,7 +3691,7 @@ app.get('/api/announcements', requireAuth(['admin', 'teacher', 'student', 'super
   res.json(result.rows)
 })
 
-app.post('/api/announcements', requireAuth(['admin', 'teacher', 'super_admin']), async (req, res) => {
+app.post('/api/announcements', requireAuth(['admin', 'teacher', 'super_admin']), requireWritableBranch(), async (req, res) => {
   const { title, message, class_id, teacher_id, author } = req.body
   const tenant_id = req.user.tenant_id
   if (!message) return res.status(400).json({ error: 'Announcement message is required' })
@@ -2895,7 +3703,7 @@ app.post('/api/announcements', requireAuth(['admin', 'teacher', 'super_admin']),
   res.json(result.rows[0])
 })
 
-app.delete('/api/announcements/:id', requireAuth(['admin', 'teacher', 'super_admin']), async (req, res) => {
+app.delete('/api/announcements/:id', requireAuth(['admin', 'teacher', 'super_admin']), requireWritableBranch(), async (req, res) => {
   const tenant_id = req.user.tenant_id
   await pool.query('DELETE FROM announcements WHERE id = $1 AND tenant_id = $2', [req.params.id, tenant_id])
   res.json({ success: true })
@@ -3355,8 +4163,43 @@ app.use('/api', (req, res) => {
 // START SERVER
 // ============================================
 const PORT = process.env.PORT || 3000
-createTables().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`)
-  })
-})
+
+function isTransientStartupError(error) {
+  const transientCodes = new Set([
+    'ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN', 'EPIPE', '57P01'
+  ])
+  for (let current = error; current; current = current.cause) {
+    if (transientCodes.has(current.code)) return true
+    if (/connection terminated|connection timeout|socket hang up/i.test(current.message || '')) return true
+  }
+  return false
+}
+
+async function startServer() {
+  const startupRetries = 3
+
+  for (let attempt = 1; attempt <= startupRetries + 1; attempt++) {
+    try {
+      await createTables()
+      app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`)
+      })
+      return
+    } catch (error) {
+      if (!isTransientStartupError(error) || attempt > startupRetries) {
+        console.error('FATAL: Database startup failed; the server was not started.', error)
+        await pool.end().catch(() => {})
+        process.exitCode = 1
+        return
+      }
+
+      const delayMs = Math.min(2000 * (2 ** (attempt - 1)), 15000)
+      console.warn(
+        `Database startup attempt ${attempt}/${startupRetries + 1} failed; retrying in ${delayMs / 1000}s: ${error.message}`
+      )
+      await new Promise(resolve => setTimeout(resolve, delayMs))
+    }
+  }
+}
+
+startServer()

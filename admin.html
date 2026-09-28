@@ -188,6 +188,69 @@
       gap: 10px;
     }
 
+    /* ================================
+       BRANCH SELECTOR (header)
+       ================================ */
+    .branch-selector-wrap {
+      display: flex;
+      align-items: center;
+    }
+
+    .branch-selector {
+      padding: 7px 12px;
+      border-radius: 10px;
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      background: rgba(255, 255, 255, 0.18);
+      color: white;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(8px);
+      min-width: 140px;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white' width='12' height='12'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 32px;
+    }
+
+    .branch-selector:hover {
+      border-color: rgba(255, 255, 255, 0.6);
+      background-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .branch-selector:focus {
+      border-color: white;
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.25);
+    }
+
+    .branch-selector option {
+      background: var(--bg-card);
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    /* Branch indicator dot */
+    .branch-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4ade80;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    /* Locked tab button (for future use — currently tabs are hidden, not locked) */
+    .tab-btn[data-locked="true"] {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
     .theme-toggle {
       width: 40px;
       height: 40px;
@@ -2028,6 +2091,12 @@
           <span>The Eye — School Management System</span>
         </div>
       </div>
+      <!-- Branch selector (rendered by JS once bootstrap loads) -->
+      <div class="branch-selector-wrap" id="branchSelectorWrap" style="display:none;">
+        <select id="branchSelector" class="branch-selector" onchange="onBranchChanged(this.value)">
+          <option value="all">All Branches</option>
+        </select>
+      </div>
       <div class="header-right">
         <div id="headerMenuWrap" class="header-menu-wrap">
           <button id="headerMenuToggle" class="header-menu-toggle" aria-expanded="false" aria-controls="headerMenuPanel" aria-label="Open menu" title="Menu">
@@ -2059,16 +2128,16 @@
       <i class="fas fa-bars tab-nav-toggle-icon"></i>
     </button>
     <div class="tab-nav-inner" id="tabNavInner">
-      <a href="#tab-teachers" class="tab-btn active" data-section="tab-teachers">
+      <a href="#tab-teachers" class="tab-btn active" data-section="tab-teachers" data-feature-key="teacher_management">
         <i class="fas fa-chalkboard-user"></i>Teachers
       </a>
-      <a href="#tab-students" class="tab-btn" data-section="tab-students">
+      <a href="#tab-students" class="tab-btn" data-section="tab-students" data-feature-key="student_management">
         <i class="fas fa-user-graduate"></i>Students
       </a>
       <a href="#tab-classes" class="tab-btn" data-section="tab-classes">
         <i class="fas fa-book"></i>Classes
       </a>
-      <a href="#tab-attendance" class="tab-btn" data-section="tab-attendance">
+      <a href="#tab-attendance" class="tab-btn" data-section="tab-attendance" data-feature-key="attendance">
         <i class="fas fa-clipboard-list"></i>Attendance
       </a>
       <a href="#tab-stats" class="tab-btn" data-section="tab-stats">
@@ -2077,14 +2146,68 @@
       <a href="#tab-announcements" class="tab-btn" data-section="tab-announcements">
         <i class="fas fa-bullhorn"></i>Announcements
       </a>
-      <a href="#tab-fees" class="tab-btn" data-section="tab-fees">
+      <a href="#tab-fees" class="tab-btn" data-section="tab-fees" data-feature-key="fees">
         <i class="fas fa-money-bill-wave"></i>Fees
+      </a>
+      <!-- Branches tab: only shown when tenant has no branches yet (for initial setup) -->
+      <a href="#tab-branches" class="tab-btn" data-section="tab-branches" id="branchesTabBtn" style="display:none;">
+        <i class="fas fa-building"></i>Branches
       </a>
     </div>
   </nav>
 
   <!-- ======================== MAIN ======================== -->
   <div class="main">
+
+    <!-- ==================== BRANCHES TAB ==================== -->
+    <!-- Only visible when tenant has zero branches (initial setup) -->
+    <div id="tab-branches" class="tab-content">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-icon purple"><i class="fas fa-building"></i></div>
+            <div>
+              <div class="section-title">Branches</div>
+              <div class="section-subtitle">Create and manage your academy branches</div>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openAddBranchModal()">
+            <i class="fas fa-plus"></i> Add Branch
+          </button>
+        </div>
+        <div class="section-body">
+          <p id="branchesIntroText" style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:16px;">
+            Add your first branch to get started. You can create multiple branches for different campuses or locations.
+          </p>
+          <!-- Add Branch Inline Form -->
+          <div id="addBranchFormWrap" style="display:none;margin-bottom:20px;">
+            <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+              <div class="form-group" style="flex:1;min-width:200px;margin-bottom:0;">
+                <label class="form-label" for="newBranchName">Branch Name</label>
+                <input class="form-input" type="text" id="newBranchName" placeholder="e.g. Main Campus">
+              </div>
+              <button class="btn btn-primary" onclick="createBranch()" id="saveBranchBtn">
+                <i class="fas fa-check"></i> Save Branch
+              </button>
+              <button class="btn btn-ghost" onclick="cancelAddBranch()">Cancel</button>
+            </div>
+            <div id="addBranchError" style="color:var(--danger);font-size:0.78rem;margin-top:6px;display:none;"></div>
+          </div>
+          <!-- Branches List -->
+          <div id="branchesList">
+            <!-- Rendered by JS -->
+          </div>
+          <div id="branchesLoading" style="text-align:center;padding:24px;color:var(--text-muted);">
+            <i class="fas fa-spinner fa-spin"></i> Loading...
+          </div>
+          <div id="branchesEmpty" style="display:none;" class="empty-state">
+            <div class="icon"><i class="fas fa-building"></i></div>
+            <div class="msg">No branches yet</div>
+            <div class="sub">Click "Add Branch" above to create your first branch.</div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- ==================== TEACHERS TAB ==================== -->
     <div id="tab-teachers" class="tab-content active">
@@ -2975,6 +3098,14 @@
       classes: [],
       attendance: [],
       fees: [],
+      // Branch state
+      branches: [],           // array from /api/admin/bootstrap
+      selectedBranchId: null,  // null = "All Branches", number = specific branch
+      // Feature gates
+      features: {},            // { key: bool } — true = enabled, false = disabled
+      // Bootstrap loaded flag
+      bootstrapLoaded: false,
+      // Load-failure messages for the panels that render partial data
       attendanceLoadError: '',
       feesLoadError: ''
     };
@@ -3102,11 +3233,12 @@
 
       try {
         window.appData.attendanceLoadError = '';
+        const bq = branchQueryParam(); // e.g. '?branch_id=all' or '?branch_id=3'
         const [teachers, classes, students, rawAttendance] = await Promise.all([
-          apiFetch('/api/teachers').then(r => r.json()).then(toArray),
-          apiFetch('/api/classes').then(r => r.json()).then(toArray),
-          apiFetch('/api/students').then(r => r.json()).then(toArray),
-          apiFetch('/api/attendance/all').then(r => r.json()).then(toArray).catch(err => {
+          apiFetch('/api/teachers' + bq).then(r => r.json()).then(toArray),
+          apiFetch('/api/classes' + bq).then(r => r.json()).then(toArray),
+          apiFetch('/api/students' + bq).then(r => r.json()).then(toArray),
+          apiFetch('/api/attendance/all' + bq).then(r => r.json()).then(toArray).catch(err => {
             window.appData.attendanceLoadError = err.message || 'Attendance failed to load';
             return [];
           })
@@ -3188,7 +3320,7 @@
       if (window.__attendanceRefreshInFlight) return;
       window.__attendanceRefreshInFlight = true;
       try {
-        const res = await apiFetch('/api/attendance/all');
+        const res = await apiFetch('/api/attendance/all' + branchQueryParam());
         if (!res.ok) throw new Error(`Server returned ${res.status}`);
         const payload = await res.json();
         window.appData.attendance = groupAttendanceRecords(Array.isArray(payload) ? payload : []);
@@ -4160,15 +4292,28 @@
         return;
       }
 
+      // If tenant has branches but no specific branch is selected, block creation
+      const branches = window.appData.branches || [];
+      if (branches.length > 0 && !window.appData.selectedBranchId) {
+        showToast('⚠️ Please select a branch before creating a class.', 'warning');
+        return;
+      }
+
       setButtonLoading(btn, true, '<i class="fas fa-spinner fa-spin"></i> Creating...');
+
+      const body = { name, section: section || null };
+      if (window.appData.selectedBranchId) body.branch_id = window.appData.selectedBranchId;
 
       try {
         const response = await apiFetch('/api/classes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, section: section || null })
+          body: JSON.stringify(body)
         });
-        if (!response.ok) throw new Error('Failed to create class');
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error || 'Failed to create class');
+        }
         const createdClass = await response.json();
 
         toggleAddClass();
@@ -4178,7 +4323,7 @@
         if (btn) btn.dataset.originalHtml = btn.innerHTML;
         showToast('✅ Class created successfully', 'success');
       } catch (err) {
-        showToast(`❌ Error: ${err.message}`, 'error');
+        showToast(`❌ ${err.message}`, 'error');
       } finally {
         setButtonLoading(btn, false);
       }
@@ -4266,7 +4411,7 @@
         const cached = window.appData?.classes || [];
         if (cached.length === 0) {
           try {
-            const response = await apiFetch('/api/classes');
+            const response = await apiFetch('/api/classes' + branchQueryParam());
             const classes = await response.json();
             window.appData.classes = classes;
             if (classes.length === 0) {
@@ -4339,13 +4484,23 @@
         return;
       }
 
+      // If tenant has branches but no specific branch selected, block creation
+      const branches = window.appData.branches || [];
+      if (branches.length > 0 && !window.appData.selectedBranchId) {
+        showToast('⚠️ Please select a branch before adding a teacher.', 'warning');
+        return;
+      }
+
       setButtonLoading(btn, true, '<i class="fas fa-spinner fa-spin"></i> Creating...');
+
+      const teacherBody = { name, phone: phone || null, class_id: classId || null, email: email || null };
+      if (window.appData.selectedBranchId) teacherBody.branch_id = window.appData.selectedBranchId;
 
       try {
         const response = await apiFetch('/api/auth/create-teacher', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, phone: phone || null, class_id: classId || null, email: email || null })
+          body: JSON.stringify(teacherBody)
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Failed to add teacher');
@@ -4365,10 +4520,13 @@
         btn.innerHTML = '<i class="fas fa-check"></i> Created';
         if (btn) btn.dataset.originalHtml = btn.innerHTML;
         showToast('✅ Teacher created successfully', 'success');
-        // Show the teacher ID and temp password that were already generated
-        showCredentialsPanel(data.teacher_id, data.temp_password, 'teacher', () => {
-          renderTeachers();
-        });
+        // Only surface a password if one was actually created. With the portal off
+        // there is deliberately nothing to hand out, and nothing to say about it.
+        if (data.temp_password) {
+          showCredentialsPanel(data.teacher_id, data.temp_password, 'teacher', () => {
+            renderTeachers();
+          });
+        }
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       } finally {
@@ -4574,22 +4732,36 @@
         return;
       }
 
+      // If tenant has branches but no specific branch selected, block creation
+      const branches = window.appData.branches || [];
+      if (branches.length > 0 && !window.appData.selectedBranchId) {
+        showToast('⚠️ Please select a branch before adding a student.', 'warning');
+        return;
+      }
+
       setButtonLoading(btn, true, '<i class="fas fa-spinner fa-spin"></i> Creating...');
+
+      const studentBody = {
+        name,
+        roll_no: rollNo,
+        phone: phone || null,
+        class_id: null,
+        email: email || null
+      };
+      if (window.appData.selectedBranchId) studentBody.branch_id = window.appData.selectedBranchId;
 
       try {
         const response = await apiFetch('/api/auth/create-student', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name,
-            roll_no: rollNo,
-            phone: phone || null,
-            class_id: null,
-            email: email || null
-          })
+          body: JSON.stringify(studentBody)
         });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Failed to save student');
+        if (!response.ok) {
+          throw new Error(response.status === 403
+            ? describeForbidden(response, 'admin')
+            : data.error || 'Failed to save student');
+        }
 
         if (!data.student_id || !data.student) {
           throw new Error('Server did not return the new account. Please try again.');
@@ -4607,10 +4779,13 @@
         // 4. Show success
         showToast('✅ Student saved successfully', 'success');
 
-        // 5. Show credentials modal with the ID and password that were already generated
-        showCredentialsPanel(data.student_id, data.temp_password, 'student', () => {
-          filterStudents();
-        });
+        // 5. Show the ID and password - but only if one was actually created. With the
+        // portal off there is deliberately nothing to hand out, and nothing to say.
+        if (data.temp_password) {
+          showCredentialsPanel(data.student_id, data.temp_password, 'student', () => {
+            filterStudents();
+          });
+        }
 
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -5367,9 +5542,86 @@
     async function checkSession() {
       const session = await refreshSession();
       if (!session) { redirectToLogin(); return; }
-      if (session.role !== 'admin' && session.role !== 'super_admin') { window.location.replace('/index.html'); return; }
+      if (session.role !== 'admin') {
+        // This page enrols and manages one school's people, and the endpoints behind
+        // it only accept a school admin because only a school admin belongs to a
+        // school. A super admin was previously allowed in here, which let them fill in
+        // a whole form and only then get a bare "Forbidden" on save. Send them to the
+        // page that actually lists their jobs, and say why.
+        window.location.replace(session.role === 'super_admin'
+          ? '/super-admin.html?reason=enrolment-is-school-admin'
+          : '/index.html');
+        return;
+      }
       window._isFirstLogin = session.is_first_login;
       if (session.is_first_login) { showPasswordWarningBanner(); }
+
+      // Load bootstrap data: branches + feature grants
+      await loadAdminBootstrap();
+    }
+
+    async function loadAdminBootstrap() {
+      // Defensive: coordinators should never reach this page, but block them here too.
+      const session = await refreshSession().catch(() => null);
+      if (!session || (session.role !== 'admin' && session.role !== 'super_admin')) {
+        window.location.replace('/index.html');
+        return;
+      }
+
+      try {
+        const res = await apiFetch('/api/admin/bootstrap');
+        if (!res.ok) throw new Error('Bootstrap failed');
+        const data = await res.json();
+        window.appData.branches = Array.isArray(data.branches) ? data.branches : [];
+        // Build features map: { key: enabled }
+        window.appData.features = {};
+        if (Array.isArray(data.features)) {
+          for (const f of data.features) {
+            window.appData.features[f.key] = !!f.enabled;
+          }
+        }
+        window.appData.bootstrapLoaded = true;
+
+        // Apply feature gates — hide tabs for disabled modules
+        applyFeatureGates();
+
+        // Render branch selector (shows if branches > 0, else Branches tab is shown instead)
+        renderBranchSelector();
+
+        // If no branches: show Branches tab, hide selector
+        // If branches exist: hide Branches tab, show selector
+        const hasBranches = window.appData.branches.length > 0;
+        const branchesTabBtn = document.getElementById('branchesTabBtn');
+        if (branchesTabBtn) {
+          branchesTabBtn.style.display = hasBranches ? 'none' : 'inline-flex';
+        }
+
+        // Restore previously selected branch (if any)
+        const savedBranch = localStorage.getItem('selectedBranchId');
+        if (savedBranch) {
+          const parsed = parseInt(savedBranch, 10);
+          if (!isNaN(parsed) && window.appData.branches.some(b => b.id === parsed)) {
+            window.appData.selectedBranchId = parsed;
+          }
+        }
+
+        // Update selector UI
+        const sel = document.getElementById('branchSelector');
+        if (sel) {
+          sel.value = window.appData.selectedBranchId ? String(window.appData.selectedBranchId) : 'all';
+        }
+
+        // Render branches list in Branches tab
+        renderBranchesList();
+
+      } catch (err) {
+        console.error('Failed to load admin bootstrap:', err);
+        // Still allow the page to load — show all tabs
+        window.appData.bootstrapLoaded = true;
+        applyFeatureGates();
+        renderBranchSelector();
+        reloadAllData(true);
+      }
     }
 
     function showPasswordWarningBanner() {
@@ -5390,6 +5642,259 @@
 
     function dismissPasswordBanner() {
       hidePasswordWarningBanner();
+    }
+
+    // =============================================================
+    // FEATURE GATES
+    // =============================================================
+    // Hide tabs for modules the Super Admin has disabled for this tenant.
+    // Coordinators are already blocked at the API level.
+    function applyFeatureGates() {
+      const features = window.appData.features || {};
+      const tabBtns = document.querySelectorAll('.tab-btn[data-feature-key]');
+      tabBtns.forEach(btn => {
+        const key = btn.getAttribute('data-feature-key');
+        if (key && features.hasOwnProperty(key)) {
+          if (!features[key]) {
+            btn.style.display = 'none';
+          } else {
+            // Feature is enabled — make sure it's visible
+            // (don't force display:inline-flex here; let the tab system handle it)
+          }
+        }
+      });
+    }
+
+    // =============================================================
+    // BRANCH SELECTOR
+    // =============================================================
+    function renderBranchSelector() {
+      const wrap = document.getElementById('branchSelectorWrap');
+      const sel = document.getElementById('branchSelector');
+      if (!wrap || !sel) return;
+
+      const branches = window.appData.branches || [];
+
+      // Show selector only if there are branches (otherwise Branches tab is shown)
+      if (branches.length === 0) {
+        wrap.style.display = 'none';
+        return;
+      }
+      wrap.style.display = 'flex';
+
+      // Build options: "All Branches" + one per branch
+      const currentVal = window.appData.selectedBranchId
+        ? String(window.appData.selectedBranchId)
+        : 'all';
+
+      let html = `<option value="all">All Branches</option>`;
+      for (const b of branches) {
+        const selected = String(b.id) === currentVal ? 'selected' : '';
+        const statusMark = b.status === 'deactivated' ? ' (inactive)' : '';
+        html += `<option value="${b.id}" ${selected}>${escapeHtml(b.name)}${statusMark}</option>`;
+      }
+      sel.innerHTML = html;
+    }
+
+    function onBranchChanged(value) {
+      if (value === 'all') {
+        window.appData.selectedBranchId = null;
+        localStorage.removeItem('selectedBranchId');
+      } else {
+        const parsed = parseInt(value, 10);
+        if (!isNaN(parsed)) {
+          window.appData.selectedBranchId = parsed;
+          localStorage.setItem('selectedBranchId', String(parsed));
+        }
+      }
+      // Wait for bootstrap to finish before reloading data with branch filter
+      const doReload = () => {
+        reloadAllData(false, true);
+      };
+      if (window.appData.bootstrapLoaded) {
+        doReload();
+      } else {
+        // Retry after a short delay until bootstrap is ready
+        const waitForBootstrap = setInterval(() => {
+          if (window.appData.bootstrapLoaded) {
+            clearInterval(waitForBootstrap);
+            doReload();
+          }
+        }, 100);
+      }
+    }
+
+    // Returns the branch_id query param for API calls, or empty string for "All"
+    function branchQueryParam() {
+      const id = window.appData.selectedBranchId;
+      return id ? `?branch_id=${id}` : '?branch_id=all';
+    }
+
+    // =============================================================
+    // BRANCH MANAGEMENT (in Branches tab)
+    // =============================================================
+    function openAddBranchModal() {
+      document.getElementById('addBranchFormWrap').style.display = 'block';
+      document.getElementById('newBranchName').value = '';
+      document.getElementById('addBranchError').style.display = 'none';
+      document.getElementById('newBranchName').focus();
+    }
+
+    function cancelAddBranch() {
+      document.getElementById('addBranchFormWrap').style.display = 'none';
+    }
+
+    async function createBranch() {
+      const nameInput = document.getElementById('newBranchName');
+      const errorEl = document.getElementById('addBranchError');
+      const btn = document.getElementById('saveBranchBtn');
+      const name = (nameInput.value || '').trim();
+
+      if (!name) {
+        errorEl.textContent = 'Branch name is required.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      setButtonLoading(btn, true, '<i class="fas fa-spinner fa-spin"></i> Saving...');
+      errorEl.style.display = 'none';
+
+      try {
+        const res = await apiFetch('/api/branches', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          errorEl.textContent = data.error || 'Failed to create branch.';
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        // Add to local list
+        if (!window.appData.branches) window.appData.branches = [];
+        window.appData.branches.push({ ...data, status: 'active' });
+        window.appData.branches.sort((a, b) => a.name.localeCompare(b.name));
+
+        // Refresh UI
+        renderBranchSelector();
+        renderBranchesList();
+
+        // If this is the first branch, hide the Branches tab and show the selector
+        if (window.appData.branches.length === 1) {
+          const branchesTabBtn = document.getElementById('branchesTabBtn');
+          if (branchesTabBtn) branchesTabBtn.style.display = 'none';
+          wrap = document.getElementById('branchSelectorWrap');
+          if (wrap) wrap.style.display = 'flex';
+        }
+
+        cancelAddBranch();
+        showToast(`Branch "${name}" created successfully.`, 'success');
+
+      } catch (err) {
+        errorEl.textContent = 'Connection error. Please try again.';
+        errorEl.style.display = 'block';
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    async function deactivateBranch(branchId, branchName) {
+      const confirmed = await showConfirmModal({
+        icon: '🏢',
+        iconBg: 'rgba(239,68,68,0.12)',
+        title: 'Deactivate Branch',
+        message: `Are you sure you want to deactivate "${branchName}"? Existing records will be kept but no new ones can be added to this branch.`,
+        confirmText: 'Yes, Deactivate',
+        confirmClass: 'danger',
+        cancelText: 'Cancel'
+      });
+      if (!confirmed) return;
+
+      try {
+        // Use the admin-level endpoint (not Super Admin's review endpoint)
+        const res = await apiFetch(`/api/branches/${branchId}/admin`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'deactivate' })
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          showToast(data.error || 'Failed to deactivate branch.', 'error');
+          return;
+        }
+        // Update local state
+        const idx = window.appData.branches.findIndex(b => b.id === branchId);
+        if (idx !== -1) window.appData.branches[idx].status = 'deactivated';
+        renderBranchSelector();
+        renderBranchesList();
+        showToast(`Branch "${branchName}" has been deactivated.`, 'info');
+      } catch (err) {
+        showToast('Connection error.', 'error');
+      }
+    }
+
+    async function reactivateBranch(branchId, branchName) {
+      try {
+        // Use the admin-level endpoint
+        const res = await apiFetch(`/api/branches/${branchId}/admin`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'reactivate' })
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          showToast(data.error || 'Failed to reactivate branch.', 'error');
+          return;
+        }
+        const idx = window.appData.branches.findIndex(b => b.id === branchId);
+        if (idx !== -1) window.appData.branches[idx].status = 'active';
+        renderBranchSelector();
+        renderBranchesList();
+        showToast(`Branch "${branchName}" has been reactivated.`, 'success');
+      } catch (err) {
+        showToast('Connection error.', 'error');
+      }
+    }
+
+    function renderBranchesList() {
+      const listEl = document.getElementById('branchesList');
+      const loadingEl = document.getElementById('branchesLoading');
+      const emptyEl = document.getElementById('branchesEmpty');
+      if (!listEl || !loadingEl || !emptyEl) return;
+
+      loadingEl.style.display = 'none';
+      const branches = window.appData.branches || [];
+
+      if (branches.length === 0) {
+        listEl.innerHTML = '';
+        emptyEl.style.display = 'block';
+        return;
+      }
+
+      emptyEl.style.display = 'none';
+
+      listEl.innerHTML = branches.map(b => {
+        const isActive = b.status === 'active';
+        const statusBadge = isActive
+          ? `<span class="badge" style="background:var(--success-bg);color:var(--success);">Active</span>`
+          : `<span class="badge" style="background:var(--danger-bg);color:var(--danger);">Inactive</span>`;
+        const actionBtn = isActive
+          ? `<button class="btn btn-ghost btn-sm" onclick="deactivateBranch(${b.id}, '${escapeHtml(b.name).replace(/'/g, "\\'")}')"><i class="fas fa-ban"></i> Deactivate</button>`
+          : `<button class="btn btn-sm" style="background:var(--success-bg);color:var(--success);border:1px solid var(--success);" onclick="reactivateBranch(${b.id}, '${escapeHtml(b.name).replace(/'/g, "\\'")}')"><i class="fas fa-check"></i> Reactivate</button>`;
+        return `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--bg);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;gap:12px;">
+            <div>
+              <div style="font-weight:700;font-size:0.9rem;color:var(--text);">${escapeHtml(b.name)}</div>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">ID: ${b.id}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+              ${statusBadge}
+              ${actionBtn}
+            </div>
+          </div>`;
+      }).join('');
     }
 
     async function handleLogout() {
@@ -5598,9 +6103,11 @@
 
         if (!response.ok) {
           // Surface the server's reason (duplicate roll number / duplicate name)
-          // instead of a generic failure.
+          // instead of a generic failure. A 403 gets the identity-aware explanation.
           const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.error || `Failed to update student (${response.status})`);
+          throw new Error(response.status === 403
+            ? describeForbidden(response, 'admin')
+            : errData.error || `Failed to update student (${response.status})`);
         }
         
         const updatedStudent = await response.json();
@@ -5703,6 +6210,13 @@
     // =============================================================
 
     async function switchTab(newTabId, clearSearch = true) {
+      // A section the Super Admin has switched off is not reachable, even by calling
+      // switchTab directly or by hand-editing the #hash in the address bar.
+      if (!isSectionPermitted(newTabId)) {
+        const fallback = firstPermittedSection();
+        if (fallback && fallback !== newTabId) return switchTab(fallback, clearSearch);
+        return;
+      }
       if (activeTabId === newTabId) return;
 
       if (hasAnyDirtyChanges() && (activeTabId === 'tab-teachers' || activeTabId === 'tab-students')) {
@@ -5815,6 +6329,7 @@
     let failedCount = 0;
     let savedCount = 0;
     let firstError = null;
+  let forbidden = null;
 
       try {
         if (activeTabId === 'tab-teachers') {
@@ -5850,8 +6365,9 @@
               savedCount++;
             } else {
               failedCount++;
-              if (!firstError) firstError = data2?.error || `HTTP ${response.status}`;
-              console.error(`Student ${id} save failed:`, data2?.error || response.status);
+  if (!firstError) firstError = data2?.error || `HTTP ${response.status}`;
+  if (response.status === 403) forbidden = response;
+     console.error(`Student ${id} save failed:`, data2?.error || response.status);
             }
           }
           dirtyState['tab-students'].clear();
@@ -5861,8 +6377,12 @@
         if (failedCount === 0 && savedCount > 0) {
           showToast('✅ All changes saved successfully', 'success');
         } else if (failedCount > 0) {
-          const detail = firstError ? ` — ${firstError}` : '';
-          showToast(`⚠️ Saved ${savedCount}, failed ${failedCount}${detail}`, 'warning');
+          // A 403 here is almost never a missing permission - it is a localStorage token
+          // that another tab replaced when someone signed in as a different role. Spell
+          // that out instead of leaving "Forbidden" on screen.
+          const detail = forbidden ? describeForbidden(forbidden, 'admin')
+            : firstError ? ` — ${firstError}` : '';
+          showToast(`⚠️ Saved ${savedCount}, failed ${failedCount}${detail}`, forbidden ? 'error' : 'warning');
         }
       } catch (err) {
         showToast(`❌ Error saving changes: ${err.message}`, 'error');
@@ -5915,6 +6435,74 @@
       });
     }
 
+    // Which tenant feature each section depends on. If the Super Admin has not permitted
+    // that feature for this school, the school admin does not get the tool at all - the
+    // nav button and the whole section are removed, so there is nothing left to click
+    // and nothing to reach by typing the #hash. The records themselves are untouched.
+    // Sections with no switch behind them (classes, stats, announcements) are always shown.
+    const FEATURE_FOR_SECTION = {
+      'tab-students': 'student_management',
+      'tab-teachers': 'teacher_management',
+      'tab-attendance': 'attendance',
+      'tab-fees': 'fees'
+    };
+
+    // null until the catalogue has been read. While it is null we allow every section,
+    // so a slow or failed fetch can never leave a real school locked out of its own page.
+    let _featureState = null;
+
+    function isSectionPermitted(sectionId) {
+      const key = FEATURE_FOR_SECTION[sectionId];
+      if (!key || !_featureState) return true;
+      return _featureState[key] === true;
+    }
+
+    async function applyFeatureVisibility() {
+      let data;
+      try {
+        const res = await fetch(API_BASE + '/api/tenant-features', { headers: authHeader() });
+        if (!res.ok) {
+          // Fail open so a network blip never hides a school's own tools, but never fail
+          // SILENTLY: a 403 here means the token in localStorage is not a school admin's,
+          // which is the reason a save would then fail with a bare "Forbidden". Say so.
+          if (res.status === 403) {
+            console.warn('Feature list refused:', describeForbidden(res, 'admin'));
+            showToast(describeForbidden(res, 'admin'), 'error');
+          }
+          return;
+        }
+        data = await res.json();
+      } catch (err) {
+        return; // fail open - never hide a school's own tools because of a network blip
+      }
+      const school = (data.schools || [])[0];
+      if (!school) return;
+
+      _featureState = {};
+      (school.features || []).forEach(f => { _featureState[f.key] = f.enabled === true; });
+
+      Object.keys(FEATURE_FOR_SECTION).forEach(sectionId => {
+        if (isSectionPermitted(sectionId)) return;
+        // Take the nav button out entirely so there is nothing to click. The section
+        // itself is only HIDDEN, not removed: the page has render helpers elsewhere
+        // (fee tables, teacher lists) that write into nodes inside these sections, and
+        // deleting the nodes makes those throw on a null reference. Hiding keeps the
+        // page intact while switchTab() below refuses to open it.
+        const btn = document.querySelector('.tab-btn[data-section="' + sectionId + '"]');
+        if (btn && btn.parentNode) btn.parentNode.removeChild(btn);
+        const section = document.getElementById(sectionId);
+        if (section) {
+          section.hidden = true;
+          section.style.display = 'none';
+        }
+      });
+    }
+
+    function firstPermittedSection() {
+      const first = document.querySelector('.tab-btn[data-section]');
+      return first ? first.dataset.section : null;
+    }
+
     function setupSectionTabs() {
       const tabs = Array.from(document.querySelectorAll('.tab-btn[data-section]'));
 
@@ -5946,12 +6534,14 @@
         if (event.key === 'Escape') setMobileNavOpen(false);
       });
       
-      // Initial tab based on hash or default
+      // Initial tab based on hash or the first section the Super Admin permits. A hash
+      // pointing at a section that has been switched off is ignored rather than shown.
       const hash = window.location.hash.substring(1);
-      if (hash && document.getElementById(hash)) {
+      if (hash && document.getElementById(hash) && isSectionPermitted(hash)) {
         switchTab(hash);
       } else {
-        switchTab('tab-teachers');
+        const fallback = firstPermittedSection();
+        if (fallback) switchTab(fallback);
       }
     }
     
@@ -5982,7 +6572,13 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-      setupSectionTabs();
+      // Read the Super Admin's feature grants FIRST. setupSectionTabs() picks the
+      // opening tab, so it has to run after the unpermitted sections have been removed -
+      // otherwise the page would briefly show, and could land on, a section the school
+      // is not allowed.
+      applyFeatureVisibility().finally(() => {
+        setupSectionTabs();
+      });
       setupHeaderMenu();
       loadTheme();
       loadCapacity();
@@ -6342,13 +6938,24 @@
 
       const btn = document.getElementById('btnGenerateTeachers');
       const originalText = btn.innerHTML;
+
+      // Branch gate for bulk teacher creation
+      const branches = window.appData.branches || [];
+      if (branches.length > 0 && !window.appData.selectedBranchId) {
+        showToast('⚠️ Please select a branch before creating teachers.', 'warning');
+        return;
+      }
+
       setButtonLoading(btn, true, 'Generating...');
+
+      const teacherBulkBody = { count };
+      if (window.appData.selectedBranchId) teacherBulkBody.branch_id = window.appData.selectedBranchId;
 
       try {
         const response = await apiFetch('/api/auth/bulk-create-teachers', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ count })
+          body: JSON.stringify(teacherBulkBody)
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Failed to bulk create teachers');
@@ -6393,16 +7000,31 @@
 
       const btn = document.getElementById('btnGenerateStudents');
       const originalText = btn.innerHTML;
+
+      // Branch gate for bulk student creation
+      const branches = window.appData.branches || [];
+      if (branches.length > 0 && !window.appData.selectedBranchId) {
+        showToast('⚠️ Please select a branch before creating students.', 'warning');
+        return;
+      }
+
       setButtonLoading(btn, true, 'Generating...');
+
+      const studentBulkBody = { count: count, class_id: parseInt(classId, 10) };
+      if (window.appData.selectedBranchId) studentBulkBody.branch_id = window.appData.selectedBranchId;
 
       try {
         const response = await apiFetch('/api/auth/bulk-create-students', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ count: count, class_id: parseInt(classId, 10) })
+          body: JSON.stringify(studentBulkBody)
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Failed to bulk create students');
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(response.status === 403
+        ? describeForbidden(response, 'admin')
+        : data.error || 'Failed to bulk create students');
+    }
 
         closeBulkAddStudentModal();
         showBulkResults(data.accounts);
@@ -6427,10 +7049,10 @@
             'value="' + escapeHtml(a.name) + '" oninput="updateBulkName(' + idx + ', this.value)">'
           : '<span>' + escapeHtml(a.name) + '</span>';
         return '<tr>' +
-          '<td>' + nameCell + '</td>' +
-          '<td style="font-family:monospace;">' + escapeHtml(a.login_id) + '</td>' +
-          '<td style="font-family:monospace;">' + escapeHtml(a.temp_password) + '</td>' +
-          '</tr>';
+        '<td>' + nameCell + '</td>' +
+        '<td style="font-family:monospace;">' + escapeHtml(a.login_id) + '</td>' +
+        '<td style="font-family:monospace;">' + (a.temp_password ? escapeHtml(a.temp_password) : '<span style="opacity:.6;">—</span>') + '</td>' +
+        '</tr>';
       }).join('');
       document.getElementById('bulkResultsModal').classList.add('open');
       const saveBtn = document.getElementById('bulkSaveNamesBtn');

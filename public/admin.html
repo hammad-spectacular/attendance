@@ -4365,10 +4365,13 @@
         btn.innerHTML = '<i class="fas fa-check"></i> Created';
         if (btn) btn.dataset.originalHtml = btn.innerHTML;
         showToast('✅ Teacher created successfully', 'success');
-        // Show the teacher ID and temp password that were already generated
-        showCredentialsPanel(data.teacher_id, data.temp_password, 'teacher', () => {
-          renderTeachers();
-        });
+        // Only surface a password if one was actually created. With the portal off
+        // there is deliberately nothing to hand out, and nothing to say about it.
+        if (data.temp_password) {
+          showCredentialsPanel(data.teacher_id, data.temp_password, 'teacher', () => {
+            renderTeachers();
+          });
+        }
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       } finally {
@@ -4589,7 +4592,11 @@
           })
         });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Failed to save student');
+        if (!response.ok) {
+          throw new Error(response.status === 403
+            ? describeForbidden(response, 'admin')
+            : data.error || 'Failed to save student');
+        }
 
         if (!data.student_id || !data.student) {
           throw new Error('Server did not return the new account. Please try again.');
@@ -4607,11 +4614,13 @@
         // 4. Show success
         showToast('✅ Student saved successfully', 'success');
 
-        // 5. Show credentials modal with the ID and password that were already generated
-        showCredentialsPanel(data.student_id, data.temp_password, 'student', () => {
-          filterStudents();
-        });
-
+        // 5. Show the ID and password - but only if one was actually created. With the
+        // portal off there is deliberately nothing to hand out, and nothing to say.
+        if (data.temp_password) {
+          showCredentialsPanel(data.student_id, data.temp_password, 'student', () => {
+            filterStudents();
+          });
+        }
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       } finally {
@@ -5367,7 +5376,17 @@
     async function checkSession() {
       const session = await refreshSession();
       if (!session) { redirectToLogin(); return; }
-      if (session.role !== 'admin' && session.role !== 'super_admin') { window.location.replace('/index.html'); return; }
+      if (session.role !== 'admin') {
+        // This page enrols and manages one school's people, and the endpoints behind
+        // it only accept a school admin because only a school admin belongs to a
+        // school. A super admin was previously allowed in here, which let them fill in
+        // a whole form and only then get a bare "Forbidden" on save. Send them to the
+        // page that actually lists their jobs, and say why.
+        window.location.replace(session.role === 'super_admin'
+          ? '/super-admin.html?reason=enrolment-is-school-admin'
+          : '/index.html');
+        return;
+      }
       window._isFirstLogin = session.is_first_login;
       if (session.is_first_login) { showPasswordWarningBanner(); }
     }
@@ -5598,9 +5617,11 @@
 
         if (!response.ok) {
           // Surface the server's reason (duplicate roll number / duplicate name)
-          // instead of a generic failure.
+          // instead of a generic failure. A 403 gets the identity-aware explanation.
           const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.error || `Failed to update student (${response.status})`);
+          throw new Error(response.status === 403
+            ? describeForbidden(response, 'admin')
+            : errData.error || `Failed to update student (${response.status})`);
         }
         
         const updatedStudent = await response.json();
@@ -5703,6 +5724,13 @@
     // =============================================================
 
     async function switchTab(newTabId, clearSearch = true) {
+      // A section the Super Admin has switched off is not reachable, even by calling
+      // switchTab directly or by hand-editing the #hash in the address bar.
+      if (!isSectionPermitted(newTabId)) {
+        const fallback = firstPermittedSection();
+        if (fallback && fallback !== newTabId) return switchTab(fallback, clearSearch);
+        return;
+      }
       if (activeTabId === newTabId) return;
 
       if (hasAnyDirtyChanges() && (activeTabId === 'tab-teachers' || activeTabId === 'tab-students')) {
@@ -5815,6 +5843,7 @@
     let failedCount = 0;
     let savedCount = 0;
     let firstError = null;
+    let forbidden = null;
 
       try {
         if (activeTabId === 'tab-teachers') {
@@ -5851,6 +5880,7 @@
             } else {
               failedCount++;
               if (!firstError) firstError = data2?.error || `HTTP ${response.status}`;
+              if (response.status === 403) forbidden = response;
               console.error(`Student ${id} save failed:`, data2?.error || response.status);
             }
           }
@@ -5861,8 +5891,12 @@
         if (failedCount === 0 && savedCount > 0) {
           showToast('✅ All changes saved successfully', 'success');
         } else if (failedCount > 0) {
-          const detail = firstError ? ` — ${firstError}` : '';
-          showToast(`⚠️ Saved ${savedCount}, failed ${failedCount}${detail}`, 'warning');
+          // A 403 here is almost never a missing permission - it is a localStorage token
+          // that another tab replaced when someone signed in as a different role. Spell
+          // that out instead of leaving "Forbidden" on screen.
+          const detail = forbidden ? describeForbidden(forbidden, 'admin')
+            : firstError ? ` — ${firstError}` : '';
+          showToast(`⚠️ Saved ${savedCount}, failed ${failedCount}${detail}`, forbidden ? 'error' : 'warning');
         }
       } catch (err) {
         showToast(`❌ Error saving changes: ${err.message}`, 'error');
@@ -5915,6 +5949,74 @@
       });
     }
 
+    // Which tenant feature each section depends on. If the Super Admin has not permitted
+    // that feature for this school, the school admin does not get the tool at all - the
+    // nav button and the whole section are removed, so there is nothing left to click
+    // and nothing to reach by typing the #hash. The records themselves are untouched.
+    // Sections with no switch behind them (classes, stats, announcements) are always shown.
+    const FEATURE_FOR_SECTION = {
+      'tab-students': 'student_management',
+      'tab-teachers': 'teacher_management',
+      'tab-attendance': 'attendance',
+      'tab-fees': 'fees'
+    };
+
+    // null until the catalogue has been read. While it is null we allow every section,
+    // so a slow or failed fetch can never leave a real school locked out of its own page.
+    let _featureState = null;
+
+    function isSectionPermitted(sectionId) {
+      const key = FEATURE_FOR_SECTION[sectionId];
+      if (!key || !_featureState) return true;
+      return _featureState[key] === true;
+    }
+
+    async function applyFeatureVisibility() {
+      let data;
+      try {
+        const res = await fetch(API_BASE + '/api/tenant-features', { headers: authHeader() });
+        if (!res.ok) {
+          // Fail open so a network blip never hides a school's own tools, but never fail
+          // SILENTLY: a 403 here means the token in localStorage is not a school admin's,
+          // which is the reason a save would then fail with a bare "Forbidden". Say so.
+          if (res.status === 403) {
+            console.warn('Feature list refused:', describeForbidden(res, 'admin'));
+            showToast(describeForbidden(res, 'admin'), 'error');
+          }
+          return;
+        }
+        data = await res.json();
+      } catch (err) {
+        return; // fail open - never hide a school's own tools because of a network blip
+      }
+      const school = (data.schools || [])[0];
+      if (!school) return;
+
+      _featureState = {};
+      (school.features || []).forEach(f => { _featureState[f.key] = f.enabled === true; });
+
+      Object.keys(FEATURE_FOR_SECTION).forEach(sectionId => {
+        if (isSectionPermitted(sectionId)) return;
+        // Take the nav button out entirely so there is nothing to click. The section
+        // itself is only HIDDEN, not removed: the page has render helpers elsewhere
+        // (fee tables, teacher lists) that write into nodes inside these sections, and
+        // deleting the nodes makes those throw on a null reference. Hiding keeps the
+        // page intact while switchTab() below refuses to open it.
+        const btn = document.querySelector('.tab-btn[data-section="' + sectionId + '"]');
+        if (btn && btn.parentNode) btn.parentNode.removeChild(btn);
+        const section = document.getElementById(sectionId);
+        if (section) {
+          section.hidden = true;
+          section.style.display = 'none';
+        }
+      });
+    }
+
+    function firstPermittedSection() {
+      const first = document.querySelector('.tab-btn[data-section]');
+      return first ? first.dataset.section : null;
+    }
+
     function setupSectionTabs() {
       const tabs = Array.from(document.querySelectorAll('.tab-btn[data-section]'));
 
@@ -5946,12 +6048,14 @@
         if (event.key === 'Escape') setMobileNavOpen(false);
       });
       
-      // Initial tab based on hash or default
+      // Initial tab based on hash or the first section the Super Admin permits. A hash
+      // pointing at a section that has been switched off is ignored rather than shown.
       const hash = window.location.hash.substring(1);
-      if (hash && document.getElementById(hash)) {
+      if (hash && document.getElementById(hash) && isSectionPermitted(hash)) {
         switchTab(hash);
       } else {
-        switchTab('tab-teachers');
+        const fallback = firstPermittedSection();
+        if (fallback) switchTab(fallback);
       }
     }
     
@@ -5982,7 +6086,13 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-      setupSectionTabs();
+      // Read the Super Admin's feature grants FIRST. setupSectionTabs() picks the
+      // opening tab, so it has to run after the unpermitted sections have been removed -
+      // otherwise the page would briefly show, and could land on, a section the school
+      // is not allowed.
+      applyFeatureVisibility().finally(() => {
+        setupSectionTabs();
+      });
       setupHeaderMenu();
       loadTheme();
       loadCapacity();
@@ -6402,7 +6512,11 @@
           body: JSON.stringify({ count: count, class_id: parseInt(classId, 10) })
         });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Failed to bulk create students');
+        if (!response.ok) {
+          throw new Error(response.status === 403
+            ? describeForbidden(response, 'admin')
+            : data.error || 'Failed to bulk create students');
+        }
 
         closeBulkAddStudentModal();
         showBulkResults(data.accounts);
@@ -6423,14 +6537,14 @@
       tbody.innerHTML = accounts.map(function(a, idx) {
         if (a.original_name === undefined) a.original_name = a.name;
         const nameCell = (a.id !== null && a.id !== undefined)
-          ? '<input type="text" class="form-input" maxlength="100" style="padding:5px 8px; font-size:0.8rem; height:auto;" ' +
-            'value="' + escapeHtml(a.name) + '" oninput="updateBulkName(' + idx + ', this.value)">'
-          : '<span>' + escapeHtml(a.name) + '</span>';
+        ? '<input type="text" class="form-input" maxlength="100" style="padding:5px 8px; font-size:0.8rem; height:auto;" ' +
+        'value="' + escapeHtml(a.name) + '" oninput="updateBulkName(' + idx + ', this.value)">'
+        : '<span>' + escapeHtml(a.name) + '</span>';
         return '<tr>' +
-          '<td>' + nameCell + '</td>' +
-          '<td style="font-family:monospace;">' + escapeHtml(a.login_id) + '</td>' +
-          '<td style="font-family:monospace;">' + escapeHtml(a.temp_password) + '</td>' +
-          '</tr>';
+        '<td>' + nameCell + '</td>' +
+        '<td style="font-family:monospace;">' + escapeHtml(a.login_id) + '</td>' +
+        '<td style="font-family:monospace;">' + (a.temp_password ? escapeHtml(a.temp_password) : '<span style="opacity:.6;">—</span>') + '</td>' +
+        '</tr>';
       }).join('');
       document.getElementById('bulkResultsModal').classList.add('open');
       const saveBtn = document.getElementById('bulkSaveNamesBtn');
