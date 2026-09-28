@@ -82,6 +82,12 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
 .badge.approved { background:var(--success-bg); color:var(--success); }
 .badge.active { background:var(--success-bg); color:var(--success); }
 .badge.suspended { background:var(--danger-bg); color:var(--danger); }
+.badge.flagged { background:var(--warning-bg); color:var(--warning); }
+.badge.unreviewed { background:var(--badge-bg); color:var(--text-muted); }
+.filter-bar { display:flex; gap:10px; padding:14px 16px; border-bottom:1px solid var(--border); flex-wrap:wrap; align-items:center; }
+.filter-input { padding:9px 12px; border-radius:10px; border:2px solid var(--border); background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; font-size:0.8rem; outline:none; }
+.filter-input:focus { border-color:var(--primary); }
+.branch-reason { font-size:0.75rem; color:var(--warning); font-weight:600; max-width:220px; }
 .btn-sm { padding:8px 16px; border-radius:10px; font-size:0.78rem; font-weight:700; font-family:'Inter',sans-serif; cursor:pointer; border:1px solid transparent; transition:all 0.2s ease; display:inline-flex; align-items:center; gap:8px; }
 .btn-sm.primary { background:var(--gradient); color:white; }
 .btn-sm.primary:hover { opacity:0.95; }
@@ -90,6 +96,8 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
 .btn-sm.danger:focus { outline:none; box-shadow:0 0 0 3px rgba(239,68,68,0.25); }
 .btn-sm.success { background:var(--success); color:white; }
 .btn-sm.success:hover { opacity:0.9; }
+.btn-sm.warning { background:var(--warning); color:white; }
+.btn-sm.warning:hover { opacity:0.9; }
 .empty-state { text-align:center; padding:30px 16px; color:var(--text-muted); }
 .empty-state .icon { font-size:2rem; margin-bottom:8px; opacity:0.6; }
 .empty-state .msg { font-size:0.82rem; font-weight:500; }
@@ -112,8 +120,8 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
 .modal-actions .btn.ghost:hover { background:var(--bg-card-hover); }
 .form-group { margin-bottom:14px; }
 .form-group label { display:block; font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-secondary); margin-bottom:6px; }
-.form-group input, .form-group textarea { width:100%; padding:11px 14px; border-radius:10px; border:2px solid var(--border); background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; font-size:0.85rem; outline:none; transition:border-color 0.25s ease; }
-.form-group input:focus, .form-group textarea:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(79,70,229,0.15); }
+.form-group input, .form-group textarea, .form-group select { width:100%; padding:11px 14px; border-radius:10px; border:2px solid var(--border); background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; font-size:0.85rem; outline:none; transition:border-color 0.25s ease; }
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(79,70,229,0.15); }
 
 .toast-container { position:fixed; bottom:24px; right:24px; z-index:200; display:flex; flex-direction:column; gap:8px; align-items:flex-end; pointer-events:none; }
 .toast { padding:12px 20px; border-radius:12px; font-size:0.82rem; font-weight:600; color:white; box-shadow:0 8px 24px rgba(0,0,0,0.25); animation:toastIn 0.35s ease-out, toastOut 0.35s ease-in 2.5s forwards; pointer-events:auto; }
@@ -154,6 +162,7 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
     <button class="tab-btn active" data-tab="pending" onclick="switchTab('pending')"><i class="fas fa-clock"></i> Pending Requests</button>
     <button class="tab-btn" data-tab="active" onclick="switchTab('active')"><i class="fas fa-check-circle"></i> Active Schools</button>
     <button class="tab-btn" data-tab="suspended" onclick="switchTab('suspended')"><i class="fas fa-ban"></i> Suspended</button>
+    <button class="tab-btn" data-tab="branches" onclick="switchTab('branches')"><i class="fas fa-code-branch"></i> Branches</button>
   </div>
 </nav>
 
@@ -196,6 +205,34 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
       </div>
       <div class="section-body" style="padding:0;">
         <div id="suspendedSchoolsTableWrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-branches" class="tab-content">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-header-left">
+          <div class="section-icon purple"><i class="fas fa-code-branch"></i></div>
+          <div><div class="section-title">Branches</div><div class="section-subtitle">Review, flag, or deactivate branches across all schools</div></div>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <input type="text" id="branchSearch" class="filter-input" placeholder="Search branch or school..." oninput="renderBranches()">
+        <select id="branchStatusFilter" class="filter-input" onchange="renderBranches()">
+          <option value="">All statuses</option>
+          <option value="unreviewed">Unreviewed</option>
+          <option value="active">Active</option>
+          <option value="flagged">Flagged</option>
+          <option value="deactivated">Deactivated</option>
+        </select>
+        <select id="branchSchoolFilter" class="filter-input" onchange="renderBranches()">
+          <option value="">All schools</option>
+        </select>
+        <button class="btn-sm primary" onclick="fetchBranches()"><i class="fas fa-rotate"></i> Refresh</button>
+      </div>
+      <div class="section-body" style="padding:0;">
+        <div id="branchesTableWrap"></div>
       </div>
     </div>
   </div>
@@ -304,6 +341,23 @@ body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); 
   </div>
 </div>
 
+<!-- Deactivate Branch Modal -->
+<div class="modal" id="deactivateBranchModal">
+  <div class="modal-card">
+    <h3><i class="fas fa-ban"></i> Deactivate Branch</h3>
+    <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:6px;"><strong id="deactBranchDisplay"></strong></p>
+    <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:16px;">No new students, teachers, classes or attendance can be added to this branch. Existing records are kept exactly as they are and the school can still read them. The school admin will see this reason on their branch.</p>
+    <div class="form-group">
+      <label for="deactBranchReason">Reason (required)</label>
+      <textarea id="deactBranchReason" rows="3" placeholder="Why is this branch being deactivated?"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn primary" onclick="confirmDeactivateBranch()">Deactivate</button>
+      <button class="btn ghost" onclick="closeModal('deactivateBranchModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-container" id="toastContainer"></div>
 
 <script src="./auth-utils.js"></script>
@@ -334,6 +388,7 @@ function switchTab(name) {
   closeModal('approveModal');
   closeModal('changePasswordModal');
   closeModal('confirmModal');
+  closeModal('deactivateBranchModal');
 
   const tc = document.getElementById('tab-'+name);
   if (tc) tc.classList.add('active');
@@ -342,6 +397,7 @@ function switchTab(name) {
   if (name === 'pending') fetchPendingRequests();
   if (name === 'active') fetchActiveSchools();
   if (name === 'suspended') fetchSuspendedSchools();
+  if (name === 'branches') fetchBranches();
 }
 
 function showToast(msg, type='info') {
@@ -581,6 +637,149 @@ async function fetchSuspendedSchools() {
     html += '</tbody></table>';
     wrap.innerHTML = html;
   } catch(e) { wrap.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div class="msg">Failed to load</div></div>'; }
+}
+
+// ── Branches ─────────────────────────────────────────────────
+let _branches = [];
+
+function branchStatusBadge(b) {
+  if (b.status === 'deactivated') return '<span class="badge suspended">Deactivated</span>';
+  if (b.status === 'flagged') return '<span class="badge flagged">Flagged</span>';
+  return '<span class="badge active">Active</span>';
+}
+
+function branchReviewCell(b) {
+  if (!b.reviewed_at) return '<span class="badge unreviewed">Unreviewed</span>';
+  const when = new Date(b.reviewed_at).toLocaleDateString();
+  return `<span style="font-size:0.75rem;color:var(--success);font-weight:600;"><i class="fas fa-check"></i> Reviewed ${escapeHtml(when)}</span>`;
+}
+
+function branchActionButtons(b) {
+  let html = '<div class="actions">';
+  if (!b.reviewed_at) {
+    html += `<button class="btn-sm success" onclick="branchAction(${b.id},'review')"><i class="fas fa-check"></i> Reviewed</button>`;
+  }
+  if (b.status === 'active') {
+    html += `<button class="btn-sm warning" onclick="flagBranch(${b.id})"><i class="fas fa-flag"></i> Flag</button>`;
+    html += `<button class="btn-sm danger" onclick="openDeactivateBranchModal(${b.id})"><i class="fas fa-ban"></i></button>`;
+  } else if (b.status === 'flagged') {
+    html += `<button class="btn-sm success" onclick="branchAction(${b.id},'reactivate')"><i class="fas fa-undo"></i> Unflag</button>`;
+    html += `<button class="btn-sm danger" onclick="openDeactivateBranchModal(${b.id})"><i class="fas fa-ban"></i></button>`;
+  } else {
+    html += `<button class="btn-sm success" onclick="branchAction(${b.id},'reactivate')"><i class="fas fa-undo"></i> Reactivate</button>`;
+  }
+  return html + '</div>';
+}
+
+async function fetchBranches() {
+  const wrap = document.getElementById('branchesTableWrap');
+  wrap.innerHTML = '<div class="empty-state"><div class="icon"><i class="fas fa-spinner fa-spin"></i></div><div class="msg">Loading branches...</div></div>';
+  try {
+    const res = await fetch(API_BASE + '/api/branches', { headers: authHeader() });
+    if (!res.ok) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🔒</div><div class="msg">Access denied</div></div>'; return; }
+    _branches = await res.json();
+    renderBranches();
+  } catch(e) { wrap.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><div class="msg">Failed to load</div></div>'; }
+}
+
+function renderBranches() {
+  const wrap = document.getElementById('branchesTableWrap');
+  if (!_branches.length) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🌿</div><div class="msg">No branches yet</div></div>'; return; }
+
+  // Keep the school dropdown in step with the data actually returned.
+  const sel = document.getElementById('branchSchoolFilter');
+  const want = ['', ...[...new Set(_branches.map(b => b.school_id))].sort()];
+  const have = Array.from(sel.options).map(o => o.value);
+  if (JSON.stringify(want) !== JSON.stringify(have)) {
+    const current = sel.value;
+    sel.innerHTML = want.map(c => `<option value="${c}">${c ? escapeHtml(c) : 'All schools'}</option>`).join('');
+    sel.value = want.includes(current) ? current : '';
+  }
+
+  const q = document.getElementById('branchSearch').value.trim().toLowerCase();
+  const status = document.getElementById('branchStatusFilter').value;
+  const school = document.getElementById('branchSchoolFilter').value;
+
+  const rows = _branches.filter(b => {
+    if (school && b.school_id !== school) return false;
+    if (status === 'unreviewed') { if (b.reviewed_at) return false; }
+    else if (status && b.status !== status) return false;
+    if (q && !(`${b.name} ${b.school_id} ${b.school_name || ''}`.toLowerCase().includes(q))) return false;
+    return true;
+  });
+
+  if (!rows.length) { wrap.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><div class="msg">No branches match these filters</div></div>'; return; }
+
+  let html = '<table class="data-table"><thead><tr><th>School</th><th>Branch</th><th>Status</th><th>Review</th><th>Created</th><th class="actions-col">Actions</th></tr></thead><tbody>';
+  for (const b of rows) {
+    html += `<tr>
+      <td><span class="badge" style="background:var(--badge-bg);color:var(--badge-text);font-family:monospace;">${escapeHtml(b.school_id)}</span>
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:3px;">${escapeHtml(b.school_name || '')}</div></td>
+      <td style="font-weight:600;color:var(--text);">${escapeHtml(b.name)}
+        ${b.deactivation_reason ? `<div class="branch-reason"><i class="fas fa-circle-info"></i> ${escapeHtml(b.deactivation_reason)}</div>` : ''}</td>
+      <td>${branchStatusBadge(b)}</td>
+      <td>${branchReviewCell(b)}</td>
+      <td style="font-size:0.75rem;">${b.created_at ? new Date(b.created_at).toLocaleDateString() : '—'}</td>
+      <td class="actions-col">${branchActionButtons(b)}</td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+async function branchAction(id, action) {
+  try {
+    const res = await fetch(`${API_BASE}/api/branches/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ action })
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast('⚠️ ' + (data.error || 'Failed'), 'error'); return; }
+    showToast('✅ Branch updated', 'success');
+    fetchBranches();
+  } catch(e) { showToast('Connection error. Please check your internet and try again.', 'error'); }
+}
+
+function flagBranch(id) {
+  openConfirmModal({
+    title: 'Flag this branch?',
+    body: 'Flagging marks the branch for review. The school keeps working normally, so use this for concern, not as a freeze.',
+    confirmText: 'Yes, Flag',
+    iconClass: 'fas fa-flag',
+    iconBg: 'var(--warning-bg)',
+    iconColor: 'var(--warning)',
+    btnClass: 'primary',
+    onConfirm: () => branchAction(id, 'flag')
+  });
+}
+
+let _deactBranchId = null;
+function openDeactivateBranchModal(id) {
+  _deactBranchId = id;
+  const b = _branches.find(x => x.id === id);
+  document.getElementById('deactBranchDisplay').textContent = b ? `${b.name} — ${b.school_id} (${b.school_name || ''})` : 'Branch';
+  document.getElementById('deactBranchReason').value = '';
+  openModal('deactivateBranchModal');
+}
+
+async function confirmDeactivateBranch() {
+  const reason = document.getElementById('deactBranchReason').value.trim();
+  if (!reason) { showToast('⚠️ A reason is required', 'warning'); return; }
+  const id = _deactBranchId;
+  _deactBranchId = null;
+  closeModal('deactivateBranchModal');
+  try {
+    const res = await fetch(`${API_BASE}/api/branches/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ action: 'deactivate', reason })
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast('⚠️ ' + (data.error || 'Failed'), 'error'); return; }
+    showToast('✅ Branch deactivated. The school has been told why.', 'success');
+    fetchBranches();
+  } catch(e) { showToast('Connection error. Please check your internet and try again.', 'error'); }
 }
 
 // Change password
