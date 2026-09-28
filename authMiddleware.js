@@ -30,7 +30,7 @@ function requireAuth(allowedRoles = []) {
       // --- Token generation check: invalidate JWTs after password reset ---
       if (_pool && decoded.token_generation !== undefined) {
         let table = ''
-        if (decoded.role === 'super_admin' || decoded.role === 'admin') table = 'admins'
+        if (decoded.role === 'super_admin' || decoded.role === 'admin' || decoded.role === 'coordinator') table = 'admins'
         else if (decoded.role === 'teacher') table = 'teachers'
         else if (decoded.role === 'student') table = 'students'
 
@@ -57,7 +57,13 @@ function requireAuth(allowedRoles = []) {
         user_id: decoded.user_id,
         role: decoded.role,
         tenant_id: decoded.tenant_id,
-        login_id: decoded.login_id
+        login_id: decoded.login_id,
+        // Branch scope. A coordinator is always tied to one branch and must be
+        // confined to it; school admins keep branch_id null so they see the
+        // whole tenant. Grants decide which modules actually render for them.
+        branch_id: decoded.branch_id === undefined ? null : decoded.branch_id,
+        grant_management: decoded.grant_management === true,
+        grant_credentials: decoded.grant_credentials === true
       }
 
       if (allowedRoles.length > 0 && !allowedRoles.includes(decoded.role)) {
@@ -71,4 +77,51 @@ function requireAuth(allowedRoles = []) {
   }
 }
 
-module.exports = { requireAuth, setPool }
+/** A coordinator is confined to exactly one branch. Everyone else is tenant-wide. */
+function isCoordinator(user) {
+  return !!user && user.role === 'coordinator'
+}
+
+/**
+ * The branch a query must filter by, or null when the caller is not branch-scoped.
+ * Use this in every query a coordinator can reach so the branch is enforced by
+ * the database filter, not by whatever the UI happened to send.
+ */
+function branchFilter(user) {
+  return isCoordinator(user) ? user.branch_id : null
+}
+
+/**
+ * Blocks data entry into a branch the Super Admin has deactivated. Reads are
+ * deliberately still allowed: deactivating a branch freezes it, it does not
+ * erase it, so a coordinator can still read what was already recorded.
+ */
+function requireWritableBranch() {
+  const writeMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+  return async (req, res, next) => {
+    if (!isCoordinator(req.user)) return next()
+    if (!writeMethods.has(req.method)) return next()
+    if (!_pool) return next()
+    try {
+      const result = await _pool.query(
+        'SELECT id, name, status FROM branches WHERE id = $1 AND school_id = $2',
+        [req.user.branch_id, req.user.tenant_id]
+      )
+      if (result.rows.length === 0) {
+        return res.status(403).json({ error: 'Your branch is no longer available. Contact your admin.' })
+      }
+      if (result.rows[0].status === 'deactivated') {
+        return res.status(403).json({
+          error: `Branch "${result.rows[0].name}" has been deactivated by the Super Admin. You can still view existing records, but no new ones can be added.`
+        })
+      }
+      req.branch = result.rows[0]
+      next()
+    } catch (err) {
+      console.error('requireWritableBranch error:', err.message)
+      next()
+    }
+  }
+}
+
+module.exports = { requireAuth, setPool, isCoordinator, branchFilter, requireWritableBranch }

@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coordinator | The Eye</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --card: #ffffff;
+      --text: #1a2233;
+      --text-muted: #6b7a90;
+      --border: #e3e8f0;
+      --primary: #4f46e5;
+      --success: #0f9d58;
+      --success-bg: #e8f6ee;
+      --warning: #b45309;
+      --warning-bg: #fdf3e3;
+      --danger: #dc2626;
+      --danger-bg: #fdeaea;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .topbar {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .brand { font-weight: 800; font-size: 1.1rem; letter-spacing: -0.02em; }
+    .brand span { color: var(--primary); }
+    .who { margin-left: auto; text-align: right; font-size: 0.8rem; color: var(--text-muted); }
+    .who strong { display: block; color: var(--text); font-size: 0.9rem; }
+    main { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .branch-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 22px;
+      margin-bottom: 20px;
+    }
+    .branch-card h2 { margin: 0 0 4px; font-size: 1.05rem; }
+    .branch-name { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; margin: 6px 0 2px; }
+    .muted { color: var(--text-muted); font-size: 0.82rem; }
+    .pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .pill.active { background: var(--success-bg); color: var(--success); }
+    .pill.flagged { background: var(--warning-bg); color: var(--warning); }
+    .pill.deactivated { background: var(--danger-bg); color: var(--danger); }
+    .notice {
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-bottom: 20px;
+    }
+    .notice.warn { background: var(--warning-bg); color: var(--warning); }
+    .notice.danger { background: var(--danger-bg); color: var(--danger); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+    }
+    .panel h3 { margin: 0 0 4px; font-size: 0.95rem; }
+    .panel p { margin: 0 0 14px; }
+    .count { font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; }
+    .list { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow-y: auto; }
+    .list li {
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.86rem;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+    .list li:last-child { border-bottom: none; }
+    .empty { color: var(--text-muted); font-size: 0.84rem; padding: 8px 0; }
+    .state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+    .state i { font-size: 2rem; opacity: 0.4; display: block; margin-bottom: 12px; }
+    .state .msg { font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .btn {
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      border-radius: 9px;
+      padding: 9px 15px;
+      font-size: 0.83rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn:hover { background: #f8fafc; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">The <span>Eye</span></div>
+    <div class="pill" id="rolePill">Coordinator</div>
+    <div class="who">
+      <strong id="userName">&nbsp;</strong>
+      <span id="userId">&nbsp;</span>
+    </div>
+    <button class="btn" onclick="signOut()"><i class="fas fa-right-from-bracket"></i> Sign out</button>
+  </div>
+
+  <main id="app">
+    <div class="state">
+      <i class="fas fa-spinner fa-spin"></i>
+      <div class="msg">Loading your branch</div>
+    </div>
+  </main>
+
+  <script>
+const API_BASE = '';
+
+let isRedirecting = false;
+
+function authHeader() {
+  const token = localStorage.getItem('auth_token');
+  return token ? { Authorization: 'Bearer ' + token } : {};
+}
+
+function redirectToLogin() {
+  if (isRedirecting) return;
+  isRedirecting = true;
+  localStorage.removeItem('auth_token');
+  window.location.replace('/index.html');
+}
+
+async function refreshSession() {
+  try {
+    const res = await fetch(API_BASE + '/api/auth/me', { credentials: 'include', headers: authHeader() });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.token) localStorage.setItem('auth_token', data.token);
+    return data;
+  } catch (err) {
+    return null;
+  }
+}
+
+async function apiFetch(url, options = {}) {
+  const fullUrl = url.startsWith('/api') ? API_BASE + url : url;
+  const doFetch = () => fetch(fullUrl, {
+    credentials: 'include',
+    ...options,
+    headers: { ...authHeader(), ...(options.headers || {}) }
+  });
+
+  let res = await doFetch();
+  if (res.status === 401) {
+    const session = await refreshSession();
+    if (!session) { redirectToLogin(); return res; }
+    res = await doFetch();
+    if (res.status === 401) redirectToLogin();
+  }
+  return res;
+}
+
+function signOut() {
+  localStorage.removeItem('auth_token');
+  window.location.replace('/index.html');
+}
+
+function escapeHtml(value) {
+  if (value === null || value === undefined) return '';
+  return String(value).replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch]));
+}
+
+function listOrEmpty(items, emptyText) {
+  if (!items || !items.length) return `<div class="empty">${escapeHtml(emptyText)}</div>`;
+  return `<ul class="list">${items.map(i => `<li><i class="fas fa-circle-dot" style="opacity:.35;font-size:.5rem"></i>${escapeHtml(i.name)}</li>`).join('')}</ul>`;
+}
+
+async function load() {
+  const app = document.getElementById('app');
+
+  // A coordinator account is refused at login when credentials were not granted,
+  // but a grant can be revoked while a session is live, so re-check on load.
+  const res = await apiFetch('/api/coordinator/me');
+  if (res.status === 403 || res.status === 401) {
+    app.innerHTML = `<div class="state">
+      <i class="fas fa-lock"></i>
+      <div class="msg">No access</div>
+      <div class="sub">${escapeHtml('Your account does not have access right now. Please contact your admin.')}</div>
+    </div>`;
+    return;
+  }
+  if (!res.ok) {
+    app.innerHTML = `<div class="state"><i class="fas fa-triangle-exclamation"></i>
+      <div class="msg">Could not load your branch</div>
+      <div class="sub">Please try again.</div></div>`;
+    return;
+  }
+
+  const data = await res.json();
+  const branch = data.branch || {};
+  const grants = data.grants || {};
+  const profile = data.profile || {};
+
+  document.getElementById('userName').textContent = profile.name || 'Coordinator';
+  document.getElementById('userId').textContent = profile.login_id || '';
+
+  // Hidden, not locked: a module the school has not granted is simply not shown.
+  const banner = branch.status === 'deactivated'
+    ? `<div class="notice danger"><strong>This branch has been deactivated.</strong><br />
+        ${escapeHtml(branch.deactivation_reason || 'Contact the Super Admin for details.')}<br />
+        You can still view existing records, but no new ones can be added.</div>`
+    : branch.status === 'flagged'
+      ? `<div class="notice warn">This branch has been flagged for review. Please contact your admin if something looks wrong.</div>`
+      : '';
+
+  const management = grants.management ? `
+    <div class="grid">
+      <div class="panel">
+        <h3>Classes</h3>
+        <p class="muted">Classes added by your admin for this branch.</p>
+        <div class="count">${(data.classes || []).length}</div>
+        ${listOrEmpty(data.classes, 'No classes yet')}
+      </div>
+      <div class="panel">
+        <h3>Teachers</h3>
+        <p class="muted">Teachers assigned to this branch.</p>
+        <div class="count">${(data.teachers || []).length}</div>
+        ${listOrEmpty(data.teachers, 'No teachers yet')}
+      </div>
+      <div class="panel">
+        <h3>Attendance</h3>
+        <p class="muted">Marking attendance for classes and teachers is being set up for your branch.</p>
+        <div class="empty"><i class="fas fa-hourglass-half"></i> Coming soon</div>
+      </div>
+    </div>` : `
+    <div class="state" style="padding:40px 20px">
+      <i class="fas fa-circle-info"></i>
+      <div class="msg">Nothing to show yet</div>
+      <div class="sub">Your admin has not given you access to any modules at the moment.</div>
+    </div>`;
+
+  app.innerHTML = `
+    ${banner}
+    <div class="branch-card">
+      <h2>Your branch</h2>
+      <div class="branch-name">${escapeHtml(branch.name || 'Unassigned')}</div>
+      <span class="pill ${escapeHtml(branch.status || 'active')}">${escapeHtml(branch.status || 'active')}</span>
+    </div>
+    ${management}
+  `;
+}
+
+load();
+startKeepAlive();
+
+function startKeepAlive() {
+  refreshSession();
+  setInterval(refreshSession, 10 * 60 * 1000);
+}
+  </script>
+</body>
+</html>

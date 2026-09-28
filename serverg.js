@@ -9,7 +9,7 @@ const crypto = require('crypto')
 const nodemailer = require('nodemailer')
 const rateLimit = require('express-rate-limit')
 require('dotenv').config()
-const { requireAuth, setPool } = require('./authMiddleware')
+const { requireAuth, setPool, isCoordinator, branchFilter, requireWritableBranch } = require('./authMiddleware')
 
 const app = express()
 const JWT_SECRET = process.env.JWT_SECRET
@@ -204,6 +204,57 @@ async function capacityViolation(q, tenantId, type, batchSize = 1) {
   const label = isStudent ? 'Student' : 'Teacher'
   if (needing === 1) return `${label} capacity reached (${limit}). Contact Super Admin to increase your capacity.`
   return `Not enough ${label.toLowerCase()} capacity: ${current} / ${limit} used, and this batch of ${needing} would exceed the limit. Contact Super Admin to increase your capacity.`
+}
+
+// Capacity is a hard limit, but we nudge the school before they hit it. The soft
+// threshold is 80% of the limit, so a 500-student school is warned at 400 and a
+// 50-teacher school at 40. One rule, whatever the size of the school.
+const CAPACITY_SOFT_RATIO = 0.8
+
+// Returns a warning string once usage crosses the soft threshold, else null.
+// This never blocks anything - capacityViolation() owns the hard limit.
+async function capacityNotice(q, tenantId, type) {
+  const cap = await fetchCapacity(q, tenantId)
+  if (!cap) return null
+  const isStudent = type === 'student'
+  const limit = Number(cap[isStudent ? 'student_limit' : 'teacher_limit'])
+  const current = Number(cap[isStudent ? 'student_count' : 'teacher_count'])
+  if (!Number.isFinite(limit) || limit <= 0) return null
+  if (current < limit * CAPACITY_SOFT_RATIO) return null
+  const label = isStudent ? 'students' : 'teachers'
+  if (current >= limit) {
+    return `You are using ${current} of ${limit} ${label}. Upgrade your plan for more space.`
+  }
+  return `You are using ${current} of ${limit} ${label}. Upgrade your plan for more space.`
+}
+
+// How many branches a school has. Drives the UI rule the school agreed to:
+// no branches means branch_id stays NULL and the field is hidden; one or more
+// means a branch must be chosen when creating a student or teacher.
+async function tenantHasBranches(q, tenantId) {
+  const r = await q.query('SELECT 1 FROM branches WHERE school_id = $1 LIMIT 1', [tenantId])
+  return r.rows.length > 0
+}
+
+// Validates a branch chosen for a write. Returns { error } or { branch }.
+async function resolveBranchForWrite(q, tenantId, branchId) {
+  const hasBranches = await tenantHasBranches(q, tenantId)
+  if (branchId === undefined || branchId === null || branchId === '') {
+    if (!hasBranches) return { branch: null }   // school-wide is valid
+    return { error: 'Please choose a branch.' }
+  }
+  const id = Number(branchId)
+  if (!Number.isInteger(id)) return { error: 'Please choose a branch.' }
+  const r = await q.query(
+    'SELECT id, name, status FROM branches WHERE id = $1 AND school_id = $2',
+    [id, tenantId]
+  )
+  if (r.rows.length === 0) return { error: 'Please choose a branch.' }
+  const branch = r.rows[0]
+  if (branch.status === 'deactivated') {
+    return { error: `Branch "${branch.name}" has been deactivated by the Super Admin and cannot accept new records.` }
+  }
+  return { branch }
 }
 
 function parseFullId(full_id) {
@@ -444,6 +495,60 @@ async function createTables() {
     ALTER TABLE organizations ADD COLUMN IF NOT EXISTS contact_email VARCHAR(200);
   `)
 
+  // --- Branches -------------------------------------------------------------
+  // A school may run one or more branches. Billing is per student, so a branch
+  // never carries its own capacity limit; the limit stays on the organization.
+  //
+  // A branch is created active and is usable immediately, with no approval step.
+  // The Super Admin sees it in a passive review queue and can flag or deactivate
+  // it afterwards if something looks wrong. Deactivating freezes data entry but
+  // keeps existing rows readable.
+  //
+  // branch_id is nullable everywhere on purpose: a school with no branches keeps
+  // every record school-wide, and existing rows are never force-assigned.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS branches (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(120) NOT NULL,
+      school_id VARCHAR(10) NOT NULL REFERENCES organizations(school_code) ON DELETE CASCADE,
+      status VARCHAR(20) NOT NULL DEFAULT 'active',
+      created_by INTEGER,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      reviewed_by INTEGER,
+      reviewed_at TIMESTAMP,
+      deactivation_reason TEXT,
+      UNIQUE (school_id, name)
+    );
+  `)
+
+  await pool.query(`
+    ALTER TABLE students   ADD COLUMN IF NOT EXISTS branch_id INTEGER REFERENCES branches(id) ON DELETE SET NULL;
+    ALTER TABLE teachers   ADD COLUMN IF NOT EXISTS branch_id INTEGER REFERENCES branches(id) ON DELETE SET NULL;
+    ALTER TABLE classes    ADD COLUMN IF NOT EXISTS branch_id INTEGER REFERENCES branches(id) ON DELETE SET NULL;
+    ALTER TABLE attendance ADD COLUMN IF NOT EXISTS branch_id INTEGER REFERENCES branches(id) ON DELETE SET NULL;
+
+    -- A coordinator is always tied to exactly one branch. School admins keep
+    -- branch_id NULL, which is what lets them see the whole tenant.
+    ALTER TABLE admins ADD COLUMN IF NOT EXISTS branch_id INTEGER REFERENCES branches(id) ON DELETE SET NULL;
+    ALTER TABLE admins ADD COLUMN IF NOT EXISTS grant_management BOOLEAN NOT NULL DEFAULT false;
+    ALTER TABLE admins ADD COLUMN IF NOT EXISTS grant_credentials BOOLEAN NOT NULL DEFAULT false;
+    CREATE INDEX IF NOT EXISTS idx_branches_school ON branches(school_id);
+    CREATE INDEX IF NOT EXISTS idx_students_branch ON students(branch_id);
+    CREATE INDEX IF NOT EXISTS idx_teachers_branch ON teachers(branch_id);
+    CREATE INDEX IF NOT EXISTS idx_attendance_branch ON attendance(branch_id);
+    CREATE INDEX IF NOT EXISTS idx_admins_branch ON admins(branch_id);
+  `)
+
+  // A coordinator can be management-only, with no login at all. The existing
+  // NOT NULL on login_id would make that insert impossible, so the column is
+  // relaxed here rather than by inventing placeholder credentials.
+  // Password hashes follow the same rule for the same reason. Login already
+  // rejects any account with a NULL login_id or password_hash.
+  await pool.query(`
+    ALTER TABLE admins ALTER COLUMN login_id DROP NOT NULL;
+    ALTER TABLE admins ALTER COLUMN password_hash DROP NOT NULL;
+  `)
+
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS fee_structures (
@@ -629,7 +734,7 @@ app.get('/api/health', (req, res) => {
 // POST /api/auth/login
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { password, tenant_id: bodyTenantId, login_id: bodyLoginId } = req.body
+    const { password, tenant_id: bodyTenantId, login_id: bodyLoginId } = req.body || {}
     let full_id = (req.body.full_id || '').trim()
     if (!full_id && bodyTenantId && bodyLoginId) {
       full_id = `${bodyTenantId}-${bodyLoginId}`.trim()
@@ -644,16 +749,23 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Full ID and Password are required' })
     }
 
+    // Branch scope and per-user grants only exist on admins. Students and
+    // teachers get NULL/FALSE so the UNION types line up, and so a coordinator
+    // is the only role that is ever branch-scoped or grant-gated.
     const result = await pool.query(`
-      SELECT id, password_hash, role, is_first_login, is_frozen, token_generation, 1 AS src_order
+      SELECT id, password_hash, role, is_first_login, is_frozen, token_generation,
+             NULL::INTEGER AS branch_id, FALSE AS grant_management, FALSE AS grant_credentials,
+             1 AS src_order
       FROM students
       WHERE tenant_id = $1 AND login_id = $2
       UNION ALL
-      SELECT id, password_hash, role, is_first_login, COALESCE(is_frozen, false) AS is_frozen, token_generation, 2 AS src_order
+      SELECT id, password_hash, role, is_first_login, COALESCE(is_frozen, false) AS is_frozen, token_generation,
+             NULL::INTEGER, FALSE, FALSE, 2 AS src_order
       FROM teachers
       WHERE tenant_id = $1 AND login_id = $2
       UNION ALL
-      SELECT id, password_hash, role, is_first_login, FALSE AS is_frozen, token_generation, 3 AS src_order
+      SELECT id, password_hash, role, is_first_login, FALSE AS is_frozen, token_generation,
+             branch_id, grant_management, grant_credentials, 3 AS src_order
       FROM admins
       WHERE tenant_id = $1 AND login_id = $2
       ORDER BY src_order
@@ -665,6 +777,17 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     const user = result.rows[0]
+
+    // A coordinator the school has not given credentials to is a person record
+    // only - there is no login for them, so refuse here rather than let them in.
+    if (user.role === 'coordinator' && !user.grant_credentials) {
+      return res.status(403).json({ error: 'Login has not been enabled for your account. Please contact your admin.' })
+    }
+
+    // A coordinator must be tied to a branch; without one their scope is undefined.
+    if (user.role === 'coordinator' && !user.branch_id) {
+      return res.status(403).json({ error: 'Your account is not assigned to a branch yet. Please contact your admin.' })
+    }
 
     const passwordMatch = await bcrypt.compare(password, user.password_hash)
     if (!passwordMatch) {
@@ -679,7 +802,8 @@ app.post('/api/auth/login', async (req, res) => {
       super_admin: '/super-admin.html',
       admin: '/admin.html',
       teacher: '/teacher.html',
-      student: '/student.html'
+      student: '/student.html',
+      coordinator: '/coordinator.html'
     }
     let redirect_url = redirectMap[user.role] || '/index.html'
     
@@ -695,7 +819,12 @@ app.post('/api/auth/login', async (req, res) => {
         tenant_id: tenant_id,
         login_id: login_id,
         is_first_login: user.is_first_login,
-        token_generation: user.token_generation || 0
+        token_generation: user.token_generation || 0,
+        // Carried on the token so the branch scope survives a password change or
+        // token refresh. Every jwt.sign below must include these.
+        branch_id: user.branch_id === undefined ? null : user.branch_id,
+        grant_management: user.grant_management === true,
+        grant_credentials: user.grant_credentials === true
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRY }
@@ -728,7 +857,7 @@ app.post('/api/auth/login', async (req, res) => {
 // POST /api/auth/change-password
 app.post('/api/auth/change-password', requireAuth(), async (req, res) => {
   try {
-    const { current_password, new_password, confirm_password } = req.body
+    const { current_password, new_password, confirm_password } = req.body || {}
 
     if (!new_password || !confirm_password) {
       return res.status(400).json({ error: 'New password and confirmation are required' })
@@ -752,7 +881,8 @@ app.post('/api/auth/change-password', requireAuth(), async (req, res) => {
     let selectQuery = ''
     let updateQuery = ''
 
-    if (role === 'super_admin' || role === 'admin') {
+    if (role === 'super_admin' || role === 'admin' || role === 'coordinator') {
+      // Coordinators live in the admins table too, so they share this path.
       selectQuery = 'SELECT password_hash, token_generation, is_first_login FROM admins WHERE id = $1'
       updateQuery = 'UPDATE admins SET password_hash = $1, is_first_login = false, token_generation = COALESCE(token_generation, 0) + 1 WHERE id = $2 RETURNING token_generation'
     } else if (role === 'teacher') {
@@ -797,7 +927,12 @@ const token = jwt.sign(
           tenant_id,
           login_id,
           is_first_login: false,
-          token_generation: tokenGeneration
+          token_generation: tokenGeneration,
+          // Must be re-read from req.user, not echoed from the old token, so a
+          // coordinator keeps (or loses) their branch scope after a reset.
+          branch_id: req.user.branch_id === undefined ? null : req.user.branch_id,
+          grant_management: req.user.grant_management === true,
+          grant_credentials: req.user.grant_credentials === true
         },
         JWT_SECRET,
         { expiresIn: JWT_EXPIRY }
@@ -840,7 +975,7 @@ app.post('/api/auth/logout', (req, res) => {
 app.post('/api/auth/forgot-password', forgotPasswordLimiter, async (req, res) => {
   const GENERIC_MSG = 'If a verified recovery email is registered for that account, a reset link has been sent. Otherwise, contact your administrator.'
   try {
-    let full_id = (req.body.full_id || '').trim()
+    let full_id = (req.body?.full_id || '').trim()
     if (!full_id) {
       return res.status(400).json({ error: 'Full ID is required' })
     }
@@ -1038,10 +1173,10 @@ app.get('/api/auth/me', async (req, res) => {
     const decoded = jwt.verify(token, JWT_SECRET)
     console.log('DEBUG /api/auth/me - decoded role:', decoded.role, 'user_id:', decoded.user_id)
 
-    let table = ''
-    if (decoded.role === 'super_admin' || decoded.role === 'admin') table = 'admins'
-    else if (decoded.role === 'teacher') table = 'teachers'
-    else if (decoded.role === 'student') table = 'students'
+   let table = ''
+   if (decoded.role === 'super_admin' || decoded.role === 'admin' || decoded.role === 'coordinator') table = 'admins'
+   else if (decoded.role === 'teacher') table = 'teachers'
+   else if (decoded.role === 'student') table = 'students'
 
     let is_first_login = decoded.is_first_login
     let token_generation = decoded.token_generation || 0
@@ -1068,7 +1203,12 @@ app.get('/api/auth/me', async (req, res) => {
         tenant_id: decoded.tenant_id,
         login_id: decoded.login_id,
         is_first_login,
-        token_generation
+        token_generation,
+        // Carried forward from the incoming token so a refresh never widens or
+        // narrows a coordinator's scope.
+        branch_id: decoded.branch_id === undefined ? null : decoded.branch_id,
+        grant_management: decoded.grant_management === true,
+        grant_credentials: decoded.grant_credentials === true
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRY }
@@ -1107,6 +1247,24 @@ app.post('/api/auth/create-teacher', requireAuth(['admin']), async (req, res) =>
     const capErr = await capacityViolation(pool, tenant_id, 'teacher')
     if (capErr) return res.status(400).json({ error: capErr })
 
+    // Branch rule: no branches means school-wide (branch_id stays null); one or
+    // more means the school must say which branch this teacher belongs to.
+    const branchPick = await resolveBranchForWrite(pool, tenant_id, req.body.branch_id)
+    if (branchPick.error) return res.status(400).json({ error: branchPick.error })
+    const branchId = branchPick.branch ? branchPick.branch.id : null
+
+    // A class in another branch cannot take this teacher, so the two must agree.
+    if (class_id && branchId) {
+      const classBranch = await pool.query(
+        'SELECT branch_id FROM classes WHERE id = $1 AND tenant_id = $2',
+        [class_id, tenant_id]
+      )
+      if (classBranch.rows.length === 0) return res.status(400).json({ error: 'Class not found' })
+      if (classBranch.rows[0].branch_id && classBranch.rows[0].branch_id !== branchId) {
+        return res.status(400).json({ error: 'That class belongs to a different branch.' })
+      }
+    }
+
     // One teacher per class: assigning a new teacher takes the class over.
     if (class_id) {
       const prevHolder = await pool.query(
@@ -1137,13 +1295,20 @@ app.post('/api/auth/create-teacher', requireAuth(['admin']), async (req, res) =>
     const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS)
 
     const result = await pool.query(
-      `INSERT INTO teachers (name, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email, email_verified_at)
-       VALUES ($1, $2, $3, $4, $5, 'teacher', $6, true, $7, NULL)
-       RETURNING id, name, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at`,
-      [name, phone || null, class_id || null, shortId, passwordHash, tenant_id, email]
+      `INSERT INTO teachers (name, phone, class_id, login_id, password_hash, role, tenant_id, branch_id, is_first_login, email, email_verified_at)
+       VALUES ($1, $2, $3, $4, $5, 'teacher', $6, $7, true, $8, NULL)
+       RETURNING id, name, phone, class_id, login_id, role, tenant_id, branch_id, is_first_login, email, email_verified_at`,
+      [name, phone || null, class_id || null, shortId, passwordHash, tenant_id, branchId, email]
     )
     if (email) issueEmailVerification(result.rows[0]).catch(err => console.error('Verification email send failed:', err.message))
-    res.json({ success: true, teacher_id: teacherId, teacher: result.rows[0], temp_password: tempPassword })
+    // capacity_notice is advisory only - the record is created either way.
+    res.json({
+      success: true,
+      teacher_id: teacherId,
+      teacher: result.rows[0],
+      temp_password: tempPassword,
+      capacity_notice: await capacityNotice(pool, tenant_id, 'teacher')
+    })
   } catch (err) {
     console.error('Create teacher error:', err)
     res.status(500).json({ error: 'Server error' })
@@ -1162,6 +1327,23 @@ app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) =>
 
     const capErr = await capacityViolation(pool, tenant_id, 'student')
     if (capErr) return res.status(400).json({ error: capErr })
+
+    // Branch rule: no branches means school-wide (branch_id stays null); one or
+    // more means the school must say which branch this student belongs to.
+    const branchPick = await resolveBranchForWrite(pool, tenant_id, req.body.branch_id)
+    if (branchPick.error) return res.status(400).json({ error: branchPick.error })
+    const branchId = branchPick.branch ? branchPick.branch.id : null
+
+    if (class_id && branchId) {
+      const classBranch = await pool.query(
+        'SELECT branch_id FROM classes WHERE id = $1 AND tenant_id = $2',
+        [class_id, tenant_id]
+      )
+      if (classBranch.rows.length === 0) return res.status(400).json({ error: 'Class not found' })
+      if (classBranch.rows[0].branch_id && classBranch.rows[0].branch_id !== branchId) {
+        return res.status(400).json({ error: 'That class belongs to a different branch.' })
+      }
+    }
 
     const dupErr = await findStudentDuplicate(pool, tenant_id, { roll_no, name })
     if (dupErr) return res.status(400).json({ error: dupErr })
@@ -1185,13 +1367,19 @@ app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) =>
     const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS)
 
     const result = await pool.query(
-      `INSERT INTO students (name, roll_no, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email, email_verified_at)
-       VALUES ($1, $2, $3, $4, $5, $6, 'student', $7, true, $8, NULL)
-       RETURNING id, name, roll_no, phone, class_id, login_id, role, tenant_id, is_first_login, email, email_verified_at`,
-      [name, roll_no || null, phone || null, class_id || null, shortId, passwordHash, tenant_id, email]
+      `INSERT INTO students (name, roll_no, phone, class_id, login_id, password_hash, role, tenant_id, branch_id, is_first_login, email, email_verified_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'student', $7, $8, true, $9, NULL)
+       RETURNING id, name, roll_no, phone, class_id, login_id, role, tenant_id, branch_id, is_first_login, email, email_verified_at`,
+      [name, roll_no || null, phone || null, class_id || null, shortId, passwordHash, tenant_id, branchId, email]
     )
     if (email) issueEmailVerification(result.rows[0]).catch(err => console.error('Verification email send failed:', err.message))
-    res.json({ success: true, student_id: studentId, student: result.rows[0], temp_password: tempPassword })
+    res.json({
+      success: true,
+      student_id: studentId,
+      student: result.rows[0],
+      temp_password: tempPassword,
+      capacity_notice: await capacityNotice(pool, tenant_id, 'student')
+    })
   } catch (err) {
     console.error('Create student error:', err)
 
@@ -1625,6 +1813,337 @@ app.get('/api/auth/capacity', requireAuth(['admin']), async (req, res) => {
   }
 })
 
+// --- Branches --------------------------------------------------------------
+// A school creates its own branches freely: no approval, usable immediately.
+// The Super Admin only ever acts after the fact, from the review queue below.
+
+// GET /api/branches - the caller's school. Super Admin may pass ?school=CODE to
+// inspect one school, or omit it to get every branch across every school.
+app.get('/api/branches', requireAuth(['admin', 'super_admin', 'coordinator']), async (req, res) => {
+  try {
+    // A coordinator can only ever see their own branch, whatever they ask for.
+    if (isCoordinator(req.user)) {
+      const own = await pool.query(
+        `SELECT b.*, o.school_name FROM branches b
+         JOIN organizations o ON o.school_code = b.school_id
+         WHERE b.id = $1 AND b.school_id = $2`,
+        [req.user.branch_id, req.user.tenant_id]
+      )
+      return res.json(own.rows)
+    }
+
+    if (req.user.role === 'super_admin') {
+      const all = await pool.query(
+        `SELECT b.*, o.school_name FROM branches b
+         JOIN organizations o ON o.school_code = b.school_id
+         ORDER BY (b.reviewed_at IS NULL) DESC, b.created_at DESC`
+      )
+      return res.json(all.rows)
+    }
+
+    const mine = await pool.query(
+      `SELECT b.*, o.school_name FROM branches b
+       JOIN organizations o ON o.school_code = b.school_id
+       WHERE b.school_id = $1 ORDER BY b.name`,
+      [req.user.tenant_id]
+    )
+    res.json(mine.rows)
+  } catch (err) {
+    console.error('Fetch branches error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/branches - school admin creates a branch, active and usable at once.
+app.post('/api/branches', requireAuth(['admin']), requireWritableBranch(), async (req, res) => {
+  try {
+    const name = String(req.body.name || '').trim()
+    if (!name) return res.status(400).json({ error: 'Branch name is required' })
+    if (name.length > 120) return res.status(400).json({ error: 'Branch name is too long' })
+
+    const dupe = await pool.query(
+      'SELECT 1 FROM branches WHERE school_id = $1 AND lower(name) = lower($2)',
+      [req.user.tenant_id, name]
+    )
+    if (dupe.rows.length) {
+      return res.status(409).json({ error: `A branch named "${name}" already exists` })
+    }
+
+    const created = await pool.query(
+      `INSERT INTO branches (name, school_id, status, created_by)
+       VALUES ($1, $2, 'active', $3) RETURNING *`,
+      [name, req.user.tenant_id, req.user.user_id]
+    )
+    // reviewed_at stays NULL on purpose: that is what puts it in the Super Admin
+    // review queue as "newly created". Nothing blocks the school meanwhile.
+    res.status(201).json(created.rows[0])
+  } catch (err) {
+    // school_id is a real foreign key, so a stale tenant can still reach the DB.
+    // Report that as a bad request rather than an opaque server error.
+    if (err.code === '23503') {
+      return res.status(400).json({ error: 'This school account could not be found. Please sign in again.' })
+    }
+    if (err.code === '23505') {
+      return res.status(409).json({ error: `A branch named "${String(req.body.name || '').trim()}" already exists` })
+    }
+    console.error('Create branch error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PATCH /api/branches/:id - only the status transitions Super Admin owns.
+app.patch('/api/branches/:id', requireAuth(['super_admin']), async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id)) return res.status(400).json({ error: 'Invalid branch' })
+
+    const { action, reason } = req.body
+    const allowed = ['review', 'flag', 'deactivate', 'reactivate']
+    if (!allowed.includes(action)) {
+      return res.status(400).json({ error: `Action must be one of: ${allowed.join(', ')}` })
+    }
+    if (action === 'deactivate' && !String(reason || '').trim()) {
+      return res.status(400).json({ error: 'A reason is required when deactivating a branch' })
+    }
+
+    const existing = await pool.query('SELECT * FROM branches WHERE id = $1', [id])
+    if (existing.rows.length === 0) return res.status(404).json({ error: 'Branch not found' })
+
+    let updated
+    if (action === 'review') {
+      updated = await pool.query(
+        `UPDATE branches SET reviewed_by = $1, reviewed_at = CURRENT_TIMESTAMP
+         WHERE id = $2 RETURNING *`,
+        [req.user.user_id, id]
+      )
+    } else if (action === 'flag') {
+      updated = await pool.query(`UPDATE branches SET status = 'flagged' WHERE id = $1 RETURNING *`, [id])
+    } else if (action === 'reactivate') {
+      // Reopening a branch clears the reason so the school sees a clean history.
+      updated = await pool.query(
+        `UPDATE branches SET status = 'active', deactivation_reason = NULL WHERE id = $1 RETURNING *`,
+        [id]
+      )
+    } else {
+      updated = await pool.query(
+        `UPDATE branches SET status = 'deactivated', deactivation_reason = $1
+         WHERE id = $2 RETURNING *`,
+        [String(reason).trim(), id]
+      )
+    }
+
+    res.json(updated.rows[0])
+  } catch (err) {
+    console.error('Update branch error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// --- Coordinators ----------------------------------------------------------
+// A coordinator is a row in admins with role='coordinator', always tied to one
+// branch, and gated by two independent grants the school controls:
+//   grant_credentials  - may they log in at all
+//   grant_management   - may they see the management modules
+// A grant that is off is simply not rendered, not shown locked.
+
+// GET /api/coordinators - list for the school admin, with grant state.
+app.get('/api/coordinators', requireAuth(['admin']), async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT a.id, a.name, a.login_id, a.phone, a.branch_id, a.is_first_login,
+              a.grant_management, a.grant_credentials, a.created_at,
+              b.name AS branch_name, b.status AS branch_status
+       FROM admins a
+       LEFT JOIN branches b ON b.id = a.branch_id
+       WHERE a.tenant_id = $1 AND a.role = 'coordinator'
+       ORDER BY a.name`,
+      [req.user.tenant_id]
+    )
+    res.json(result.rows)
+  } catch (err) {
+    console.error('Fetch coordinators error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/coordinators - create a coordinator, optionally with a login.
+app.post('/api/coordinators', requireAuth(['admin']), async (req, res) => {
+  try {
+    const name = String(req.body.name || '').trim()
+    const phone = String(req.body.phone || '').trim() || null
+    const grantManagement = req.body.grant_management === true
+    const grantCredentials = req.body.grant_credentials === true
+
+    if (!name) return res.status(400).json({ error: 'Name is required' })
+
+    // A coordinator without a branch has no scope, so this is required even when
+    // the school has not created any branches yet.
+    const branchCheck = await resolveBranchForWrite(pool, req.user.tenant_id, req.body.branch_id)
+    if (branchCheck.error) return res.status(400).json({ error: branchCheck.error })
+    const branchId = branchCheck.branch ? branchCheck.branch.id : null
+    if (!branchId) {
+      return res.status(400).json({ error: 'Create a branch first, then assign the coordinator to it.' })
+    }
+
+    // Credentials are optional. Without them the coordinator is a person record
+    // with no login, which is exactly "management without accounts".
+    let loginId = null
+    let passwordHash = null
+    if (grantCredentials) {
+      const seq = await pool.query(
+        `SELECT login_id FROM admins
+         WHERE tenant_id = $1 AND (login_id LIKE 'C%' OR login_id LIKE $2)
+         ORDER BY login_id DESC LIMIT 1`,
+        [req.user.tenant_id, `C${req.user.tenant_id}%`]
+      )
+      let nextNum = 1
+      if (seq.rows.length > 0) {
+        const n = parseInt(String(seq.rows[0].login_id).replace(/^C/, ''), 10)
+        if (Number.isFinite(n)) nextNum = n + 1
+      }
+      loginId = `C${String(nextNum).padStart(3, '0')}`
+      const tempPassword = `Eye${String(nextNum).padStart(3, '0')}@${String(Math.floor(1000 + Math.random() * 9000))}`
+      passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS)
+
+      const taken = await pool.query('SELECT 1 FROM admins WHERE tenant_id = $1 AND login_id = $2', [req.user.tenant_id, loginId])
+      if (taken.rows.length) return res.status(409).json({ error: `Login ID ${loginId} is already taken. Try again.` })
+
+      const created = await pool.query(
+        `INSERT INTO admins (login_id, name, password_hash, role, tenant_id, branch_id,
+                             grant_management, grant_credentials, is_first_login, phone)
+         VALUES ($1, $2, $3, 'coordinator', $4, $5, $6, $7, true, $8) RETURNING *`,
+        [loginId, name, passwordHash, req.user.tenant_id, branchId, grantManagement, grantCredentials, phone]
+      )
+      // Returned once, at creation only, so the school can hand it over.
+      return res.status(201).json({
+        coordinator: created.rows[0],
+        credentials: { login_id: loginId, password: tempPassword }
+      })
+    }
+
+    const created = await pool.query(
+      `INSERT INTO admins (login_id, name, role, tenant_id, branch_id,
+                           grant_management, grant_credentials, is_first_login, phone)
+       VALUES ($1, $2, 'coordinator', $3, $4, $5, false, true, $6)
+       RETURNING *`,
+      [null, name, req.user.tenant_id, branchId, grantManagement, phone]
+    )
+    res.status(201).json({ coordinator: created.rows[0], credentials: null })
+  } catch (err) {
+    if (err.code === '23503') {
+      return res.status(400).json({ error: 'This branch could not be found. Please reload the page.' })
+    }
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'That login ID is already taken. Please try again.' })
+    }
+    console.error('Create coordinator error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PATCH /api/coordinators/:id - change branch or grants. The grant checkboxes
+// stay editable so a school can widen access later without recreating anyone.
+app.patch('/api/coordinators/:id', requireAuth(['admin']), async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id)) return res.status(400).json({ error: 'Invalid coordinator' })
+
+    const existing = await pool.query(
+      `SELECT * FROM admins WHERE id = $1 AND tenant_id = $2 AND role = 'coordinator'`,
+      [id, req.user.tenant_id]
+    )
+    if (existing.rows.length === 0) return res.status(404).json({ error: 'Coordinator not found' })
+
+    const current = existing.rows[0]
+    const { name, phone, grant_management, grant_credentials, branch_id } = req.body
+
+    let branchId = current.branch_id
+    if (branch_id !== undefined) {
+      const check = await resolveBranchForWrite(pool, req.user.tenant_id, branch_id)
+      if (check.error) return res.status(400).json({ error: check.error })
+      if (!check.branch) return res.status(400).json({ error: 'A coordinator must stay assigned to a branch.' })
+      branchId = check.branch.id
+    }
+    if (!branchId) return res.status(400).json({ error: 'A coordinator must stay assigned to a branch.' })
+
+    const nextManagement = grant_management === undefined ? current.grant_management : grant_management === true
+    const nextCredentials = grant_credentials === undefined ? current.grant_credentials : grant_credentials === true
+
+    // Turning credentials on for someone who has no login yet has to mint one.
+    if (nextCredentials && !current.login_id) {
+      return res.status(400).json({
+        error: 'This coordinator has no login yet. Remove and recreate them with "Give login" enabled to generate credentials.'
+      })
+    }
+
+    const updated = await pool.query(
+      `UPDATE admins SET name = $1, phone = $2, branch_id = $3,
+                         grant_management = $4, grant_credentials = $5
+       WHERE id = $6 RETURNING *`,
+      [
+        name !== undefined ? String(name).trim() || current.name : current.name,
+        phone !== undefined ? (String(phone).trim() || null) : current.phone,
+        branchId, nextManagement, nextCredentials, id
+      ]
+    )
+    res.json(updated.rows[0])
+  } catch (err) {
+    console.error('Update coordinator error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/coordinator/me - everything the coordinator's own page needs.
+// Only the modules their grants allow are returned, so the UI never has to
+// decide what to hide and a crafted request cannot reach anything extra.
+app.get('/api/coordinator/me', requireAuth(['coordinator']), async (req, res) => {
+  try {
+    const tenant_id = req.user.tenant_id
+    const branch_id = req.user.branch_id
+
+    const branch = await pool.query(
+      `SELECT b.id, b.name, b.status, b.deactivation_reason
+       FROM branches b WHERE b.id = $1 AND b.school_id = $2`,
+      [branch_id, tenant_id]
+    )
+    if (branch.rows.length === 0) {
+      return res.status(403).json({ error: 'Your branch is no longer available. Contact your admin.' })
+    }
+
+    const me = await pool.query(
+      'SELECT name, login_id FROM admins WHERE id = $1 AND tenant_id = $2',
+      [req.user.user_id, tenant_id]
+    )
+
+    const payload = {
+      profile: me.rows[0] || { name: 'Coordinator', login_id: '' },
+      branch: branch.rows[0],
+      grants: {
+        management: req.user.grant_management === true,
+        credentials: req.user.grant_credentials === true
+      }
+    }
+
+    if (payload.grants.management) {
+      const classes = await pool.query(
+        `SELECT id, name FROM classes WHERE tenant_id = $1 AND branch_id = $2 ORDER BY name`,
+        [tenant_id, branch_id]
+      )
+      const teachers = await pool.query(
+        `SELECT id, name FROM teachers WHERE tenant_id = $1 AND branch_id = $2 ORDER BY name`,
+        [tenant_id, branch_id]
+      )
+      payload.classes = classes.rows
+      payload.teachers = teachers.rows
+    }
+
+    res.json(payload)
+  } catch (err) {
+    console.error('Coordinator profile error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 app.get('/api/auth/suspended-schools', requireAuth(['super_admin']), async (req, res) => {
   try {
     const result = await pool.query(
@@ -1699,8 +2218,14 @@ app.get('/api/classes', requireAuth(['admin', 'teacher', 'super_admin']), async 
 app.post('/api/classes', requireAuth(['admin', 'super_admin']), async (req, res) => {
   const { name } = req.body
   const tenant_id = req.user.tenant_id
+  // Same branch rule as students and teachers: optional with no branches,
+  // required once the school has at least one.
+  const branchPick = await resolveBranchForWrite(pool, tenant_id, req.body.branch_id)
+  if (branchPick.error) return res.status(400).json({ error: branchPick.error })
+  const branchId = branchPick.branch ? branchPick.branch.id : null
   const result = await pool.query(
-    'INSERT INTO classes (name, tenant_id) VALUES ($1, $2) RETURNING *', [name, tenant_id]
+    'INSERT INTO classes (name, tenant_id, branch_id) VALUES ($1, $2, $3) RETURNING *',
+    [name, tenant_id, branchId]
   )
   res.json(result.rows[0])
 })
