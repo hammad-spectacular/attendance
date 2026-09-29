@@ -22,6 +22,21 @@
       --danger: #dc2626;
       --danger-bg: #fdeaea;
     }
+    [data-theme="dark"] {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --primary: #818cf8;
+      --primary-light: #a5b4fc;
+      --success: #22c55e;
+      --success-bg: rgba(34, 197, 94, 0.1);
+      --warning: #f59e0b;
+      --warning-bg: rgba(245, 158, 11, 0.08);
+      --danger: #ef4444;
+      --danger-bg: rgba(239, 68, 68, 0.08);
+    }
     * { box-sizing: border-box; }
     body {
       margin: 0;
@@ -29,6 +44,7 @@
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
+      transition: background 0.3s ease, color 0.3s ease;
     }
     .topbar {
       background: var(--card);
@@ -38,11 +54,23 @@
       align-items: center;
       gap: 16px;
       flex-wrap: wrap;
+      transition: background 0.3s ease;
     }
     .brand { font-weight: 800; font-size: 1.1rem; letter-spacing: -0.02em; }
     .brand span { color: var(--primary); }
     .who { margin-left: auto; text-align: right; font-size: 0.8rem; color: var(--text-muted); }
     .who strong { display: block; color: var(--text); font-size: 0.9rem; }
+    .theme-btn {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+    }
+    .theme-btn:hover { background: var(--border); }
     main { max-width: 1100px; margin: 0 auto; padding: 24px; }
     .branch-card {
       background: var(--card);
@@ -50,6 +78,7 @@
       border-radius: 14px;
       padding: 20px 22px;
       margin-bottom: 20px;
+      transition: background 0.3s ease, border-color 0.3s ease;
     }
     .branch-card h2 { margin: 0 0 4px; font-size: 1.05rem; }
     .branch-name { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; margin: 6px 0 2px; }
@@ -108,6 +137,7 @@
       border: 1px solid var(--border);
       border-radius: 14px;
       padding: 18px 20px;
+      transition: background 0.3s ease, border-color 0.3s ease;
     }
     .panel h3 { margin: 0 0 4px; font-size: 0.95rem; }
     .panel p { margin: 0 0 14px; }
@@ -120,6 +150,7 @@
       display: flex;
       align-items: center;
       gap: 9px;
+      transition: border-color 0.3s ease;
     }
     .list li:last-child { border-bottom: none; }
     .empty { color: var(--text-muted); font-size: 0.84rem; padding: 8px 0; }
@@ -136,14 +167,15 @@
       font-weight: 600;
       cursor: pointer;
       font-family: inherit;
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
     }
-    .btn:hover { background: #f8fafc; }
+    .btn:hover { background: var(--border); }
     .btn.primary {
       background: var(--primary);
       border-color: var(--primary);
       color: white;
     }
-    .btn.primary:hover { background: #4338ca; }
+    .btn.primary:hover { filter: brightness(1.1); }
     .btn.primary:disabled { opacity: 0.55; cursor: not-allowed; }
     /* Attendance filters */
     .filters {
@@ -170,6 +202,7 @@
       font-size: 0.85rem;
       font-family: inherit;
       min-width: 170px;
+      transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease;
     }
     .filters select:focus, .filters input:focus { outline: 2px solid var(--primary-light); }
     .summary {
@@ -317,6 +350,7 @@
       <strong id="userName">&nbsp;</strong>
       <span id="userId">&nbsp;</span>
     </div>
+    <button class="theme-btn" onclick="toggleTheme()" title="Toggle dark/light mode" id="themeToggleBtn"><i class="fas fa-moon" id="themeIcon"></i></button>
     <button class="btn" onclick="openPasswordModal()"><i class="fas fa-key"></i> Change password</button>
     <button class="btn" onclick="signOut()"><i class="fas fa-right-from-bracket"></i> Sign out</button>
   </div>
@@ -335,15 +369,24 @@
       <form id="passwordForm" onsubmit="handleChangePassword(event)">
         <div class="form-group" id="currentPwGroup">
           <label for="currentPw">Current password</label>
-          <input type="password" id="currentPw" autocomplete="current-password">
+          <div style="position:relative;">
+            <input type="password" id="currentPw" autocomplete="current-password" style="padding-right:44px; width:100%;">
+            <button type="button" onclick="var inp=this.previousElementSibling;inp.type=inp.type==='password'?'text':'password';this.innerHTML=inp.type==='password'?'<i class=\'fas fa-eye\'></i>':'<i class=\'fas fa-eye-slash\'></i>'" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;padding:6px;font-size:14px;"><i class="fas fa-eye"></i></button>
+          </div>
         </div>
         <div class="form-group">
           <label for="newPw">New password</label>
-          <input type="password" id="newPw" required minlength="8" autocomplete="new-password" placeholder="Min. 8 chars with a special character">
+          <div style="position:relative;">
+            <input type="password" id="newPw" required minlength="8" autocomplete="new-password" placeholder="Min. 8 chars with a special character" style="padding-right:44px; width:100%;">
+            <button type="button" onclick="var inp=this.previousElementSibling;inp.type=inp.type==='password'?'text':'password';this.innerHTML=inp.type==='password'?'<i class=\'fas fa-eye\'></i>':'<i class=\'fas fa-eye-slash\'></i>'" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;padding:6px;font-size:14px;"><i class="fas fa-eye"></i></button>
+          </div>
         </div>
         <div class="form-group">
           <label for="confirmPw">Confirm new password</label>
-          <input type="password" id="confirmPw" required autocomplete="new-password">
+          <div style="position:relative;">
+            <input type="password" id="confirmPw" required autocomplete="new-password" style="padding-right:44px; width:100%;">
+            <button type="button" onclick="var inp=this.previousElementSibling;inp.type=inp.type==='password'?'text':'password';this.innerHTML=inp.type==='password'?'<i class=\'fas fa-eye\'></i>':'<i class=\'fas fa-eye-slash\'></i>'" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;padding:6px;font-size:14px;"><i class="fas fa-eye"></i></button>
+          </div>
         </div>
         <div class="form-msg" id="pwMsg"></div>
         <div class="modal-actions">
@@ -356,6 +399,25 @@
 
   <script>
 const API_BASE = '';
+
+// Theme toggle
+function toggleTheme() {
+  const html = document.documentElement;
+  const icon = document.getElementById('themeIcon');
+  const current = html.getAttribute('data-theme') || 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  localStorage.setItem('attendance-theme', next);
+  icon.className = next === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+}
+
+// Apply saved theme on load
+(function() {
+  const saved = localStorage.getItem('attendance-theme') || 'light';
+  document.documentElement.setAttribute('data-theme', saved);
+  const icon = document.getElementById('themeIcon');
+  if (icon) icon.className = saved === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+})();
 
 let isRedirecting = false;
 
@@ -664,17 +726,19 @@ async function loadMarkRoster() {
     <table class="att-table">
       <thead>
         <tr>
-          <th>Roll</th>
-          <th>Student</th>
-          <th>Roll no.</th>
+          <th>#</th>
+          <th>Student Name</th>
+          <th>Roll No.</th>
+          <th>Phone</th>
           <th style="text-align:right;">Status</th>
         </tr>
       </thead>
       <tbody>
-        ${students.map(s => `
+        ${students.map((s, i) => `
           <tr data-student="${s.id}">
-            <td>${s.roll_no != null ? escapeHtml(s.roll_no) : '—'}</td>
+            <td>${i + 1}</td>
             <td style="font-weight:600;">${escapeHtml(s.name)}</td>
+            <td>${s.roll_no != null ? escapeHtml(s.roll_no) : '—'}</td>
             <td class="muted">${escapeHtml(s.phone || '—')}</td>
             <td>
               <div class="status-btns" style="justify-content:flex-end;">
@@ -748,6 +812,15 @@ async function submitAttendance() {
     }
     // Reload so the summary reflects exactly what the server stored.
     await loadMarkRoster();
+    // Show success confirmation
+    const savebar = document.getElementById('markSavebar');
+    const successMsg = document.createElement('span');
+    successMsg.id = 'attendanceSavedMsg';
+    successMsg.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success);"></i> Attendance saved successfully!';
+    successMsg.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:600;color:var(--success);padding:8px 12px;background:var(--success-bg);border-radius:8px;margin-right:auto;';
+    savebar.insertBefore(successMsg, savebar.firstChild);
+    // Remove after 3 seconds
+    setTimeout(() => { if (successMsg.parentNode) successMsg.remove(); }, 3000);
   } finally {
     btn.disabled = false;
     btn.innerHTML = original;
