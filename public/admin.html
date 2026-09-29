@@ -4642,6 +4642,7 @@
       shownTeacherIds = teachers.map(t => t.id);
 
       let html = `
+        ${showTeacherId ? `
         <div class="bulk-bar" style="display:flex; align-items:center; gap:14px; margin-bottom:10px; flex-wrap:wrap;">
           <label style="display:flex; align-items:center; gap:6px; font-size:0.8rem; cursor:pointer; user-select:none;">
             <input type="checkbox" id="teachersSelectAll" ${selectedTeacherIds.size > 0 && shownTeacherIds.length > 0 && shownTeacherIds.every(id => selectedTeacherIds.has(id)) ? 'checked' : ''} onchange="toggleSelectAll('teachers', this.checked);">
@@ -4651,7 +4652,7 @@
             <i class="fas fa-trash-alt"></i> Delete selected (<span>${selectedTeacherIds.size}</span>)
           </button>
           ${selectedTeacherIds.size ? `<span class="bulk-note" style="font-size:0.75rem;color:var(--text-muted);">${selectedTeacherIds.size} selected</span>` : ''}
-        </div>
+        </div>` : ''}
         <div style="overflow-x:auto;">
         <table class="data-table">
           <thead>
@@ -4689,12 +4690,13 @@
             </td>
             <td style="text-align:right;">
               <div class="action-buttons" style="justify-content: flex-end;">
+                ${showTeacherId ? `
                 <label style="display:flex; align-items:center; gap:4px; cursor:pointer; margin-right:2px;" title="Select for bulk delete">
                   <input type="checkbox" class="bulk-chk" data-kind="teachers" data-id="${t.id}" ${selectedTeacherIds.has(t.id) ? 'checked' : ''} onchange="toggleRowSelect('teachers', ${t.id}, this.checked); event.stopPropagation();">
                 </label>
                 <button onclick="openAdminRecoveryReveal(${t.id}, 'teacher')" class="btn-edit" title="Issue one-time temporary password" style="background:var(--warning-bg); color:var(--warning);">
                   <i class="fas fa-key"></i>
-                </button>
+                </button>` : ''}
                 <button onclick="openEditTeacherModal(${t.id})" class="btn-edit" title="Edit in modal">
                   <i class="fas fa-expand"></i>
                 </button>
@@ -4898,6 +4900,7 @@
       shownStudentIds = students.map(s => s.id);
 
       let html = `
+        ${showStudentId ? `
         <div class="bulk-bar" style="display:flex; align-items:center; gap:14px; margin-bottom:10px; flex-wrap:wrap;">
           <label style="display:flex; align-items:center; gap:6px; font-size:0.8rem; cursor:pointer; user-select:none;">
             <input type="checkbox" id="studentsSelectAll" ${selectedStudentIds.size > 0 && shownStudentIds.length > 0 && shownStudentIds.every(id => selectedStudentIds.has(id)) ? 'checked' : ''} onchange="toggleSelectAll('students', this.checked);">
@@ -4907,7 +4910,7 @@
             <i class="fas fa-trash-alt"></i> Delete selected (<span>${selectedStudentIds.size}</span>)
           </button>
           ${selectedStudentIds.size ? `<span class="bulk-note" style="font-size:0.75rem;color:var(--text-muted);">${selectedStudentIds.size} selected</span>` : ''}
-        </div>
+        </div>` : ''}
         <div style="overflow-x:auto;">
         <table class="data-table">
           <thead>
@@ -4946,6 +4949,7 @@
             </td>
             <td style="text-align:right;">
               <div class="action-buttons" style="justify-content: flex-end;">
+                ${showStudentId ? `
                 <label style="display:flex; align-items:center; gap:4px; cursor:pointer; margin-right:2px;" title="Select for bulk delete">
                   <input type="checkbox" class="bulk-chk" data-kind="students" data-id="${s.id}" ${selectedStudentIds.has(s.id) ? 'checked' : ''} onchange="toggleRowSelect('students', ${s.id}, this.checked); event.stopPropagation();">
                 </label>
@@ -4954,7 +4958,7 @@
                 </button>
                 <button onclick="markDirty('tab-students', ${s.id}, 'is_frozen', ${!dirtyData.is_frozen})" class="btn-edit" title="${dirtyData.is_frozen ? 'Unfreeze Account' : 'Freeze Account'}" style="background: ${dirtyData.is_frozen ? 'var(--danger-bg)' : 'var(--warning-bg)'}; color: ${dirtyData.is_frozen ? 'var(--danger)' : 'var(--warning)'}; border: none;">
                   <i class="fas ${dirtyData.is_frozen ? 'fa-lock' : 'fa-lock-open'}"></i>
-                </button>
+                </button>` : ''}
                 <button onclick="openEditStudentModal(${s.id})" class="btn-edit" title="Edit in modal">
                   <i class="fas fa-expand"></i>
                 </button>
@@ -6928,7 +6932,7 @@
             <thead>
               <tr>
                 <th style="text-align:left;">Name</th>
-                <th style="text-align:left;">Login ID</th>
+                <th id="bulkLoginIdTh" style="text-align:left;">Login ID</th>
                 <th style="text-align:left;">Password</th>
               </tr>
             </thead>
@@ -6947,6 +6951,10 @@
 
   <script>
     let bulkGeneratedAccounts = [];
+    // Whether the last bulk run minted portal logins. When the portal is off for
+    // the school, accounts are saved without logins, so the Login ID column, the
+    // copy text and the CSV must not show an ID the school is not meant to have.
+    let bulkCredsIssued = false;
 
     // ---------- Names-first bulk add (Enter to add, CSV import) ----------
 
@@ -7168,6 +7176,10 @@
       if (credsNote) credsNote.style.display = credentialsIssued ? '' : 'none';
       const noCredsNote = document.getElementById('bulkNoCredsNote');
       if (noCredsNote) noCredsNote.style.display = credentialsIssued ? 'none' : '';
+      // No portal, no login ID to show: hide the whole column, not just blank it.
+      bulkCredsIssued = !!credentialsIssued;
+      const loginIdTh = document.getElementById('bulkLoginIdTh');
+      if (loginIdTh) loginIdTh.style.display = credentialsIssued ? '' : 'none';
       const tbody = document.querySelector('#bulkResultsTable tbody');
       tbody.innerHTML = accounts.map(function(a, idx) {
         if (a.original_name === undefined) a.original_name = a.name;
@@ -7177,7 +7189,7 @@
         : '<span>' + escapeHtml(a.name) + '</span>';
         return '<tr>' +
         '<td>' + nameCell + '</td>' +
-        '<td style="font-family:monospace;">' + escapeHtml(a.full_id || a.login_id) + '</td>' +
+        '<td style="font-family:monospace;' + (credentialsIssued ? '' : 'display:none;') + '">' + (credentialsIssued ? escapeHtml(a.full_id || a.login_id) : '') + '</td>' +
         '<td style="font-family:monospace;">' + (a.temp_password ? escapeHtml(a.temp_password) : '<span style="opacity:.6;">—</span>') + '</td>' +
         '</tr>';
       }).join('');
@@ -7261,7 +7273,9 @@
     function copyBulkResults() {
       if (!bulkGeneratedAccounts.length) return;
       const text = bulkGeneratedAccounts.map(function(a) {
-        return 'Name: ' + a.name + '\tLogin ID: ' + (a.full_id || a.login_id) + '\tPassword: ' + (a.temp_password || '—');
+        return bulkCredsIssued
+          ? 'Name: ' + a.name + '\tLogin ID: ' + (a.full_id || a.login_id) + '\tPassword: ' + (a.temp_password || '—')
+          : 'Name: ' + a.name;
       }).join('\n');
       navigator.clipboard.writeText(text).then(function() {
         showToast('Copied to clipboard', 'info');
@@ -7273,9 +7287,11 @@
 
     function downloadBulkCSV() {
       if (!bulkGeneratedAccounts.length) return;
-      const header = 'Name,Login ID,Password\n';
+      const header = bulkCredsIssued ? 'Name,Login ID,Password\n' : 'Name\n';
       const rows = bulkGeneratedAccounts.map(function(a) {
-        return '"' + a.name + '","' + (a.full_id || a.login_id) + '","' + (a.temp_password || '') + '"';
+        return bulkCredsIssued
+          ? '"' + a.name + '","' + (a.full_id || a.login_id) + '","' + (a.temp_password || '') + '"'
+          : '"' + a.name + '"';
       }).join('\n');
       const csvContent = 'data:text/csv;charset=utf-8,' + encodeURIComponent(header + rows);
       const link = document.createElement('a');
