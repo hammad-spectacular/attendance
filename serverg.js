@@ -99,7 +99,7 @@ function normalizeEmail(value) {
 // so a brand new school is usable immediately. If the feature is missing from the
 // catalogue entirely we fail OPEN (allow) rather than locking a real school out over a
 // data problem - a broken catalogue must never become "nobody can log in".
-const PORTAL_FEATURE_FOR_ROLE = { student: 'student_portal', teacher: 'teacher_portal' }
+const PORTAL_FEATURE_FOR_ROLE = { student: 'student_portal', teacher: 'teacher_portal', coordinator: 'coordinator_portal' }
 
 async function isPortalEnabled(tenantId, role) {
   const featureKey = PORTAL_FEATURE_FOR_ROLE[role]
@@ -581,8 +581,8 @@ async function createTables() {
     ALTER TABLE classes    ADD COLUMN IF NOT EXISTS branch_id INTEGER REFERENCES branches(id) ON DELETE SET NULL;
     ALTER TABLE attendance ADD COLUMN IF NOT EXISTS branch_id INTEGER REFERENCES branches(id) ON DELETE SET NULL;
 
-    -- A coordinator is always tied to exactly one branch. School admins keep
-    -- branch_id NULL, which is what lets them see the whole tenant.
+    -- A coordinator may be tied to one branch or, with branch_id NULL, appointed
+    -- to the whole school. School admins also keep branch_id NULL.
     ALTER TABLE admins ADD COLUMN IF NOT EXISTS branch_id INTEGER REFERENCES branches(id) ON DELETE SET NULL;
     ALTER TABLE admins ADD COLUMN IF NOT EXISTS grant_management BOOLEAN NOT NULL DEFAULT false;
     ALTER TABLE admins ADD COLUMN IF NOT EXISTS grant_credentials BOOLEAN NOT NULL DEFAULT false;
@@ -635,10 +635,11 @@ async function createTables() {
   // Seeded with INSERT ... ON CONFLICT DO NOTHING so restarts never overwrite a label
   // or reset a default that has since been changed deliberately.
   //
-  // Both portals default to false on purpose. A portal is not part of a school until the
-  // Super Admin grants it, so a fresh install must not hand out working student/teacher
-  // sign-ins nobody asked for. Management and attendance default on because a school
-  // cannot run without them.
+  // The student and teacher portals default to false on purpose: they hand out working
+  // sign-ins nobody asked for, so a school gets them only when the Super Admin grants
+  // them. The Coordinator Portal defaults ON because it is an admin-panel tool first -
+  // the school admin creates and manages coordinators from the Coordinators tab - and
+  // the Super Admin can still switch it off per school in the features screen.
   await pool.query(`
     INSERT INTO tenant_features (key, label, description, default_enabled, sort_order) VALUES
       ('attendance',          'Attendance',          'Daily attendance marking and records',            true,  10),
@@ -648,8 +649,18 @@ async function createTables() {
       ('teacher_portal',      'Teacher Portal',      'Teacher sign-in and class tools',                false, 50),
       ('fees',                'Fees',                'Fee structures, invoices and payments',         true,  60),
       ('whatsapp',            'WhatsApp',            'WhatsApp notifications and messaging',            false, 70),
-      ('biometric',           'Biometric',           'Biometric attendance device integration',        false, 80)
+      ('biometric',           'Biometric',           'Biometric attendance device integration',        false, 80),
+      ('coordinator_portal',  'Coordinator Portal',  'Attendance-only coordinators for branch staff',  true,   90)
     ON CONFLICT (key) DO NOTHING;
+  `)
+
+  // Older installs seeded coordinator_portal as default-off, and the ON CONFLICT
+  // above never rewrites an existing row - so re-point the catalogue default here.
+  // This only moves the FALLBACK for schools with no explicit decision: a school the
+  // Super Admin deliberately switched off keeps its tenant_grants row (enabled=false),
+  // and an explicit row always wins over the catalogue default.
+  await pool.query(`
+    UPDATE tenant_features SET default_enabled = true WHERE key = 'coordinator_portal';
   `)
 
   await pool.query(`
@@ -891,10 +902,8 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(403).json({ error: 'Login has not been enabled for your account. Please contact your admin.' })
     }
 
-    // A coordinator must be tied to a branch; without one their scope is undefined.
-    if (user.role === 'coordinator' && !user.branch_id) {
-      return res.status(403).json({ error: 'Your account is not assigned to a branch yet. Please contact your admin.' })
-    }
+    // A coordinator works school-wide when they have no branch; with one, their
+    // scope is that branch. Either way the login is valid here.
 
     // A person enrolled while their portal was switched off has a login_id but no
     // password yet. They were never given one, so say that instead of comparing
@@ -921,7 +930,7 @@ app.post('/api/auth/login', async (req, res) => {
     // school can get in the moment a Super Admin grants the portal.
     const portalOn = await isPortalEnabled(tenant_id, user.role)
     if (!portalOn) {
-      const label = user.role === 'student' ? 'Student' : 'Teacher'
+      const label = user.role === 'student' ? 'Student' : user.role === 'coordinator' ? 'Coordinator' : 'Teacher'
       return res.status(403).json({
         error: `The ${label} Portal has not been enabled for your school yet. Please ask your school admin to request it.`,
         portal_disabled: true
@@ -1532,11 +1541,26 @@ app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) =>
   }
 })
 
+// Parse an explicit names list for the bulk creators. The admin modal sends
+// names: [] - typed one by one (Enter to add) or read from an uploaded CSV's
+// first column. Names are trimmed, whitespace-collapsed and capped at 100 chars
+// to match the students/teachers.name column. Duplicates are allowed on purpose:
+// two students can legitimately share a name.
+function extractBulkNames(body) {
+  if (!Array.isArray(body.names)) return null
+  return body.names
+    .map(n => String(n).trim().replace(/\s+/g, ' ').slice(0, 100))
+    .filter(n => n.length > 0)
+}
+
 // POST /api/auth/bulk-create-students
 app.post('/api/auth/bulk-create-students', requireAuth(['admin', 'super_admin']), bulkCreateLimiter, async (req, res) => {
-  let count = parseInt(req.body.count, 10);
+  // Names-first: an explicit list. Without one the legacy count body still works
+  // and generates "Student 1", "Student 2", ... placeholders.
+  const names = extractBulkNames(req.body);
+  const count = names ? names.length : parseInt(req.body.count, 10);
   const class_id = req.body.class_id;
-  if (isNaN(count) || count < 1) return res.status(400).json({ error: 'Valid count is required' });
+  if (isNaN(count) || count < 1) return res.status(400).json({ error: names ? 'Add at least one name first' : 'Valid count is required' });
   if (count > 500) return res.status(400).json({ error: 'Maximum 500 accounts per batch' });
   if (!class_id) return res.status(400).json({ error: 'class_id is required' });
 
@@ -1585,7 +1609,7 @@ app.post('/api/auth/bulk-create-students', requireAuth(['admin', 'super_admin'])
 
     for (let i = 0; i < count; i++) {
       const shortId = `S${String(nextNum + i).padStart(3, '0')}`;
-      const name = `Student ${i + 1}`;
+      const name = names ? names[i] : `Student ${i + 1}`;
 
       // name, roll_no, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email, branch_id
       queryParams.push(name, null, null, class_id, shortId, batchHash, tenant_id, branchId);
@@ -1627,8 +1651,11 @@ app.post('/api/auth/bulk-create-students', requireAuth(['admin', 'super_admin'])
 
 // POST /api/auth/bulk-create-teachers
 app.post('/api/auth/bulk-create-teachers', requireAuth(['admin', 'super_admin']), bulkCreateLimiter, async (req, res) => {
-  let count = parseInt(req.body.count, 10);
-  if (isNaN(count) || count < 1) return res.status(400).json({ error: 'Valid count is required' });
+  // Names-first: an explicit list. Without one the legacy count body still works
+  // and generates "Teacher 1", "Teacher 2", ... placeholders.
+  const names = extractBulkNames(req.body);
+  const count = names ? names.length : parseInt(req.body.count, 10);
+  if (isNaN(count) || count < 1) return res.status(400).json({ error: names ? 'Add at least one name first' : 'Valid count is required' });
   if (count > 500) return res.status(400).json({ error: 'Maximum 500 accounts per batch' });
   // These are read from the body below. Without this destructuring `phone` and
   // `class_id` are undefined identifiers and the insert 500s.
@@ -1679,7 +1706,7 @@ app.post('/api/auth/bulk-create-teachers', requireAuth(['admin', 'super_admin'])
 
     for (let i = 0; i < count; i++) {
       const shortId = `T${String(nextNum + i).padStart(3, '0')}`;
-      const name = `Teacher ${i + 1}`;
+      const name = names ? names[i] : `Teacher ${i + 1}`;
 
       // name, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email, branch_id
       queryParams.push(name, phone || null, class_id || null, shortId, batchHash, tenant_id, branchId);
@@ -2480,8 +2507,14 @@ app.post('/api/tenant-features/issue-credentials', requireAuth(['super_admin']),
 // A grant that is off is simply not rendered, not shown locked.
 
 // GET /api/coordinators - list for the school admin, with grant state.
+// The whole module is gated: when the Super Admin has switched the Coordinator
+// Portal off for this school, the list is simply not there to be seen.
 app.get('/api/coordinators', requireAuth(['admin']), async (req, res) => {
   try {
+    const portalOn = await isPortalEnabled(req.user.tenant_id, 'coordinator')
+    if (!portalOn) {
+      return res.status(403).json({ error: 'The Coordinator Portal is not enabled for your school. Please contact your Super Admin.' })
+    }
     const result = await pool.query(
       `SELECT a.id, a.name, a.login_id, a.phone, a.branch_id, a.is_first_login,
               a.grant_management, a.grant_credentials, a.created_at,
@@ -2492,7 +2525,14 @@ app.get('/api/coordinators', requireAuth(['admin']), async (req, res) => {
        ORDER BY a.name`,
       [req.user.tenant_id]
     )
-    res.json(result.rows)
+    // Hand the school the FULL login ID (school code + short ID, e.g. ALIR-C001)
+    // everywhere a credential is shown, because that is what the sign-in form
+    // actually accepts. The short ID alone is only meaningful inside the DB.
+    const rows = result.rows.map(c => ({
+      ...c,
+      full_id: c.login_id ? `${req.user.tenant_id}-${c.login_id}` : null
+    }))
+    res.json(rows)
   } catch (err) {
     console.error('Fetch coordinators error:', err)
     res.status(500).json({ error: 'Server error' })
@@ -2500,8 +2540,15 @@ app.get('/api/coordinators', requireAuth(['admin']), async (req, res) => {
 })
 
 // POST /api/coordinators - create a coordinator, optionally with a login.
+// A branch is NOT required to exist: a coordinator without one is appointed
+// school-wide. When the school has exactly one branch the admin can leave the
+// picker empty and they are appointed to it automatically.
 app.post('/api/coordinators', requireAuth(['admin']), async (req, res) => {
   try {
+    const portalOn = await isPortalEnabled(req.user.tenant_id, 'coordinator')
+    if (!portalOn) {
+      return res.status(403).json({ error: 'The Coordinator Portal is not enabled for your school. Please contact your Super Admin.' })
+    }
     const name = String(req.body.name || '').trim()
     const phone = String(req.body.phone || '').trim() || null
     const grantManagement = req.body.grant_management === true
@@ -2509,13 +2556,26 @@ app.post('/api/coordinators', requireAuth(['admin']), async (req, res) => {
 
     if (!name) return res.status(400).json({ error: 'Name is required' })
 
-    // A coordinator without a branch has no scope, so this is required even when
-    // the school has not created any branches yet.
-    const branchCheck = await resolveBranchForWrite(pool, req.user.tenant_id, req.body.branch_id)
-    if (branchCheck.error) return res.status(400).json({ error: branchCheck.error })
-    const branchId = branchCheck.branch ? branchCheck.branch.id : null
-    if (!branchId) {
-      return res.status(400).json({ error: 'Create a branch first, then assign the coordinator to it.' })
+    // Branch is optional. With no branches at all the coordinator is appointed
+    // to the whole school; with exactly one branch an empty pick appoints them
+    // there automatically; with several, the admin chooses.
+    let branchId = null
+    if (req.body.branch_id !== undefined && req.body.branch_id !== null && req.body.branch_id !== '') {
+      const branchCheck = await resolveBranchForWrite(pool, req.user.tenant_id, req.body.branch_id)
+      if (branchCheck.error) return res.status(400).json({ error: branchCheck.error })
+      branchId = branchCheck.branch ? branchCheck.branch.id : null
+      if (!branchId) {
+        return res.status(400).json({ error: 'That branch could not be found.' })
+      }
+    } else {
+      const branchList = await pool.query(
+        'SELECT id FROM branches WHERE school_id = $1 AND status <> \'deactivated\' ORDER BY id',
+        [req.user.tenant_id]
+      )
+      if (branchList.rows.length === 1) {
+        branchId = branchList.rows[0].id   // auto-appoint to the only branch
+      }
+      // 0 branches -> school-wide (null); 2+ -> stays school-wide unless the admin picks one.
     }
 
     // Credentials are optional. Without them the coordinator is a person record
@@ -2554,10 +2614,11 @@ app.post('/api/coordinators', requireAuth(['admin']), async (req, res) => {
                    token_generation, created_at`,
         [loginId, name, passwordHash, req.user.tenant_id, branchId, grantManagement, grantCredentials, phone]
       )
-      // Returned once, at creation only, so the school can hand it over.
+      // Returned once, at creation only, so the school can hand it over - as the
+      // FULL ID (e.g. ALIR-C001), which is what the coordinator types to sign in.
       return res.status(201).json({
         coordinator: created.rows[0],
-        credentials: { login_id: loginId, password: tempPassword }
+        credentials: { login_id: loginId, full_id: `${req.user.tenant_id}-${loginId}`, password: tempPassword }
       })
     }
 
@@ -2587,6 +2648,10 @@ app.post('/api/coordinators', requireAuth(['admin']), async (req, res) => {
 // stay editable so a school can widen access later without recreating anyone.
 app.patch('/api/coordinators/:id', requireAuth(['admin']), async (req, res) => {
   try {
+    const portalOn = await isPortalEnabled(req.user.tenant_id, 'coordinator')
+    if (!portalOn) {
+      return res.status(403).json({ error: 'The Coordinator Portal is not enabled for your school. Please contact your Super Admin.' })
+    }
     const id = Number(req.params.id)
     if (!Number.isInteger(id)) return res.status(400).json({ error: 'Invalid coordinator' })
 
@@ -2599,14 +2664,17 @@ app.patch('/api/coordinators/:id', requireAuth(['admin']), async (req, res) => {
     const current = existing.rows[0]
     const { name, phone, grant_management, grant_credentials, branch_id } = req.body
 
+    // Branch handling: omitted = keep current. An explicit null moves the
+    // coordinator school-wide; an explicit id re-appoints them to that branch.
     let branchId = current.branch_id
-    if (branch_id !== undefined) {
+    if (branch_id === null) {
+      branchId = null
+    } else if (branch_id !== undefined) {
       const check = await resolveBranchForWrite(pool, req.user.tenant_id, branch_id)
       if (check.error) return res.status(400).json({ error: check.error })
-      if (!check.branch) return res.status(400).json({ error: 'A coordinator must stay assigned to a branch.' })
+      if (!check.branch) return res.status(400).json({ error: 'That branch could not be found.' })
       branchId = check.branch.id
     }
-    if (!branchId) return res.status(400).json({ error: 'A coordinator must stay assigned to a branch.' })
 
     const nextManagement = grant_management === undefined ? current.grant_management : grant_management === true
     const nextCredentials = grant_credentials === undefined ? current.grant_credentials : grant_credentials === true
@@ -2657,13 +2725,18 @@ app.get('/api/coordinator/me', requireAuth(['coordinator']), async (req, res) =>
     const tenant_id = req.user.tenant_id
     const branch_id = req.user.branch_id
 
-    const branch = await pool.query(
-      `SELECT b.id, b.name, b.status, b.deactivation_reason
-       FROM branches b WHERE b.id = $1 AND b.school_id = $2`,
-      [branch_id, tenant_id]
-    )
-    if (branch.rows.length === 0) {
-      return res.status(403).json({ error: 'Your branch is no longer available. Contact your admin.' })
+    // A coordinator with no branch is appointed to the whole school, so there is
+    // no branch row to fetch: the payload simply omits it and the UI says so.
+    let branch = { rows: [] }
+    if (branch_id) {
+      branch = await pool.query(
+        `SELECT b.id, b.name, b.status, b.deactivation_reason
+         FROM branches b WHERE b.id = $1 AND b.school_id = $2`,
+        [branch_id, tenant_id]
+      )
+      if (branch.rows.length === 0) {
+        return res.status(403).json({ error: 'Your branch is no longer available. Contact your admin.' })
+      }
     }
 
     const me = await pool.query(
@@ -2673,7 +2746,8 @@ app.get('/api/coordinator/me', requireAuth(['coordinator']), async (req, res) =>
 
     const payload = {
       profile: me.rows[0] || { name: 'Coordinator', login_id: '' },
-      branch: branch.rows[0],
+      // null branch = appointed school-wide; the UI renders that as its own mode.
+      branch: branch.rows[0] || null,
       grants: {
         management: req.user.grant_management === true,
         credentials: req.user.grant_credentials === true
@@ -2681,20 +2755,31 @@ app.get('/api/coordinator/me', requireAuth(['coordinator']), async (req, res) =>
     }
 
     if (payload.grants.management) {
-      const teachers = await pool.query(
-        `SELECT id, name FROM teachers WHERE tenant_id = $1 AND branch_id = $2 ORDER BY name`,
-        [tenant_id, branch_id]
-      )
+      const teachers = branch_id
+        ? await pool.query(
+            `SELECT id, name FROM teachers WHERE tenant_id = $1 AND branch_id = $2 ORDER BY name`,
+            [tenant_id, branch_id]
+          )
+        : await pool.query(
+            `SELECT id, name FROM teachers WHERE tenant_id = $1 ORDER BY name`,
+            [tenant_id]
+          )
       payload.teachers = teachers.rows
     }
 
     // Classes are always provided: attendance is the coordinator's core job, so
     // the class filter must work even when the management grant is switched off.
-    // Every row is already confined to the coordinator's own branch.
-    const classes = await pool.query(
-      `SELECT id, name FROM classes WHERE tenant_id = $1 AND branch_id = $2 ORDER BY name`,
-      [tenant_id, branch_id]
-    )
+    // Branch-scoped coordinators get their branch's classes; school-wide ones
+    // get every class of the school.
+    const classes = branch_id
+      ? await pool.query(
+          `SELECT id, name FROM classes WHERE tenant_id = $1 AND branch_id = $2 ORDER BY name`,
+          [tenant_id, branch_id]
+        )
+      : await pool.query(
+          `SELECT id, name FROM classes WHERE tenant_id = $1 ORDER BY name`,
+          [tenant_id]
+        )
     payload.classes = classes.rows
 
     res.json(payload)
@@ -3088,8 +3173,9 @@ app.get('/api/students', requireAuth(['admin', 'teacher', 'student', 'super_admi
   const coordinatorBranch = branchFilter(req.user)
   if (coordinatorBranch) effectiveBranchId = coordinatorBranch
 
-  // A coordinator may only list students of classes inside their branch, so a
-  // class id from another branch (or another school) can never leak its roster.
+  // A branch-scoped coordinator may only list students of classes inside their
+  // branch, so a class id from another branch can never leak its roster. A
+  // school-wide coordinator (no branch) may see every class of the school.
   if (coordinatorBranch && class_id) {
     const classCheck = await pool.query(
       'SELECT id FROM classes WHERE id = $1 AND tenant_id = $2 AND branch_id = $3',
@@ -3398,11 +3484,9 @@ app.get('/api/attendance/all', requireAuth(['admin', 'super_admin', 'coordinator
     if (Number.isInteger(parsed) && parsed > 0) effectiveBranchId = parsed
   }
   // A coordinator always gets their own branch back, whatever they ask for, and
-  // can never fall through to the tenant-wide query below.
+  // can never fall through to the tenant-wide query below. A coordinator with no
+  // branch is school-wide, so the tenant-wide query is exactly right for them.
   const coordinatorBranch = branchFilter(req.user)
-  if (isCoordinator(req.user) && !coordinatorBranch) {
-    return res.status(403).json({ error: 'Your account is not assigned to a branch. Please contact your admin.' })
-  }
   if (coordinatorBranch) effectiveBranchId = coordinatorBranch
 
   let result

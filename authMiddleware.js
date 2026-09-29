@@ -102,11 +102,13 @@ function requireWritableBranch() {
     if (!isCoordinator(req.user)) return next()
     if (!writeMethods.has(req.method)) return next()
     if (!_pool) return next()
-    try {
-      const result = await _pool.query(
-        'SELECT id, name, status FROM branches WHERE id = $1 AND school_id = $2',
-        [req.user.branch_id, req.user.tenant_id]
-      )
+  try {
+    // A school-wide coordinator (no branch) has nothing to check here.
+    if (!req.user.branch_id) return next()
+    const result = await _pool.query(
+      'SELECT id, name, status FROM branches WHERE id = $1 AND school_id = $2',
+      [req.user.branch_id, req.user.tenant_id]
+    )
       if (result.rows.length === 0) {
         return res.status(403).json({ error: 'Your branch is no longer available. Contact your admin.' })
       }

@@ -14,6 +14,7 @@
       --text-muted: #6b7a90;
       --border: #e3e8f0;
       --primary: #4f46e5;
+      --primary-light: #818cf8;
       --success: #0f9d58;
       --success-bg: #e8f6ee;
       --warning: #b45309;
@@ -74,6 +75,33 @@
     }
     .notice.warn { background: var(--warning-bg); color: var(--warning); }
     .notice.danger { background: var(--danger-bg); color: var(--danger); }
+    .subnav {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .subnav button {
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text-muted);
+      border-radius: 999px;
+      padding: 8px 16px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .subnav button.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; }
     .panel {
       background: var(--card);
@@ -110,6 +138,175 @@
       font-family: inherit;
     }
     .btn:hover { background: #f8fafc; }
+    .btn.primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+    .btn.primary:hover { background: #4338ca; }
+    .btn.primary:disabled { opacity: 0.55; cursor: not-allowed; }
+    /* Attendance filters */
+    .filters {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      margin-bottom: 18px;
+    }
+    .filters .fg { display: flex; flex-direction: column; gap: 5px; }
+    .filters label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+    .filters select, .filters input {
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      border-radius: 9px;
+      padding: 9px 12px;
+      font-size: 0.85rem;
+      font-family: inherit;
+      min-width: 170px;
+    }
+    .filters select:focus, .filters input:focus { outline: 2px solid var(--primary-light); }
+    .summary {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .summary .chip {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    /* Attendance table */
+    .att-table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .att-table th {
+      text-align: left;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border);
+      background: #fafbfe;
+    }
+    .att-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.86rem; }
+    .att-table tr:last-child td { border-bottom: none; }
+    .status-btns { display: flex; gap: 6px; }
+    .status-btns button {
+      border: 1.5px solid var(--border);
+      background: var(--card);
+      color: var(--text-muted);
+      border-radius: 8px;
+      padding: 6px 13px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .status-btns button.st-present.active { background: var(--success-bg); border-color: var(--success); color: var(--success); }
+    .status-btns button.st-absent.active { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); }
+    .status-badge {
+      display: inline-block;
+      padding: 3px 11px;
+      border-radius: 999px;
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+    .status-badge.Present { background: var(--success-bg); color: var(--success); }
+    .status-badge.Absent { background: var(--danger-bg); color: var(--danger); }
+    .status-badge.Leave { background: var(--warning-bg); color: var(--warning); }
+    .status-badge.none { background: #eef1f6; color: var(--text-muted); }
+    .savebar {
+      position: sticky;
+      bottom: 0;
+      background: var(--card);
+      border-top: 2px solid var(--border);
+      padding: 14px 0 4px;
+      margin-top: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .savebar .dirty-note { font-size: 0.8rem; font-weight: 600; color: var(--warning); display: none; }
+    .month-group { margin-bottom: 22px; }
+    .month-group h4 {
+      margin: 0 0 10px;
+      font-size: 0.9rem;
+      font-weight: 800;
+      color: var(--text);
+    }
+    /* Password dialog */
+    .modal-back {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-back.open { display: flex; }
+    .modal-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      width: min(94vw, 420px);
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+    }
+    .modal-card h3 { margin: 0 0 16px; font-size: 1rem; display: flex; align-items: center; gap: 9px; }
+    .modal-card .form-group { margin-bottom: 13px; }
+    .modal-card label {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .modal-card input {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      border-radius: 9px;
+      padding: 11px 13px;
+      font-size: 0.88rem;
+      font-family: inherit;
+    }
+    .modal-card input:focus { outline: 2px solid var(--primary-light); }
+    .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+    .modal-actions .btn { flex: 1; justify-content: center; display: flex; }
+    .form-msg {
+      display: none;
+      border-radius: 9px;
+      padding: 10px 13px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-top: 10px;
+    }
+    .form-msg.error { display: block; background: var(--danger-bg); color: var(--danger); }
+    .form-msg.success { display: block; background: var(--success-bg); color: var(--success); }
+    @media (max-width: 640px) {
+      main { padding: 16px; }
+      .att-table th:nth-child(3), .att-table td:nth-child(3) { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -120,6 +317,7 @@
       <strong id="userName">&nbsp;</strong>
       <span id="userId">&nbsp;</span>
     </div>
+    <button class="btn" onclick="openPasswordModal()"><i class="fas fa-key"></i> Change password</button>
     <button class="btn" onclick="signOut()"><i class="fas fa-right-from-bracket"></i> Sign out</button>
   </div>
 
@@ -129,6 +327,32 @@
       <div class="msg">Loading your branch</div>
     </div>
   </main>
+
+  <!-- Change password dialog -->
+  <div class="modal-back" id="passwordModal">
+    <div class="modal-card">
+      <h3><i class="fas fa-key" style="color:var(--primary);"></i> Change password</h3>
+      <form id="passwordForm" onsubmit="handleChangePassword(event)">
+        <div class="form-group" id="currentPwGroup">
+          <label for="currentPw">Current password</label>
+          <input type="password" id="currentPw" autocomplete="current-password">
+        </div>
+        <div class="form-group">
+          <label for="newPw">New password</label>
+          <input type="password" id="newPw" required minlength="8" autocomplete="new-password" placeholder="Min. 8 chars with a special character">
+        </div>
+        <div class="form-group">
+          <label for="confirmPw">Confirm new password</label>
+          <input type="password" id="confirmPw" required autocomplete="new-password">
+        </div>
+        <div class="form-msg" id="pwMsg"></div>
+        <div class="modal-actions">
+          <button type="submit" class="btn primary" id="pwSubmitBtn">Save password</button>
+          <button type="button" class="btn" onclick="closePasswordModal()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script>
 const API_BASE = '';
@@ -194,6 +418,36 @@ function listOrEmpty(items, emptyText) {
   return `<ul class="list">${items.map(i => `<li><i class="fas fa-circle-dot" style="opacity:.35;font-size:.5rem"></i>${escapeHtml(i.name)}</li>`).join('')}</ul>`;
 }
 
+// The school's calendar day is authoritative for "today", not the device clock.
+async function fetchSchoolToday() {
+  try {
+    const res = await apiFetch('/api/attendance/today');
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.today) return data.today;
+    }
+  } catch (err) { /* fall through to device date */ }
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).format(new Date());
+}
+
+// =============================================================
+// APP STATE
+// =============================================================
+let myClasses = [];          // classes of my branch, from /api/coordinator/me
+let selectedClassId = null;
+let selectedDate = null;     // YYYY-MM-DD for the Mark tab
+let monthFilter = null;      // YYYY-MM for the Records tab
+let recordsClassId = null;   // class filter for the Records tab ('all' or an id)
+let attendanceState = {};    // { studentId: 'Present' | 'Absent' }
+let baselineState = '{}';    // what was loaded from the server, for the dirty note
+let savedRecords = [];       // month view rows
+let attendanceDate = null;   // the date currently loaded in the Mark tab
+
+// =============================================================
+// LOAD
+// =============================================================
 async function load() {
   const app = document.getElementById('app');
 
@@ -216,19 +470,25 @@ async function load() {
   }
 
   const data = await res.json();
-  const branch = data.branch || {};
+  // branch is null when the coordinator is appointed to the whole school —
+  // that is a normal state, not an error, and no branch card is shown for it.
+  const branch = data.branch || null;
   const grants = data.grants || {};
   const profile = data.profile || {};
 
   document.getElementById('userName').textContent = profile.name || 'Coordinator';
   document.getElementById('userId').textContent = profile.login_id || '';
 
+  myClasses = Array.isArray(data.classes) ? data.classes : [];
+  selectedDate = await fetchSchoolToday();
+  attendanceDate = selectedDate;
+
   // Hidden, not locked: a module the school has not granted is simply not shown.
-  const banner = branch.status === 'deactivated'
+  const banner = branch && branch.status === 'deactivated'
     ? `<div class="notice danger"><strong>This branch has been deactivated.</strong><br />
         ${escapeHtml(branch.deactivation_reason || 'Contact the Super Admin for details.')}<br />
         You can still view existing records, but no new ones can be added.</div>`
-    : branch.status === 'flagged'
+    : branch && branch.status === 'flagged'
       ? `<div class="notice warn">This branch has been flagged for review. Please contact your admin if something looks wrong.</div>`
       : '';
 
@@ -237,8 +497,8 @@ async function load() {
       <div class="panel">
         <h3>Classes</h3>
         <p class="muted">Classes added by your admin for this branch.</p>
-        <div class="count">${(data.classes || []).length}</div>
-        ${listOrEmpty(data.classes, 'No classes yet')}
+        <div class="count">${myClasses.length}</div>
+        ${listOrEmpty(myClasses, 'No classes yet')}
       </div>
       <div class="panel">
         <h3>Teachers</h3>
@@ -246,27 +506,398 @@ async function load() {
         <div class="count">${(data.teachers || []).length}</div>
         ${listOrEmpty(data.teachers, 'No teachers yet')}
       </div>
-      <div class="panel">
-        <h3>Attendance</h3>
-        <p class="muted">Marking attendance for classes and teachers is being set up for your branch.</p>
-        <div class="empty"><i class="fas fa-hourglass-half"></i> Coming soon</div>
-      </div>
-    </div>` : `
-    <div class="state" style="padding:40px 20px">
-      <i class="fas fa-circle-info"></i>
-      <div class="msg">Nothing to show yet</div>
-      <div class="sub">Your admin has not given you access to any modules at the moment.</div>
-    </div>`;
+    </div>` : '';
+
+  const noClassesNote = myClasses.length === 0
+    ? `<div class="notice warn">Your branch has no classes yet. Ask your admin to add classes, then reload this page.</div>`
+    : '';
 
   app.innerHTML = `
     ${banner}
+    ${branch ? `
     <div class="branch-card">
       <h2>Your branch</h2>
       <div class="branch-name">${escapeHtml(branch.name || 'Unassigned')}</div>
       <span class="pill ${escapeHtml(branch.status || 'active')}">${escapeHtml(branch.status || 'active')}</span>
+    </div>` : `
+    <div class="branch-card">
+      <h2>Your scope</h2>
+      <div class="branch-name">Whole school</div>
+      <span class="pill active">School-wide</span>
+    </div>`}
+    <div class="subnav">
+      <button id="navMark" class="active" onclick="switchSubTab('mark')"><i class="fas fa-clipboard-check"></i> Take attendance</button>
+      <button id="navRecords" onclick="switchSubTab('records')"><i class="fas fa-clock-rotate-left"></i> Saved records</button>
+    </div>
+    <div id="subMark">${noClassesNote}
+      <div class="panel" style="margin-bottom:18px;">
+        <div class="filters">
+          <div class="fg">
+            <label for="markClassSelect">Class</label>
+            <select id="markClassSelect" onchange="onMarkClassChanged(this.value)">
+              <option value="">-- Select class --</option>
+              ${myClasses.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="fg">
+            <label for="markDateInput">Date</label>
+            <input type="date" id="markDateInput" value="${escapeHtml(selectedDate)}" max="${escapeHtml(selectedDate)}" onchange="onMarkDateChanged(this.value)">
+          </div>
+        </div>
+        <div id="markSummary" class="summary" style="display:none;"></div>
+        <div id="markTableWrap"><div class="empty">Select a class to load its students.</div></div>
+        <div class="savebar" id="markSavebar" style="display:none;">
+          <span class="dirty-note" id="dirtyNote"><i class="fas fa-circle-exclamation"></i> Unsaved changes</span>
+          <button class="btn primary" id="saveAttBtn" onclick="submitAttendance()"><i class="fas fa-floppy-disk"></i> Save attendance</button>
+        </div>
+      </div>
+    </div>
+    <div id="subRecords" style="display:none;">
+      <div class="panel">
+        <div class="filters">
+          <div class="fg">
+            <label for="recClassSelect">Class</label>
+            <select id="recClassSelect" onchange="onRecordsFilterChanged()">
+              <option value="all">All classes</option>
+              ${myClasses.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="fg">
+            <label for="recMonthInput">Month</label>
+            <input type="month" id="recMonthInput" onchange="onRecordsFilterChanged()">
+          </div>
+        </div>
+        <div id="recordsWrap"><div class="empty">Pick a month to view saved attendance.</div></div>
+      </div>
     </div>
     ${management}
   `;
+
+  if (myClasses.length > 0) {
+    selectedClassId = myClasses[0].id;
+    document.getElementById('markClassSelect').value = String(selectedClassId);
+    recordsClassId = 'all';
+    await loadMarkRoster();
+  }
+}
+
+function switchSubTab(which) {
+  const mark = document.getElementById('subMark');
+  const records = document.getElementById('subRecords');
+  const navMark = document.getElementById('navMark');
+  const navRecords = document.getElementById('navRecords');
+  if (!mark || !records) return;
+  const showMark = which === 'mark';
+  mark.style.display = showMark ? '' : 'none';
+  records.style.display = showMark ? 'none' : '';
+  navMark.classList.toggle('active', showMark);
+  navRecords.classList.toggle('active', !showMark);
+  if (!showMark && monthFilter === null) {
+    monthFilter = (selectedDate || '').slice(0, 7) || null;
+    const inp = document.getElementById('recMonthInput');
+    if (inp && monthFilter) inp.value = monthFilter;
+    loadRecords();
+  }
+}
+
+// =============================================================
+// TAKE ATTENDANCE
+// =============================================================
+function onMarkClassChanged(value) {
+  selectedClassId = value ? parseInt(value, 10) : null;
+  loadMarkRoster();
+}
+
+function onMarkDateChanged(value) {
+  // Attendance cannot be taken for a future day; the server also enforces this.
+  if (value) {
+    selectedDate = value;
+    loadMarkRoster();
+  }
+}
+
+async function loadMarkRoster() {
+  const wrap = document.getElementById('markTableWrap');
+  const summaryEl = document.getElementById('markSummary');
+  const savebar = document.getElementById('markSavebar');
+  if (!selectedClassId) {
+    wrap.innerHTML = '<div class="empty">Select a class to load its students.</div>';
+    summaryEl.style.display = 'none';
+    savebar.style.display = 'none';
+    return;
+  }
+
+  wrap.innerHTML = '<div class="empty"><i class="fas fa-spinner fa-spin"></i> Loading students…</div>';
+  attendanceState = {};
+
+  // Students of the class. The server confines this list to my branch.
+  const studentsRes = await apiFetch(`/api/students?class_id=${selectedClassId}`);
+  if (!studentsRes.ok) {
+    wrap.innerHTML = '<div class="empty">Could not load students. Please reload the page.</div>';
+    return;
+  }
+  const students = await studentsRes.json();
+
+  // Already-saved attendance for the chosen date, so existing marks load back
+  // and can be corrected on the same day.
+  const attRes = await apiFetch(`/api/attendance?date=${encodeURIComponent(selectedDate)}&class_id=${selectedClassId}`);
+  const saved = attRes.ok ? await attRes.json() : [];
+  const savedByStudent = new Map(saved.map(r => [r.student_id, r.status]));
+  attendanceDate = selectedDate;
+
+  if (students.length === 0) {
+    wrap.innerHTML = '<div class="empty">No students in this class yet.</div>';
+    summaryEl.style.display = 'none';
+    savebar.style.display = 'none';
+    return;
+  }
+
+  for (const s of students) {
+    const st = savedByStudent.get(s.id);
+    // Only explicit records are restored. A student without a record shows as
+    // unmarked — the system never treats "not taken" as absent.
+    attendanceState[s.id] = (st === 'Present' || st === 'Absent' || st === 'Leave') ? st : null;
+  }
+  baselineState = JSON.stringify(attendanceState);
+
+  wrap.innerHTML = `
+    <table class="att-table">
+      <thead>
+        <tr>
+          <th>Roll</th>
+          <th>Student</th>
+          <th>Roll no.</th>
+          <th style="text-align:right;">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${students.map(s => `
+          <tr data-student="${s.id}">
+            <td>${s.roll_no != null ? escapeHtml(s.roll_no) : '—'}</td>
+            <td style="font-weight:600;">${escapeHtml(s.name)}</td>
+            <td class="muted">${escapeHtml(s.phone || '—')}</td>
+            <td>
+              <div class="status-btns" style="justify-content:flex-end;">
+                <button class="st-present ${attendanceState[s.id] === 'Present' ? 'active' : ''}"
+                        onclick="setStatus(${s.id}, 'Present', this)">Present</button>
+                <button class="st-absent ${attendanceState[s.id] === 'Absent' ? 'active' : ''}"
+                        onclick="setStatus(${s.id}, 'Absent', this)">Absent</button>
+              </div>
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+  summaryEl.style.display = 'flex';
+  savebar.style.display = 'flex';
+  updateMarkSummary();
+}
+
+function setStatus(studentId, status, btn) {
+  // Attendance can be changed freely before saving; the server upserts on save.
+  attendanceState[studentId] = attendanceState[studentId] === status ? null : status;
+  const row = btn.closest('tr');
+  row.querySelector('.st-present').classList.toggle('active', attendanceState[studentId] === 'Present');
+  row.querySelector('.st-absent').classList.toggle('active', attendanceState[studentId] === 'Absent');
+  updateMarkSummary();
+}
+
+function updateMarkSummary() {
+  const summaryEl = document.getElementById('markSummary');
+  const savebar = document.getElementById('markSavebar');
+  const dirtyNote = document.getElementById('dirtyNote');
+  const values = Object.values(attendanceState);
+  const present = values.filter(v => v === 'Present').length;
+  const absent = values.filter(v => v === 'Absent').length;
+  const unmarked = values.filter(v => v === null).length;
+  const marked = present + absent;
+  summaryEl.innerHTML = `
+    <span class="chip" style="color:var(--success);"><i class="fas fa-user-check"></i> Present: ${present}</span>
+    <span class="chip" style="color:var(--danger);"><i class="fas fa-user-xmark"></i> Absent: ${absent}</span>
+    <span class="chip muted"><i class="fas fa-circle-question"></i> Not marked: ${unmarked}</span>`;
+  // A saved day that is re-opened starts clean; edits light the unsaved note up.
+  if (dirtyNote) {
+    dirtyNote.style.display = JSON.stringify(attendanceState) !== baselineState ? 'block' : 'none';
+  }
+  if (savebar) savebar.style.display = 'flex';
+}
+
+async function submitAttendance() {
+  const btn = document.getElementById('saveAttBtn');
+  if (!selectedClassId || !selectedDate) return;
+  const records = Object.entries(attendanceState)
+    .filter(([, status]) => status === 'Present' || status === 'Absent')
+    .map(([studentId, status]) => ({ student_id: Number(studentId), status }));
+  if (records.length === 0) {
+    alert('Mark at least one student as Present or Absent before saving.');
+    return;
+  }
+
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+  try {
+    const res = await apiFetch('/api/attendance/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: selectedDate, records })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert(data.error || 'Could not save attendance.');
+      return;
+    }
+    // Reload so the summary reflects exactly what the server stored.
+    await loadMarkRoster();
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = original;
+  }
+}
+
+// =============================================================
+// SAVED RECORDS (month view)
+// =============================================================
+function onRecordsFilterChanged() {
+  const cls = document.getElementById('recClassSelect').value;
+  const month = document.getElementById('recMonthInput').value;
+  recordsClassId = cls || 'all';
+  monthFilter = month || null;
+  if (monthFilter) loadRecords();
+}
+
+async function loadRecords() {
+  const wrap = document.getElementById('recordsWrap');
+  if (!monthFilter) {
+    wrap.innerHTML = '<div class="empty">Pick a month to view saved attendance.</div>';
+    return;
+  }
+  wrap.innerHTML = '<div class="empty"><i class="fas fa-spinner fa-spin"></i> Loading records…</div>';
+
+  // Branch-scoped server-side: a coordinator always gets their own branch back.
+  const res = await apiFetch('/api/attendance/all');
+  if (!res.ok) {
+    wrap.innerHTML = '<div class="empty">Could not load saved records. Please try again.</div>';
+    return;
+  }
+  const all = await res.json();
+  savedRecords = all.filter(r => {
+    const inMonth = String(r.date || '').slice(0, 7) === monthFilter;
+    const inClass = recordsClassId === 'all' || String(r.class_id) === String(recordsClassId);
+    return inMonth && inClass;
+  });
+
+  if (savedRecords.length === 0) {
+    wrap.innerHTML = '<div class="empty">No saved attendance for this month.</div>';
+    return;
+  }
+
+  // Group rows by date, then by class, so a whole day reads as one block.
+  const byDate = new Map();
+  for (const r of savedRecords) {
+    if (!byDate.has(r.date)) byDate.set(r.date, []);
+    byDate.get(r.date).push(r);
+  }
+  const dates = [...byDate.keys()].sort((a, b) => b.localeCompare(a));
+
+  wrap.innerHTML = dates.map(d => {
+    const rows = byDate.get(d);
+    const byClass = new Map();
+    for (const r of rows) {
+      const key = r.class_name || 'No class';
+      if (!byClass.has(key)) byClass.set(key, []);
+      byClass.get(key).push(r);
+    }
+    return `
+      <div class="month-group">
+        <h4><i class="fas fa-calendar-day" style="opacity:.5;"></i> ${escapeHtml(d)}</h4>
+        ${[...byClass.entries()].map(([className, recs]) => `
+          <div class="panel" style="margin-bottom:12px;">
+            <h3>${escapeHtml(className)}</h3>
+            <p class="muted">${recs.filter(r => r.status === 'Present').length} present · ${recs.filter(r => r.status === 'Absent').length} absent · marked by ${escapeHtml(recs[0].marked_by || '—')}</p>
+            <table class="att-table">
+              <thead><tr><th>Student</th><th>Status</th></tr></thead>
+              <tbody>
+                ${recs.map(r => `
+                  <tr>
+                    <td style="font-weight:600;">${escapeHtml(r.name)}${r.roll_no != null ? ` <span class="muted">(#${escapeHtml(r.roll_no)})</span>` : ''}</td>
+                    <td><span class="status-badge ${escapeHtml(r.status)}">${escapeHtml(r.status)}</span></td>
+                  </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>`).join('')}
+      </div>`;
+  }).join('');
+}
+
+// =============================================================
+// CHANGE PASSWORD
+// =============================================================
+function openPasswordModal() {
+  const modal = document.getElementById('passwordModal');
+  document.getElementById('pwMsg').className = 'form-msg';
+  // First login (a generated password) does not need the current password,
+  // matching the server's rule of only requiring it for later changes.
+  const isFirstLogin = new URLSearchParams(location.search).get('first') === '1';
+  document.getElementById('currentPwGroup').style.display = isFirstLogin ? 'none' : '';
+  document.getElementById('currentPw').required = !isFirstLogin;
+  document.getElementById('newPw').value = '';
+  document.getElementById('confirmPw').value = '';
+  document.getElementById('currentPw').value = '';
+  modal.classList.add('open');
+  document.getElementById(isFirstLogin ? 'newPw' : 'currentPw').focus();
+}
+
+function closePasswordModal() {
+  document.getElementById('passwordModal').classList.remove('open');
+}
+
+async function handleChangePassword(e) {
+  e.preventDefault();
+  const msgEl = document.getElementById('pwMsg');
+  const btn = document.getElementById('pwSubmitBtn');
+  const newPw = document.getElementById('newPw').value;
+  const confirm = document.getElementById('confirmPw').value;
+  const current = document.getElementById('currentPw').value;
+
+  msgEl.className = 'form-msg';
+  if (newPw !== confirm) { msgEl.textContent = 'New passwords do not match'; msgEl.className = 'form-msg error'; return; }
+  if (newPw.length < 8) { msgEl.textContent = 'Password must be at least 8 characters'; msgEl.className = 'form-msg error'; return; }
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPw)) {
+    msgEl.textContent = 'Password must contain at least one special character (!@#$%^&*(),.?":{}|<>)';
+    msgEl.className = 'form-msg error';
+    return;
+  }
+
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = 'Saving…';
+  try {
+    const body = { new_password: newPw, confirm_password: confirm };
+    if (document.getElementById('currentPwGroup').style.display !== 'none') {
+      body.current_password = current;
+    }
+    const res = await apiFetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      msgEl.textContent = data.error || 'Failed to change password';
+      msgEl.className = 'form-msg error';
+      return;
+    }
+    if (data.token) localStorage.setItem('auth_token', data.token);
+    msgEl.textContent = 'Password changed successfully';
+    msgEl.className = 'form-msg success';
+    setTimeout(closePasswordModal, 1200);
+  } catch (err) {
+    msgEl.textContent = 'Connection error. Please check your internet and try again.';
+    msgEl.className = 'form-msg error';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
 }
 
 load();

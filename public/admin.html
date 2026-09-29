@@ -2080,6 +2080,9 @@
       <a href="#tab-fees" class="tab-btn" data-section="tab-fees">
         <i class="fas fa-money-bill-wave"></i>Fees
       </a>
+      <a href="#tab-coordinators" class="tab-btn" data-section="tab-coordinators" id="coordinatorsTabBtn">
+        <i class="fas fa-user-shield"></i>Coordinators
+      </a>
     </div>
   </nav>
 
@@ -2569,7 +2572,77 @@
       </div>
     </div>
 
-  </div>
+    <!-- ==================== COORDINATORS TAB ==================== -->
+    <!-- Coordinators are attendance-only staff appointed to one branch or, with
+         no branch picked, to the whole school. They can never see or change it. -->
+    <div id="tab-coordinators" class="tab-content">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-icon purple"><i class="fas fa-user-shield"></i></div>
+            <div>
+              <div class="section-title">Coordinators</div>
+              <div class="section-subtitle">Attendance-only staff, appointed to a branch or the whole school</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-primary btn-sm" onclick="openAddCoordinatorForm()">
+              <i class="fas fa-plus"></i> Add Coordinator
+            </button>
+          </div>
+        </div>
+        <div class="section-body">
+          <p id="coordinatorsIntroText" style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:16px;">
+            Coordinators log in with their own ID and take attendance. Leave the branch empty to appoint them to the whole school, or pick one branch to scope them to it. With a single branch they are appointed to it automatically.
+          </p>
+          <!-- Add Coordinator Inline Form (hidden initially) -->
+          <div id="addCoordinatorFormWrap" style="display:none;margin-bottom:20px;">
+            <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+              <div class="form-group" style="flex:1;min-width:180px;margin-bottom:0;">
+                <label class="form-label" for="newCoordinatorName">Coordinator Name</label>
+                <input class="form-input" type="text" id="newCoordinatorName" placeholder="e.g. Mr Ahmed">
+              </div>
+              <div class="form-group" style="flex:1;min-width:170px;margin-bottom:0;">
+                <label class="form-label" for="newCoordinatorPhone">Contact <span style="font-weight:400;">(optional)</span></label>
+                <input class="form-input" type="tel" id="newCoordinatorPhone" placeholder="03001234567">
+              </div>
+              <div class="form-group" style="flex:1;min-width:190px;margin-bottom:0;">
+                <label class="form-label" for="newCoordinatorBranch">Branch <span style="font-weight:400;">(optional — whole school if empty)</span></label>
+                <select class="form-input" id="newCoordinatorBranch">
+                  <option value="">Whole school</option>
+                </select>
+              </div>
+            </div>
+            <div style="display:flex; gap:16px; margin-top:10px; flex-wrap:wrap;">
+              <label style="display:flex;align-items:center;gap:7px;font-size:0.82rem;color:var(--text-secondary);cursor:pointer;">
+                <input type="checkbox" id="newCoordinatorCredentials" checked> Give login (generates ID + password)
+              </label>
+              <label style="display:flex;align-items:center;gap:7px;font-size:0.82rem;color:var(--text-secondary);cursor:pointer;">
+                <input type="checkbox" id="newCoordinatorManagement"> Also allow management modules
+              </label>
+            </div>
+            <div id="noBranchHint" style="display:none;font-size:0.78rem;color:var(--warning);margin-top:8px;">
+              <i class="fas fa-circle-info"></i> You have no branches yet — create one here:
+              <span style="display:inline-flex;gap:6px;margin-left:8px;align-items:center;">
+                <input class="form-input" type="text" id="inlineBranchName" placeholder="Branch name" style="width:160px;padding:6px 10px;">
+                <button class="btn btn-ghost btn-sm" onclick="createInlineBranch()">Create</button>
+              </span>
+            </div>
+            <div id="addCoordinatorError" style="display:none;color:var(--danger);font-size:0.78rem;margin-top:8px;"></div>
+            <div style="display:flex; gap:8px; margin-top:12px;">
+              <button class="btn btn-primary" onclick="saveCoordinator()" id="saveCoordinatorBtn">
+                <i class="fas fa-check"></i> Save Coordinator
+              </button>
+              <button class="btn btn-ghost" onclick="cancelAddCoordinator()">Cancel</button>
+            </div>
+          </div>
+          <!-- Coordinators List -->
+          <div id="coordinatorsTableWrap">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
 
   <div class="edit-modal" id="feePaymentModal" style="display:none; position:fixed; inset:0; z-index:100; align-items:center; justify-content:center; background:rgba(15,23,42,0.7);">
     <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:16px; width:min(92vw, 500px); padding:20px; box-shadow:var(--shadow-lg);">
@@ -2778,6 +2851,44 @@
     </div>
   </div>
 
+  <!-- ======================== COORDINATOR EDIT MODAL ======================== -->
+  <div class="edit-modal" id="coordinatorEditModal">
+    <div class="edit-modal-card" style="max-width:460px;">
+      <div class="edit-modal-header">
+        <h3 style="font-size:0.95rem;"><i class="fas fa-user-shield" style="margin-right:8px; color:var(--primary);"></i>Edit Coordinator</h3>
+        <button class="edit-modal-close" onclick="closeCoordinatorEditModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="editCoordinatorName">Name</label>
+        <input class="form-input" type="text" id="editCoordinatorName">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="editCoordinatorPhone">Contact</label>
+        <input class="form-input" type="tel" id="editCoordinatorPhone" placeholder="03001234567">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="editCoordinatorBranch">Branch <span style="color:var(--danger);">*</span></label>
+        <select class="form-input" id="editCoordinatorBranch"></select>
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:7px;font-size:0.82rem;color:var(--text-secondary);cursor:pointer;">
+          <input type="checkbox" id="editCoordinatorManagement"> Allow management modules
+        </label>
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:7px;font-size:0.82rem;color:var(--text-secondary);cursor:pointer;">
+          <input type="checkbox" id="editCoordinatorCredentials"> Login enabled
+        </label>
+        <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">Taking login away signs them out immediately. Turning it back on for someone without a login is not possible here — remove and recreate them instead.</div>
+      </div>
+      <div id="coordinatorEditMsg" style="padding:10px;border-radius:10px;font-size:0.8rem;font-weight:500;display:none;margin-bottom:10px;"></div>
+      <div class="edit-modal-actions">
+        <button class="btn btn-primary" id="saveCoordinatorEditBtn" onclick="saveCoordinatorEdit()" style="flex:1;justify-content:center;"><i class="fas fa-check"></i> Save</button>
+        <button class="btn btn-ghost" onclick="closeCoordinatorEditModal()" style="flex:1;justify-content:center;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ======================== CHANGE PASSWORD MODAL ======================== -->
   <div class="edit-modal" id="changePasswordModal">
     <div class="edit-modal-card">
@@ -2975,6 +3086,7 @@
       classes: [],
       attendance: [],
       fees: [],
+      coordinators: [],
       attendanceLoadError: '',
       feesLoadError: ''
     };
@@ -3216,6 +3328,7 @@
       else if (activeTabId === 'tab-stats') renderStats();
       else if (activeTabId === 'tab-announcements') renderAnnouncements();
       else if (activeTabId === 'tab-fees') renderFees();
+      else if (activeTabId === 'tab-coordinators') loadCoordinators();
       updateSaveBar();
     }
 
@@ -5411,6 +5524,256 @@
       hidePasswordWarningBanner();
     }
 
+    // =============================================================
+    // COORDINATORS (attendance-only staff, one branch each)
+    // =============================================================
+
+    async function loadCoordinators() {
+      try {
+        const res = await apiFetch('/api/coordinators');
+        if (!res.ok) throw new Error('Failed to load coordinators');
+        window.appData.coordinators = await res.json();
+      } catch (err) {
+        window.appData.coordinators = [];
+        showToast('Could not load coordinators.', 'error');
+      }
+      renderCoordinators();
+    }
+
+    function populateCoordinatorBranchSelects() {
+      const addSel = document.getElementById('newCoordinatorBranch');
+      const editSel = document.getElementById('editCoordinatorBranch');
+      const branches = (window.appData.branches || []).filter(b => b.status !== 'deactivated');
+      const options = branches.map(b => `<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
+      if (addSel) addSel.innerHTML = '<option value="">Whole school</option>' + options;
+      if (editSel) editSel.innerHTML = '<option value="">Whole school</option>' + options;
+      // Show the inline branch creation hint only when there is nothing to pick
+      const hint = document.getElementById('noBranchHint');
+      if (hint) hint.style.display = branches.length === 0 ? 'block' : 'none';
+    }
+
+    function renderCoordinators() {
+      const wrap = document.getElementById('coordinatorsTableWrap');
+      if (!wrap) return;
+      const list = window.appData.coordinators || [];
+      if (list.length === 0) {
+        wrap.innerHTML = `
+          <div class="empty-state">
+            <div class="msg">No coordinators yet</div>
+            <div class="sub">Click "Add Coordinator" above to create one. They will only ever see the branch you assign.</div>
+          </div>`;
+        return;
+      }
+      wrap.innerHTML = list.map(c => {
+        const loginBadge = c.grant_credentials
+          ? `<span class="badge" style="background:var(--success-bg);color:var(--success);">Login: ${escapeHtml(c.full_id || c.login_id || '')}</span>`
+          : `<span class="badge" style="background:rgba(148,163,184,0.15);color:var(--text-muted);">No login</span>`;
+        const mgmtBadge = c.grant_management
+          ? `<span class="badge" style="background:rgba(99,102,241,0.15);color:var(--primary-light);">Management</span>`
+          : '';
+        const branchName = c.branch_name
+          ? escapeHtml(c.branch_name)
+          : `<span style="color:var(--primary-light);font-weight:600;">Whole school</span>`;
+        return `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--bg);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;gap:12px;flex-wrap:wrap;">
+            <div>
+              <div style="font-weight:700;font-size:0.9rem;color:var(--text);">${escapeHtml(c.name)}</div>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                <span><i class="fas fa-building" style="opacity:.6;"></i> ${branchName}</span>
+                ${c.phone ? `<span><i class="fas fa-phone" style="opacity:.6;"></i> ${escapeHtml(c.phone)}</span>` : ''}
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;">
+              ${loginBadge}
+              ${mgmtBadge}
+              ${c.is_first_login ? `<span class="badge" style="background:rgba(245,158,11,0.15);color:#d97706;">First login pending</span>` : ''}
+              <button class="btn btn-ghost btn-sm" onclick="openCoordinatorEditModal(${c.id})"><i class="fas fa-pen"></i> Edit</button>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function openAddCoordinatorForm() {
+      document.getElementById('addCoordinatorFormWrap').style.display = 'block';
+      document.getElementById('newCoordinatorName').value = '';
+      document.getElementById('newCoordinatorPhone').value = '';
+      document.getElementById('newCoordinatorCredentials').checked = true;
+      document.getElementById('newCoordinatorManagement').checked = false;
+      document.getElementById('addCoordinatorError').style.display = 'none';
+      populateCoordinatorBranchSelects();
+      const branchSel = document.getElementById('newCoordinatorBranch');
+      if (window.appData.selectedBranchId && branchSel) {
+        branchSel.value = String(window.appData.selectedBranchId);
+      }
+      document.getElementById('newCoordinatorName').focus();
+    }
+
+    function cancelAddCoordinator() {
+      document.getElementById('addCoordinatorFormWrap').style.display = 'none';
+    }
+
+    async function saveCoordinator() {
+      const nameInput = document.getElementById('newCoordinatorName');
+      const branchSel = document.getElementById('newCoordinatorBranch');
+      const errorEl = document.getElementById('addCoordinatorError');
+      const btn = document.getElementById('saveCoordinatorBtn');
+      const name = (nameInput.value || '').trim();
+      const phone = (document.getElementById('newCoordinatorPhone').value || '').trim();
+      const branchId = branchSel.value;
+
+      const fail = (msg) => { errorEl.textContent = msg; errorEl.style.display = 'block'; };
+      if (!name) return fail('Coordinator name is required.');
+
+      setButtonLoading(btn, true, '<i class="fas fa-spinner fa-spin"></i> Creating...');
+      errorEl.style.display = 'none';
+      try {
+        const res = await apiFetch('/api/coordinators', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            phone: phone || null,
+            branch_id: branchId ? parseInt(branchId, 10) : null,
+            grant_credentials: document.getElementById('newCoordinatorCredentials').checked,
+            grant_management: document.getElementById('newCoordinatorManagement').checked
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          fail(data.error || 'Failed to create coordinator.');
+          return;
+        }
+        cancelAddCoordinator();
+        await loadCoordinators();
+        showToast(`Coordinator "${name}" created successfully.`, 'success');
+        // Show the generated credentials exactly once so the admin can hand them over
+        if (data.credentials && data.credentials.login_id) {
+          showCoordinatorCredentials(data.credentials.full_id || data.credentials.login_id, data.credentials.password, name);
+        } else {
+          showToast('No login was generated ("Give login" was unticked). This coordinator is a record only.', 'info');
+        }
+      } catch (err) {
+        fail('Connection error. Please try again.');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    function showCoordinatorCredentials(loginId, password, name) {
+      const modal = document.getElementById('credentialsModal');
+      const title = document.getElementById('credentialsModalTitle');
+      const body = document.getElementById('credentialsModalBody');
+      title.textContent = 'Coordinator Credentials';
+      body.innerHTML = `
+        <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:16px;">Share these with ${escapeHtml(name)}. They must change their password on first login.</p>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;font-family:monospace;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <span style="color:var(--text-secondary);font-size:0.82rem;">Login ID:</span>
+            <strong id="coordCredLoginId" style="user-select:all;color:var(--primary-light);font-size:1rem;">${escapeHtml(loginId)}</strong>
+            <button class="btn btn-ghost btn-sm" style="padding:4px 8px;font-size:0.75rem;" onclick="copyCred('coordCredLoginId', this)">Copy</button>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text-secondary);font-size:0.82rem;">Password:</span>
+            <strong id="coordCredPassword" style="user-select:all;color:var(--primary-light);font-size:1rem;">${escapeHtml(password)}</strong>
+            <button class="btn btn-ghost btn-sm" style="padding:4px 8px;font-size:0.75rem;" onclick="copyCred('coordCredPassword', this)">Copy</button>
+          </div>
+        </div>`;
+      modal.classList.add('open');
+      document.getElementById('credentialsModalDoneBtn').focus();
+    }
+
+    function openCoordinatorEditModal(id) {
+      const c = (window.appData.coordinators || []).find(x => x.id === id);
+      if (!c) return;
+      window._editingCoordinatorId = id;
+      document.getElementById('editCoordinatorName').value = c.name || '';
+      document.getElementById('editCoordinatorPhone').value = c.phone || '';
+      document.getElementById('editCoordinatorManagement').checked = c.grant_management === true;
+      document.getElementById('editCoordinatorCredentials').checked = c.grant_credentials === true;
+      populateCoordinatorBranchSelects();
+      document.getElementById('editCoordinatorBranch').value = c.branch_id ? String(c.branch_id) : '';
+      document.getElementById('coordinatorEditMsg').style.display = 'none';
+      document.getElementById('coordinatorEditModal').classList.add('open');
+    }
+
+    function closeCoordinatorEditModal() {
+      document.getElementById('coordinatorEditModal').classList.remove('open');
+      window._editingCoordinatorId = null;
+    }
+
+    async function saveCoordinatorEdit() {
+      const id = window._editingCoordinatorId;
+      if (!id) return;
+      const msgEl = document.getElementById('coordinatorEditMsg');
+      const btn = document.getElementById('saveCoordinatorEditBtn');
+      const branchVal = document.getElementById('editCoordinatorBranch').value;
+      const msg = (text, isError) => {
+        msgEl.textContent = text;
+        msgEl.style.display = 'block';
+        msgEl.style.cssText = 'padding:10px;border-radius:10px;font-size:0.8rem;font-weight:500;margin-bottom:10px;display:block;background:' +
+          (isError ? 'rgba(239,68,68,0.1);color:#ef4444;' : 'rgba(34,197,94,0.1);color:#22c55e;');
+      };
+      // Empty branch = school-wide, which is a valid appointment.
+      if (!branchVal) { /* school-wide */ }
+
+      setButtonLoading(btn, true, '<i class="fas fa-spinner fa-spin"></i> Saving...');
+      try {
+        const res = await apiFetch(`/api/coordinators/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: document.getElementById('editCoordinatorName').value,
+            phone: document.getElementById('editCoordinatorPhone').value,
+            branch_id: branchVal ? parseInt(branchVal, 10) : null,
+            grant_management: document.getElementById('editCoordinatorManagement').checked,
+            grant_credentials: document.getElementById('editCoordinatorCredentials').checked
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          msg(data.error || 'Failed to update coordinator.', true);
+          return;
+        }
+        msg(data.sessions_revoked ? 'Saved. Their active sessions were signed out so the new branch/access applies immediately.' : 'Saved.', false);
+        await loadCoordinators();
+        setTimeout(closeCoordinatorEditModal, 900);
+      } catch (err) {
+        msg('Connection error. Please try again.', true);
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    // One-off branch creation from inside the Add Coordinator form, so a school
+    // without any branches can still create their first coordinator here.
+    // Branch-selector refreshes are guarded: this page may not have that UI.
+    async function createInlineBranch() {
+      const input = document.getElementById('inlineBranchName');
+      const name = (input.value || '').trim();
+      if (!name) { showToast('Enter a branch name first.', 'info'); return; }
+      try {
+        const res = await apiFetch('/api/branches', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { showToast(data.error || 'Failed to create branch.', 'error'); return; }
+        if (!Array.isArray(window.appData.branches)) window.appData.branches = [];
+        window.appData.branches.push({ ...data, status: 'active' });
+        window.appData.branches.sort((a, b) => a.name.localeCompare(b.name));
+        if (typeof renderBranchSelector === 'function') renderBranchSelector();
+        if (typeof renderBranchesList === 'function') renderBranchesList();
+        populateCoordinatorBranchSelects();
+        const sel = document.getElementById('newCoordinatorBranch');
+        if (sel) sel.value = String(data.id);
+        input.value = '';
+        showToast(`Branch "${name}" created. Assign it below.`, 'success');
+      } catch (err) {
+        showToast('Connection error. Please try again.', 'error');
+      }
+    }
+
     async function handleLogout() {
       localStorage.removeItem('auth_token');
       try {
@@ -5776,6 +6139,13 @@
         renderFees();
       }
 
+      // The Coordinators tab always pulls fresh data so branch edits made
+      // elsewhere (e.g. creating a branch) are reflected in the pickers.
+      if (newTabId === 'tab-coordinators') {
+        populateCoordinatorBranchSelects();
+        loadCoordinators();
+      }
+
       // Stats and attendance views are backed by live attendance data, so pull a
       // fresh copy instead of rendering the stale snapshot.
       if (newTabId === 'tab-stats' || newTabId === 'tab-attendance') {
@@ -5955,6 +6325,7 @@
     // and nothing to reach by typing the #hash. The records themselves are untouched.
     // Sections with no switch behind them (classes, stats, announcements) are always shown.
     const FEATURE_FOR_SECTION = {
+      'tab-coordinators': 'coordinator_portal',
       'tab-students': 'student_management',
       'tab-teachers': 'teacher_management',
       'tab-attendance': 'attendance',
@@ -6070,6 +6441,12 @@
     function loadCapacity() {
       const strip = document.getElementById('capacityStrip');
       if (!strip) return;
+      // The strip is a capacity warning for tools the school manages itself. A role
+      // whose management feature has been blocked (e.g. teacher management switched off
+      // by the Super Admin) shows no count and no label - nobody should be reminded of
+      // a tool they are not allowed to use.
+      const sBlocked = _featureState && _featureState['student_management'] === false;
+      const tBlocked = _featureState && _featureState['teacher_management'] === false;
       apiFetch('/api/auth/capacity').then(r => r.json().catch(() => ({}))).then(data => {
         const students = Number(data.student_limit) > 0 && data.student_count !== undefined && data.student_count !== null
           ? `${Number(data.student_count)} / ${Number(data.student_limit)}`
@@ -6081,7 +6458,12 @@
         const tEl = document.getElementById('capTeachers');
         if (students && sEl) sEl.textContent = students;
         if (teachers && tEl) tEl.textContent = teachers;
-        if ((students || teachers)) strip.style.display = 'flex';
+        const sWrap = sEl ? sEl.parentElement : null;
+        const tWrap = tEl ? tEl.parentElement : null;
+        if (sWrap) sWrap.style.display = sBlocked ? 'none' : 'flex';
+        if (tWrap) tWrap.style.display = tBlocked ? 'none' : 'flex';
+        if ((!sBlocked && students) || (!tBlocked && teachers)) strip.style.display = 'flex';
+        else strip.style.display = 'none';
       }).catch(() => {});
     }
 
@@ -6092,10 +6474,12 @@
       // is not allowed.
       applyFeatureVisibility().finally(() => {
         setupSectionTabs();
+        // Must run after applyFeatureVisibility() resolves: loadCapacity() gates the
+        // Students/Teachers counts on _featureState.
+        loadCapacity();
       });
       setupHeaderMenu();
       loadTheme();
-      loadCapacity();
 
       // Configure dynamic modals close triggers
       const setupModalDismiss = (modalId, closeFn) => {
@@ -6323,6 +6707,42 @@
       box-shadow: 0 6px 20px rgba(99,102,241,0.5);
       transform: translateY(-1px);
     }
+    /* Names-first bulk add: the Enter-to-add list inside the two bulk modals */
+    .bulk-names-list {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      max-height: 180px;
+      min-height: 60px;
+      overflow-y: auto;
+      padding: 6px;
+      background: var(--bg-secondary, rgba(0,0,0,0.04));
+    }
+    .bulk-name-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+    .bulk-name-item:hover { background: rgba(99,102,241,0.10); }
+    .bulk-name-remove {
+      border: none;
+      background: transparent;
+      color: var(--text-secondary, #888);
+      cursor: pointer;
+      font-size: 0.75rem;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+    .bulk-name-remove:hover { color: #dc2626; background: rgba(220,38,38,0.10); }
+    .bulk-names-empty {
+      color: var(--text-secondary, #888);
+      font-size: 0.8rem;
+      padding: 8px;
+      text-align: center;
+    }
   </style>
 
   <!-- Bulk Add Modals -->
@@ -6334,12 +6754,20 @@
       </div>
       <div style="padding: 20px;">
         <div class="form-group">
-          <label class="form-label" for="bulkTeacherCount">How many teachers?</label>
-          <input class="form-input" type="number" id="bulkTeacherCount" min="1" max="500" value="10">
+          <label class="form-label" for="bulkTeacherNamesInput">Teacher names</label>
+          <input class="form-input" type="text" id="bulkTeacherNamesInput" placeholder="Type a name and press Enter" autocomplete="off" onkeydown="bulkNamesKeydown(event, 'teacher')">
         </div>
+        <div class="bulk-names-list" id="bulkTeacherNames">
+          <div class="bulk-names-empty">No names yet. Type a name above and press Enter — or import a CSV.</div>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+          <span id="bulkTeacherCount" style="font-size:0.85rem; color:var(--text-secondary);">No names added yet</span>
+          <button type="button" class="btn ghost" onclick="bulkNamesCsv('teacher')"><i class="fas fa-file-csv"></i> Import CSV</button>
+        </div>
+        <input type="file" id="bulkTeacherCsvInput" accept=".csv,text/csv,text/plain" style="display:none;" onchange="bulkNamesCsvChosen(event, 'teacher')">
         <div class="edit-modal-actions" style="margin-top:20px;">
           <button class="btn ghost" onclick="closeBulkAddTeacherModal()">Cancel</button>
-          <button class="btn primary" id="btnGenerateTeachers" onclick="generateBulkTeachers()">Generate</button>
+          <button class="btn primary" id="btnGenerateTeachers" onclick="generateBulkTeachers()"><i class="fas fa-save"></i> Save All</button>
         </div>
       </div>
     </div>
@@ -6360,12 +6788,20 @@
           <div id="bulkClassError" style="color: #dc2626; font-size: 0.85rem; margin-top: 6px; display: none; font-weight: 500;">Please select a class</div>
         </div>
         <div class="form-group">
-          <label class="form-label" for="bulkStudentCount">How many students?</label>
-          <input class="form-input" type="number" id="bulkStudentCount" min="1" max="500" value="10">
+          <label class="form-label" for="bulkStudentNamesInput">Student names</label>
+          <input class="form-input" type="text" id="bulkStudentNamesInput" placeholder="Type a name and press Enter" autocomplete="off" onkeydown="bulkNamesKeydown(event, 'student')">
         </div>
+        <div class="bulk-names-list" id="bulkStudentNames">
+          <div class="bulk-names-empty">No names yet. Type a name above and press Enter — or import a CSV.</div>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+          <span id="bulkStudentCount" style="font-size:0.85rem; color:var(--text-secondary);">No names added yet</span>
+          <button type="button" class="btn ghost" onclick="bulkNamesCsv('student')"><i class="fas fa-file-csv"></i> Import CSV</button>
+        </div>
+        <input type="file" id="bulkStudentCsvInput" accept=".csv,text/csv,text/plain" style="display:none;" onchange="bulkNamesCsvChosen(event, 'student')">
         <div class="edit-modal-actions" style="margin-top:20px;">
           <button class="btn ghost" onclick="closeBulkAddStudentModal()">Cancel</button>
-          <button class="btn primary" id="btnGenerateStudents" onclick="generateBulkStudents()">Generate</button>
+          <button class="btn primary" id="btnGenerateStudents" onclick="generateBulkStudents()"><i class="fas fa-save"></i> Save All</button>
         </div>
       </div>
     </div>
@@ -6379,8 +6815,11 @@
         <button class="edit-modal-close" onclick="closeBulkResultsModal()"><i class="fas fa-times"></i></button>
       </div>
       <div style="padding: 20px;">
-        <p style="margin-bottom:15px; color:var(--text-secondary);">
+        <p id="bulkCredsNote" style="margin-bottom:15px; color:var(--text-secondary); display:none;">
           Please download or copy these credentials now. You will not be able to see these temporary passwords again.
+        </p>
+        <p id="bulkNoCredsNote" style="margin-bottom:15px; color:var(--text-secondary); display:none;">
+          These accounts were saved without portal sign-ins because the portal is not enabled for your school. Once the Super Admin enables it, use "Reset password" to give them logins.
         </p>
         <p style="margin-bottom:10px; color:var(--text-secondary); font-size:0.85rem;">
           <i class="fas fa-pen"></i> You can edit the names below and save them all at once.
@@ -6410,8 +6849,93 @@
   <script>
     let bulkGeneratedAccounts = [];
 
+    // ---------- Names-first bulk add (Enter to add, CSV import) ----------
+
+    function bulkNames(kind) {
+      const el = document.getElementById(kind === 'teacher' ? 'bulkTeacherNames' : 'bulkStudentNames');
+      return Array.prototype.slice.call(el.querySelectorAll('span[data-name]')).map(function(s) { return s.getAttribute('data-name'); });
+    }
+
+    function updateBulkCount(kind) {
+      const n = bulkNames(kind).length;
+      document.getElementById(kind === 'teacher' ? 'bulkTeacherCount' : 'bulkStudentCount').textContent = n ? n + ' name' + (n !== 1 ? 's' : '') + ' added' : 'No names added yet';
+    }
+
+    function bulkNamesAdd(kind, raw) {
+      const name = String(raw || '').trim().replace(/\s+/g, ' ').slice(0, 100);
+      if (!name) return false;
+      if (bulkNames(kind).length >= 500) {
+        showToast('Maximum 500 names per batch.', 'warning');
+        return false;
+      }
+      const el = document.getElementById(kind === 'teacher' ? 'bulkTeacherNames' : 'bulkStudentNames');
+      if (el.querySelector('.bulk-names-empty')) el.innerHTML = '';
+      const chip = document.createElement('div');
+      chip.className = 'bulk-name-item';
+      chip.innerHTML = '<span data-name="' + escapeHtml(name) + '">' + escapeHtml(name) + '</span>' +
+        '<button type="button" class="bulk-name-remove" title="Remove" onclick="bulkNamesRemove(this)"><i class="fas fa-times"></i></button>';
+      el.appendChild(chip);
+      updateBulkCount(kind);
+      return true;
+    }
+
+    function bulkNamesRemove(btn) {
+      const el = btn.closest('.bulk-names-list');
+      btn.closest('.bulk-name-item').remove();
+      if (!el.querySelector('.bulk-name-item')) {
+        el.innerHTML = '<div class="bulk-names-empty">No names yet. Type a name above and press Enter — or import a CSV.</div>';
+      }
+      updateBulkCount(el.id === 'bulkTeacherNames' ? 'teacher' : 'student');
+    }
+
+    function bulkNamesClear(kind) {
+      const el = document.getElementById(kind === 'teacher' ? 'bulkTeacherNames' : 'bulkStudentNames');
+      el.innerHTML = '<div class="bulk-names-empty">No names yet. Type a name above and press Enter — or import a CSV.</div>';
+      updateBulkCount(kind);
+    }
+
+    function bulkNamesKeydown(e, kind) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const input = document.getElementById(kind === 'teacher' ? 'bulkTeacherNamesInput' : 'bulkStudentNamesInput');
+        if (bulkNamesAdd(kind, input.value)) input.value = '';
+        input.focus();
+      }
+    }
+
+    function bulkNamesCsv(kind) {
+      document.getElementById(kind === 'teacher' ? 'bulkTeacherCsvInput' : 'bulkStudentCsvInput').click();
+    }
+
+    function bulkNamesCsvChosen(e, kind) {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        // The first column of each row is the name; a header row is skipped
+        // automatically because "Name" / "name" never survives the checks below.
+        const names = [];
+        String(ev.target.result || '').split(/\r\n|\r|\n/).forEach(function(line) {
+          const name = line.split(',')[0].trim().replace(/\s+/g, ' ').slice(0, 100);
+          if (name && name.toLowerCase() !== 'name' && name.toLowerCase() !== 'student name' && name.toLowerCase() !== 'teacher name') names.push(name);
+        });
+        if (!names.length) {
+          showToast('No names found in that CSV. The first column is used as the name.', 'warning');
+          return;
+        }
+        let added = 0;
+        names.forEach(function(n) { if (bulkNamesAdd(kind, n)) added++; });
+        showToast('Added ' + added + ' name' + (added !== 1 ? 's' : '') + ' from "' + file.name + '".', 'success');
+      };
+      reader.onerror = function() { showToast('Could not read that file.', 'error'); };
+      reader.readAsText(file);
+    }
+
     function openBulkAddTeacherModal() {
-      document.getElementById('bulkTeacherCount').value = 10;
+      bulkNamesClear('teacher');
+      const input = document.getElementById('bulkTeacherNamesInput');
+      if (input) input.value = '';
       document.getElementById('bulkAddTeacherModal').classList.add('open');
     }
     function closeBulkAddTeacherModal() {
@@ -6424,7 +6948,9 @@
       (window.appData.classes || []).forEach(function(c) {
         select.innerHTML += '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>';
       });
-      document.getElementById('bulkStudentCount').value = 10;
+      bulkNamesClear('student');
+      const input = document.getElementById('bulkStudentNamesInput');
+      if (input) input.value = '';
       document.getElementById('bulkAddStudentModal').classList.add('open');
     }
     function closeBulkAddStudentModal() {
@@ -6432,17 +6958,17 @@
     }
 
     async function generateBulkTeachers() {
-      const count = parseInt(document.getElementById('bulkTeacherCount').value, 10);
-      if (!count || count < 1 || count > 500) {
-        return showToast('Please enter a valid count (1-500).', 'warning');
+      const names = bulkNames('teacher');
+      if (!names.length) {
+        return showToast('Add at least one teacher name first — type a name and press Enter, or import a CSV.', 'warning');
       }
 
-      if (count >= 100) {
+      if (names.length >= 100) {
         const confirmed = await showConfirmModal({
           icon: '⚠️',
           iconBg: 'rgba(245, 158, 11, 0.12)',
           title: 'Confirm Bulk Action',
-          message: "You're about to create " + count + " teacher accounts. Continue?",
+          message: "You're about to create " + names.length + " teacher accounts. Continue?",
           confirmText: 'Yes, Create',
           confirmClass: 'warning',
           cancelText: 'Cancel'
@@ -6452,19 +6978,19 @@
 
       const btn = document.getElementById('btnGenerateTeachers');
       const originalText = btn.innerHTML;
-      setButtonLoading(btn, true, 'Generating...');
+      setButtonLoading(btn, true, 'Saving...');
 
       try {
         const response = await apiFetch('/api/auth/bulk-create-teachers', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ count })
+          body: JSON.stringify({ names: names })
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Failed to bulk create teachers');
 
         closeBulkAddTeacherModal();
-        showBulkResults(data.accounts);
+        showBulkResults(data.accounts, data.credentials_issued === true);
 
         // Refresh data
         fetchDashboardData();
@@ -6478,22 +7004,22 @@
 
     async function generateBulkStudents() {
       const classId = document.getElementById('bulkStudentClass').value;
-      const count = parseInt(document.getElementById('bulkStudentCount').value, 10);
+      const names = bulkNames('student');
 
       if (!classId) {
         document.getElementById('bulkClassError').style.display = 'block';
         return showToast('Please select a class.', 'warning');
       }
-      if (!count || count < 1 || count > 500) {
-        return showToast('Please enter a valid count (1-500).', 'warning');
+      if (!names.length) {
+        return showToast('Add at least one student name first — type a name and press Enter, or import a CSV.', 'warning');
       }
 
-      if (count >= 100) {
+      if (names.length >= 100) {
         const confirmed = await showConfirmModal({
           icon: '⚠️',
           iconBg: 'rgba(245, 158, 11, 0.12)',
           title: 'Confirm Bulk Action',
-          message: "You're about to create " + count + " student accounts. Continue?",
+          message: "You're about to create " + names.length + " student accounts. Continue?",
           confirmText: 'Yes, Create',
           confirmClass: 'warning',
           cancelText: 'Cancel'
@@ -6503,13 +7029,13 @@
 
       const btn = document.getElementById('btnGenerateStudents');
       const originalText = btn.innerHTML;
-      setButtonLoading(btn, true, 'Generating...');
+      setButtonLoading(btn, true, 'Saving...');
 
       try {
         const response = await apiFetch('/api/auth/bulk-create-students', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ count: count, class_id: parseInt(classId, 10) })
+          body: JSON.stringify({ names: names, class_id: parseInt(classId, 10) })
         });
         const data = await response.json();
         if (!response.ok) {
@@ -6519,7 +7045,7 @@
         }
 
         closeBulkAddStudentModal();
-        showBulkResults(data.accounts);
+        showBulkResults(data.accounts, data.credentials_issued === true);
 
         // Refresh data
         fetchDashboardData();
@@ -6531,8 +7057,18 @@
       }
     }
 
-    function showBulkResults(accounts) {
+    function showBulkResults(accounts, credentialsIssued) {
       bulkGeneratedAccounts = accounts;
+      // When re-rendering after a rename save (no flag passed), infer from the
+      // accounts themselves: credentials exist only if the portal minted them.
+      if (credentialsIssued === undefined) {
+        credentialsIssued = accounts.some(function(a) { return !!a.temp_password; });
+      }
+      // Credentials are only minted when the portal is on — show the right note.
+      const credsNote = document.getElementById('bulkCredsNote');
+      if (credsNote) credsNote.style.display = credentialsIssued ? '' : 'none';
+      const noCredsNote = document.getElementById('bulkNoCredsNote');
+      if (noCredsNote) noCredsNote.style.display = credentialsIssued ? 'none' : '';
       const tbody = document.querySelector('#bulkResultsTable tbody');
       tbody.innerHTML = accounts.map(function(a, idx) {
         if (a.original_name === undefined) a.original_name = a.name;
@@ -6542,7 +7078,7 @@
         : '<span>' + escapeHtml(a.name) + '</span>';
         return '<tr>' +
         '<td>' + nameCell + '</td>' +
-        '<td style="font-family:monospace;">' + escapeHtml(a.login_id) + '</td>' +
+        '<td style="font-family:monospace;">' + escapeHtml(a.full_id || a.login_id) + '</td>' +
         '<td style="font-family:monospace;">' + (a.temp_password ? escapeHtml(a.temp_password) : '<span style="opacity:.6;">—</span>') + '</td>' +
         '</tr>';
       }).join('');
@@ -6626,7 +7162,7 @@
     function copyBulkResults() {
       if (!bulkGeneratedAccounts.length) return;
       const text = bulkGeneratedAccounts.map(function(a) {
-        return 'Name: ' + a.name + '\tLogin ID: ' + a.login_id + '\tPassword: ' + a.temp_password;
+        return 'Name: ' + a.name + '\tLogin ID: ' + (a.full_id || a.login_id) + '\tPassword: ' + (a.temp_password || '—');
       }).join('\n');
       navigator.clipboard.writeText(text).then(function() {
         showToast('Copied to clipboard', 'info');
@@ -6640,7 +7176,7 @@
       if (!bulkGeneratedAccounts.length) return;
       const header = 'Name,Login ID,Password\n';
       const rows = bulkGeneratedAccounts.map(function(a) {
-        return '"' + a.name + '","' + a.login_id + '","' + a.temp_password + '"';
+        return '"' + a.name + '","' + (a.full_id || a.login_id) + '","' + (a.temp_password || '') + '"';
       }).join('\n');
       const csvContent = 'data:text/csv;charset=utf-8,' + encodeURIComponent(header + rows);
       const link = document.createElement('a');
