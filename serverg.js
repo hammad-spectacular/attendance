@@ -1379,6 +1379,27 @@ app.get('/api/auth/me', async (req, res) => {
 // not a school. Letting them call this would create the row in a tenant that does not
 // exist, which is why the role is deliberately not accepted here. See admin.html, which
 // turns a super admin away with a readable reason instead of a 403 mid-form.
+
+// Smallest unused login number (S001, T001, ...) for a tenant. Only currently stored
+// rows count, so a student/teacher that was deleted frees its number and the next
+// allocation reuses it - the sequence stays tight instead of climbing forever as
+// records come and go. login_id is only a credential (nothing references the string),
+// so reuse is safe; per-tenant uniqueness is enforced by the database.
+async function nextFreeLoginNumber(queryable, table, prefix, tenantId, extraTaken = null) {
+  const res = await queryable.query(
+    `SELECT login_id FROM ${table} WHERE tenant_id = $1 AND login_id IS NOT NULL`,
+    [tenantId]
+  )
+  const used = new Set(extraTaken || [])
+  for (const row of res.rows) {
+    const m = /(?:^|-)([ST])(\d+)$/.exec(row.login_id)
+    if (m && m[1] === prefix) used.add(parseInt(m[2], 10))
+  }
+  let n = 1
+  while (used.has(n)) n += 1
+  return n
+}
+
 app.post('/api/auth/create-teacher', requireAuth(['admin']), async (req, res) => {
   try {
     const { name, phone, class_id } = req.body
@@ -1420,18 +1441,7 @@ app.post('/api/auth/create-teacher', requireAuth(['admin']), async (req, res) =>
       }
     }
 
-    const highestResult = await pool.query(
-      `SELECT login_id FROM teachers WHERE tenant_id = $1 AND (login_id LIKE 'T%' OR login_id LIKE $2) ORDER BY login_id DESC LIMIT 1`,
-      [tenant_id, `${tenant_id}-T%`]
-    )
-
-    let nextNum = 1
-    if (highestResult.rows.length > 0) {
-      const lastId = highestResult.rows[0].login_id
-      const match = lastId.match(/\d+$/)
-      const numPart = match ? parseInt(match[0], 10) : NaN
-      if (!isNaN(numPart)) nextNum = numPart + 1
-    }
+    const nextNum = await nextFreeLoginNumber(pool, 'teachers', 'T', tenant_id)
 
     const shortId = `T${String(nextNum).padStart(3, '0')}`
     const teacherId = `${tenant_id}-${shortId}`
@@ -1495,19 +1505,7 @@ app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) =>
     const dupErr = await findStudentDuplicate(pool, tenant_id, { roll_no, name })
     if (dupErr) return res.status(400).json({ error: dupErr })
 
-    const highestResult = await pool.query(
-      `SELECT login_id FROM students WHERE tenant_id = $1 AND (login_id LIKE 'S%' OR login_id LIKE $2) ORDER BY login_id DESC LIMIT 1`,
-      [tenant_id, `${tenant_id}-S%`]
-    )
-
-    let nextNum = 1
-    if (highestResult.rows.length > 0) {
-      const lastId = highestResult.rows[0].login_id
-      const match = lastId.match(/\d+$/)
-      const numPart = match ? parseInt(match[0], 10) : NaN
-      if (!isNaN(numPart)) nextNum = numPart + 1
-    }
-
+    const nextNum = await nextFreeLoginNumber(pool, 'students', 'S', tenant_id)
     const shortId = `S${String(nextNum).padStart(3, '0')}`
     const studentId = `${tenant_id}-${shortId}`
     const { tempPassword, passwordHash } = await mintCredentialIfPortalEnabled(tenant_id, 'student')
@@ -1585,18 +1583,18 @@ app.post('/api/auth/bulk-create-students', requireAuth(['admin', 'super_admin'])
     }
     const branchId = branchPick.branch ? branchPick.branch.id : null;
 
-    const highestResult = await client.query(
-      `SELECT login_id FROM students WHERE tenant_id = $1 AND (login_id LIKE 'S%' OR login_id LIKE $2) ORDER BY login_id DESC LIMIT 1`,
-      [tenant_id, `${tenant_id}-S%`]
+    // Fill the lowest free S-number first (the whole batch is planned before any
+    // insert, so a cursor over the used set covers deletions and prior allocations).
+    const usedLoginRows = await client.query(
+      `SELECT login_id FROM students WHERE tenant_id = $1 AND login_id IS NOT NULL`,
+      [tenant_id]
     );
-
-    let nextNum = 1;
-    if (highestResult.rows.length > 0) {
-      const lastId = highestResult.rows[0].login_id;
-      const match = lastId.match(/\d+$/);
-      const numPart = match ? parseInt(match[0], 10) : NaN;
-      if (!isNaN(numPart)) nextNum = numPart + 1;
+    const usedLoginNums = new Set();
+    for (const row of usedLoginRows.rows) {
+      const m = /(?:^|-)([ST])(\d+)$/.exec(row.login_id);
+      if (m && m[1] === 'S') usedLoginNums.add(parseInt(m[2], 10));
     }
+    let cursor = 1;
 
     const createdAccounts = [];
     const values = [];
@@ -1608,7 +1606,10 @@ app.post('/api/auth/bulk-create-students', requireAuth(['admin', 'super_admin'])
       await mintCredentialIfPortalEnabled(tenant_id, 'student');
 
     for (let i = 0; i < count; i++) {
-      const shortId = `S${String(nextNum + i).padStart(3, '0')}`;
+      while (usedLoginNums.has(cursor)) cursor += 1;
+      const shortId = `S${String(cursor).padStart(3, '0')}`;
+      usedLoginNums.add(cursor);
+      cursor += 1;
       const name = names ? names[i] : `Student ${i + 1}`;
 
       // name, roll_no, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email, branch_id
@@ -1682,18 +1683,17 @@ app.post('/api/auth/bulk-create-teachers', requireAuth(['admin', 'super_admin'])
     }
     const branchId = branchPick.branch ? branchPick.branch.id : null;
 
-    const highestResult = await client.query(
-      `SELECT login_id FROM teachers WHERE tenant_id = $1 AND (login_id LIKE 'T%' OR login_id LIKE $2) ORDER BY login_id DESC LIMIT 1`,
-      [tenant_id, `${tenant_id}-T%`]
+    // Fill the lowest free T-number first (see nextFreeLoginNumber rationale).
+    const usedLoginRows = await client.query(
+      `SELECT login_id FROM teachers WHERE tenant_id = $1 AND login_id IS NOT NULL`,
+      [tenant_id]
     );
-
-    let nextNum = 1;
-    if (highestResult.rows.length > 0) {
-      const lastId = highestResult.rows[0].login_id;
-      const match = lastId.match(/\d+$/);
-      const numPart = match ? parseInt(match[0], 10) : NaN;
-      if (!isNaN(numPart)) nextNum = numPart + 1;
+    const usedLoginNums = new Set();
+    for (const row of usedLoginRows.rows) {
+      const m = /(?:^|-)([ST])(\d+)$/.exec(row.login_id);
+      if (m && m[1] === 'T') usedLoginNums.add(parseInt(m[2], 10));
     }
+    let cursor = 1;
 
     const createdAccounts = [];
     const values = [];
@@ -1705,7 +1705,10 @@ app.post('/api/auth/bulk-create-teachers', requireAuth(['admin', 'super_admin'])
       await mintCredentialIfPortalEnabled(tenant_id, 'teacher');
 
     for (let i = 0; i < count; i++) {
-      const shortId = `T${String(nextNum + i).padStart(3, '0')}`;
+      while (usedLoginNums.has(cursor)) cursor += 1;
+      const shortId = `T${String(cursor).padStart(3, '0')}`;
+      usedLoginNums.add(cursor);
+      cursor += 1;
       const name = names ? names[i] : `Teacher ${i + 1}`;
 
       // name, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email, branch_id
@@ -2446,14 +2449,10 @@ app.post('/api/tenant-features/issue-credentials', requireAuth(['super_admin']),
     }
 
     // Continue the school's existing numbering (S001, S002, ...) without ever
-    // colliding with a login_id that is already taken.
+    // colliding with a login_id that is already taken. See nextFreeLoginNumber:
+    // freed numbers are reused so the sequence stays tight after deletions.
     const takenRows = await pool.query(`SELECT login_id FROM ${table} WHERE tenant_id = $1 AND login_id IS NOT NULL`, [schoolId])
     const taken = new Set(takenRows.rows.map(r => r.login_id))
-    let highest = 0
-    for (const loginId of taken) {
-      const m = /^([ST])(\d+)$/.exec(loginId)
-      if (m && m[1] === prefix) highest = Math.max(highest, parseInt(m[2], 10))
-    }
 
     const client = await pool.connect()
     const issued = []
@@ -2463,9 +2462,12 @@ app.post('/api/tenant-features/issue-credentials', requireAuth(['super_admin']),
         let loginId = person.login_id
         if (!loginId) {
           let candidate
+          // Reuse the lowest free number so numbers freed by deleted accounts are
+          // filled again instead of the sequence permanently marching upward.
+          let n = 1
           do {
-            highest += 1
-            candidate = `${prefix}${String(highest).padStart(3, '0')}`
+            candidate = `${prefix}${String(n).padStart(3, '0')}`
+            n += 1
           } while (taken.has(candidate))
           loginId = candidate
           taken.add(candidate)
@@ -3138,8 +3140,23 @@ app.put('/api/teachers/:id', requireAuth(['admin', 'super_admin']), async (req, 
 
 app.delete('/api/teachers/:id', requireAuth(['admin', 'super_admin']), async (req, res) => {
   const tenant_id = req.user.tenant_id
-  await pool.query('DELETE FROM teachers WHERE id = $1 AND tenant_id = $2', [req.params.id, tenant_id])
-  res.json({ success: true })
+  // The homework/announcements tables hold a teacher_id FK, so clear references
+  // first to avoid a constraint error - same pattern as the student delete below.
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    await client.query('UPDATE homework SET teacher_id = NULL WHERE teacher_id = $1 AND tenant_id = $2', [req.params.id, tenant_id])
+    await client.query('UPDATE announcements SET teacher_id = NULL WHERE teacher_id = $1 AND tenant_id = $2', [req.params.id, tenant_id])
+    const result = await client.query('DELETE FROM teachers WHERE id = $1 AND tenant_id = $2', [req.params.id, tenant_id])
+    await client.query('COMMIT')
+    res.json({ success: true })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    console.error('Error deleting teacher:', err)
+    res.status(500).json({ error: 'Failed to delete teacher: ' + err.message })
+  } finally {
+    client.release()
+  }
 })
 
 // STUDENTS

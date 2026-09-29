@@ -4732,6 +4732,55 @@
       renderTeachers(filtered);
     }
 
+    // =============================================================
+    // BULK SELECT & DELETE (students / teachers)
+    // =============================================================
+    function toggleRowSelect(kind, id, on) {
+      const set = kind === 'students' ? selectedStudentIds : selectedTeacherIds;
+      if (on) set.add(Number(id)); else set.delete(Number(id));
+      if (kind === 'students') filterStudents(); else filterTeachers();
+    }
+
+    function toggleSelectAll(kind, on) {
+      const set = kind === 'students' ? selectedStudentIds : selectedTeacherIds;
+      const shown = kind === 'students' ? shownStudentIds : shownTeacherIds;
+      shown.forEach(id => { if (on) set.add(Number(id)); else set.delete(Number(id)); });
+      if (kind === 'students') filterStudents(); else filterTeachers();
+    }
+
+    async function bulkDeleteSelected(kind) {
+      const set = kind === 'students' ? selectedStudentIds : selectedTeacherIds;
+      if (set.size === 0) return;
+      const label = kind === 'students' ? 'student' : 'teacher';
+      const confirmed = await showConfirmModal({
+        title: `Delete ${set.size} ${label}${set.size > 1 ? 's' : ''}?`,
+        message: 'This will permanently delete the selected records. This cannot be undone.',
+        confirmText: 'Yes, Delete All',
+        confirmClass: 'danger',
+        cancelText: 'Cancel'
+      });
+      if (!confirmed) return;
+
+      let ok = 0, fail = 0, firstErr = null;
+      const ids = Array.from(set);
+      for (const id of ids) {
+        try {
+          const res = await apiFetch(`/api/${label}s/${id}`, { method: 'DELETE' });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok) { ok++; }
+          else { fail++; if (!firstErr) firstErr = data.error || `HTTP ${res.status}`; }
+        } catch (err) { fail++; if (!firstErr) firstErr = err.message; }
+      }
+      if (ok > 0) {
+        if (kind === 'students') window.appData.students = window.appData.students.filter(s => !ids.includes(Number(s.id)));
+        else window.appData.teachers = window.appData.teachers.filter(t => !ids.includes(Number(t.id)));
+      }
+      set.clear();
+      if (fail > 0) showToast(`Deleted ${ok}, ${fail} failed${firstErr ? ` (${firstErr})` : ''}`, 'warning');
+      else if (ok > 0) showToast(`Deleted ${ok} ${label}${ok > 1 ? 's' : ''}`, 'success');
+      if (kind === 'students') filterStudents(); else filterTeachers();
+    }
+
     function renderTeachers(teachersList) {
       const wrap = document.getElementById('teachersTableWrap');
       const teachers = teachersList || window.appData.teachers;
@@ -4746,16 +4795,29 @@
         return;
       }
 
+      const showTeacherId = _featureState && _featureState['teacher_portal'] === true;
+      shownTeacherIds = teachers.map(t => t.id);
+
       let html = `
+        <div class="bulk-bar" style="display:flex; align-items:center; gap:14px; margin-bottom:10px; flex-wrap:wrap;">
+          <label style="display:flex; align-items:center; gap:6px; font-size:0.8rem; cursor:pointer; user-select:none;">
+            <input type="checkbox" id="teachersSelectAll" ${selectedTeacherIds.size > 0 && shownTeacherIds.length > 0 && shownTeacherIds.every(id => selectedTeacherIds.has(id)) ? 'checked' : ''} onchange="toggleSelectAll('teachers', this.checked);">
+            Select all shown
+          </label>
+          <button type="button" class="btn-delete" style="padding:6px 14px; border-radius:8px;${selectedTeacherIds.size ? '' : 'display:none;'}" onclick="bulkDeleteSelected('teachers')">
+            <i class="fas fa-trash-alt"></i> Delete selected (<span>${selectedTeacherIds.size}</span>)
+          </button>
+          ${selectedTeacherIds.size ? `<span class="bulk-note" style="font-size:0.75rem;color:var(--text-muted);">${selectedTeacherIds.size} selected</span>` : ''}
+        </div>
         <div style="overflow-x:auto;">
         <table class="data-table">
           <thead>
             <tr>
-              <th style="width:50px; text-align:left;">#</th>
+              <th style="width:50px; text-align:left;${showTeacherId ? '' : 'display:none;'}">ID</th>
               <th style="text-align:left;">Name</th>
               <th style="text-align:center; width:150px;">Class</th>
               <th style="text-align:center; width:180px;">Contact</th>
-              <th style="width:120px; text-align:right;">Actions</th>
+              <th style="width:150px; text-align:right;">Actions</th>
             </tr>
           </thead>
           <tbody>`;
@@ -4766,7 +4828,7 @@
         
         html += `
           <tr id="row-tab-teachers-${t.id}" class="${isDirty ? 'row-dirty' : ''}">
-            <td style="color:var(--text-muted); font-weight:500; text-align:left;">${i + 1}</td>
+            <td style="color:var(--text-muted); font-weight:500; text-align:left;${showTeacherId ? '' : 'display:none;'}">${showTeacherId ? (t.login_id ? (_tenantCode ? _tenantCode + '-' : '') + escapeHtml(t.login_id) : '—') : ''}</td>
             <td style="text-align:left;">
               <input type="text" class="inline-edit-input" value="${escapeHtml(dirtyData.name)}" oninput="markDirty('tab-teachers', ${t.id}, 'name', this.value)" style="font-weight:bold;">
             </td>
@@ -4784,6 +4846,9 @@
             </td>
             <td style="text-align:right;">
               <div class="action-buttons" style="justify-content: flex-end;">
+                <label style="display:flex; align-items:center; gap:4px; cursor:pointer; margin-right:2px;" title="Select for bulk delete">
+                  <input type="checkbox" class="bulk-chk" data-kind="teachers" data-id="${t.id}" ${selectedTeacherIds.has(t.id) ? 'checked' : ''} onchange="toggleRowSelect('teachers', ${t.id}, this.checked); event.stopPropagation();">
+                </label>
                 <button onclick="openAdminRecoveryReveal(${t.id}, 'teacher')" class="btn-edit" title="Issue one-time temporary password" style="background:var(--warning-bg); color:var(--warning);">
                   <i class="fas fa-key"></i>
                 </button>
@@ -4997,17 +5062,30 @@
         return;
       }
 
+      const showStudentId = _featureState && _featureState['student_portal'] === true;
+      shownStudentIds = students.map(s => s.id);
+
       let html = `
+        <div class="bulk-bar" style="display:flex; align-items:center; gap:14px; margin-bottom:10px; flex-wrap:wrap;">
+          <label style="display:flex; align-items:center; gap:6px; font-size:0.8rem; cursor:pointer; user-select:none;">
+            <input type="checkbox" id="studentsSelectAll" ${selectedStudentIds.size > 0 && shownStudentIds.length > 0 && shownStudentIds.every(id => selectedStudentIds.has(id)) ? 'checked' : ''} onchange="toggleSelectAll('students', this.checked);">
+            Select all shown
+          </label>
+          <button type="button" class="btn-delete" style="padding:6px 14px; border-radius:8px;${selectedStudentIds.size ? '' : 'display:none;'}" onclick="bulkDeleteSelected('students')">
+            <i class="fas fa-trash-alt"></i> Delete selected (<span>${selectedStudentIds.size}</span>)
+          </button>
+          ${selectedStudentIds.size ? `<span class="bulk-note" style="font-size:0.75rem;color:var(--text-muted);">${selectedStudentIds.size} selected</span>` : ''}
+        </div>
         <div style="overflow-x:auto;">
         <table class="data-table">
           <thead>
             <tr>
-              <th style="width:50px; text-align:left;">ID</th>
+              <th style="width:50px; text-align:left;${showStudentId ? '' : 'display:none;'}">ID</th>
               <th style="text-align:left;">Name</th>
               <th style="text-align:center; width:120px;">Roll No</th>
               <th style="text-align:center; width:150px;">Class</th>
               <th style="text-align:center; width:150px;">Contact</th>
-              <th style="width:100px; text-align:right;">Actions</th>
+              <th style="width:130px; text-align:right;">Actions</th>
             </tr>
           </thead>
           <tbody>`;
@@ -5018,7 +5096,7 @@
 
         html += `
           <tr id="row-tab-students-${s.id}" class="${isDirty ? 'row-dirty' : ''}">
-            <td style="color:var(--text-muted); font-size:0.75rem; text-align:left;">#${s.id}</td>
+            <td style="color:var(--text-muted); font-size:0.75rem; text-align:left;${showStudentId ? '' : 'display:none;'}">${showStudentId ? (s.login_id ? (_tenantCode ? _tenantCode + '-' : '') + escapeHtml(s.login_id) : '—') : ''}</td>
             <td style="text-align:left;">
               <input type="text" class="inline-edit-input" value="${escapeHtml(dirtyData.name)}" oninput="markDirty('tab-students', ${s.id}, 'name', this.value)" style="font-weight:bold;">
             </td>
@@ -5036,6 +5114,9 @@
             </td>
             <td style="text-align:right;">
               <div class="action-buttons" style="justify-content: flex-end;">
+                <label style="display:flex; align-items:center; gap:4px; cursor:pointer; margin-right:2px;" title="Select for bulk delete">
+                  <input type="checkbox" class="bulk-chk" data-kind="students" data-id="${s.id}" ${selectedStudentIds.has(s.id) ? 'checked' : ''} onchange="toggleRowSelect('students', ${s.id}, this.checked); event.stopPropagation();">
+                </label>
                 <button onclick="openAdminRecoveryReveal(${s.id}, 'student')" class="btn-edit" title="Issue one-time temporary password" style="background:var(--warning-bg); color:var(--warning);">
                   <i class="fas fa-key"></i>
                 </button>
@@ -6706,6 +6787,12 @@
       try {
         if (activeTabId === 'tab-teachers') {
           for (let [id, data] of dirtyState['tab-teachers']) {
+            const phoneVal = (data.current.phone || '').toString().trim();
+            if (phoneVal && !/^\d{11}$/.test(phoneVal)) {
+              failedCount++;
+              console.error(`Teacher ${id} save blocked: phone must be 11 digits (got "${phoneVal}")`);
+              continue;
+            }
             const response = await apiFetch(`/api/teachers/${id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
@@ -6725,6 +6812,12 @@
           renderTeachers();
         } else if (activeTabId === 'tab-students') {
           for (let [id, data] of dirtyState['tab-students']) {
+            const phoneVal = (data.current.phone || '').toString().trim();
+            if (phoneVal && !/^\d{11}$/.test(phoneVal)) {
+              failedCount++;
+              console.error(`Student ${id} save blocked: phone must be 11 digits (got "${phoneVal}")`);
+              continue;
+            }
             const response = await apiFetch(`/api/students/${id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
@@ -6823,6 +6916,11 @@
     // null until the catalogue has been read. While it is null we allow every section,
     // so a slow or failed fetch can never leave a real school locked out of its own page.
     let _featureState = null;
+    let _tenantCode = null;
+    let selectedStudentIds = new Set();
+    let selectedTeacherIds = new Set();
+    let shownStudentIds = [];
+    let shownTeacherIds = [];
 
     function isSectionPermitted(sectionId) {
       const key = FEATURE_FOR_SECTION[sectionId];
@@ -6853,6 +6951,7 @@
 
       _featureState = {};
       (school.features || []).forEach(f => { _featureState[f.key] = f.enabled === true; });
+      _tenantCode = school.school_id || null;
 
       Object.keys(FEATURE_FOR_SECTION).forEach(sectionId => {
         if (isSectionPermitted(sectionId)) return;
