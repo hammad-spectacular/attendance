@@ -2289,9 +2289,14 @@
               <div class="section-subtitle">View enrolled students and assign teachers per class</div>
             </div>
           </div>
-          <button class="btn btn-primary" onclick="toggleAddClass()" id="addClassToggleBtn">
-            <i class="fas fa-plus"></i> Add Class
-          </button>
+          <div style="display:flex; gap:8px;">
+            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+              <i class="fas fa-moon" id="classesThemeIcon"></i>
+            </button>
+            <button class="btn btn-primary" onclick="toggleAddClass()" id="addClassToggleBtn">
+              <i class="fas fa-plus"></i> Add Class
+            </button>
+          </div>
         </div>
         <div class="section-body">
           
@@ -2357,8 +2362,15 @@
               <div class="section-subtitle">View submitted attendance and absent students</div>
             </div>
           </div>
+          <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+            <i class="fas fa-moon" id="attendanceThemeIcon"></i>
+          </button>
         </div>
         <div class="section-body" style="padding:0;">
+          <div style="padding: 12px 16px; background: var(--success-bg); border-bottom: 1px solid var(--border); display:flex; align-items:center; gap:8px; font-size:0.82rem; color: var(--success);">
+            <i class="fas fa-check-circle"></i>
+            <span>Attendance records loaded successfully</span>
+          </div>
           <div style="padding: 16px; border-bottom: 1px solid var(--border);">
             <div class="search-filter-container" style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
               <div style="flex:1; min-width:240px; position:relative;">
@@ -2416,6 +2428,9 @@
               <div class="section-subtitle">Overall attendance percentage across all recorded days</div>
             </div>
           </div>
+          <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+            <i class="fas fa-moon" id="statsThemeIcon"></i>
+          </button>
         </div>
         <div class="section-body" style="padding:0;">
           <div style="padding: 16px; border-bottom: 1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
@@ -2451,6 +2466,9 @@
               <div class="section-subtitle">Post announcements visible to everyone</div>
             </div>
           </div>
+          <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+            <i class="fas fa-moon" id="announcementsThemeIcon"></i>
+          </button>
         </div>
         <div class="section-body">
           <div class="form-group">
@@ -2512,9 +2530,14 @@
                 <div class="section-subtitle">Current month fee status</div>
               </div>
             </div>
-            <button class="btn btn-primary btn-sm" onclick="openFeePaymentModal()">
-              <i class="fa-solid fa-plus"></i> Record Payment
-            </button>
+            <div style="display:flex; gap:8px;">
+              <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+                <i class="fas fa-moon" id="feesThemeIcon"></i>
+              </button>
+              <button class="btn btn-primary btn-sm" onclick="openFeePaymentModal()">
+                <i class="fa-solid fa-plus"></i> Record Payment
+              </button>
+            </div>
           </div>
           <div class="section-body">
             <div class="fees-filter-row" style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
@@ -2610,6 +2633,9 @@
             </div>
           </div>
           <div style="display:flex; gap:8px;">
+            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+              <i class="fas fa-moon" id="coordinatorThemeIcon"></i>
+            </button>
             <button class="btn btn-primary btn-sm" onclick="openAddCoordinatorForm()">
               <i class="fas fa-plus"></i> Add Coordinator
             </button>
@@ -4666,7 +4692,6 @@
       shownTeacherIds = teachers.map(t => t.id);
 
       let html = `
-        ${showTeacherId ? `
         <div class="bulk-bar" style="display:flex; align-items:center; gap:14px; margin-bottom:10px; flex-wrap:wrap;">
           <label style="display:flex; align-items:center; gap:6px; font-size:0.8rem; cursor:pointer; user-select:none;">
             <input type="checkbox" id="teachersSelectAll" ${selectedTeacherIds.size > 0 && shownTeacherIds.length > 0 && shownTeacherIds.every(id => selectedTeacherIds.has(id)) ? 'checked' : ''} onchange="toggleSelectAll('teachers', this.checked);">
@@ -4676,7 +4701,7 @@
             <i class="fas fa-trash-alt"></i> Delete selected (<span>${selectedTeacherIds.size}</span>)
           </button>
           ${selectedTeacherIds.size ? `<span class="bulk-note" style="font-size:0.75rem;color:var(--text-muted);">${selectedTeacherIds.size} selected</span>` : ''}
-        </div>` : ''}
+        </div>
         <div style="overflow-x:auto;">
         <table class="data-table">
           <thead>
@@ -4717,13 +4742,12 @@
             </td>
             <td style="text-align:right;">
               <div class="action-buttons" style="justify-content: flex-end;">
-                ${showTeacherId ? `
                 <label style="display:flex; align-items:center; gap:4px; cursor:pointer; margin-right:2px;" title="Select for bulk delete">
                   <input type="checkbox" class="bulk-chk" data-kind="teachers" data-id="${t.id}" ${selectedTeacherIds.has(t.id) ? 'checked' : ''} onchange="toggleRowSelect('teachers', ${t.id}, this.checked); event.stopPropagation();">
                 </label>
                 <button onclick="openAdminRecoveryReveal(${t.id}, 'teacher')" class="btn-edit" title="Issue one-time temporary password" style="background:var(--warning-bg); color:var(--warning);">
                   <i class="fas fa-key"></i>
-                </button>` : ''}
+                </button>
                 <button onclick="openEditTeacherModal(${t.id})" class="btn-edit" title="Edit in modal">
                   <i class="fas fa-expand"></i>
                 </button>
@@ -4927,7 +4951,6 @@
       shownStudentIds = students.map(s => s.id);
 
       let html = `
-        ${showStudentId ? `
         <div class="bulk-bar" style="display:flex; align-items:center; gap:14px; margin-bottom:10px; flex-wrap:wrap;">
           <label style="display:flex; align-items:center; gap:6px; font-size:0.8rem; cursor:pointer; user-select:none;">
             <input type="checkbox" id="studentsSelectAll" ${selectedStudentIds.size > 0 && shownStudentIds.length > 0 && shownStudentIds.every(id => selectedStudentIds.has(id)) ? 'checked' : ''} onchange="toggleSelectAll('students', this.checked);">
@@ -4937,7 +4960,7 @@
             <i class="fas fa-trash-alt"></i> Delete selected (<span>${selectedStudentIds.size}</span>)
           </button>
           ${selectedStudentIds.size ? `<span class="bulk-note" style="font-size:0.75rem;color:var(--text-muted);">${selectedStudentIds.size} selected</span>` : ''}
-        </div>` : ''}
+        </div>
         <div style="overflow-x:auto;">
         <table class="data-table">
           <thead>
@@ -4979,7 +5002,6 @@
             </td>
             <td style="text-align:right;">
               <div class="action-buttons" style="justify-content: flex-end;">
-                ${showStudentId ? `
                 <label style="display:flex; align-items:center; gap:4px; cursor:pointer; margin-right:2px;" title="Select for bulk delete">
                   <input type="checkbox" class="bulk-chk" data-kind="students" data-id="${s.id}" ${selectedStudentIds.has(s.id) ? 'checked' : ''} onchange="toggleRowSelect('students', ${s.id}, this.checked); event.stopPropagation();">
                 </label>
@@ -4988,7 +5010,7 @@
                 </button>
                 <button onclick="markDirty('tab-students', ${s.id}, 'is_frozen', ${!dirtyData.is_frozen})" class="btn-edit" title="${dirtyData.is_frozen ? 'Unfreeze Account' : 'Freeze Account'}" style="background: ${dirtyData.is_frozen ? 'var(--danger-bg)' : 'var(--warning-bg)'}; color: ${dirtyData.is_frozen ? 'var(--danger)' : 'var(--warning)'}; border: none;">
                   <i class="fas ${dirtyData.is_frozen ? 'fa-lock' : 'fa-lock-open'}"></i>
-                </button>` : ''}
+                </button>
                 <button onclick="openEditStudentModal(${s.id})" class="btn-edit" title="Edit in modal">
                   <i class="fas fa-expand"></i>
                 </button>
