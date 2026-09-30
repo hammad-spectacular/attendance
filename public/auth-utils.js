@@ -1,6 +1,7 @@
-// Same-origin — Vercel rewrites /api/* to the Railway backend
-// For local development with Live Server (on any local IP) or file:// protocol:
-let API_BASE = '';
+// API Configuration
+// api-config.js sets window.API_BASE based on environment
+// Falls back to empty string (same-origin) if not configured
+let API_BASE = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
 
 let isRedirecting = false;
 

@@ -358,22 +358,38 @@ async function issueEmailVerification(user) {
   return true
 }
 
+// ============================================
+// CORS CONFIGURATION
+// ============================================
+// FRONTEND_URL: The production frontend URL (Vercel)
+// Additional allowed origins can be comma-separated in ALLOWED_ORIGINS env var
+const FRONTEND_URL = process.env.FRONTEND_URL || ''
+const ADDITIONAL_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean)
+
 app.use(cors({
   origin: (origin, callback) => {
     // Same-origin and server-to-server requests have no Origin header
     if (!origin) return callback(null, true)
-    const allowed = [
-      'https://theeye-beta.vercel.app',
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      'http://16.16.104.177',
-      'http://13.50.106.16'
-    ]
-    if (allowed.includes(origin)) return callback(null, true)
+    
+    // Production Vercel frontend URL
+    if (FRONTEND_URL && origin === FRONTEND_URL) return callback(null, true)
+    
+    // Legacy AWS frontends (for rollback) - remove after migration confirmed
+    // 'http://16.16.104.177',  // AWS frontend (deprecated)
+    // 'http://13.50.106.16'    // AWS frontend (deprecated)
+    
     // Vercel preview deployments use unique subdomains
     if (/^https:\/\/[\w-]+\.vercel\.app$/.test(origin)) return callback(null, true)
+    
     // Local dev servers (like Live Server on any port, localhost, or local IP)
     if (/^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(origin)) return callback(null, true)
+    
+    // Additional origins from environment variable
+    if (ADDITIONAL_ORIGINS.includes(origin)) return callback(null, true)
+    
     callback(null, false)
   },
   credentials: true

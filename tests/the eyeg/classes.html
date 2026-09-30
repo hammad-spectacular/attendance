@@ -902,7 +902,8 @@
     // =============================================================
     // API CONFIGURATION (Automatic Localhost / Production Detection)
     // =============================================================
-    const API = window.location.origin;
+    // Use window.API_BASE if configured (e.g., for Vercel->Render), otherwise same-origin
+    const API = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : window.location.origin;
 
     // =============================================================
     // AUTH REDIRECT GUARD — prevents simultaneous redirect chaos
