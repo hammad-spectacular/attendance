@@ -650,6 +650,7 @@ async function createTables() {
       ('fees',                'Fees',                'Fee structures, invoices and payments',         true,  60),
       ('whatsapp',            'WhatsApp',            'WhatsApp notifications and messaging',            false, 70),
       ('biometric',           'Biometric',           'Biometric attendance device integration',        false, 80),
+      ('coordinator_management','Coordinator Management','Add, edit and remove coordinators',              true,  85),
       ('coordinator_portal',  'Coordinator Portal',  'Attendance-only coordinators for branch staff',  true,   90)
     ON CONFLICT (key) DO NOTHING;
   `)
@@ -2216,7 +2217,7 @@ app.get('/api/tenant-features', requireAuth(['super_admin', 'admin']), async (re
     // How many people exist, and how many are still missing a portal login. This is
     // what lets the Super Admin see, before pressing anything, exactly how many
     // credentials a button is about to hand out.
-    const [studentCounts, teacherCounts] = await Promise.all([
+    const [studentCounts, teacherCounts, coordinatorCounts] = await Promise.all([
       pool.query(
         `SELECT tenant_id, COUNT(*)::int AS total,
                 COUNT(*) FILTER (WHERE login_id IS NULL OR password_hash IS NULL)::int AS needing
@@ -2224,10 +2225,15 @@ app.get('/api/tenant-features', requireAuth(['super_admin', 'admin']), async (re
       pool.query(
         `SELECT tenant_id, COUNT(*)::int AS total,
                 COUNT(*) FILTER (WHERE login_id IS NULL OR password_hash IS NULL)::int AS needing
-         FROM teachers ${isSuper ? '' : 'WHERE tenant_id = $1'} GROUP BY tenant_id`, params)
+         FROM teachers ${isSuper ? '' : 'WHERE tenant_id = $1'} GROUP BY tenant_id`, params),
+      pool.query(
+        `SELECT tenant_id, COUNT(*)::int AS total,
+                COUNT(*) FILTER (WHERE password_hash IS NULL)::int AS needing
+         FROM admins WHERE role = 'coordinator' ${isSuper ? '' : 'AND tenant_id = $1'} GROUP BY tenant_id`, params)
     ])
     const sc = new Map(studentCounts.rows.map(r => [r.tenant_id, r]))
     const tc = new Map(teacherCounts.rows.map(r => [r.tenant_id, r]))
+    const cc = new Map(coordinatorCounts.rows.map(r => [r.tenant_id, r]))
 
     const enabled = new Map()
     for (const g of grants.rows) enabled.set(`${g.school_id}::${g.feature_key}`, g)
@@ -2242,6 +2248,8 @@ app.get('/api/tenant-features', requireAuth(['super_admin', 'admin']), async (re
       teachers_total: tc.get(school.school_code) ? tc.get(school.school_code).total : 0,
       teachers_needing: tc.get(school.school_code) ? tc.get(school.school_code).needing : 0,
       teachers_limit: school.teacher_limit === null || school.teacher_limit === undefined ? null : Number(school.teacher_limit),
+      coordinators_total: cc.get(school.school_code) ? cc.get(school.school_code).total : 0,
+      coordinators_needing: cc.get(school.school_code) ? cc.get(school.school_code).needing : 0,
       features: features.rows.map(f => {
         const grant = enabled.get(`${school.school_code}::${f.key}`)
         return {
@@ -2292,11 +2300,13 @@ app.patch('/api/tenant-features', requireAuth(['super_admin']), async (req, res)
     // Both updates are returned so the UI re-renders from the payload, never from hope.
     const PORTAL_DEPENDS_ON = {
       student_portal: 'student_management',
-      teacher_portal: 'teacher_management'
+      teacher_portal: 'teacher_management',
+      coordinator_portal: 'coordinator_management'
     }
     const MANAGEMENT_OWNS = {
       student_management: 'student_portal',
-      teacher_management: 'teacher_portal'
+      teacher_management: 'teacher_portal',
+      coordinator_management: 'coordinator_portal'
     }
     const cascades = []
     const otherKeys = []
@@ -2716,6 +2726,29 @@ app.patch('/api/coordinators/:id', requireAuth(['admin']), async (req, res) => {
   } catch (err) {
     console.error('Update coordinator error:', err)
     res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/coordinators/:id - remove a coordinator from the school.
+// branches.created_by is a plain INTEGER with no FK, so nothing has to be
+// cleared first; the row going away is what kills their login, because every
+// request reads admins on the way in and can no longer find a session.
+app.delete('/api/coordinators/:id', requireAuth(['admin']), async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id)) return res.status(400).json({ error: 'Invalid coordinator' })
+
+    const existing = await pool.query(
+      `SELECT id, name FROM admins WHERE id = $1 AND tenant_id = $2 AND role = 'coordinator'`,
+      [id, req.user.tenant_id]
+    )
+    if (existing.rows.length === 0) return res.status(404).json({ error: 'Coordinator not found' })
+
+    await pool.query(`DELETE FROM admins WHERE id = $1 AND tenant_id = $2`, [id, req.user.tenant_id])
+    res.json({ success: true, deleted: existing.rows[0].name })
+  } catch (err) {
+    console.error('Delete coordinator error:', err)
+    res.status(500).json({ error: 'Failed to delete coordinator: ' + err.message })
   }
 })
 

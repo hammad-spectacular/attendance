@@ -915,7 +915,7 @@ function renderTenantFeatures() {
         ${usageItems.length ? `<div class="tenant-usage">${usageItems.join('')}</div>` : ''}
       </div>
       <div class="tenant-feature-grid">`;
-    const portalNeeds = { student_portal: 'student_management', teacher_portal: 'teacher_management' };
+    const portalNeeds = { student_portal: 'student_management', teacher_portal: 'teacher_management', coordinator_portal: 'coordinator_management' };
     for (const f of s.features) {
       // The label, key and blurb all come from the server so the UI never has its own list.
       // can_edit comes from the same response: a school admin can read this screen but
@@ -953,6 +953,10 @@ function renderTenantFeatures() {
     }
     if (tPortal && tPortal.enabled) {
       credRows.push({ audience: 'teacher', label: 'Teachers', total: s.teachers_total, need: s.teachers_needing });
+    }
+    const cPortal = s.features.find(f => f.key === 'coordinator_portal');
+    if (cPortal && cPortal.enabled) {
+      credRows.push({ audience: 'coordinator', label: 'Coordinators', total: s.coordinators_total, need: s.coordinators_needing });
     }
     if (credRows.length) {
       html += `<div class="tenant-credentials">

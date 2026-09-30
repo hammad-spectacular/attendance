@@ -2633,9 +2633,6 @@
             </div>
           </div>
           <div style="display:flex; gap:8px;">
-            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
-              <i class="fas fa-moon" id="coordinatorThemeIcon"></i>
-            </button>
             <button class="btn btn-primary btn-sm" onclick="openAddCoordinatorForm()">
               <i class="fas fa-plus"></i> Add Coordinator
             </button>
@@ -5725,6 +5722,7 @@
               ${mgmtBadge}
               ${c.is_first_login ? `<span class="badge" style="background:rgba(245,158,11,0.15);color:#d97706;">First login pending</span>` : ''}
               <button class="btn btn-ghost btn-sm" onclick="openCoordinatorEditModal(${c.id})"><i class="fas fa-pen"></i> Edit</button>
+              <button class="btn btn-sm" style="background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger);padding:6px 10px;" onclick="deleteCoordinator(${c.id})" title="Delete coordinator"><i class="fas fa-trash-alt"></i></button>
             </div>
           </div>`;
       }).join('');
@@ -5878,6 +5876,32 @@
         msg('Connection error. Please try again.', true);
       } finally {
         setButtonLoading(btn, false);
+      }
+    }
+
+    async function deleteCoordinator(id) {
+      const name = (window.appData.coordinators || []).find(c => c.id === id)?.name || 'this coordinator';
+      const confirmed = await showConfirmModal({
+        icon: '⚠️',
+        iconBg: 'rgba(239,68,68,0.12)',
+        title: 'Delete Coordinator',
+        message: `Are you sure you want to delete "${escapeHtml(name)}"? This will remove them permanently.`,
+        confirmText: 'Delete',
+        confirmClass: 'danger',
+        cancelText: 'Cancel'
+      });
+      if (!confirmed) return;
+      try {
+        const res = await apiFetch(`/api/coordinators/${id}`, { method: 'DELETE' });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          showToast(data.error || 'Failed to delete coordinator', 'error');
+          return;
+        }
+        showToast('Coordinator deleted successfully', 'success');
+        await loadCoordinators();
+      } catch (err) {
+        showToast('Connection error. Please try again.', 'error');
       }
     }
 
@@ -6632,6 +6656,9 @@
         // Must run after applyFeatureVisibility() resolves: loadCapacity() gates the
         // Students/Teachers counts on _featureState.
         loadCapacity();
+        // Re-render the current tab so portal controls (temp key, freeze, checkboxes)
+        // show or hide correctly now that _featureState is populated.
+        if (typeof renderCurrentTab === 'function') renderCurrentTab();
       });
       setupHeaderMenu();
       loadTheme();
