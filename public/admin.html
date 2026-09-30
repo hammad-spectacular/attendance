@@ -188,6 +188,69 @@
       gap: 10px;
     }
 
+    /* ================================
+       BRANCH SELECTOR (header)
+       ================================ */
+    .branch-selector-wrap {
+      display: flex;
+      align-items: center;
+    }
+
+    .branch-selector {
+      padding: 7px 12px;
+      border-radius: 10px;
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      background: rgba(255, 255, 255, 0.18);
+      color: white;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(8px);
+      min-width: 140px;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white' width='12' height='12'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 32px;
+    }
+
+    .branch-selector:hover {
+      border-color: rgba(255, 255, 255, 0.6);
+      background-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .branch-selector:focus {
+      border-color: white;
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.25);
+    }
+
+    .branch-selector option {
+      background: var(--bg-card);
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    /* Branch indicator dot */
+    .branch-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4ade80;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    /* Locked tab button (for future use — currently tabs are hidden, not locked) */
+    .tab-btn[data-locked="true"] {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
     .theme-toggle {
       width: 40px;
       height: 40px;
@@ -1308,114 +1371,90 @@
         color: var(--text-muted);
       }
 
-      /* S# column - always show on mobile */
       #teachersTableWrap .data-table tbody tr td:nth-child(1),
       #studentsTableWrap .data-table tbody tr td:nth-child(1) {
-        order: 0;
-        font-size: 0.78rem;
-        text-align: center;
-      }
-
-      #teachersTableWrap .data-table tbody tr td:nth-child(1)::before,
-      #studentsTableWrap .data-table tbody tr td:nth-child(1)::before {
-        content: 'S#';
-        display: block;
-        font-size: 0.6rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        color: var(--text-muted);
-        margin-bottom: 2px;
-      }
-
-      /* Hide ID column on mobile */
-      #teachersTableWrap .data-table tbody tr td:nth-child(2),
-      #studentsTableWrap .data-table tbody tr td:nth-child(2) {
         display: none;
       }
 
-      /* Name - order 1 */
-      #teachersTableWrap .data-table tbody tr td:nth-child(3),
-      #studentsTableWrap .data-table tbody tr td:nth-child(3) {
+      #teachersTableWrap .data-table tbody tr td:nth-child(2),
+      #studentsTableWrap .data-table tbody tr td:nth-child(2) {
         order: 1;
       }
 
-      #teachersTableWrap .data-table tbody tr td:nth-child(3)::before,
-      #studentsTableWrap .data-table tbody tr td:nth-child(3)::before {
+      #teachersTableWrap .data-table tbody tr td:nth-child(2)::before,
+      #studentsTableWrap .data-table tbody tr td:nth-child(2)::before {
         content: 'Name';
         display: none;
       }
 
-      #teachersTableWrap .data-table tbody tr td:nth-child(3) .inline-edit-input,
-      #studentsTableWrap .data-table tbody tr td:nth-child(3) .inline-edit-input {
+      #teachersTableWrap .data-table tbody tr td:nth-child(2) .inline-edit-input,
+      #studentsTableWrap .data-table tbody tr td:nth-child(2) .inline-edit-input {
         font-size: 1.05rem;
         padding: 8px 10px;
       }
 
-      /* Class - order 2 (teachers) / Roll No - order 2 (students) */
-      #teachersTableWrap .data-table tbody tr td:nth-child(4) {
+      #teachersTableWrap .data-table tbody tr td:nth-child(3) {
         order: 2;
+      }
+
+      #teachersTableWrap .data-table tbody tr td:nth-child(3)::before {
+        content: 'Class';
+      }
+
+      #teachersTableWrap .data-table tbody tr td:nth-child(3) select.inline-edit-input {
+        max-width: 100% !important;
+      }
+
+      #teachersTableWrap .data-table tbody tr td:nth-child(4) {
+        order: 3;
       }
 
       #teachersTableWrap .data-table tbody tr td:nth-child(4)::before {
-        content: 'Class';
+        content: 'Phone';
       }
 
-      #teachersTableWrap .data-table tbody tr td:nth-child(4) select.inline-edit-input {
-        max-width: 100% !important;
-      }
-
-      #studentsTableWrap .data-table tbody tr td:nth-child(4) {
-        order: 2;
-      }
-
-      #studentsTableWrap .data-table tbody tr td:nth-child(4)::before {
-        content: 'Roll No';
-      }
-
-      /* Phone - order 3 (teachers) / Class - order 3 (students) */
       #teachersTableWrap .data-table tbody tr td:nth-child(5) {
-        order: 3;
+        order: 4;
       }
 
       #teachersTableWrap .data-table tbody tr td:nth-child(5)::before {
-        content: 'Phone';
-      }
-
-      #studentsTableWrap .data-table tbody tr td:nth-child(5) {
-        order: 3;
-      }
-
-      #studentsTableWrap .data-table tbody tr td:nth-child(5)::before {
-        content: 'Class';
-      }
-
-      #studentsTableWrap .data-table tbody tr td:nth-child(5) select.inline-edit-input {
-        max-width: 100% !important;
-      }
-
-      /* Actions - order 4 (teachers) / Phone - order 4 (students) */
-      #teachersTableWrap .data-table tbody tr td:nth-child(6) {
-        order: 4;
-      }
-
-      #teachersTableWrap .data-table tbody tr td:nth-child(6)::before {
         content: 'Actions';
       }
 
-      #studentsTableWrap .data-table tbody tr td:nth-child(6) {
+      /* Student: Name, Roll No, Class, Phone, Actions */
+      #studentsTableWrap .data-table tbody tr td:nth-child(3) {
+        order: 2;
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(3)::before {
+        content: 'Roll No';
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(4) {
+        order: 3;
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(4)::before {
+        content: 'Class';
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(4) select.inline-edit-input {
+        max-width: 100% !important;
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(5) {
         order: 4;
       }
 
-      #studentsTableWrap .data-table tbody tr td:nth-child(6)::before {
+      #studentsTableWrap .data-table tbody tr td:nth-child(5)::before {
         content: 'Phone';
       }
 
-      /* Actions - order 5 (students) */
-      #studentsTableWrap .data-table tbody tr td:nth-child(7) {
+      #studentsTableWrap .data-table tbody tr td:nth-child(6) {
         order: 5;
       }
 
-      #studentsTableWrap .data-table tbody tr td:nth-child(7)::before {
+      #studentsTableWrap .data-table tbody tr td:nth-child(6)::before {
         content: 'Actions';
       }
 
@@ -2052,6 +2091,12 @@
           <span>The Eye — School Management System</span>
         </div>
       </div>
+      <!-- Branch selector (rendered by JS once bootstrap loads) -->
+      <div class="branch-selector-wrap" id="branchSelectorWrap" style="display:none;">
+        <select id="branchSelector" class="branch-selector" onchange="onBranchChanged(this.value)">
+          <option value="all">All Branches</option>
+        </select>
+      </div>
       <div class="header-right">
         <div id="headerMenuWrap" class="header-menu-wrap">
           <button id="headerMenuToggle" class="header-menu-toggle" aria-expanded="false" aria-controls="headerMenuPanel" aria-label="Open menu" title="Menu">
@@ -2083,16 +2128,16 @@
       <i class="fas fa-bars tab-nav-toggle-icon"></i>
     </button>
     <div class="tab-nav-inner" id="tabNavInner">
-      <a href="#tab-teachers" class="tab-btn active" data-section="tab-teachers">
+      <a href="#tab-teachers" class="tab-btn active" data-section="tab-teachers" data-feature-key="teacher_management">
         <i class="fas fa-chalkboard-user"></i>Teachers
       </a>
-      <a href="#tab-students" class="tab-btn" data-section="tab-students">
+      <a href="#tab-students" class="tab-btn" data-section="tab-students" data-feature-key="student_management">
         <i class="fas fa-user-graduate"></i>Students
       </a>
       <a href="#tab-classes" class="tab-btn" data-section="tab-classes">
         <i class="fas fa-book"></i>Classes
       </a>
-      <a href="#tab-attendance" class="tab-btn" data-section="tab-attendance">
+      <a href="#tab-attendance" class="tab-btn" data-section="tab-attendance" data-feature-key="attendance">
         <i class="fas fa-clipboard-list"></i>Attendance
       </a>
       <a href="#tab-stats" class="tab-btn" data-section="tab-stats">
@@ -2101,8 +2146,12 @@
       <a href="#tab-announcements" class="tab-btn" data-section="tab-announcements">
         <i class="fas fa-bullhorn"></i>Announcements
       </a>
-      <a href="#tab-fees" class="tab-btn" data-section="tab-fees">
+      <a href="#tab-fees" class="tab-btn" data-section="tab-fees" data-feature-key="fees">
         <i class="fas fa-money-bill-wave"></i>Fees
+      </a>
+      <!-- Branches tab: only shown when tenant has no branches yet (for initial setup) -->
+      <a href="#tab-branches" class="tab-btn" data-section="tab-branches" id="branchesTabBtn" style="display:none;">
+        <i class="fas fa-building"></i>Branches
       </a>
       <a href="#tab-coordinators" class="tab-btn" data-section="tab-coordinators" id="coordinatorsTabBtn">
         <i class="fas fa-user-shield"></i>Coordinators
@@ -2112,6 +2161,56 @@
 
   <!-- ======================== MAIN ======================== -->
   <div class="main">
+
+    <!-- ==================== BRANCHES TAB ==================== -->
+    <!-- Only visible when tenant has zero branches (initial setup) -->
+    <div id="tab-branches" class="tab-content">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-icon purple"><i class="fas fa-building"></i></div>
+            <div>
+              <div class="section-title">Branches</div>
+              <div class="section-subtitle">Create and manage your academy branches</div>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openAddBranchModal()">
+            <i class="fas fa-plus"></i> Add Branch
+          </button>
+        </div>
+        <div class="section-body">
+          <p id="branchesIntroText" style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:16px;">
+            Add your first branch to get started. You can create multiple branches for different campuses or locations.
+          </p>
+          <!-- Add Branch Inline Form -->
+          <div id="addBranchFormWrap" style="display:none;margin-bottom:20px;">
+            <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+              <div class="form-group" style="flex:1;min-width:200px;margin-bottom:0;">
+                <label class="form-label" for="newBranchName">Branch Name</label>
+                <input class="form-input" type="text" id="newBranchName" placeholder="e.g. Main Campus">
+              </div>
+              <button class="btn btn-primary" onclick="createBranch()" id="saveBranchBtn">
+                <i class="fas fa-check"></i> Save Branch
+              </button>
+              <button class="btn btn-ghost" onclick="cancelAddBranch()">Cancel</button>
+            </div>
+            <div id="addBranchError" style="color:var(--danger);font-size:0.78rem;margin-top:6px;display:none;"></div>
+          </div>
+          <!-- Branches List -->
+          <div id="branchesList">
+            <!-- Rendered by JS -->
+          </div>
+          <div id="branchesLoading" style="text-align:center;padding:24px;color:var(--text-muted);">
+            <i class="fas fa-spinner fa-spin"></i> Loading...
+          </div>
+          <div id="branchesEmpty" style="display:none;" class="empty-state">
+            <div class="icon"><i class="fas fa-building"></i></div>
+            <div class="msg">No branches yet</div>
+            <div class="sub">Click "Add Branch" above to create your first branch.</div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- ==================== TEACHERS TAB ==================== -->
     <div id="tab-teachers" class="tab-content active">
@@ -2289,14 +2388,9 @@
               <div class="section-subtitle">View enrolled students and assign teachers per class</div>
             </div>
           </div>
-          <div style="display:flex; gap:8px;">
-            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
-              <i class="fas fa-moon" id="classesThemeIcon"></i>
-            </button>
-            <button class="btn btn-primary" onclick="toggleAddClass()" id="addClassToggleBtn">
-              <i class="fas fa-plus"></i> Add Class
-            </button>
-          </div>
+          <button class="btn btn-primary" onclick="toggleAddClass()" id="addClassToggleBtn">
+            <i class="fas fa-plus"></i> Add Class
+          </button>
         </div>
         <div class="section-body">
           
@@ -2362,15 +2456,8 @@
               <div class="section-subtitle">View submitted attendance and absent students</div>
             </div>
           </div>
-          <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
-            <i class="fas fa-moon" id="attendanceThemeIcon"></i>
-          </button>
         </div>
         <div class="section-body" style="padding:0;">
-          <div style="padding: 12px 16px; background: var(--success-bg); border-bottom: 1px solid var(--border); display:flex; align-items:center; gap:8px; font-size:0.82rem; color: var(--success);">
-            <i class="fas fa-check-circle"></i>
-            <span>Attendance records loaded successfully</span>
-          </div>
           <div style="padding: 16px; border-bottom: 1px solid var(--border);">
             <div class="search-filter-container" style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
               <div style="flex:1; min-width:240px; position:relative;">
@@ -2428,9 +2515,6 @@
               <div class="section-subtitle">Overall attendance percentage across all recorded days</div>
             </div>
           </div>
-          <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
-            <i class="fas fa-moon" id="statsThemeIcon"></i>
-          </button>
         </div>
         <div class="section-body" style="padding:0;">
           <div style="padding: 16px; border-bottom: 1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
@@ -2466,9 +2550,6 @@
               <div class="section-subtitle">Post announcements visible to everyone</div>
             </div>
           </div>
-          <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
-            <i class="fas fa-moon" id="announcementsThemeIcon"></i>
-          </button>
         </div>
         <div class="section-body">
           <div class="form-group">
@@ -2530,14 +2611,9 @@
                 <div class="section-subtitle">Current month fee status</div>
               </div>
             </div>
-            <div style="display:flex; gap:8px;">
-              <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
-                <i class="fas fa-moon" id="feesThemeIcon"></i>
-              </button>
-              <button class="btn btn-primary btn-sm" onclick="openFeePaymentModal()">
-                <i class="fa-solid fa-plus"></i> Record Payment
-              </button>
-            </div>
+            <button class="btn btn-primary btn-sm" onclick="openFeePaymentModal()">
+              <i class="fa-solid fa-plus"></i> Record Payment
+            </button>
           </div>
           <div class="section-body">
             <div class="fees-filter-row" style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
@@ -2619,6 +2695,8 @@
       </div>
     </div>
 
+  </div>
+
     <!-- ==================== COORDINATORS TAB ==================== -->
     <!-- Coordinators are attendance-only staff appointed to one branch or, with
          no branch picked, to the whole school. They can never see or change it. -->
@@ -2669,7 +2747,7 @@
               </label>
             </div>
             <div id="noBranchHint" style="display:none;font-size:0.78rem;color:var(--warning);margin-top:8px;">
-              <i class="fas fa-circle-info"></i> You have no branches yet — create one here:
+              <i class="fas fa-circle-info"></i> You have no branches yet. <a href="#" onclick="switchTab('tab-branches');return false;" style="color:var(--primary);font-weight:600;">Add a branch</a> first, or create one here:
               <span style="display:inline-flex;gap:6px;margin-left:8px;align-items:center;">
                 <input class="form-input" type="text" id="inlineBranchName" placeholder="Branch name" style="width:160px;padding:6px 10px;">
                 <button class="btn btn-ghost btn-sm" onclick="createInlineBranch()">Create</button>
@@ -2999,6 +3077,7 @@
 
 
   <!-- ======================== JAVASCRIPT ======================== -->
+  <script src="./api-config.js"></script>
   <script src="./auth-utils.js"></script>
   <script>
     let credentialsDoneCallback = null;
@@ -3133,7 +3212,15 @@
       classes: [],
       attendance: [],
       fees: [],
-      coordinators: [],
+      // Branch state
+      branches: [],           // array from /api/admin/bootstrap
+      selectedBranchId: null,  // null = "All Branches", number = specific branch
+      coordinators: [],        // coordinators for the Coordinators tab
+      // Feature gates
+      features: {},            // { key: bool } — true = enabled, false = disabled
+      // Bootstrap loaded flag
+      bootstrapLoaded: false,
+      // Load-failure messages for the panels that render partial data
       attendanceLoadError: '',
       feesLoadError: ''
     };
@@ -3261,11 +3348,12 @@
 
       try {
         window.appData.attendanceLoadError = '';
+        const bq = branchQueryParam(); // e.g. '?branch_id=all' or '?branch_id=3'
         const [teachers, classes, students, rawAttendance] = await Promise.all([
-          apiFetch('/api/teachers').then(r => r.json()).then(toArray),
-          apiFetch('/api/classes').then(r => r.json()).then(toArray),
-          apiFetch('/api/students').then(r => r.json()).then(toArray),
-          apiFetch('/api/attendance/all').then(r => r.json()).then(toArray).catch(err => {
+          apiFetch('/api/teachers' + bq).then(r => r.json()).then(toArray),
+          apiFetch('/api/classes' + bq).then(r => r.json()).then(toArray),
+          apiFetch('/api/students' + bq).then(r => r.json()).then(toArray),
+          apiFetch('/api/attendance/all' + bq).then(r => r.json()).then(toArray).catch(err => {
             window.appData.attendanceLoadError = err.message || 'Attendance failed to load';
             return [];
           })
@@ -3347,7 +3435,7 @@
       if (window.__attendanceRefreshInFlight) return;
       window.__attendanceRefreshInFlight = true;
       try {
-        const res = await apiFetch('/api/attendance/all');
+        const res = await apiFetch('/api/attendance/all' + branchQueryParam());
         if (!res.ok) throw new Error(`Server returned ${res.status}`);
         const payload = await res.json();
         window.appData.attendance = groupAttendanceRecords(Array.isArray(payload) ? payload : []);
@@ -4320,15 +4408,28 @@
         return;
       }
 
+      // If tenant has branches but no specific branch is selected, block creation
+      const branches = window.appData.branches || [];
+      if (branches.length > 0 && !window.appData.selectedBranchId) {
+        showToast('⚠️ Please select a branch before creating a class.', 'warning');
+        return;
+      }
+
       setButtonLoading(btn, true, '<i class="fas fa-spinner fa-spin"></i> Creating...');
+
+      const body = { name, section: section || null };
+      if (window.appData.selectedBranchId) body.branch_id = window.appData.selectedBranchId;
 
       try {
         const response = await apiFetch('/api/classes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, section: section || null })
+          body: JSON.stringify(body)
         });
-        if (!response.ok) throw new Error('Failed to create class');
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error || 'Failed to create class');
+        }
         const createdClass = await response.json();
 
         toggleAddClass();
@@ -4338,7 +4439,7 @@
         if (btn) btn.dataset.originalHtml = btn.innerHTML;
         showToast('✅ Class created successfully', 'success');
       } catch (err) {
-        showToast(`❌ Error: ${err.message}`, 'error');
+        showToast(`❌ ${err.message}`, 'error');
       } finally {
         setButtonLoading(btn, false);
       }
@@ -4426,7 +4527,7 @@
         const cached = window.appData?.classes || [];
         if (cached.length === 0) {
           try {
-            const response = await apiFetch('/api/classes');
+            const response = await apiFetch('/api/classes' + branchQueryParam());
             const classes = await response.json();
             window.appData.classes = classes;
             if (classes.length === 0) {
@@ -4499,13 +4600,23 @@
         return;
       }
 
+      // If tenant has branches but no specific branch selected, block creation
+      const branches = window.appData.branches || [];
+      if (branches.length > 0 && !window.appData.selectedBranchId) {
+        showToast('⚠️ Please select a branch before adding a teacher.', 'warning');
+        return;
+      }
+
       setButtonLoading(btn, true, '<i class="fas fa-spinner fa-spin"></i> Creating...');
+
+      const teacherBody = { name, phone: phone || null, class_id: classId || null, email: email || null };
+      if (window.appData.selectedBranchId) teacherBody.branch_id = window.appData.selectedBranchId;
 
       try {
         const response = await apiFetch('/api/auth/create-teacher', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, phone: phone || null, class_id: classId || null, email: email || null })
+          body: JSON.stringify(teacherBody)
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Failed to add teacher');
@@ -4703,7 +4814,6 @@
         <table class="data-table">
           <thead>
             <tr>
-              <th style="width:50px; text-align:center;">S#</th>
               <th style="width:50px; text-align:left;${showTeacherId ? '' : 'display:none;'}">ID</th>
               <th style="text-align:left;">Name</th>
               <th style="text-align:center; width:150px;">Class</th>
@@ -4716,11 +4826,9 @@
       teachers.forEach((t, i) => {
         const dirtyData = dirtyState['tab-teachers'].get(t.id)?.current || t;
         const isDirty = dirtyState['tab-teachers'].has(t.id);
-        const serialNo = i + 1;
         
         html += `
           <tr id="row-tab-teachers-${t.id}" class="${isDirty ? 'row-dirty' : ''}">
-            <td style="color:var(--text-muted); font-size:0.78rem; text-align:center; font-weight:600;">${serialNo}</td>
             <td style="color:var(--text-muted); font-weight:500; text-align:left;${showTeacherId ? '' : 'display:none;'}">${showTeacherId ? (t.login_id ? (_tenantCode ? _tenantCode + '-' : '') + escapeHtml(t.login_id) : '—') : ''}</td>
             <td style="text-align:left;">
               <input type="text" class="inline-edit-input" value="${escapeHtml(dirtyData.name)}" oninput="markDirty('tab-teachers', ${t.id}, 'name', this.value)" style="font-weight:bold;">
@@ -4805,19 +4913,29 @@
         return;
       }
 
+      // If tenant has branches but no specific branch selected, block creation
+      const branches = window.appData.branches || [];
+      if (branches.length > 0 && !window.appData.selectedBranchId) {
+        showToast('⚠️ Please select a branch before adding a student.', 'warning');
+        return;
+      }
+
       setButtonLoading(btn, true, '<i class="fas fa-spinner fa-spin"></i> Creating...');
+
+      const studentBody = {
+        name,
+        roll_no: rollNo,
+        phone: phone || null,
+        class_id: null,
+        email: email || null
+      };
+      if (window.appData.selectedBranchId) studentBody.branch_id = window.appData.selectedBranchId;
 
       try {
         const response = await apiFetch('/api/auth/create-student', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name,
-            roll_no: rollNo,
-            phone: phone || null,
-            class_id: null,
-            email: email || null
-          })
+          body: JSON.stringify(studentBody)
         });
         const data = await response.json();
         if (!response.ok) {
@@ -4849,6 +4967,7 @@
             filterStudents();
           });
         }
+
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
       } finally {
@@ -4962,7 +5081,6 @@
         <table class="data-table">
           <thead>
             <tr>
-              <th style="width:50px; text-align:center;">S#</th>
               <th style="width:50px; text-align:left;${showStudentId ? '' : 'display:none;'}">ID</th>
               <th style="text-align:left;">Name</th>
               <th style="text-align:center; width:120px;">Roll No</th>
@@ -4973,14 +5091,12 @@
           </thead>
           <tbody>`;
 
-      students.forEach((s, index) => {
+      students.forEach((s) => {
         const dirtyData = dirtyState['tab-students'].get(s.id)?.current || s;
         const isDirty = dirtyState['tab-students'].has(s.id);
-        const serialNo = index + 1;
 
         html += `
           <tr id="row-tab-students-${s.id}" class="${isDirty ? 'row-dirty' : ''}">
-            <td style="color:var(--text-muted); font-size:0.78rem; text-align:center; font-weight:600;">${serialNo}</td>
             <td style="color:var(--text-muted); font-size:0.75rem; text-align:left;${showStudentId ? '' : 'display:none;'}">${showStudentId ? (s.login_id ? (_tenantCode ? _tenantCode + '-' : '') + escapeHtml(s.login_id) : '—') : ''}</td>
             <td style="text-align:left;">
               <input type="text" class="inline-edit-input" value="${escapeHtml(dirtyData.name)}" oninput="markDirty('tab-students', ${s.id}, 'name', this.value)" style="font-weight:bold;">
@@ -5636,6 +5752,73 @@
       }
       window._isFirstLogin = session.is_first_login;
       if (session.is_first_login) { showPasswordWarningBanner(); }
+
+      // Load bootstrap data: branches + feature grants
+      await loadAdminBootstrap();
+    }
+
+    async function loadAdminBootstrap() {
+      // Defensive: coordinators should never reach this page, but block them here too.
+      const session = await refreshSession().catch(() => null);
+      if (!session || (session.role !== 'admin' && session.role !== 'super_admin')) {
+        window.location.replace('/index.html');
+        return;
+      }
+
+      try {
+        const res = await apiFetch('/api/admin/bootstrap');
+        if (!res.ok) throw new Error('Bootstrap failed');
+        const data = await res.json();
+        window.appData.branches = Array.isArray(data.branches) ? data.branches : [];
+        // Build features map: { key: enabled }
+        window.appData.features = {};
+        if (Array.isArray(data.features)) {
+          for (const f of data.features) {
+            window.appData.features[f.key] = !!f.enabled;
+          }
+        }
+        window.appData.bootstrapLoaded = true;
+
+        // Apply feature gates — hide tabs for disabled modules
+        applyFeatureGates();
+
+        // Render branch selector (shows if branches > 0, else Branches tab is shown instead)
+        renderBranchSelector();
+
+        // If no branches: show Branches tab, hide selector
+        // If branches exist: hide Branches tab, show selector
+        const hasBranches = window.appData.branches.length > 0;
+        const branchesTabBtn = document.getElementById('branchesTabBtn');
+        if (branchesTabBtn) {
+          branchesTabBtn.style.display = hasBranches ? 'none' : 'inline-flex';
+        }
+
+        // Restore previously selected branch (if any)
+        const savedBranch = localStorage.getItem('selectedBranchId');
+        if (savedBranch) {
+          const parsed = parseInt(savedBranch, 10);
+          if (!isNaN(parsed) && window.appData.branches.some(b => b.id === parsed)) {
+            window.appData.selectedBranchId = parsed;
+          }
+        }
+
+        // Update selector UI
+        const sel = document.getElementById('branchSelector');
+        if (sel) {
+          sel.value = window.appData.selectedBranchId ? String(window.appData.selectedBranchId) : 'all';
+        }
+
+        // Render branches list in Branches tab
+        renderBranchesList();
+
+      } catch (err) {
+        console.error('Failed to load admin bootstrap:', err);
+        // Still allow the page to load — show all tabs
+        window.appData.bootstrapLoaded = true;
+        applyFeatureGates();
+        renderBranchSelector();
+        reloadAllData(true);
+      }
     }
 
     function showPasswordWarningBanner() {
@@ -5656,6 +5839,259 @@
 
     function dismissPasswordBanner() {
       hidePasswordWarningBanner();
+    }
+
+    // =============================================================
+    // FEATURE GATES
+    // =============================================================
+    // Hide tabs for modules the Super Admin has disabled for this tenant.
+    // Coordinators are already blocked at the API level.
+    function applyFeatureGates() {
+      const features = window.appData.features || {};
+      const tabBtns = document.querySelectorAll('.tab-btn[data-feature-key]');
+      tabBtns.forEach(btn => {
+        const key = btn.getAttribute('data-feature-key');
+        if (key && features.hasOwnProperty(key)) {
+          if (!features[key]) {
+            btn.style.display = 'none';
+          } else {
+            // Feature is enabled — make sure it's visible
+            // (don't force display:inline-flex here; let the tab system handle it)
+          }
+        }
+      });
+    }
+
+    // =============================================================
+    // BRANCH SELECTOR
+    // =============================================================
+    function renderBranchSelector() {
+      const wrap = document.getElementById('branchSelectorWrap');
+      const sel = document.getElementById('branchSelector');
+      if (!wrap || !sel) return;
+
+      const branches = window.appData.branches || [];
+
+      // Show selector only if there are branches (otherwise Branches tab is shown)
+      if (branches.length === 0) {
+        wrap.style.display = 'none';
+        return;
+      }
+      wrap.style.display = 'flex';
+
+      // Build options: "All Branches" + one per branch
+      const currentVal = window.appData.selectedBranchId
+        ? String(window.appData.selectedBranchId)
+        : 'all';
+
+      let html = `<option value="all">All Branches</option>`;
+      for (const b of branches) {
+        const selected = String(b.id) === currentVal ? 'selected' : '';
+        const statusMark = b.status === 'deactivated' ? ' (inactive)' : '';
+        html += `<option value="${b.id}" ${selected}>${escapeHtml(b.name)}${statusMark}</option>`;
+      }
+      sel.innerHTML = html;
+    }
+
+    function onBranchChanged(value) {
+      if (value === 'all') {
+        window.appData.selectedBranchId = null;
+        localStorage.removeItem('selectedBranchId');
+      } else {
+        const parsed = parseInt(value, 10);
+        if (!isNaN(parsed)) {
+          window.appData.selectedBranchId = parsed;
+          localStorage.setItem('selectedBranchId', String(parsed));
+        }
+      }
+      // Wait for bootstrap to finish before reloading data with branch filter
+      const doReload = () => {
+        reloadAllData(false, true);
+      };
+      if (window.appData.bootstrapLoaded) {
+        doReload();
+      } else {
+        // Retry after a short delay until bootstrap is ready
+        const waitForBootstrap = setInterval(() => {
+          if (window.appData.bootstrapLoaded) {
+            clearInterval(waitForBootstrap);
+            doReload();
+          }
+        }, 100);
+      }
+    }
+
+    // Returns the branch_id query param for API calls, or empty string for "All"
+    function branchQueryParam() {
+      const id = window.appData.selectedBranchId;
+      return id ? `?branch_id=${id}` : '?branch_id=all';
+    }
+
+    // =============================================================
+    // BRANCH MANAGEMENT (in Branches tab)
+    // =============================================================
+    function openAddBranchModal() {
+      document.getElementById('addBranchFormWrap').style.display = 'block';
+      document.getElementById('newBranchName').value = '';
+      document.getElementById('addBranchError').style.display = 'none';
+      document.getElementById('newBranchName').focus();
+    }
+
+    function cancelAddBranch() {
+      document.getElementById('addBranchFormWrap').style.display = 'none';
+    }
+
+    async function createBranch() {
+      const nameInput = document.getElementById('newBranchName');
+      const errorEl = document.getElementById('addBranchError');
+      const btn = document.getElementById('saveBranchBtn');
+      const name = (nameInput.value || '').trim();
+
+      if (!name) {
+        errorEl.textContent = 'Branch name is required.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      setButtonLoading(btn, true, '<i class="fas fa-spinner fa-spin"></i> Saving...');
+      errorEl.style.display = 'none';
+
+      try {
+        const res = await apiFetch('/api/branches', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          errorEl.textContent = data.error || 'Failed to create branch.';
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        // Add to local list
+        if (!window.appData.branches) window.appData.branches = [];
+        window.appData.branches.push({ ...data, status: 'active' });
+        window.appData.branches.sort((a, b) => a.name.localeCompare(b.name));
+
+        // Refresh UI
+        renderBranchSelector();
+        renderBranchesList();
+
+        // If this is the first branch, hide the Branches tab and show the selector
+        if (window.appData.branches.length === 1) {
+          const branchesTabBtn = document.getElementById('branchesTabBtn');
+          if (branchesTabBtn) branchesTabBtn.style.display = 'none';
+          wrap = document.getElementById('branchSelectorWrap');
+          if (wrap) wrap.style.display = 'flex';
+        }
+
+        cancelAddBranch();
+        showToast(`Branch "${name}" created successfully.`, 'success');
+
+      } catch (err) {
+        errorEl.textContent = 'Connection error. Please try again.';
+        errorEl.style.display = 'block';
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    }
+
+    async function deactivateBranch(branchId, branchName) {
+      const confirmed = await showConfirmModal({
+        icon: '🏢',
+        iconBg: 'rgba(239,68,68,0.12)',
+        title: 'Deactivate Branch',
+        message: `Are you sure you want to deactivate "${branchName}"? Existing records will be kept but no new ones can be added to this branch.`,
+        confirmText: 'Yes, Deactivate',
+        confirmClass: 'danger',
+        cancelText: 'Cancel'
+      });
+      if (!confirmed) return;
+
+      try {
+        // Use the admin-level endpoint (not Super Admin's review endpoint)
+        const res = await apiFetch(`/api/branches/${branchId}/admin`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'deactivate' })
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          showToast(data.error || 'Failed to deactivate branch.', 'error');
+          return;
+        }
+        // Update local state
+        const idx = window.appData.branches.findIndex(b => b.id === branchId);
+        if (idx !== -1) window.appData.branches[idx].status = 'deactivated';
+        renderBranchSelector();
+        renderBranchesList();
+        showToast(`Branch "${branchName}" has been deactivated.`, 'info');
+      } catch (err) {
+        showToast('Connection error.', 'error');
+      }
+    }
+
+    async function reactivateBranch(branchId, branchName) {
+      try {
+        // Use the admin-level endpoint
+        const res = await apiFetch(`/api/branches/${branchId}/admin`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'reactivate' })
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          showToast(data.error || 'Failed to reactivate branch.', 'error');
+          return;
+        }
+        const idx = window.appData.branches.findIndex(b => b.id === branchId);
+        if (idx !== -1) window.appData.branches[idx].status = 'active';
+        renderBranchSelector();
+        renderBranchesList();
+        showToast(`Branch "${branchName}" has been reactivated.`, 'success');
+      } catch (err) {
+        showToast('Connection error.', 'error');
+      }
+    }
+
+    function renderBranchesList() {
+      const listEl = document.getElementById('branchesList');
+      const loadingEl = document.getElementById('branchesLoading');
+      const emptyEl = document.getElementById('branchesEmpty');
+      if (!listEl || !loadingEl || !emptyEl) return;
+
+      loadingEl.style.display = 'none';
+      const branches = window.appData.branches || [];
+
+      if (branches.length === 0) {
+        listEl.innerHTML = '';
+        emptyEl.style.display = 'block';
+        return;
+      }
+
+      emptyEl.style.display = 'none';
+
+      listEl.innerHTML = branches.map(b => {
+        const isActive = b.status === 'active';
+        const statusBadge = isActive
+          ? `<span class="badge" style="background:var(--success-bg);color:var(--success);">Active</span>`
+          : `<span class="badge" style="background:var(--danger-bg);color:var(--danger);">Inactive</span>`;
+        const actionBtn = isActive
+          ? `<button class="btn btn-ghost btn-sm" onclick="deactivateBranch(${b.id}, '${escapeHtml(b.name).replace(/'/g, "\\'")}')"><i class="fas fa-ban"></i> Deactivate</button>`
+          : `<button class="btn btn-sm" style="background:var(--success-bg);color:var(--success);border:1px solid var(--success);" onclick="reactivateBranch(${b.id}, '${escapeHtml(b.name).replace(/'/g, "\\'")}')"><i class="fas fa-check"></i> Reactivate</button>`;
+        return `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--bg);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;gap:12px;">
+            <div>
+              <div style="font-weight:700;font-size:0.9rem;color:var(--text);">${escapeHtml(b.name)}</div>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">ID: ${b.id}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+              ${statusBadge}
+              ${actionBtn}
+            </div>
+          </div>`;
+      }).join('');
     }
 
     // =============================================================
@@ -5722,7 +6158,6 @@
               ${mgmtBadge}
               ${c.is_first_login ? `<span class="badge" style="background:rgba(245,158,11,0.15);color:#d97706;">First login pending</span>` : ''}
               <button class="btn btn-ghost btn-sm" onclick="openCoordinatorEditModal(${c.id})"><i class="fas fa-pen"></i> Edit</button>
-              <button class="btn btn-sm" style="background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger);padding:6px 10px;" onclick="deleteCoordinator(${c.id})" title="Delete coordinator"><i class="fas fa-trash-alt"></i></button>
             </div>
           </div>`;
       }).join('');
@@ -5736,6 +6171,8 @@
       document.getElementById('newCoordinatorManagement').checked = false;
       document.getElementById('addCoordinatorError').style.display = 'none';
       populateCoordinatorBranchSelects();
+      // If the admin is already working inside a branch (header selector),
+      // start the form there so they only need to enter the name.
       const branchSel = document.getElementById('newCoordinatorBranch');
       if (window.appData.selectedBranchId && branchSel) {
         branchSel.value = String(window.appData.selectedBranchId);
@@ -5879,35 +6316,8 @@
       }
     }
 
-    async function deleteCoordinator(id) {
-      const name = (window.appData.coordinators || []).find(c => c.id === id)?.name || 'this coordinator';
-      const confirmed = await showConfirmModal({
-        icon: '⚠️',
-        iconBg: 'rgba(239,68,68,0.12)',
-        title: 'Delete Coordinator',
-        message: `Are you sure you want to delete "${escapeHtml(name)}"? This will remove them permanently.`,
-        confirmText: 'Delete',
-        confirmClass: 'danger',
-        cancelText: 'Cancel'
-      });
-      if (!confirmed) return;
-      try {
-        const res = await apiFetch(`/api/coordinators/${id}`, { method: 'DELETE' });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          showToast(data.error || 'Failed to delete coordinator', 'error');
-          return;
-        }
-        showToast('Coordinator deleted successfully', 'success');
-        await loadCoordinators();
-      } catch (err) {
-        showToast('Connection error. Please try again.', 'error');
-      }
-    }
-
     // One-off branch creation from inside the Add Coordinator form, so a school
     // without any branches can still create their first coordinator here.
-    // Branch-selector refreshes are guarded: this page may not have that UI.
     async function createInlineBranch() {
       const input = document.getElementById('inlineBranchName');
       const name = (input.value || '').trim();
@@ -5920,11 +6330,10 @@
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) { showToast(data.error || 'Failed to create branch.', 'error'); return; }
-        if (!Array.isArray(window.appData.branches)) window.appData.branches = [];
         window.appData.branches.push({ ...data, status: 'active' });
         window.appData.branches.sort((a, b) => a.name.localeCompare(b.name));
-        if (typeof renderBranchSelector === 'function') renderBranchSelector();
-        if (typeof renderBranchesList === 'function') renderBranchesList();
+        renderBranchSelector();
+        renderBranchesList();
         populateCoordinatorBranchSelects();
         const sel = document.getElementById('newCoordinatorBranch');
         if (sel) sel.value = String(data.id);
@@ -6374,7 +6783,7 @@
     let failedCount = 0;
     let savedCount = 0;
     let firstError = null;
-    let forbidden = null;
+  let forbidden = null;
 
       try {
         if (activeTabId === 'tab-teachers') {
@@ -6422,9 +6831,9 @@
               savedCount++;
             } else {
               failedCount++;
-              if (!firstError) firstError = data2?.error || `HTTP ${response.status}`;
-              if (response.status === 403) forbidden = response;
-              console.error(`Student ${id} save failed:`, data2?.error || response.status);
+  if (!firstError) firstError = data2?.error || `HTTP ${response.status}`;
+  if (response.status === 403) forbidden = response;
+     console.error(`Student ${id} save failed:`, data2?.error || response.status);
             }
           }
           dirtyState['tab-students'].clear();
@@ -6656,9 +7065,6 @@
         // Must run after applyFeatureVisibility() resolves: loadCapacity() gates the
         // Students/Teachers counts on _featureState.
         loadCapacity();
-        // Re-render the current tab so portal controls (temp key, freeze, checkboxes)
-        // show or hide correctly now that _featureState is populated.
-        if (typeof renderCurrentTab === 'function') renderCurrentTab();
       });
       setupHeaderMenu();
       loadTheme();
@@ -7164,13 +7570,25 @@
 
       const btn = document.getElementById('btnGenerateTeachers');
       const originalText = btn.innerHTML;
+
+      // Branch gate for bulk teacher creation
+      const branches = window.appData.branches || [];
+      if (branches.length > 0 && !window.appData.selectedBranchId) {
+        showToast('⚠️ Please select a branch before creating teachers.', 'warning');
+        return;
+      }
+
       setButtonLoading(btn, true, 'Saving...');
+
+      const teacherBulkBody = { names: names };
+      if (window.appData.selectedBranchId) teacherBulkBody.branch_id = window.appData.selectedBranchId;
+      if (window.appData.selectedBranchId) teacherBulkBody.branch_id = window.appData.selectedBranchId;
 
       try {
         const response = await apiFetch('/api/auth/bulk-create-teachers', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ names: names })
+          body: JSON.stringify(teacherBulkBody)
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Failed to bulk create teachers');
@@ -7215,20 +7633,31 @@
 
       const btn = document.getElementById('btnGenerateStudents');
       const originalText = btn.innerHTML;
+
+      // Branch gate for bulk student creation
+      const branches = window.appData.branches || [];
+      if (branches.length > 0 && !window.appData.selectedBranchId) {
+        showToast('⚠️ Please select a branch before creating students.', 'warning');
+        return;
+      }
+
       setButtonLoading(btn, true, 'Saving...');
+
+      const studentBulkBody = { names: names, class_id: parseInt(classId, 10) };
+      if (window.appData.selectedBranchId) studentBulkBody.branch_id = window.appData.selectedBranchId;
 
       try {
         const response = await apiFetch('/api/auth/bulk-create-students', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ names: names, class_id: parseInt(classId, 10) })
+          body: JSON.stringify(studentBulkBody)
         });
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(response.status === 403
-            ? describeForbidden(response, 'admin')
-            : data.error || 'Failed to bulk create students');
-        }
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(response.status === 403
+        ? describeForbidden(response, 'admin')
+        : data.error || 'Failed to bulk create students');
+    }
 
         closeBulkAddStudentModal();
         showBulkResults(data.accounts, data.credentials_issued === true);
@@ -7263,9 +7692,9 @@
       tbody.innerHTML = accounts.map(function(a, idx) {
         if (a.original_name === undefined) a.original_name = a.name;
         const nameCell = (a.id !== null && a.id !== undefined)
-        ? '<input type="text" class="form-input" maxlength="100" style="padding:5px 8px; font-size:0.8rem; height:auto;" ' +
-        'value="' + escapeHtml(a.name) + '" oninput="updateBulkName(' + idx + ', this.value)">'
-        : '<span>' + escapeHtml(a.name) + '</span>';
+          ? '<input type="text" class="form-input" maxlength="100" style="padding:5px 8px; font-size:0.8rem; height:auto;" ' +
+            'value="' + escapeHtml(a.name) + '" oninput="updateBulkName(' + idx + ', this.value)">'
+          : '<span>' + escapeHtml(a.name) + '</span>';
         return '<tr>' +
         '<td>' + nameCell + '</td>' +
         '<td style="font-family:monospace;' + (credentialsIssued ? '' : 'display:none;') + '">' + (credentialsIssued ? escapeHtml(a.full_id || a.login_id) : '') + '</td>' +

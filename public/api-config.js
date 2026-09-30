@@ -1,34 +1,31 @@
 /**
  * API Configuration for The Eye Frontend
- * 
- * This file configures the API base URL for frontend-backend communication.
- * 
+ *
+ * This file MUST be loaded before auth-utils.js in every HTML page.
+ * It sets window.API_BASE for cross-origin Vercel -> Render communication.
+ *
  * LOCAL DEVELOPMENT:
- *   API_BASE = '' (empty string - uses same origin)
- * 
- * VERCEL FRONTEND + RENDER BACKEND:
- *   API_BASE = 'https://your-render-app.onrender.com' (your Render backend URL)
- * 
- * AWS ROLLBACK:
- *   API_BASE = 'http://13.63.55.73' (your AWS backend IP)
+ *   Automatically detects localhost / 127.0.0.1 / local IP → empty string (same-origin)
+ *
+ * PRODUCTION (Vercel → Render):
+ *   Detects vercel.app domain → uses the Render backend URL below
  */
 
-// Detect environment and set API_BASE accordingly
-// For local development with Live Server or file:// protocol, use empty string
-// For production, set this to your backend URL
+(function () {
+  const hostname = window.location.hostname;
 
-(function() {
-  // Default: empty string (same-origin requests)
-  // Change this to your Render backend URL for production
-  window.API_BASE = '';
-  
-  // Alternative: Auto-detect based on hostname
-  // const hostname = window.location.hostname;
-  // if (hostname === 'localhost' || hostname === '127.0.0.1') {
-  //   window.API_BASE = ''; // Local development
-  // } else if (hostname.includes('vercel.app')) {
-  //   window.API_BASE = 'https://your-render-app.onrender.com'; // Vercel -> Render
-  // } else {
-  //   window.API_BASE = ''; // Same-origin fallback
-  // }
+  if (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    /^192\.168\.\d+\.\d+$/.test(hostname) ||
+    /^10\.\d+\.\d+\.\d+$/.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+$/.test(hostname)
+  ) {
+    // Local development — same-origin requests
+    window.API_BASE = '';
+  } else {
+    // Production on Vercel (or any deployed domain)
+    // Update this URL when your Render backend URL changes
+    window.API_BASE = 'https://attendance-2-akos.onrender.com';
+  }
 })();
