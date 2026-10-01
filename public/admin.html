@@ -1371,90 +1371,122 @@
         color: var(--text-muted);
       }
 
+      /* S# always visible on mobile */
       #teachersTableWrap .data-table tbody tr td:nth-child(1),
       #studentsTableWrap .data-table tbody tr td:nth-child(1) {
+        order: 0;
+        font-size: 0.78rem;
+        text-align: center;
+      }
+
+      #teachersTableWrap .data-table tbody tr td:nth-child(1)::before,
+      #studentsTableWrap .data-table tbody tr td:nth-child(1)::before {
+        content: 'S#';
+        display: block;
+        font-size: 0.6rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-bottom: 2px;
+      }
+
+      /* ID column - always hide on mobile (inline style handles conditional show) */
+      #teachersTableWrap .data-table tbody tr td:nth-child(2),
+      #studentsTableWrap .data-table tbody tr td:nth-child(2) {
         display: none;
       }
 
-      #teachersTableWrap .data-table tbody tr td:nth-child(2),
-      #studentsTableWrap .data-table tbody tr td:nth-child(2) {
+      /* Teachers: Name = nth-child(3), Class = nth-child(4), Contact = nth-child(5), Actions = nth-child(6) */
+      #teachersTableWrap .data-table tbody tr td:nth-child(3) {
         order: 1;
       }
 
-      #teachersTableWrap .data-table tbody tr td:nth-child(2)::before,
-      #studentsTableWrap .data-table tbody tr td:nth-child(2)::before {
+      #teachersTableWrap .data-table tbody tr td:nth-child(3)::before {
         content: 'Name';
         display: none;
       }
 
-      #teachersTableWrap .data-table tbody tr td:nth-child(2) .inline-edit-input,
-      #studentsTableWrap .data-table tbody tr td:nth-child(2) .inline-edit-input {
+      #teachersTableWrap .data-table tbody tr td:nth-child(3) .inline-edit-input {
         font-size: 1.05rem;
         padding: 8px 10px;
       }
 
-      #teachersTableWrap .data-table tbody tr td:nth-child(3) {
-        order: 2;
-      }
-
-      #teachersTableWrap .data-table tbody tr td:nth-child(3)::before {
-        content: 'Class';
-      }
-
-      #teachersTableWrap .data-table tbody tr td:nth-child(3) select.inline-edit-input {
-        max-width: 100% !important;
-      }
-
       #teachersTableWrap .data-table tbody tr td:nth-child(4) {
-        order: 3;
+        order: 2;
       }
 
       #teachersTableWrap .data-table tbody tr td:nth-child(4)::before {
-        content: 'Phone';
-      }
-
-      #teachersTableWrap .data-table tbody tr td:nth-child(5) {
-        order: 4;
-      }
-
-      #teachersTableWrap .data-table tbody tr td:nth-child(5)::before {
-        content: 'Actions';
-      }
-
-      /* Student: Name, Roll No, Class, Phone, Actions */
-      #studentsTableWrap .data-table tbody tr td:nth-child(3) {
-        order: 2;
-      }
-
-      #studentsTableWrap .data-table tbody tr td:nth-child(3)::before {
-        content: 'Roll No';
-      }
-
-      #studentsTableWrap .data-table tbody tr td:nth-child(4) {
-        order: 3;
-      }
-
-      #studentsTableWrap .data-table tbody tr td:nth-child(4)::before {
         content: 'Class';
       }
 
-      #studentsTableWrap .data-table tbody tr td:nth-child(4) select.inline-edit-input {
+      #teachersTableWrap .data-table tbody tr td:nth-child(4) select.inline-edit-input {
         max-width: 100% !important;
       }
 
-      #studentsTableWrap .data-table tbody tr td:nth-child(5) {
-        order: 4;
+      #teachersTableWrap .data-table tbody tr td:nth-child(5) {
+        order: 3;
       }
 
-      #studentsTableWrap .data-table tbody tr td:nth-child(5)::before {
+      #teachersTableWrap .data-table tbody tr td:nth-child(5)::before {
         content: 'Phone';
       }
 
+      #teachersTableWrap .data-table tbody tr td:nth-child(6) {
+        order: 4;
+      }
+
+      #teachersTableWrap .data-table tbody tr td:nth-child(6)::before {
+        content: 'Actions';
+      }
+
+      /* Students: Name=nth-child(3), RollNo=nth-child(4), Class=nth-child(5), Contact=nth-child(6), Actions=nth-child(7) */
+      #studentsTableWrap .data-table tbody tr td:nth-child(3) {
+        order: 1;
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(3)::before {
+        content: 'Name';
+        display: none;
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(3) .inline-edit-input {
+        font-size: 1.05rem;
+        padding: 8px 10px;
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(4) {
+        order: 2;
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(4)::before {
+        content: 'Roll No';
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(5) {
+        order: 3;
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(5)::before {
+        content: 'Class';
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(5) select.inline-edit-input {
+        max-width: 100% !important;
+      }
+
       #studentsTableWrap .data-table tbody tr td:nth-child(6) {
-        order: 5;
+        order: 4;
       }
 
       #studentsTableWrap .data-table tbody tr td:nth-child(6)::before {
+        content: 'Phone';
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(7) {
+        order: 5;
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(7)::before {
         content: 'Actions';
       }
 
@@ -1494,6 +1526,12 @@
 
       .edit-modal-card {
         padding: 20px;
+      }
+
+      /* Coordinator cards — compact on mobile */
+      #coordinatorsTableWrap > div {
+        padding: 10px 12px !important;
+        margin-bottom: 8px !important;
       }
     }
 
@@ -2695,8 +2733,6 @@
       </div>
     </div>
 
-  </div>
-
     <!-- ==================== COORDINATORS TAB ==================== -->
     <!-- Coordinators are attendance-only staff appointed to one branch or, with
          no branch picked, to the whole school. They can never see or change it. -->
@@ -2762,12 +2798,15 @@
             </div>
           </div>
           <!-- Coordinators List -->
-          <div id="coordinatorsTableWrap">
-            <!-- Rendered by JS -->
+          <div style="overflow-x: auto;">
+            <div id="coordinatorsTableWrap">
+              <!-- Rendered by JS -->
+            </div>
           </div>
         </div>
       </div>
     </div>
+  </div>
 
   <div class="edit-modal" id="feePaymentModal" style="display:none; position:fixed; inset:0; z-index:100; align-items:center; justify-content:center; background:rgba(15,23,42,0.7);">
     <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:16px; width:min(92vw, 500px); padding:20px; box-shadow:var(--shadow-lg);">
@@ -4800,20 +4839,11 @@
       shownTeacherIds = teachers.map(t => t.id);
 
       let html = `
-        <div class="bulk-bar" style="display:flex; align-items:center; gap:14px; margin-bottom:10px; flex-wrap:wrap;">
-          <label style="display:flex; align-items:center; gap:6px; font-size:0.8rem; cursor:pointer; user-select:none;">
-            <input type="checkbox" id="teachersSelectAll" ${selectedTeacherIds.size > 0 && shownTeacherIds.length > 0 && shownTeacherIds.every(id => selectedTeacherIds.has(id)) ? 'checked' : ''} onchange="toggleSelectAll('teachers', this.checked);">
-            Select all shown
-          </label>
-          <button type="button" class="btn-delete" style="padding:6px 14px; border-radius:8px;${selectedTeacherIds.size ? '' : 'display:none;'}" onclick="bulkDeleteSelected('teachers')">
-            <i class="fas fa-trash-alt"></i> Delete selected (<span>${selectedTeacherIds.size}</span>)
-          </button>
-          ${selectedTeacherIds.size ? `<span class="bulk-note" style="font-size:0.75rem;color:var(--text-muted);">${selectedTeacherIds.size} selected</span>` : ''}
-        </div>
         <div style="overflow-x:auto;">
         <table class="data-table">
           <thead>
             <tr>
+              <th style="width:50px; text-align:center;">S#</th>
               <th style="width:50px; text-align:left;${showTeacherId ? '' : 'display:none;'}">ID</th>
               <th style="text-align:left;">Name</th>
               <th style="text-align:center; width:150px;">Class</th>
@@ -4826,9 +4856,11 @@
       teachers.forEach((t, i) => {
         const dirtyData = dirtyState['tab-teachers'].get(t.id)?.current || t;
         const isDirty = dirtyState['tab-teachers'].has(t.id);
-        
+        const serialNo = i + 1;
+
         html += `
           <tr id="row-tab-teachers-${t.id}" class="${isDirty ? 'row-dirty' : ''}">
+            <td style="color:var(--text-muted); font-size:0.78rem; text-align:center; font-weight:600;">${serialNo}</td>
             <td style="color:var(--text-muted); font-weight:500; text-align:left;${showTeacherId ? '' : 'display:none;'}">${showTeacherId ? (t.login_id ? (_tenantCode ? _tenantCode + '-' : '') + escapeHtml(t.login_id) : '—') : ''}</td>
             <td style="text-align:left;">
               <input type="text" class="inline-edit-input" value="${escapeHtml(dirtyData.name)}" oninput="markDirty('tab-teachers', ${t.id}, 'name', this.value)" style="font-weight:bold;">
@@ -4847,12 +4879,10 @@
             </td>
             <td style="text-align:right;">
               <div class="action-buttons" style="justify-content: flex-end;">
-                <label style="display:flex; align-items:center; gap:4px; cursor:pointer; margin-right:2px;" title="Select for bulk delete">
-                  <input type="checkbox" class="bulk-chk" data-kind="teachers" data-id="${t.id}" ${selectedTeacherIds.has(t.id) ? 'checked' : ''} onchange="toggleRowSelect('teachers', ${t.id}, this.checked); event.stopPropagation();">
-                </label>
+                ${showTeacherId ? `
                 <button onclick="openAdminRecoveryReveal(${t.id}, 'teacher')" class="btn-edit" title="Issue one-time temporary password" style="background:var(--warning-bg); color:var(--warning);">
                   <i class="fas fa-key"></i>
-                </button>
+                </button>` : ''}
                 <button onclick="openEditTeacherModal(${t.id})" class="btn-edit" title="Edit in modal">
                   <i class="fas fa-expand"></i>
                 </button>
@@ -5067,20 +5097,11 @@
       shownStudentIds = students.map(s => s.id);
 
       let html = `
-        <div class="bulk-bar" style="display:flex; align-items:center; gap:14px; margin-bottom:10px; flex-wrap:wrap;">
-          <label style="display:flex; align-items:center; gap:6px; font-size:0.8rem; cursor:pointer; user-select:none;">
-            <input type="checkbox" id="studentsSelectAll" ${selectedStudentIds.size > 0 && shownStudentIds.length > 0 && shownStudentIds.every(id => selectedStudentIds.has(id)) ? 'checked' : ''} onchange="toggleSelectAll('students', this.checked);">
-            Select all shown
-          </label>
-          <button type="button" class="btn-delete" style="padding:6px 14px; border-radius:8px;${selectedStudentIds.size ? '' : 'display:none;'}" onclick="bulkDeleteSelected('students')">
-            <i class="fas fa-trash-alt"></i> Delete selected (<span>${selectedStudentIds.size}</span>)
-          </button>
-          ${selectedStudentIds.size ? `<span class="bulk-note" style="font-size:0.75rem;color:var(--text-muted);">${selectedStudentIds.size} selected</span>` : ''}
-        </div>
         <div style="overflow-x:auto;">
         <table class="data-table">
           <thead>
             <tr>
+              <th style="width:50px; text-align:center;">S#</th>
               <th style="width:50px; text-align:left;${showStudentId ? '' : 'display:none;'}">ID</th>
               <th style="text-align:left;">Name</th>
               <th style="text-align:center; width:120px;">Roll No</th>
@@ -5091,12 +5112,14 @@
           </thead>
           <tbody>`;
 
-      students.forEach((s) => {
+      students.forEach((s, index) => {
         const dirtyData = dirtyState['tab-students'].get(s.id)?.current || s;
         const isDirty = dirtyState['tab-students'].has(s.id);
+        const serialNo = index + 1;
 
         html += `
           <tr id="row-tab-students-${s.id}" class="${isDirty ? 'row-dirty' : ''}">
+            <td style="color:var(--text-muted); font-size:0.78rem; text-align:center; font-weight:600;">${serialNo}</td>
             <td style="color:var(--text-muted); font-size:0.75rem; text-align:left;${showStudentId ? '' : 'display:none;'}">${showStudentId ? (s.login_id ? (_tenantCode ? _tenantCode + '-' : '') + escapeHtml(s.login_id) : '—') : ''}</td>
             <td style="text-align:left;">
               <input type="text" class="inline-edit-input" value="${escapeHtml(dirtyData.name)}" oninput="markDirty('tab-students', ${s.id}, 'name', this.value)" style="font-weight:bold;">
@@ -5115,15 +5138,13 @@
             </td>
             <td style="text-align:right;">
               <div class="action-buttons" style="justify-content: flex-end;">
-                <label style="display:flex; align-items:center; gap:4px; cursor:pointer; margin-right:2px;" title="Select for bulk delete">
-                  <input type="checkbox" class="bulk-chk" data-kind="students" data-id="${s.id}" ${selectedStudentIds.has(s.id) ? 'checked' : ''} onchange="toggleRowSelect('students', ${s.id}, this.checked); event.stopPropagation();">
-                </label>
+                ${showStudentId ? `
                 <button onclick="openAdminRecoveryReveal(${s.id}, 'student')" class="btn-edit" title="Issue one-time temporary password" style="background:var(--warning-bg); color:var(--warning);">
                   <i class="fas fa-key"></i>
                 </button>
                 <button onclick="markDirty('tab-students', ${s.id}, 'is_frozen', ${!dirtyData.is_frozen})" class="btn-edit" title="${dirtyData.is_frozen ? 'Unfreeze Account' : 'Freeze Account'}" style="background: ${dirtyData.is_frozen ? 'var(--danger-bg)' : 'var(--warning-bg)'}; color: ${dirtyData.is_frozen ? 'var(--danger)' : 'var(--warning)'}; border: none;">
                   <i class="fas ${dirtyData.is_frozen ? 'fa-lock' : 'fa-lock-open'}"></i>
-                </button>
+                </button>` : ''}
                 <button onclick="openEditStudentModal(${s.id})" class="btn-edit" title="Edit in modal">
                   <i class="fas fa-expand"></i>
                 </button>
@@ -6145,19 +6166,20 @@
           ? escapeHtml(c.branch_name)
           : `<span style="color:var(--primary-light);font-weight:600;">Whole school</span>`;
         return `
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--bg);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;gap:12px;flex-wrap:wrap;">
-            <div>
-              <div style="font-weight:700;font-size:0.9rem;color:var(--text);">${escapeHtml(c.name)}</div>
-              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;gap:10px;flex-wrap:wrap;overflow:hidden;">
+            <div style="min-width:0; flex:1;">
+              <div style="font-weight:700;font-size:0.88rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(c.name)}</div>
+              <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
                 <span><i class="fas fa-building" style="opacity:.6;"></i> ${branchName}</span>
                 ${c.phone ? `<span><i class="fas fa-phone" style="opacity:.6;"></i> ${escapeHtml(c.phone)}</span>` : ''}
               </div>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap;">
               ${loginBadge}
               ${mgmtBadge}
-              ${c.is_first_login ? `<span class="badge" style="background:rgba(245,158,11,0.15);color:#d97706;">First login pending</span>` : ''}
-              <button class="btn btn-ghost btn-sm" onclick="openCoordinatorEditModal(${c.id})"><i class="fas fa-pen"></i> Edit</button>
+              ${c.is_first_login ? `<span class="badge" style="background:rgba(245,158,11,0.15);color:#d97706;white-space:nowrap;">First login pending</span>` : ''}
+              <button class="btn btn-ghost btn-sm" onclick="openCoordinatorEditModal(${c.id})" title="Edit coordinator" style="padding:6px 10px;"><i class="fas fa-pen"></i></button>
+              <button class="btn btn-sm" style="background:var(--danger-bg);color:var(--danger);border:1px solid rgba(239,68,68,0.25);padding:6px 10px;" onclick="deleteCoordinator(${c.id})" title="Delete coordinator"><i class="fas fa-trash-alt"></i></button>
             </div>
           </div>`;
       }).join('');
