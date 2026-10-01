@@ -1371,16 +1371,18 @@
         color: var(--text-muted);
       }
 
-      /* S# always visible on mobile */
-      #teachersTableWrap .data-table tbody tr td:nth-child(1),
-      #studentsTableWrap .data-table tbody tr td:nth-child(1) {
+      /* S# always visible on mobile.
+         Students: S#=nth-child(1). Teachers: the bulk checkbox is nth-child(1), so
+         its S# sits at nth-child(2). */
+      #studentsTableWrap .data-table tbody tr td:nth-child(1),
+      #teachersTableWrap .data-table tbody tr td:nth-child(2) {
         order: 0;
         font-size: 0.78rem;
         text-align: center;
       }
 
-      #teachersTableWrap .data-table tbody tr td:nth-child(1)::before,
-      #studentsTableWrap .data-table tbody tr td:nth-child(1)::before {
+      #studentsTableWrap .data-table tbody tr td:nth-child(1)::before,
+      #teachersTableWrap .data-table tbody tr td:nth-child(2)::before {
         content: 'S#';
         display: block;
         font-size: 0.6rem;
@@ -1391,51 +1393,57 @@
       }
 
       /* ID column - always hide on mobile (inline style handles conditional show) */
-      #teachersTableWrap .data-table tbody tr td:nth-child(2),
-      #studentsTableWrap .data-table tbody tr td:nth-child(2) {
+      #studentsTableWrap .data-table tbody tr td:nth-child(2),
+      #teachersTableWrap .data-table tbody tr td:nth-child(3) {
         display: none;
       }
 
-      /* Teachers: Name = nth-child(3), Class = nth-child(4), Contact = nth-child(5), Actions = nth-child(6) */
-      #teachersTableWrap .data-table tbody tr td:nth-child(3) {
+      /* Teacher bulk checkbox leads the row on mobile */
+      #teachersTableWrap .data-table tbody tr td:nth-child(1) {
+        order: 0;
+        text-align: center;
+      }
+
+      /* Teachers: chk=nth-child(1), S#=2, ID=3, Name=4, Class=5, Contact=6, Actions=7 */
+      #teachersTableWrap .data-table tbody tr td:nth-child(4) {
         order: 1;
       }
 
-      #teachersTableWrap .data-table tbody tr td:nth-child(3)::before {
+      #teachersTableWrap .data-table tbody tr td:nth-child(4)::before {
         content: 'Name';
         display: none;
       }
 
-      #teachersTableWrap .data-table tbody tr td:nth-child(3) .inline-edit-input {
+      #teachersTableWrap .data-table tbody tr td:nth-child(4) .inline-edit-input {
         font-size: 1.05rem;
         padding: 8px 10px;
       }
 
-      #teachersTableWrap .data-table tbody tr td:nth-child(4) {
+      #teachersTableWrap .data-table tbody tr td:nth-child(5) {
         order: 2;
       }
 
-      #teachersTableWrap .data-table tbody tr td:nth-child(4)::before {
+      #teachersTableWrap .data-table tbody tr td:nth-child(5)::before {
         content: 'Class';
       }
 
-      #teachersTableWrap .data-table tbody tr td:nth-child(4) select.inline-edit-input {
+      #teachersTableWrap .data-table tbody tr td:nth-child(5) select.inline-edit-input {
         max-width: 100% !important;
       }
 
-      #teachersTableWrap .data-table tbody tr td:nth-child(5) {
+      #teachersTableWrap .data-table tbody tr td:nth-child(6) {
         order: 3;
       }
 
-      #teachersTableWrap .data-table tbody tr td:nth-child(5)::before {
+      #teachersTableWrap .data-table tbody tr td:nth-child(6)::before {
         content: 'Phone';
       }
 
-      #teachersTableWrap .data-table tbody tr td:nth-child(6) {
+      #teachersTableWrap .data-table tbody tr td:nth-child(7) {
         order: 4;
       }
 
-      #teachersTableWrap .data-table tbody tr td:nth-child(6)::before {
+      #teachersTableWrap .data-table tbody tr td:nth-child(7)::before {
         content: 'Actions';
       }
 
@@ -3220,6 +3228,41 @@
       }
     }
 
+    async function reloadStudentsData() {
+      try {
+        const bq = branchQueryParam();
+        const data = await apiFetch('/api/students' + bq).then(r => r.json());
+        window.appData.students = Array.isArray(data) ? data : [];
+        if (activeTabId === 'tab-students') filterStudents();
+      } catch (_) {}
+    }
+
+    async function reloadTeachersData() {
+      try {
+        const bq = branchQueryParam();
+        const data = await apiFetch('/api/teachers' + bq).then(r => r.json());
+        window.appData.teachers = Array.isArray(data) ? data : [];
+        if (activeTabId === 'tab-teachers') renderTeachers();
+      } catch (_) {}
+    }
+
+    async function reloadClassesData() {
+      try {
+        const bq = branchQueryParam();
+        const data = await apiFetch('/api/classes' + bq).then(r => r.json());
+        window.appData.classes = Array.isArray(data) ? data : [];
+        renderClasses();
+      } catch (_) {}
+    }
+
+    async function reloadCoordinatorsData() {
+      try {
+        const data = await apiFetch('/api/coordinators').then(r => r.json());
+        window.appData.coordinators = Array.isArray(data) ? data : [];
+        if (activeTabId === 'tab-coordinators') renderCoordinators();
+      } catch (_) {}
+    }
+
     function copyCred(elementId, btn) {
       const text = document.getElementById(elementId).innerText;
       navigator.clipboard.writeText(text).then(() => {
@@ -4474,8 +4517,6 @@
         toggleAddClass();
         window.appData.classes.push(createdClass);
         renderClasses();
-        btn.innerHTML = '<i class="fas fa-check"></i> Created';
-        if (btn) btn.dataset.originalHtml = btn.innerHTML;
         showToast('✅ Class created successfully', 'success');
       } catch (err) {
         showToast(`❌ ${err.message}`, 'error');
@@ -4501,21 +4542,23 @@
       const content = document.getElementById('isolatedClassContent');
       content.innerHTML = `
         <div style="background: var(--bg-card-hover); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px;">
-          <h2 style="margin-bottom: 12px; font-size: 1.25rem;">${escapeHtml(cls.name)} ${cls.section ? `<span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(cls.section)}</span>` : ''}</h2>
-          
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Assigned Teacher</label>
-              <select class="form-input" style="max-width: 300px;" onchange="assignTeacherInline(${cls.id}, this.value)">
-                <option value="">-- Unassigned --</option>
-                ${teachers.map(t => {
-                  const isAssignedToThis = t.class_id === cls.id;
-                  const isUnassigned = !t.class_id;
-                  const suggestLabel = isUnassigned ? ' (★ Suggested)' : '';
-                  return `<option value="${t.id}" ${isAssignedToThis ? 'selected' : ''}>${escapeHtml(t.name)}${suggestLabel}</option>`;
-                }).join('')}
-              </select>
-            </div>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+            <h2 style="margin:0; font-size: 1.1rem;">${escapeHtml(cls.name)}</h2>
+            <input type="text" class="form-input" id="editClassSectionInput" value="${escapeHtml(cls.section || '')}" placeholder="Section (e.g. A)" style="max-width:180px;padding:6px 12px;font-size:0.85rem;">
+            <button class="btn btn-primary btn-sm" onclick="saveClassEdit(${cls.id})"><i class="fas fa-check"></i> Save</button>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Assigned Teacher</label>
+            <select class="form-input" style="max-width: 300px;" onchange="assignTeacherInline(${cls.id}, this.value)">
+              <option value="">-- Unassigned --</option>
+              ${teachers.map(t => {
+                const isAssignedToThis = t.class_id === cls.id;
+                const isUnassigned = !t.class_id;
+                const suggestLabel = isUnassigned ? ' (★ Suggested)' : '';
+                return `<option value="${t.id}" ${isAssignedToThis ? 'selected' : ''}>${escapeHtml(t.name)}${suggestLabel}</option>`;
+              }).join('')}
+            </select>
           </div>
         </div>
 
@@ -4553,6 +4596,25 @@
       if (searchInput && searchInput.value) {
         searchInput.value = '';
         filterClasses();
+      }
+    }
+
+    async function saveClassEdit(classId) {
+      const newSection = document.getElementById('editClassSectionInput').value.trim();
+      const cls = window.appData.classes.find(c => c.id === classId);
+      if (!cls) return;
+      try {
+        const res = await apiFetch(`/api/classes/${classId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ section: newSection || null })
+        });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed to update section');
+        cls.section = newSection || null;
+        renderClasses();
+        showToast('✅ Section updated', 'success');
+      } catch (err) {
+        showToast(`❌ ${err.message}`, 'error');
       }
     }
 
@@ -4839,10 +4901,21 @@
       shownTeacherIds = teachers.map(t => t.id);
 
       let html = `
+        <div class="bulk-bar" style="display:flex; align-items:center; gap:14px; margin-bottom:10px; flex-wrap:wrap;">
+          <label style="display:flex; align-items:center; gap:6px; font-size:0.8rem; cursor:pointer; user-select:none;">
+            <input type="checkbox" id="teachersSelectAll" ${selectedTeacherIds.size > 0 && shownTeacherIds.length > 0 && shownTeacherIds.every(id => selectedTeacherIds.has(id)) ? 'checked' : ''} onchange="toggleSelectAll('teachers', this.checked);">
+            Select all shown
+          </label>
+          <button type="button" class="btn-delete" style="padding:6px 14px; border-radius:8px;${selectedTeacherIds.size ? '' : 'display:none;'}" onclick="bulkDeleteSelected('teachers')">
+            <i class="fas fa-trash-alt"></i> Delete selected (<span>${selectedTeacherIds.size}</span>)
+          </button>
+          ${selectedTeacherIds.size ? `<span style="font-size:0.75rem;color:var(--text-muted);">${selectedTeacherIds.size} selected</span>` : ''}
+        </div>
         <div style="overflow-x:auto;">
         <table class="data-table">
           <thead>
             <tr>
+              <th style="width:34px; text-align:center;"><input type="checkbox" class="bulk-chk" data-kind="teachers" onchange="toggleSelectAll('teachers', this.checked);" ${selectedTeacherIds.size > 0 && shownTeacherIds.length > 0 && shownTeacherIds.every(id => selectedTeacherIds.has(id)) ? 'checked' : ''}></th>
               <th style="width:50px; text-align:center;">S#</th>
               <th style="width:50px; text-align:left;${showTeacherId ? '' : 'display:none;'}">ID</th>
               <th style="text-align:left;">Name</th>
@@ -4860,6 +4933,7 @@
 
         html += `
           <tr id="row-tab-teachers-${t.id}" class="${isDirty ? 'row-dirty' : ''}">
+            <td style="text-align:center;"><input type="checkbox" class="bulk-chk" data-kind="teachers" data-id="${t.id}" ${selectedTeacherIds.has(t.id) ? 'checked' : ''} onchange="toggleRowSelect('teachers', ${t.id}, this.checked); event.stopPropagation();"></td>
             <td style="color:var(--text-muted); font-size:0.78rem; text-align:center; font-weight:600;">${serialNo}</td>
             <td style="color:var(--text-muted); font-weight:500; text-align:left;${showTeacherId ? '' : 'display:none;'}">${showTeacherId ? (t.login_id ? (_tenantCode ? _tenantCode + '-' : '') + escapeHtml(t.login_id) : '—') : ''}</td>
             <td style="text-align:left;">
@@ -5141,10 +5215,10 @@
                 ${showStudentId ? `
                 <button onclick="openAdminRecoveryReveal(${s.id}, 'student')" class="btn-edit" title="Issue one-time temporary password" style="background:var(--warning-bg); color:var(--warning);">
                   <i class="fas fa-key"></i>
-                </button>
+                </button>` : ''}
                 <button onclick="markDirty('tab-students', ${s.id}, 'is_frozen', ${!dirtyData.is_frozen})" class="btn-edit" title="${dirtyData.is_frozen ? 'Unfreeze Account' : 'Freeze Account'}" style="background: ${dirtyData.is_frozen ? 'var(--danger-bg)' : 'var(--warning-bg)'}; color: ${dirtyData.is_frozen ? 'var(--danger)' : 'var(--warning)'}; border: none;">
                   <i class="fas ${dirtyData.is_frozen ? 'fa-lock' : 'fa-lock-open'}"></i>
-                </button>` : ''}
+                </button>
                 <button onclick="openEditStudentModal(${s.id})" class="btn-edit" title="Edit in modal">
                   <i class="fas fa-expand"></i>
                 </button>

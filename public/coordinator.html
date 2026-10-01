@@ -336,8 +336,16 @@
     }
     .form-msg.error { display: block; background: var(--danger-bg); color: var(--danger); }
     .form-msg.success { display: block; background: var(--success-bg); color: var(--success); }
+    /* Keep the roster inside the viewport: the table is width:100%, so without
+       an explicit scroll container it spreads past the screen on small widths. */
+    .table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     @media (max-width: 640px) {
       main { padding: 16px; }
+      .att-table th, .att-table td { padding: 9px 10px; }
+      .att-table { min-width: 100%; }
+      /* Roster order: 1=#, 2=Student Name, 3=Roll No., 4=Phone, 5=Status.
+         Hide the row number and Roll No. so Name, Phone and Status stay readable. */
+      .att-table th:nth-child(1), .att-table td:nth-child(1) { display: none; }
       .att-table th:nth-child(3), .att-table td:nth-child(3) { display: none; }
     }
   </style>
@@ -724,6 +732,7 @@ async function loadMarkRoster() {
   baselineState = JSON.stringify(attendanceState);
 
   wrap.innerHTML = `
+    <div class="table-scroll">
     <table class="att-table">
       <thead>
         <tr>
@@ -751,7 +760,8 @@ async function loadMarkRoster() {
             </td>
           </tr>`).join('')}
       </tbody>
-    </table>`;
+    </table>
+    </div>`;
   summaryEl.style.display = 'flex';
   savebar.style.display = 'flex';
   updateMarkSummary();
@@ -888,6 +898,7 @@ async function loadRecords() {
           <div class="panel" style="margin-bottom:12px;">
             <h3>${escapeHtml(className)}</h3>
             <p class="muted">${recs.filter(r => r.status === 'Present').length} present · ${recs.filter(r => r.status === 'Absent').length} absent · marked by ${escapeHtml(recs[0].marked_by || '—')}</p>
+            <div class="table-scroll">
             <table class="att-table">
               <thead><tr><th>Student</th><th>Status</th></tr></thead>
               <tbody>
@@ -898,6 +909,7 @@ async function loadRecords() {
                   </tr>`).join('')}
               </tbody>
             </table>
+            </div>
           </div>`).join('')}
       </div>`;
   }).join('');
