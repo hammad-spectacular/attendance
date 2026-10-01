@@ -2,13 +2,16 @@
  * API Configuration for The Eye Frontend
  *
  * This file MUST be loaded before auth-utils.js in every HTML page.
- * It sets window.API_BASE for cross-origin Vercel -> Render communication.
+ * It sets window.API_BASE for cross-origin frontend-backend communication.
  *
  * LOCAL DEVELOPMENT:
  *   Automatically detects localhost / 127.0.0.1 / local IP → empty string (same-origin)
  *
- * PRODUCTION (Vercel → Render):
- *   Detects vercel.app domain → uses the Render backend URL below
+ * PRODUCTION (currently AWS):
+ *   Any deployed domain → uses AWS backend URL
+ *
+ * PRODUCTION (Render — switch once ready):
+ *   Update AWS_BACKEND_URL to your Render backend URL
  */
 
 (function () {
@@ -24,8 +27,8 @@
     // Local development — same-origin requests
     window.API_BASE = '';
   } else {
-    // Production on Vercel (or any deployed domain)
-    // Update this URL when your Render backend URL changes
-    window.API_BASE = 'https://attendance-2-akos.onrender.com';
+    // Deployed on Vercel (or any domain) — use AWS backend for now
+    // Switch to Render URL once backend is deployed there
+    window.API_BASE = 'http://13.63.55.73';
   }
 })();
