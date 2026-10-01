@@ -5065,17 +5065,9 @@
       const showStudentId = _featureState && _featureState['student_portal'] === true;
       shownStudentIds = students.map(s => s.id);
 
+      // Students have no bulk-select controls: the school portal is not granted,
+      // so select-all / per-row checkboxes / bulk delete are not rendered.
       let html = `
-        <div class="bulk-bar" style="display:flex; align-items:center; gap:14px; margin-bottom:10px; flex-wrap:wrap;">
-          <label style="display:flex; align-items:center; gap:6px; font-size:0.8rem; cursor:pointer; user-select:none;">
-            <input type="checkbox" id="studentsSelectAll" ${selectedStudentIds.size > 0 && shownStudentIds.length > 0 && shownStudentIds.every(id => selectedStudentIds.has(id)) ? 'checked' : ''} onchange="toggleSelectAll('students', this.checked);">
-            Select all shown
-          </label>
-          <button type="button" class="btn-delete" style="padding:6px 14px; border-radius:8px;${selectedStudentIds.size ? '' : 'display:none;'}" onclick="bulkDeleteSelected('students')">
-            <i class="fas fa-trash-alt"></i> Delete selected (<span>${selectedStudentIds.size}</span>)
-          </button>
-          ${selectedStudentIds.size ? `<span class="bulk-note" style="font-size:0.75rem;color:var(--text-muted);">${selectedStudentIds.size} selected</span>` : ''}
-        </div>
         <div style="overflow-x:auto;">
         <table class="data-table">
           <thead>
@@ -5114,9 +5106,6 @@
             </td>
             <td style="text-align:right;">
               <div class="action-buttons" style="justify-content: flex-end;">
-                <label style="display:flex; align-items:center; gap:4px; cursor:pointer; margin-right:2px;" title="Select for bulk delete">
-                  <input type="checkbox" class="bulk-chk" data-kind="students" data-id="${s.id}" ${selectedStudentIds.has(s.id) ? 'checked' : ''} onchange="toggleRowSelect('students', ${s.id}, this.checked); event.stopPropagation();">
-                </label>
                 <button onclick="openAdminRecoveryReveal(${s.id}, 'student')" class="btn-edit" title="Issue one-time temporary password" style="background:var(--warning-bg); color:var(--warning);">
                   <i class="fas fa-key"></i>
                 </button>
