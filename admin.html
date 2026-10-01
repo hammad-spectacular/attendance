@@ -1371,90 +1371,106 @@
         color: var(--text-muted);
       }
 
-      #teachersTableWrap .data-table tbody tr td:nth-child(1),
-      #studentsTableWrap .data-table tbody tr td:nth-child(1) {
+      /* S# column - always show on mobile */
+      #teachersTableWrap .data-table tbody tr td:nth-child(1)::before,
+      #studentsTableWrap .data-table tbody tr td:nth-child(1)::before {
+        content: 'S#';
+        display: block;
+        color: var(--text-muted);
+      }
+
+      /* ID column - hidden on mobile (gated by school portal feature) */
+      #teachersTableWrap .data-table tbody tr td:nth-child(2),
+      #studentsTableWrap .data-table tbody tr td:nth-child(2) {
         display: none;
       }
 
-      #teachersTableWrap .data-table tbody tr td:nth-child(2),
-      #studentsTableWrap .data-table tbody tr td:nth-child(2) {
+      /* Name column */
+      #teachersTableWrap .data-table tbody tr td:nth-child(3),
+      #studentsTableWrap .data-table tbody tr td:nth-child(3) {
         order: 1;
       }
 
-      #teachersTableWrap .data-table tbody tr td:nth-child(2)::before,
-      #studentsTableWrap .data-table tbody tr td:nth-child(2)::before {
+      #teachersTableWrap .data-table tbody tr td:nth-child(3)::before,
+      #studentsTableWrap .data-table tbody tr td:nth-child(3)::before {
         content: 'Name';
         display: none;
       }
 
-      #teachersTableWrap .data-table tbody tr td:nth-child(2) .inline-edit-input,
-      #studentsTableWrap .data-table tbody tr td:nth-child(2) .inline-edit-input {
+      #teachersTableWrap .data-table tbody tr td:nth-child(3) .inline-edit-input,
+      #studentsTableWrap .data-table tbody tr td:nth-child(3) .inline-edit-input {
         font-size: 1.05rem;
         padding: 8px 10px;
       }
 
-      #teachersTableWrap .data-table tbody tr td:nth-child(3) {
-        order: 2;
-      }
-
-      #teachersTableWrap .data-table tbody tr td:nth-child(3)::before {
-        content: 'Class';
-      }
-
-      #teachersTableWrap .data-table tbody tr td:nth-child(3) select.inline-edit-input {
-        max-width: 100% !important;
-      }
-
+      /* Teachers: Class */
       #teachersTableWrap .data-table tbody tr td:nth-child(4) {
-        order: 3;
+        order: 2;
       }
 
       #teachersTableWrap .data-table tbody tr td:nth-child(4)::before {
-        content: 'Phone';
-      }
-
-      #teachersTableWrap .data-table tbody tr td:nth-child(5) {
-        order: 4;
-      }
-
-      #teachersTableWrap .data-table tbody tr td:nth-child(5)::before {
-        content: 'Actions';
-      }
-
-      /* Student: Name, Roll No, Class, Phone, Actions */
-      #studentsTableWrap .data-table tbody tr td:nth-child(3) {
-        order: 2;
-      }
-
-      #studentsTableWrap .data-table tbody tr td:nth-child(3)::before {
-        content: 'Roll No';
-      }
-
-      #studentsTableWrap .data-table tbody tr td:nth-child(4) {
-        order: 3;
-      }
-
-      #studentsTableWrap .data-table tbody tr td:nth-child(4)::before {
         content: 'Class';
       }
 
-      #studentsTableWrap .data-table tbody tr td:nth-child(4) select.inline-edit-input {
+      #teachersTableWrap .data-table tbody tr td:nth-child(4) select.inline-edit-input {
         max-width: 100% !important;
       }
 
-      #studentsTableWrap .data-table tbody tr td:nth-child(5) {
-        order: 4;
+      /* Teachers: Contact */
+      #teachersTableWrap .data-table tbody tr td:nth-child(5) {
+        order: 3;
       }
 
-      #studentsTableWrap .data-table tbody tr td:nth-child(5)::before {
+      #teachersTableWrap .data-table tbody tr td:nth-child(5)::before {
         content: 'Phone';
       }
 
+      /* Teachers: Actions */
+      #teachersTableWrap .data-table tbody tr td:nth-child(6) {
+        order: 4;
+      }
+
+      #teachersTableWrap .data-table tbody tr td:nth-child(6)::before {
+        content: 'Actions';
+      }
+
+      /* Students: Roll No */
+      #studentsTableWrap .data-table tbody tr td:nth-child(4) {
+        order: 2;
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(4)::before {
+        content: 'Roll No';
+      }
+
+      /* Students: Class */
+      #studentsTableWrap .data-table tbody tr td:nth-child(5) {
+        order: 3;
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(5)::before {
+        content: 'Class';
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(5) select.inline-edit-input {
+        max-width: 100% !important;
+      }
+
+      /* Students: Contact */
       #studentsTableWrap .data-table tbody tr td:nth-child(6) {
-        order: 5;
+        order: 4;
       }
 
       #studentsTableWrap .data-table tbody tr td:nth-child(6)::before {
+        content: 'Phone';
+      }
+
+      /* Students: Actions */
+      #studentsTableWrap .data-table tbody tr td:nth-child(7) {
+        order: 5;
+      }
+
+      #studentsTableWrap .data-table tbody tr td:nth-child(7)::before {
         content: 'Actions';
       }
 
@@ -4813,6 +4829,7 @@
         <table class="data-table">
           <thead>
             <tr>
+              <th style="width:50px; text-align:center;">S#</th>
               <th style="width:50px; text-align:left;${showTeacherId ? '' : 'display:none;'}">ID</th>
               <th style="text-align:left;">Name</th>
               <th style="text-align:center; width:150px;">Class</th>
@@ -4825,9 +4842,11 @@
       teachers.forEach((t, i) => {
         const dirtyData = dirtyState['tab-teachers'].get(t.id)?.current || t;
         const isDirty = dirtyState['tab-teachers'].has(t.id);
+        const serialNo = i + 1;
         
         html += `
           <tr id="row-tab-teachers-${t.id}" class="${isDirty ? 'row-dirty' : ''}">
+            <td style="color:var(--text-muted); font-size:0.78rem; text-align:center; font-weight:600;">${serialNo}</td>
             <td style="color:var(--text-muted); font-weight:500; text-align:left;${showTeacherId ? '' : 'display:none;'}">${showTeacherId ? (t.login_id ? (_tenantCode ? _tenantCode + '-' : '') + escapeHtml(t.login_id) : '—') : ''}</td>
             <td style="text-align:left;">
               <input type="text" class="inline-edit-input" value="${escapeHtml(dirtyData.name)}" oninput="markDirty('tab-teachers', ${t.id}, 'name', this.value)" style="font-weight:bold;">
@@ -5072,6 +5091,7 @@
         <table class="data-table">
           <thead>
             <tr>
+              <th style="width:50px; text-align:center;">S#</th>
               <th style="width:50px; text-align:left;${showStudentId ? '' : 'display:none;'}">ID</th>
               <th style="text-align:left;">Name</th>
               <th style="text-align:center; width:120px;">Roll No</th>
@@ -5082,12 +5102,14 @@
           </thead>
           <tbody>`;
 
-      students.forEach((s) => {
+      students.forEach((s, index) => {
         const dirtyData = dirtyState['tab-students'].get(s.id)?.current || s;
         const isDirty = dirtyState['tab-students'].has(s.id);
+        const serialNo = index + 1;
 
         html += `
           <tr id="row-tab-students-${s.id}" class="${isDirty ? 'row-dirty' : ''}">
+            <td style="color:var(--text-muted); font-size:0.78rem; text-align:center; font-weight:600;">${serialNo}</td>
             <td style="color:var(--text-muted); font-size:0.75rem; text-align:left;${showStudentId ? '' : 'display:none;'}">${showStudentId ? (s.login_id ? (_tenantCode ? _tenantCode + '-' : '') + escapeHtml(s.login_id) : '—') : ''}</td>
             <td style="text-align:left;">
               <input type="text" class="inline-edit-input" value="${escapeHtml(dirtyData.name)}" oninput="markDirty('tab-students', ${s.id}, 'name', this.value)" style="font-weight:bold;">
