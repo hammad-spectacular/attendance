@@ -2824,11 +2824,11 @@ app.get('/api/coordinator/me', requireAuth(['coordinator']), async (req, res) =>
     // get every class of the school.
     const classes = branch_id
       ? await pool.query(
-          `SELECT id, name FROM classes WHERE tenant_id = $1 AND branch_id = $2 ORDER BY name`,
+          `SELECT id, name, section FROM classes WHERE tenant_id = $1 AND branch_id = $2 ORDER BY name`,
           [tenant_id, branch_id]
         )
       : await pool.query(
-          `SELECT id, name FROM classes WHERE tenant_id = $1 ORDER BY name`,
+          `SELECT id, name, section FROM classes WHERE tenant_id = $1 ORDER BY name`,
           [tenant_id]
         )
     payload.classes = classes.rows
@@ -3570,6 +3570,7 @@ app.get('/api/attendance/all', requireAuth(['admin', 'super_admin', 'coordinator
         students.roll_no,
         students.class_id,
         classes.name as class_name,
+        classes.section as class_section,
         COALESCE(marking_teacher.name, assigned_teacher.name) as marked_by,
         COALESCE(marking_teacher.id, assigned_teacher.id) as marked_by_id
       FROM attendance
@@ -3598,6 +3599,7 @@ app.get('/api/attendance/all', requireAuth(['admin', 'super_admin', 'coordinator
         students.roll_no,
         students.class_id,
         classes.name as class_name,
+        classes.section as class_section,
         COALESCE(marking_teacher.name, assigned_teacher.name) as marked_by,
         COALESCE(marking_teacher.id, assigned_teacher.id) as marked_by_id
       FROM attendance

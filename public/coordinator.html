@@ -71,7 +71,7 @@
       transition: all 0.2s ease;
     }
     .theme-btn:hover { background: var(--border); }
-    main { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    main { max-width: 100%; margin: 0 auto; padding: 24px; }
     .branch-card {
       background: var(--card);
       border: 1px solid var(--border);
@@ -261,6 +261,15 @@
     .status-badge.Absent { background: var(--danger-bg); color: var(--danger); }
     .status-badge.Leave { background: var(--warning-bg); color: var(--warning); }
     .status-badge.none { background: #eef1f6; color: var(--text-muted); }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
     .savebar {
       position: sticky;
       bottom: 0;
@@ -369,6 +378,23 @@
       <div class="msg">Loading your branch</div>
     </div>
   </main>
+  
+  <style>
+    /* Constrain content width for better readability - from student tab onwards */
+    #app > .branch-card, 
+    #app > .subnav, 
+    #app > #subMark, 
+    #app > #subRecords {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    
+    #app > .subnav, 
+    #app > #subMark, 
+    #app > #subRecords {
+      width: 100%;
+    }
+  </style>
 
   <!-- Change password dialog -->
   <div class="modal-back" id="passwordModal">
@@ -489,6 +515,17 @@ function listOrEmpty(items, emptyText) {
   return `<ul class="list">${items.map(i => `<li><i class="fas fa-circle-dot" style="opacity:.35;font-size:.5rem"></i>${escapeHtml(i.name)}</li>`).join('')}</ul>`;
 }
 
+function listOrEmptyWithDelete(items, emptyText, type) {
+  if (!items || !items.length) return `<div class="empty">${escapeHtml(emptyText)}</div>`;
+  return `<ul class="list">${items.map(i => `
+    <li style="display:flex;align-items:center;justify-content:space-between;">
+      <span><i class="fas fa-circle-dot" style="opacity:.35;font-size:.5rem"></i>${escapeHtml(i.name)}</span>
+      <button class="btn-delete" onclick="delete${type.charAt(0).toUpperCase() + type.slice(1)}(${i.id})" style="width:24px;height:24px;padding:0;font-size:0.7rem;border-radius:6px;" title="Delete">
+        <i class="fas fa-trash-alt"></i>
+      </button>
+    </li>`).join('')}</ul>`;
+}
+
 // The school's calendar day is authoritative for "today", not the device clock.
 async function fetchSchoolToday() {
   try {
@@ -575,7 +612,7 @@ async function load() {
         <h3>Teachers</h3>
         <p class="muted">Teachers assigned to this branch.</p>
         <div class="count">${(data.teachers || []).length}</div>
-        ${listOrEmpty(data.teachers, 'No teachers yet')}
+        ${listOrEmptyWithDelete(data.teachers, 'No teachers yet', 'teacher')}
       </div>
     </div>` : '';
 
@@ -607,7 +644,7 @@ async function load() {
             <label for="markClassSelect">Class</label>
             <select id="markClassSelect" onchange="onMarkClassChanged(this.value)">
               <option value="">-- Select class --</option>
-              ${myClasses.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')}
+              ${myClasses.map(c => `<option value="${c.id}">${escapeHtml(c.name)}${c.section ? ` - ${escapeHtml(c.section)}` : ''}</option>`).join('')}
             </select>
           </div>
           <div class="fg">
@@ -630,7 +667,7 @@ async function load() {
             <label for="recClassSelect">Class</label>
             <select id="recClassSelect" onchange="onRecordsFilterChanged()">
               <option value="all">All classes</option>
-              ${myClasses.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')}
+              ${myClasses.map(c => `<option value="${c.id}">${escapeHtml(c.name)}${c.section ? ` - ${escapeHtml(c.section)}` : ''}</option>`).join('')}
             </select>
           </div>
           <div class="fg">
@@ -731,7 +768,14 @@ async function loadMarkRoster() {
   }
   baselineState = JSON.stringify(attendanceState);
 
+  // Get class info for display
+  const selectedClass = myClasses.find(c => c.id === selectedClassId);
+  const classDisplay = selectedClass ? escapeHtml(selectedClass.name) + (selectedClass.section ? ` - ${escapeHtml(selectedClass.section)}` : '') : '';
+
   wrap.innerHTML = `
+    <div style="margin-bottom:12px;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.85rem;font-weight:600;color:var(--text);">
+      <i class="fas fa-book" style="margin-right:8px;color:var(--primary);"></i>${classDisplay}
+    </div>
     <div class="table-scroll">
     <table class="att-table">
       <thead>
@@ -896,7 +940,7 @@ async function loadRecords() {
         <h4><i class="fas fa-calendar-day" style="opacity:.5;"></i> ${escapeHtml(d)}</h4>
         ${[...byClass.entries()].map(([className, recs]) => `
           <div class="panel" style="margin-bottom:12px;">
-            <h3>${escapeHtml(className)}</h3>
+            <h3>${escapeHtml(className)}${recs[0].class_section ? ` <span class="badge" style="background:var(--badge-bg); color:var(--badge-text); font-size:0.7rem; margin-left:6px;">${escapeHtml(recs[0].class_section)}</span>` : ''}</h3>
             <p class="muted">${recs.filter(r => r.status === 'Present').length} present · ${recs.filter(r => r.status === 'Absent').length} absent · marked by ${escapeHtml(recs[0].marked_by || '—')}</p>
             <div class="table-scroll">
             <table class="att-table">
@@ -935,6 +979,21 @@ function openPasswordModal() {
 
 function closePasswordModal() {
   document.getElementById('passwordModal').classList.remove('open');
+}
+
+// =============================================================
+// DELETE FUNCTIONS
+// =============================================================
+async function deleteTeacher(id) {
+  if (!confirm('Are you sure you want to remove this teacher? This action cannot be undone.')) return;
+  try {
+    const res = await apiFetch(`/api/teachers/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Failed to delete teacher');
+    // Reload the page to refresh the list
+    location.reload();
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
 }
 
 async function handleChangePassword(e) {
