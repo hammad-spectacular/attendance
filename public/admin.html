@@ -2399,41 +2399,6 @@
             </div>
           </div>
 
-          <!-- Search & Filter Controls -->
-          <div class="search-filter-container" style="display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
-            <div style="flex:1; min-width:240px; position:relative;">
-              <input type="text" id="studentSearchInput" class="form-input"
-                placeholder="🔍 Search by name or roll number..." oninput="filterStudents()">
-            </div>
-            <div style="width:200px; min-width:150px;">
-              <select id="studentClassFilter" class="form-input" onchange="filterStudents()"
-                aria-label="Filter students by class">
-                <option value="">All Classes</option>
-                <option value="unassigned">Unassigned</option>
-              </select>
-            </div>
-            <div style="width:160px; min-width:140px;">
-              <input type="date" id="studentDateFilter" class="form-input" onchange="filterStudents()"
-                aria-label="Filter by attendance date">
-            </div>
-          </div>
-          <!-- Status filter pills -->
-          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px;" id="studentStatusFilters">
-            <button type="button" onclick="setStudentStatusFilter('')" id="stSF-all" class="btn btn-filter filter-all active" aria-pressed="true">
-              All
-            </button>
-            <button type="button" onclick="setStudentStatusFilter('Present')" id="stSF-Present" class="btn btn-filter filter-present" aria-pressed="false">
-              ✅ Present
-            </button>
-            <button type="button" onclick="setStudentStatusFilter('Absent')" id="stSF-Absent" class="btn btn-filter filter-absent" aria-pressed="false">
-              ❌ Absent
-            </button>
-            <button type="button" onclick="setStudentStatusFilter('Leave')" id="stSF-Leave" class="btn btn-filter filter-leave" aria-pressed="false">
-              📝 Leave
-            </button>
-          </div>
-
-
           <!-- Students Table Wrap -->
           <div id="studentsTableWrap">
             <!-- Rendered by JS -->
@@ -2577,25 +2542,19 @@
                 class="fas fa-chart-bar"></i></div>
             <div>
               <div class="section-title">Student Attendance Stats</div>
-              <div class="section-subtitle">Overall attendance percentage across all recorded days</div>
+              <div class="section-subtitle">Top student with highest attendance from each class</div>
             </div>
           </div>
         </div>
         <div class="section-body" style="padding:0;">
           <div style="padding: 16px; border-bottom: 1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
             <div id="statsClassHeader">
-              <div style="font-size: 1.1rem; font-weight: 700; color: var(--text);">Overall Leaderboard</div>
-              <div style="font-size: 0.85rem; color: var(--text-secondary);">Filter by class or teacher to view top students</div>
+              <div style="font-size: 1.1rem; font-weight: 700; color: var(--text);">Top Student Per Class</div>
+              <div style="font-size: 0.85rem; color: var(--text-secondary);">Highest attendance student from each class</div>
             </div>
-            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-              <input type="text" id="statsSearchInput" class="form-input" style="min-width:220px;" placeholder="Search class or teacher..." oninput="renderStats()">
-              <select id="statsClassSelect" class="form-input" style="max-width: 250px;" onchange="renderStats()">
-                <option value="">All Classes</option>
-              </select>
-              <button class="btn ghost" id="statsRefreshBtn" onclick="refreshAttendanceData().then(() => { renderStats(); showToast('Attendance stats refreshed', 'success'); })" title="Fetch the latest attendance records">
-                <i class="fas fa-sync-alt"></i> Refresh
-              </button>
-            </div>
+            <button class="btn ghost" id="statsRefreshBtn" onclick="refreshAttendanceData().then(() => { renderStats(); showToast('Attendance stats refreshed', 'success'); })" title="Fetch the latest attendance records">
+              <i class="fas fa-sync-alt"></i> Refresh
+            </button>
           </div>
           <div id="statsTableWrap">
             <!-- Rendered by JS -->
@@ -5122,40 +5081,8 @@
     }
 
     function filterStudents() {
-      const query = document.getElementById('studentSearchInput').value.toLowerCase().trim();
-      const classFilter = document.getElementById('studentClassFilter').value;
-      const dateFilter = document.getElementById('studentDateFilter').value;
-
-      let filtered = window.appData.students;
-
-      // Class filtering
-      if (classFilter) {
-        if (classFilter === 'unassigned') {
-          filtered = filtered.filter(s => !s.class_id);
-        } else {
-          filtered = filtered.filter(s => s.class_id === parseInt(classFilter));
-        }
-      }
-
-      // Search query filtering
-      if (query) {
-        filtered = filtered.filter(s =>
-          (s.name && s.name.toLowerCase().includes(query)) ||
-          (s.roll_no && s.roll_no.toLowerCase().includes(query))
-        );
-      }
-
-      // Status filtering (attendance status for the selected date)
-      if (studentStatusFilter && dateFilter) {
-        const attendanceForDate = window.appData.attendance.filter(a => a.date === dateFilter);
-        filtered = filtered.filter(s => {
-          const att = attendanceForDate.find(a => a.student_id === s.id);
-          if (!att) return studentStatusFilter === '';
-          return att.status === studentStatusFilter;
-        });
-      }
-
-      renderStudentTable(filtered);
+      // Display all students without filtering
+      renderStudentTable(window.appData.students);
     }
 
     function getClassCapacity(classId) {
@@ -5192,8 +5119,8 @@
         wrap.innerHTML = `
           <div class="empty-state">
             <div class="icon">🎓</div>
-            <div class="msg">No matching students found</div>
-            <div class="sub">Adjust search filter or register new student</div>
+            <div class="msg">No students enrolled yet</div>
+            <div class="sub">Add students to get started</div>
           </div>`;
         return;
       }
@@ -5371,25 +5298,6 @@
 
     // Tracks the active status pill filter — empty string = All
     let attendanceStatusFilter = '';
-    let studentStatusFilter = '';
-
-    function setStudentStatusFilter(status) {
-      studentStatusFilter = status;
-      const allBtn = document.getElementById('stSF-all');
-      const presentBtn = document.getElementById('stSF-Present');
-      const absentBtn = document.getElementById('stSF-Absent');
-      const leaveBtn = document.getElementById('stSF-Leave');
-      const set = (btn, active) => {
-        if (!btn) return;
-        btn.classList.toggle('active', active);
-        btn.setAttribute('aria-pressed', String(active));
-      };
-      set(allBtn, status === '');
-      set(presentBtn, status === 'Present');
-      set(absentBtn, status === 'Absent');
-      set(leaveBtn, status === 'Leave');
-      filterStudents();
-    }
 
     function setAttendanceStatusFilter(status) {
       attendanceStatusFilter = status;
@@ -5664,8 +5572,6 @@
       const wrap = document.getElementById('statsTableWrap');
       if (!wrap) return;
       const allRecords = window.appData.attendance || [];
-      const records = getStatsFilteredRecords();
-      const selectedClass = document.getElementById('statsClassSelect')?.value || '';
 
       if (allRecords.length === 0) {
         wrap.innerHTML = `
@@ -5677,51 +5583,59 @@
         return;
       }
 
-      if (records.length === 0) {
-        wrap.innerHTML = `
-          <div class="empty-state" style="padding:36px 16px;">
-            <div class="icon"><i class="fas fa-search"></i></div>
-            <div class="msg">${selectedClass ? 'No attendance data yet for this class' : 'No matching attendance stats found'}</div>
-            <div class="sub">Try another class or teacher search</div>
-          </div>`;
-        return;
-      }
+      // Group students by class and calculate attendance stats
+      const classStudentMap = {};
+      allRecords.forEach(record => {
+        const className = record.className || 'Unassigned';
+        const studentKey = record.studentId || record.studentName;
 
-      const studentMap = {};
-      records.forEach(record => {
-        const key = record.studentId || record.studentName;
-        if (!studentMap[key]) {
-          studentMap[key] = {
-            id: key,
+        if (!classStudentMap[className]) {
+          classStudentMap[className] = {};
+        }
+
+        if (!classStudentMap[className][studentKey]) {
+          classStudentMap[className][studentKey] = {
+            id: studentKey,
             name: record.studentName,
             rollNo: record.rollNo || '-',
-            className: record.className || '-',
             present: 0,
             absent: 0,
             leave: 0,
             total: 0
           };
         }
-        studentMap[key].total++;
-        if (record.status === 'Present') studentMap[key].present++;
-        else if (record.status === 'Absent') studentMap[key].absent++;
-        else if (record.status === 'Leave') studentMap[key].leave++;
+
+        classStudentMap[className][studentKey].total++;
+        if (record.status === 'Present') classStudentMap[className][studentKey].present++;
+        else if (record.status === 'Absent') classStudentMap[className][studentKey].absent++;
+        else if (record.status === 'Leave') classStudentMap[className][studentKey].leave++;
       });
 
-      const students = Object.values(studentMap).map(s => ({
-        ...s,
-        percentage: s.total > 0 ? Math.round((s.present / s.total) * 100) : 0
-      })).sort((a, b) => b.percentage - a.percentage || b.present - a.present || a.name.localeCompare(b.name));
+      // Find top student per class
+      const topStudents = [];
+      Object.entries(classStudentMap).forEach(([className, students]) => {
+        const studentList = Object.values(students).map(s => ({
+          ...s,
+          className,
+          percentage: s.total > 0 ? Math.round((s.present / s.total) * 100) : 0
+        })).sort((a, b) => b.percentage - a.percentage || b.present - a.present || a.name.localeCompare(b.name));
 
-      let html = `<div style="padding:16px 22px;"><div style="font-size:0.75rem; color:var(--text-muted);">Attendance records counted: <strong style="color:var(--text);">${records.length}</strong></div></div>`;
+        if (studentList.length > 0) {
+          topStudents.push(studentList[0]);
+        }
+      });
+
+      // Sort by attendance percentage
+      topStudents.sort((a, b) => b.percentage - a.percentage || b.present - a.present || a.className.localeCompare(b.className));
+
+      let html = `<div style="padding:16px 22px;"><div style="font-size:0.75rem; color:var(--text-muted);">Showing top student from each class (${topStudents.length} classes)</div></div>`;
       html += `
         <div style="overflow-x:auto;">
         <table class="data-table">
           <thead>
             <tr>
-              <th style="width:70px; text-align:left;">Rank</th>
-              <th style="text-align:left;">Name</th>
-              <th style="text-align:center; width:130px;">Class</th>
+              <th style="text-align:left;">Class</th>
+              <th style="text-align:left;">Top Student</th>
               <th style="text-align:center; width:100px;">Present</th>
               <th style="text-align:center; width:100px;">Absent</th>
               <th style="text-align:center; width:100px;">Leave</th>
@@ -5730,15 +5644,12 @@
           </thead>
           <tbody>`;
 
-      students.forEach((s, i) => {
-        const rank = i === 0 ? '1st' : i === 1 ? '2nd' : i === 2 ? '3rd' : String(i + 1);
-        const rankStyle = i < 3 ? 'font-weight:900; color:var(--success);' : 'color:var(--text-muted);';
+      topStudents.forEach((s, i) => {
         const pctColor = s.percentage >= 80 ? '#22c55e' : s.percentage >= 60 ? '#f59e0b' : '#dc2626';
         html += `
           <tr>
-            <td style="text-align:left; ${rankStyle}">${rank}</td>
+            <td style="text-align:left;"><span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(s.className)}</span></td>
             <td style="text-align:left;"><strong>${escapeHtml(s.name)}</strong><div style="font-size:0.72rem; color:var(--text-secondary);">Roll No: ${escapeHtml(s.rollNo)}</div></td>
-            <td style="text-align:center;"><span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(s.className)}</span></td>
             <td style="text-align:center;"><span class="badge present">${s.present}</span></td>
             <td style="text-align:center;"><span class="badge absent">${s.absent}</span></td>
             <td style="text-align:center; color:var(--text-secondary);">${s.leave || '-'}</td>
@@ -6729,12 +6640,6 @@
         const editSelect = document.getElementById('editTeacherClass');
         if (editSelect) editSelect.innerHTML = '<option value="">-- Select a class --</option>';
 
-        const filterSelect = document.getElementById('studentClassFilter');
-        const filterVal = filterSelect ? filterSelect.value : '';
-        if (filterSelect) {
-          filterSelect.innerHTML = '<option value="">All Classes</option><option value="unassigned">Unassigned</option>';
-        }
-
         const attendanceClassFilter = document.getElementById('attendanceClassFilter');
         const attendanceVal = attendanceClassFilter ? attendanceClassFilter.value : '';
         if (attendanceClassFilter) {
@@ -6772,12 +6677,6 @@
             option.textContent = cls.name;
             editSelect.appendChild(option);
           }
-          if (filterSelect) {
-            const option = document.createElement('option');
-            option.value = cls.id;
-            option.textContent = cls.name;
-            filterSelect.appendChild(option);
-          }
           if (attendanceClassFilter) {
             const option = document.createElement('option');
             option.value = cls.id;
@@ -6792,7 +6691,6 @@
           }
         });
 
-        if (filterSelect && filterVal) filterSelect.value = filterVal;
         if (attendanceClassFilter && attendanceVal) attendanceClassFilter.value = attendanceVal;
         if (statsClassSelect && statsVal) statsClassSelect.value = statsVal;
         if (feeClassFilter && feeClassVal) feeClassFilter.value = feeClassVal;
@@ -6880,10 +6778,6 @@
           const inp = document.getElementById('teacherSearchInput');
           if (inp) { inp.value = ''; filterTeachers(); }
         } else if (newTabId === 'tab-students') {
-          const searchInput = document.getElementById('studentSearchInput');
-          const classFilter = document.getElementById('studentClassFilter');
-          if (searchInput) searchInput.value = '';
-          if (classFilter) classFilter.value = '';
           filterStudents();
         }
       }

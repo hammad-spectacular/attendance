@@ -3801,7 +3801,7 @@ app.delete('/api/homework/:id', requireAuth(['teacher', 'admin']), requireWritab
 })
 
 // ANNOUNCEMENTS
-app.get('/api/announcements', requireAuth(['admin', 'teacher', 'student', 'super_admin']), async (req, res) => {
+app.get('/api/announcements', requireAuth(['admin', 'teacher', 'student', 'coordinator', 'super_admin']), async (req, res) => {
   const { class_id, branch_id } = req.query
   const tenant_id = req.user.tenant_id
 
@@ -3853,7 +3853,7 @@ app.get('/api/announcements', requireAuth(['admin', 'teacher', 'student', 'super
   res.json(result.rows)
 })
 
-app.post('/api/announcements', requireAuth(['admin', 'teacher', 'super_admin']), requireWritableBranch(), async (req, res) => {
+app.post('/api/announcements', requireAuth(['admin', 'teacher', 'coordinator', 'super_admin']), requireWritableBranch(), async (req, res) => {
   const { title, message, class_id, teacher_id, author } = req.body
   const tenant_id = req.user.tenant_id
   if (!message) return res.status(400).json({ error: 'Announcement message is required' })
@@ -3865,7 +3865,7 @@ app.post('/api/announcements', requireAuth(['admin', 'teacher', 'super_admin']),
   res.json(result.rows[0])
 })
 
-app.delete('/api/announcements/:id', requireAuth(['admin', 'teacher', 'super_admin']), requireWritableBranch(), async (req, res) => {
+app.delete('/api/announcements/:id', requireAuth(['admin', 'teacher', 'coordinator', 'super_admin']), requireWritableBranch(), async (req, res) => {
   const tenant_id = req.user.tenant_id
   await pool.query('DELETE FROM announcements WHERE id = $1 AND tenant_id = $2', [req.params.id, tenant_id])
   res.json({ success: true })

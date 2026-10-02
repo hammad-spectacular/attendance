@@ -111,25 +111,32 @@
       border-bottom: 2px solid var(--border);
       padding-bottom: 12px;
       flex-wrap: wrap;
+      justify-content: center;
     }
     .subnav button {
-      border: 1px solid var(--border);
+      border: 2px solid var(--border);
       background: var(--card);
       color: var(--text-muted);
-      border-radius: 999px;
-      padding: 8px 16px;
-      font-size: 0.82rem;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 0.9rem;
       font-weight: 600;
       cursor: pointer;
       font-family: inherit;
       display: flex;
       align-items: center;
-      gap: 7px;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+    .subnav button:hover {
+      border-color: var(--primary-light);
+      color: var(--primary);
     }
     .subnav button.active {
       background: var(--primary);
       border-color: var(--primary);
       color: white;
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
     }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; }
     .panel {
@@ -210,6 +217,31 @@
       transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease;
     }
     .filters select:focus, .filters input:focus { outline: 2px solid var(--primary-light); }
+    .form-group {
+      margin-bottom: 14px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .form-group textarea {
+      width: 100%;
+      padding: 11px 14px;
+      border-radius: 10px;
+      border: 2px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.85rem;
+      resize: vertical;
+    }
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--primary-light);
+    }
     .summary {
       display: flex;
       gap: 12px;
@@ -241,21 +273,43 @@
     }
     .att-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.86rem; }
     .att-table tr:last-child td { border-bottom: none; }
-    .status-btns { display: flex; gap: 6px; }
+    .status-btns { display: flex; gap: 8px; }
     .status-btns button {
-      border: 1.5px solid var(--border);
+      border: 2px solid var(--border);
       background: var(--card);
       color: var(--text-muted);
       border-radius: 8px;
-      padding: 6px 13px;
-      font-size: 0.78rem;
+      padding: 8px 16px;
+      font-size: 0.85rem;
       font-weight: 700;
       cursor: pointer;
       font-family: inherit;
+      transition: all 0.2s ease;
+      min-width: 80px;
     }
-    .status-btns button.st-present.active { background: var(--success-bg); border-color: var(--success); color: var(--success); }
-    .status-btns button.st-absent.active { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); }
-    .status-btns button.st-leave.active { background: var(--warning-bg); border-color: var(--warning); color: var(--warning); }
+    .status-btns button:hover {
+      border-color: var(--primary-light);
+      color: var(--primary);
+      transform: translateY(-1px);
+    }
+    .status-btns button.st-present.active {
+      background: var(--success);
+      border-color: var(--success);
+      color: white;
+      box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+    }
+    .status-btns button.st-absent.active {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: white;
+      box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+    }
+    .status-btns button.st-leave.active {
+      background: var(--warning);
+      border-color: var(--warning);
+      color: white;
+      box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+    }
     .status-badge {
       display: inline-block;
       padding: 3px 11px;
@@ -351,6 +405,11 @@
     }
     .form-msg.error { display: block; background: var(--danger-bg); color: var(--danger); }
     .form-msg.success { display: block; background: var(--success-bg); color: var(--success); }
+    .list-item {
+      background: var(--card);
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
     /* Keep the roster inside the viewport: the table is width:100%, so without
        an explicit scroll container it spreads past the screen on small widths. */
     .table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -387,17 +446,19 @@
   
   <style>
     /* Constrain content width for better readability - from student tab onwards */
-    #app > .branch-card, 
-    #app > .subnav, 
-    #app > #subMark, 
-    #app > #subRecords {
+    #app > .branch-card,
+    #app > .subnav,
+    #app > #subMark,
+    #app > #subRecords,
+    #app > #subAnnouncements {
       max-width: 1100px;
       margin: 0 auto;
     }
-    
-    #app > .subnav, 
-    #app > #subMark, 
-    #app > #subRecords {
+
+    #app > .subnav,
+    #app > #subMark,
+    #app > #subRecords,
+    #app > #subAnnouncements {
       width: 100%;
     }
   </style>
@@ -648,6 +709,7 @@ async function load() {
     <div class="subnav">
       <button id="navMark" class="active" onclick="switchSubTab('mark')"><i class="fas fa-clipboard-check"></i> Take attendance</button>
       <button id="navRecords" onclick="switchSubTab('records')"><i class="fas fa-clock-rotate-left"></i> Saved records</button>
+      <button id="navAnnouncements" onclick="switchSubTab('announcements')"><i class="fas fa-bullhorn"></i> Announcements</button>
     </div>
     <div id="subMark">${noClassesNote}
       <div class="panel" style="margin-bottom:18px;">
@@ -656,8 +718,12 @@ async function load() {
             <label for="markClassSelect">Class</label>
             <select id="markClassSelect" onchange="onMarkClassChanged(this.value)">
               <option value="">-- Select class --</option>
-              ${myClasses.map(c => `<option value="${c.id}">${escapeHtml(c.name)}${c.section ? ` - ${escapeHtml(c.section)}` : ''}</option>`).join('')}
+              ${myClasses.map(c => `<option value="${c.id}"${c.section ? ` data-section="${escapeHtml(c.section)}"` : ''}>${escapeHtml(c.name)}</option>`).join('')}
             </select>
+          </div>
+          <div class="fg" id="markSectionFg" style="display:none;">
+            <label>Section</label>
+            <span id="markSectionDisplay" style="padding:9px 12px; border:1px solid var(--border); border-radius:9px; background:var(--card); color:var(--text); font-weight:600;"></span>
           </div>
           <div class="fg">
             <label for="markDateInput">Date</label>
@@ -703,10 +769,31 @@ async function load() {
             </select>
           </div>
         </div>
+        <!-- Status filter pills -->
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;" id="recStatusFilters">
+          <button type="button" onclick="setRecStatusFilter('')" id="recSF-all" class="status-btns active">All</button>
+          <button type="button" onclick="setRecStatusFilter('Present')" id="recSF-Present" class="status-btns st-present">✅ Present</button>
+          <button type="button" onclick="setRecStatusFilter('Absent')" id="recSF-Absent" class="status-btns st-absent">❌ Absent</button>
+          <button type="button" onclick="setRecStatusFilter('Leave')" id="recSF-Leave" class="status-btns st-leave">📝 Leave</button>
+        </div>
         <div id="recordsWrap"><div class="empty">Pick a month to view saved attendance.</div></div>
       </div>
     </div>
-    ${management}
+    <div id="subAnnouncements" style="display:none;">
+      <div class="panel">
+        <div class="form-group">
+          <label for="announcementText">New Announcement</label>
+          <textarea id="announcementText" placeholder="Type your announcement here..." rows="3"></textarea>
+        </div>
+        <button class="btn primary" onclick="saveAnnouncement()"><i class="fas fa-paper-plane"></i> Save Announcement</button>
+        <div style="margin-top:22px; padding-top:18px; border-top:1px solid var(--border);">
+          <div style="font-size:1rem; font-weight:800; color:var(--text); margin-bottom:10px;">All Announcements</div>
+          <div id="announcementsList">
+            <div class="empty">Loading announcements...</div>
+          </div>
+        </div>
+      </div>
+    </div>
   `;
 
   if (myClasses.length > 0) {
@@ -720,17 +807,25 @@ async function load() {
 function switchSubTab(which) {
   const mark = document.getElementById('subMark');
   const records = document.getElementById('subRecords');
+  const announcements = document.getElementById('subAnnouncements');
   const navMark = document.getElementById('navMark');
   const navRecords = document.getElementById('navRecords');
-  if (!mark || !records) return;
-  const showMark = which === 'mark';
-  mark.style.display = showMark ? '' : 'none';
-  records.style.display = showMark ? 'none' : '';
-  navMark.classList.toggle('active', showMark);
-  navRecords.classList.toggle('active', !showMark);
-  if (!showMark) {
+  const navAnnouncements = document.getElementById('navAnnouncements');
+  if (!mark || !records || !announcements) return;
+
+  mark.style.display = which === 'mark' ? '' : 'none';
+  records.style.display = which === 'records' ? '' : 'none';
+  announcements.style.display = which === 'announcements' ? '' : 'none';
+
+  navMark.classList.toggle('active', which === 'mark');
+  navRecords.classList.toggle('active', which === 'records');
+  navAnnouncements.classList.toggle('active', which === 'announcements');
+
+  if (which === 'records') {
     populateRecPeriodFilters();
     loadRecords();
+  } else if (which === 'announcements') {
+    loadAnnouncements();
   }
 }
 
@@ -739,6 +834,23 @@ function switchSubTab(which) {
 // =============================================================
 function onMarkClassChanged(value) {
   selectedClassId = value ? parseInt(value, 10) : null;
+  const select = document.getElementById('markClassSelect');
+  const sectionFg = document.getElementById('markSectionFg');
+  const sectionDisplay = document.getElementById('markSectionDisplay');
+
+  if (value && select) {
+    const selectedOption = select.options[select.selectedIndex];
+    const section = selectedOption.getAttribute('data-section');
+    if (section) {
+      sectionFg.style.display = 'flex';
+      sectionDisplay.textContent = section;
+    } else {
+      sectionFg.style.display = 'none';
+    }
+  } else {
+    sectionFg.style.display = 'none';
+  }
+
   loadMarkRoster();
 }
 
@@ -865,9 +977,9 @@ function updateMarkSummary() {
   const unmarked = values.filter(v => v === null).length;
   const marked = present + absent;
   summaryEl.innerHTML = `
-    <span class="chip" style="color:var(--success);"><i class="fas fa-user-check"></i> Present: ${present}</span>
-    <span class="chip" style="color:var(--danger);"><i class="fas fa-user-xmark"></i> Absent: ${absent}</span>
-    <span class="chip muted"><i class="fas fa-circle-question"></i> Not marked: ${unmarked}</span>`;
+    <button class="status-btns st-present" style="pointer-events:none; cursor:default;">✅ Present: ${present}</button>
+    <button class="status-btns st-absent" style="pointer-events:none; cursor:default;">❌ Absent: ${absent}</button>
+    <button class="status-btns" style="pointer-events:none; cursor:default; border-color:var(--border); color:var(--text-muted);">⭕ Not marked: ${unmarked}</button>`;
   // A saved day that is re-opened starts clean; edits light the unsaved note up.
   if (dirtyNote) {
     dirtyNote.style.display = JSON.stringify(attendanceState) !== baselineState ? 'block' : 'none';
@@ -920,6 +1032,24 @@ async function submitAttendance() {
 // =============================================================
 // SAVED RECORDS (month view)
 // =============================================================
+let recStatusFilter = '';
+
+function setRecStatusFilter(status) {
+  recStatusFilter = status;
+  const allBtn = document.getElementById('recSF-all');
+  const presentBtn = document.getElementById('recSF-Present');
+  const absentBtn = document.getElementById('recSF-Absent');
+  const leaveBtn = document.getElementById('recSF-Leave');
+  const set = (btn, active) => {
+    if (!btn) return;
+    btn.classList.toggle('active', active);
+  };
+  set(allBtn, status === '');
+  set(presentBtn, status === 'Present');
+  set(absentBtn, status === 'Absent');
+  set(leaveBtn, status === 'Leave');
+  loadRecords();
+}
 
 const REC_MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -1001,7 +1131,8 @@ async function loadRecords() {
     const matchesMonth = !month || d.slice(5, 7) === month;
     const matchesYear = !year || d.slice(0, 4) === year;
     const matchesClass = recordsClassId === 'all' || String(r.class_id) === String(recordsClassId);
-    return matchesDay && matchesMonth && matchesYear && matchesClass;
+    const matchesStatus = !recStatusFilter || (r.status || '').toLowerCase() === recStatusFilter.toLowerCase();
+    return matchesDay && matchesMonth && matchesYear && matchesClass && matchesStatus;
   });
 
   if (savedRecords.length === 0) {
@@ -1117,6 +1248,71 @@ async function handleChangePassword(e) {
   } finally {
     btn.disabled = false;
     btn.textContent = original;
+  }
+}
+
+// =============================================================
+// ANNOUNCEMENTS
+// =============================================================
+async function saveAnnouncement() {
+  const textEl = document.getElementById('announcementText');
+  const message = textEl.value.trim();
+  if (!message) {
+    alert('Please enter an announcement message');
+    return;
+  }
+
+  try {
+    const res = await apiFetch('/api/announcements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, author: 'Coordinator' })
+    });
+    if (!res.ok) throw new Error('Failed to save announcement');
+    textEl.value = '';
+    loadAnnouncements();
+  } catch (err) {
+    alert('Error saving announcement: ' + err.message);
+  }
+}
+
+async function loadAnnouncements() {
+  const wrap = document.getElementById('announcementsList');
+  if (!wrap) return;
+
+  try {
+    const res = await apiFetch('/api/announcements');
+    if (!res.ok) throw new Error('Failed to load announcements');
+    const announcements = await res.json();
+
+    if (!announcements || announcements.length === 0) {
+      wrap.innerHTML = '<div class="empty">No announcements yet</div>';
+      return;
+    }
+
+    wrap.innerHTML = announcements.map(a => `
+      <div class="list-item" style="padding:12px; border-bottom:1px solid var(--border);">
+        <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:4px;">
+          ${new Date(a.created_at).toLocaleDateString()} ${a.author ? '• ' + escapeHtml(a.author) : ''}
+        </div>
+        <div style="font-size:0.9rem; color:var(--text);">${escapeHtml(a.message)}</div>
+        <button class="btn" style="margin-top:8px; padding:4px 10px; font-size:0.75rem;" onclick="deleteAnnouncement(${a.id})">Delete</button>
+      </div>
+    `).join('');
+  } catch (err) {
+    wrap.innerHTML = '<div class="empty">Failed to load announcements</div>';
+  }
+}
+
+async function deleteAnnouncement(id) {
+  if (!confirm('Delete this announcement?')) return;
+
+  try {
+    const res = await apiFetch(`/api/announcements/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Failed to delete');
+    loadAnnouncements();
+  } catch (err) {
+    alert('Error deleting announcement: ' + err.message);
   }
 }
 
