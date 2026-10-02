@@ -12,6 +12,7 @@ require('dotenv').config()
 const { requireAuth, setPool } = require('./authMiddleware')
 
 const app = express()
+app.set('trust proxy', 1)
 const JWT_SECRET = process.env.JWT_SECRET
 console.log('JWT_SECRET loaded:', JWT_SECRET ? 'YES' : 'MISSING')
 if (!JWT_SECRET) {
