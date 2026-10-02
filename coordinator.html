@@ -769,13 +769,6 @@ async function load() {
             </select>
           </div>
         </div>
-        <!-- Status filter pills -->
-        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;" id="recStatusFilters">
-          <button type="button" onclick="setRecStatusFilter('')" id="recSF-all" class="status-btns active">All</button>
-          <button type="button" onclick="setRecStatusFilter('Present')" id="recSF-Present" class="status-btns st-present">✅ Present</button>
-          <button type="button" onclick="setRecStatusFilter('Absent')" id="recSF-Absent" class="status-btns st-absent">❌ Absent</button>
-          <button type="button" onclick="setRecStatusFilter('Leave')" id="recSF-Leave" class="status-btns st-leave">📝 Leave</button>
-        </div>
         <div id="recordsWrap"><div class="empty">Pick a month to view saved attendance.</div></div>
       </div>
     </div>
@@ -1032,25 +1025,6 @@ async function submitAttendance() {
 // =============================================================
 // SAVED RECORDS (month view)
 // =============================================================
-let recStatusFilter = '';
-
-function setRecStatusFilter(status) {
-  recStatusFilter = status;
-  const allBtn = document.getElementById('recSF-all');
-  const presentBtn = document.getElementById('recSF-Present');
-  const absentBtn = document.getElementById('recSF-Absent');
-  const leaveBtn = document.getElementById('recSF-Leave');
-  const set = (btn, active) => {
-    if (!btn) return;
-    btn.classList.toggle('active', active);
-  };
-  set(allBtn, status === '');
-  set(presentBtn, status === 'Present');
-  set(absentBtn, status === 'Absent');
-  set(leaveBtn, status === 'Leave');
-  loadRecords();
-}
-
 const REC_MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
@@ -1131,8 +1105,7 @@ async function loadRecords() {
     const matchesMonth = !month || d.slice(5, 7) === month;
     const matchesYear = !year || d.slice(0, 4) === year;
     const matchesClass = recordsClassId === 'all' || String(r.class_id) === String(recordsClassId);
-    const matchesStatus = !recStatusFilter || (r.status || '').toLowerCase() === recStatusFilter.toLowerCase();
-    return matchesDay && matchesMonth && matchesYear && matchesClass && matchesStatus;
+    return matchesDay && matchesMonth && matchesYear && matchesClass;
   });
 
   if (savedRecords.length === 0) {
