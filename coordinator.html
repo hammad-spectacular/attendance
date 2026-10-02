@@ -250,6 +250,7 @@
     }
     .status-btns button.st-present.active { background: var(--success-bg); border-color: var(--success); color: var(--success); }
     .status-btns button.st-absent.active { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); }
+    .status-btns button.st-leave.active { background: var(--warning-bg); border-color: var(--warning); color: var(--warning); }
     .status-badge {
       display: inline-block;
       padding: 3px 11px;
@@ -671,9 +672,30 @@ async function load() {
             </select>
           </div>
           <div class="fg">
-            <label for="recMonthInput">Month</label>
-            <input type="month" id="recMonthInput" onchange="onRecordsFilterChanged()">
+            <label for="recDaySelect">Day</label>
+            <select id="recDaySelect" onchange="onRecordsFilterChanged()">
+              <option value="">All Days</option>
+            </select>
           </div>
+          <div class="fg">
+            <label for="recMonthSelect">Month</label>
+            <select id="recMonthSelect" onchange="onRecordsFilterChanged()">
+              <option value="">All Months</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label for="recYearSelect">Year</label>
+            <select id="recYearSelect" onchange="onRecordsFilterChanged()">
+              <option value="">All Years</option>
+            </select>
+          </div>
+        </div>
+        <!-- Status filter pills -->
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;" id="recStatusFilters">
+          <button type="button" onclick="setRecStatusFilter('')" id="recSF-all" class="btn active" style="padding:6px 12px; font-size:0.8rem; border-radius:999px;">All</button>
+          <button type="button" onclick="setRecStatusFilter('Present')" id="recSF-Present" class="btn" style="padding:6px 12px; font-size:0.8rem; border-radius:999px;">✅ Present</button>
+          <button type="button" onclick="setRecStatusFilter('Absent')" id="recSF-Absent" class="btn" style="padding:6px 12px; font-size:0.8rem; border-radius:999px;">❌ Absent</button>
+          <button type="button" onclick="setRecStatusFilter('Leave')" id="recSF-Leave" class="btn" style="padding:6px 12px; font-size:0.8rem; border-radius:999px;">📝 Leave</button>
         </div>
         <div id="recordsWrap"><div class="empty">Pick a month to view saved attendance.</div></div>
       </div>
@@ -700,10 +722,8 @@ function switchSubTab(which) {
   records.style.display = showMark ? 'none' : '';
   navMark.classList.toggle('active', showMark);
   navRecords.classList.toggle('active', !showMark);
-  if (!showMark && monthFilter === null) {
-    monthFilter = (selectedDate || '').slice(0, 7) || null;
-    const inp = document.getElementById('recMonthInput');
-    if (inp && monthFilter) inp.value = monthFilter;
+  if (!showMark) {
+    populateRecPeriodFilters();
     loadRecords();
   }
 }
@@ -719,6 +739,12 @@ function onMarkClassChanged(value) {
 function onMarkDateChanged(value) {
   // Attendance cannot be taken for a future day; the server also enforces this.
   if (value) {
+    const today = getTodayDate();
+    if (value > today) {
+      alert('Cannot take attendance for a future date. Please select today or a past date.');
+      document.getElementById('markDateInput').value = selectedDate;
+      return;
+    }
     selectedDate = value;
     loadMarkRoster();
   }
@@ -800,6 +826,8 @@ async function loadMarkRoster() {
                         onclick="setStatus(${s.id}, 'Present', this)">Present</button>
                 <button class="st-absent ${attendanceState[s.id] === 'Absent' ? 'active' : ''}"
                         onclick="setStatus(${s.id}, 'Absent', this)">Absent</button>
+                <button class="st-leave ${attendanceState[s.id] === 'Leave' ? 'active' : ''}"
+                        onclick="setStatus(${s.id}, 'Leave', this)">Leave</button>
               </div>
             </td>
           </tr>`).join('')}
@@ -817,6 +845,7 @@ function setStatus(studentId, status, btn) {
   const row = btn.closest('tr');
   row.querySelector('.st-present').classList.toggle('active', attendanceState[studentId] === 'Present');
   row.querySelector('.st-absent').classList.toggle('active', attendanceState[studentId] === 'Absent');
+  row.querySelector('.st-leave').classList.toggle('active', attendanceState[studentId] === 'Leave');
   updateMarkSummary();
 }
 
@@ -885,20 +914,92 @@ async function submitAttendance() {
 // =============================================================
 // SAVED RECORDS (month view)
 // =============================================================
+let recStatusFilter = '';
+
+function setRecStatusFilter(status) {
+  recStatusFilter = status;
+  const allBtn = document.getElementById('recSF-all');
+  const presentBtn = document.getElementById('recSF-Present');
+  const absentBtn = document.getElementById('recSF-Absent');
+  const leaveBtn = document.getElementById('recSF-Leave');
+  const set = (btn, active) => {
+    if (!btn) return;
+    btn.classList.toggle('active', active);
+  };
+  set(allBtn, status === '');
+  set(presentBtn, status === 'Present');
+  set(absentBtn, status === 'Absent');
+  set(leaveBtn, status === 'Leave');
+  loadRecords();
+}
+
+const REC_MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+function getTodayDate() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).format(new Date());
+}
+
+function populateRecPeriodFilters() {
+  const daySel = document.getElementById('recDaySelect');
+  const monthSel = document.getElementById('recMonthSelect');
+  const yearSel = document.getElementById('recYearSelect');
+  if (!daySel || !monthSel || !yearSel) return;
+
+  const today = getTodayDate();
+  const thisYear = today.slice(0, 4);
+  const thisMonth = today.slice(5, 7);
+
+  const years = new Set([thisYear]);
+  for (let i = 1; i <= 3; i++) years.add(String(Number(thisYear) - i));
+
+  yearSel.innerHTML = '<option value="">All Years</option>';
+  [...years].sort((a, b) => b - a).forEach(y => {
+    const o = document.createElement('option');
+    o.value = y;
+    o.textContent = y;
+    yearSel.appendChild(o);
+  });
+
+  monthSel.innerHTML = '<option value="">All Months</option>';
+  REC_MONTH_NAMES.forEach((name, i) => {
+    const value = String(i + 1).padStart(2, '0');
+    const o = document.createElement('option');
+    o.value = value;
+    o.textContent = name;
+    monthSel.appendChild(o);
+  });
+
+  daySel.innerHTML = '<option value="">All Days</option>';
+  for (let d = 1; d <= 31; d++) {
+    const value = String(d).padStart(2, '0');
+    const o = document.createElement('option');
+    o.value = value;
+    o.textContent = String(d);
+    daySel.appendChild(o);
+  }
+}
+
 function onRecordsFilterChanged() {
-  const cls = document.getElementById('recClassSelect').value;
-  const month = document.getElementById('recMonthInput').value;
-  recordsClassId = cls || 'all';
-  monthFilter = month || null;
-  if (monthFilter) loadRecords();
+  populateRecPeriodFilters();
+  loadRecords();
 }
 
 async function loadRecords() {
   const wrap = document.getElementById('recordsWrap');
-  if (!monthFilter) {
-    wrap.innerHTML = '<div class="empty">Pick a month to view saved attendance.</div>';
+  const day = document.getElementById('recDaySelect')?.value || '';
+  const month = document.getElementById('recMonthSelect')?.value || '';
+  const year = document.getElementById('recYearSelect')?.value || '';
+  
+  if (!day && !month && !year) {
+    wrap.innerHTML = '<div class="empty">Select a day, month, or year to view saved attendance.</div>';
     return;
   }
+  
   wrap.innerHTML = '<div class="empty"><i class="fas fa-spinner fa-spin"></i> Loading records…</div>';
 
   // Branch-scoped server-side: a coordinator always gets their own branch back.
@@ -908,14 +1009,21 @@ async function loadRecords() {
     return;
   }
   const all = await res.json();
+  const cls = document.getElementById('recClassSelect').value;
+  recordsClassId = cls || 'all';
+  
   savedRecords = all.filter(r => {
-    const inMonth = String(r.date || '').slice(0, 7) === monthFilter;
-    const inClass = recordsClassId === 'all' || String(r.class_id) === String(recordsClassId);
-    return inMonth && inClass;
+    const d = String(r.date || '');
+    const matchesDay = !day || d.slice(8, 10) === day;
+    const matchesMonth = !month || d.slice(5, 7) === month;
+    const matchesYear = !year || d.slice(0, 4) === year;
+    const matchesClass = recordsClassId === 'all' || String(r.class_id) === String(recordsClassId);
+    const matchesStatus = !recStatusFilter || (r.status || '').toLowerCase() === recStatusFilter.toLowerCase();
+    return matchesDay && matchesMonth && matchesYear && matchesClass && matchesStatus;
   });
 
   if (savedRecords.length === 0) {
-    wrap.innerHTML = '<div class="empty">No saved attendance for this month.</div>';
+    wrap.innerHTML = '<div class="empty">No saved attendance for the selected filters.</div>';
     return;
   }
 

@@ -5472,7 +5472,10 @@
               ${escapeHtml(record.studentName)}
               ${record.rollNo ? `<div style="font-size:0.72rem; color:var(--text-secondary); font-weight:500;">Roll No: ${escapeHtml(record.rollNo)}</div>` : ''}
             </td>
-            <td style="text-align:center;"><span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(record.className || '-')}</span></td>
+            <td style="text-align:center;">
+              <span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(record.className || '-')}</span>
+              ${record.classSection ? `<span class="badge" style="background:rgba(99,102,241,0.12); color:var(--primary-light); font-size:0.65rem; margin-left:4px;">${escapeHtml(record.classSection)}</span>` : ''}
+            </td>
             <td style="text-align:center; color:var(--text-secondary); font-weight:600;">${escapeHtml(record.date || '-')}</td>
             <td style="text-align:center;"><span class="badge ${badgeClass}" style="${statusLower === 'leave' ? 'background:rgba(245,158,11,0.14); color:#b45309;' : ''}">${escapeHtml(status || '-')}</span></td>
             <td style="text-align:left; color:var(--text-secondary);">${escapeHtml(record.markedBy || 'Unknown')}</td>
