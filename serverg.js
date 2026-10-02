@@ -2805,18 +2805,17 @@ app.get('/api/coordinator/me', requireAuth(['coordinator']), async (req, res) =>
       }
     }
 
-    if (payload.grants.management) {
-      const teachers = branch_id
-        ? await pool.query(
-            `SELECT id, name FROM teachers WHERE tenant_id = $1 AND branch_id = $2 ORDER BY name`,
-            [tenant_id, branch_id]
-          )
-        : await pool.query(
-            `SELECT id, name FROM teachers WHERE tenant_id = $1 ORDER BY name`,
-            [tenant_id]
-          )
-      payload.teachers = teachers.rows
-    }
+    // Teachers are always provided now (read-only for coordinators without management grant)
+    const teachers = branch_id
+      ? await pool.query(
+          `SELECT id, name FROM teachers WHERE tenant_id = $1 AND branch_id = $2 ORDER BY name`,
+          [tenant_id, branch_id]
+        )
+      : await pool.query(
+          `SELECT id, name FROM teachers WHERE tenant_id = $1 ORDER BY name`,
+          [tenant_id]
+        )
+    payload.teachers = teachers.rows
 
     // Classes are always provided: attendance is the coordinator's core job, so
     // the class filter must work even when the management grant is switched off.
@@ -3620,6 +3619,17 @@ app.get('/api/attendance/all', requireAuth(['admin', 'super_admin', 'coordinator
 
 app.post('/api/attendance/submit', requireAuth(['teacher', 'admin', 'coordinator']), requireWritableBranch(), async (req, res) => {
   try {
+    // Teachers can only submit attendance if the teacher portal is enabled
+    if (req.user.role === 'teacher') {
+      const teacherPortalEnabled = await isPortalEnabled(req.user.tenant_id, 'teacher')
+      if (!teacherPortalEnabled) {
+        return res.status(403).json({ 
+          error: 'The Teacher Portal has not been enabled for your school yet. Please ask your school admin to request it.',
+          portal_disabled: true
+        })
+      }
+    }
+
     const { date, teacher_id, records } = req.body
     const tenant_id = req.user.tenant_id
 

@@ -177,6 +177,11 @@
     }
     .btn.primary:hover { filter: brightness(1.1); }
     .btn.primary:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
     /* Attendance filters */
     .filters {
       display: flex;
@@ -615,7 +620,21 @@ async function load() {
         <div class="count">${(data.teachers || []).length}</div>
         ${listOrEmptyWithDelete(data.teachers, 'No teachers yet', 'teacher')}
       </div>
-    </div>` : '';
+    </div>` : `
+    <div class="grid">
+      <div class="panel">
+        <h3>Classes</h3>
+        <p class="muted">Classes added by your admin for this branch.</p>
+        <div class="count">${myClasses.length}</div>
+        ${listOrEmpty(myClasses, 'No classes yet')}
+      </div>
+      <div class="panel">
+        <h3>Teachers</h3>
+        <p class="muted">Teachers assigned to this branch (view only).</p>
+        <div class="count">${(data.teachers || []).length}</div>
+        ${listOrEmpty(data.teachers, 'No teachers yet')}
+      </div>
+    </div>`;
 
   const noClassesNote = myClasses.length === 0
     ? `<div class="notice warn">Your branch has no classes yet. Ask your admin to add classes, then reload this page.</div>`
@@ -664,13 +683,15 @@ async function load() {
     <div id="subRecords" style="display:none;">
       <div class="panel">
         <div class="filters">
-          <div class="fg">
+          <div class="fg" style="flex:1; min-width:200px;">
             <label for="recClassSelect">Class</label>
-            <select id="recClassSelect" onchange="onRecordsFilterChanged()">
+            <select id="recClassSelect" onchange="onRecordsFilterChanged()" style="width:100%;">
               <option value="all">All classes</option>
               ${myClasses.map(c => `<option value="${c.id}">${escapeHtml(c.name)}${c.section ? ` - ${escapeHtml(c.section)}` : ''}</option>`).join('')}
             </select>
           </div>
+        </div>
+        <div class="filters" style="margin-top:10px;">
           <div class="fg">
             <label for="recDaySelect">Day</label>
             <select id="recDaySelect" onchange="onRecordsFilterChanged()">
