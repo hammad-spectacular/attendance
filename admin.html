@@ -2150,6 +2150,9 @@
       <a href="#tab-students" class="tab-btn" data-section="tab-students" data-feature-key="student_management">
         <i class="fas fa-user-graduate"></i>Students
       </a>
+      <a href="#tab-coordinators" class="tab-btn" data-section="tab-coordinators" id="coordinatorsTabBtn">
+        <i class="fas fa-user-shield"></i>Coordinators
+      </a>
       <a href="#tab-classes" class="tab-btn" data-section="tab-classes">
         <i class="fas fa-book"></i>Classes
       </a>
@@ -2168,9 +2171,6 @@
       <!-- Branches tab: only shown when tenant has no branches yet (for initial setup) -->
       <a href="#tab-branches" class="tab-btn" data-section="tab-branches" id="branchesTabBtn" style="display:none;">
         <i class="fas fa-building"></i>Branches
-      </a>
-      <a href="#tab-coordinators" class="tab-btn" data-section="tab-coordinators" id="coordinatorsTabBtn">
-        <i class="fas fa-user-shield"></i>Coordinators
       </a>
     </div>
   </nav>
@@ -2387,6 +2387,78 @@
 
           <!-- Students Table Wrap -->
           <div id="studentsTableWrap">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== COORDINATORS TAB ==================== -->
+    <!-- Coordinators are attendance-only staff appointed to one branch or, with
+         no branch picked, to the whole school. They can never see or change it. -->
+    <div id="tab-coordinators" class="tab-content">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-icon purple"><i class="fas fa-user-shield"></i></div>
+            <div>
+              <div class="section-title">Coordinators</div>
+              <div class="section-subtitle">Attendance-only staff, appointed to a branch or the whole school</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-primary btn-sm" onclick="openAddCoordinatorForm()">
+              <i class="fas fa-plus"></i> Add Coordinator
+            </button>
+          </div>
+        </div>
+        <div class="section-body">
+          <p id="coordinatorsIntroText" style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:16px;">
+            Coordinators log in with their own ID and take attendance. Leave the branch empty to appoint them to the whole school, or pick one branch to scope them to it. With a single branch they are appointed to it automatically.
+          </p>
+          <!-- Add Coordinator Inline Form (hidden initially) -->
+          <div id="addCoordinatorFormWrap" style="display:none;margin-bottom:20px;">
+            <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+              <div class="form-group" style="flex:1;min-width:180px;margin-bottom:0;">
+                <label class="form-label" for="newCoordinatorName">Coordinator Name</label>
+                <input class="form-input" type="text" id="newCoordinatorName" placeholder="e.g. Mr Ahmed">
+              </div>
+              <div class="form-group" style="flex:1;min-width:170px;margin-bottom:0;">
+                <label class="form-label" for="newCoordinatorPhone">Contact <span style="font-weight:400;">(optional)</span></label>
+                <input class="form-input" type="tel" id="newCoordinatorPhone" placeholder="03001234567">
+              </div>
+              <div class="form-group" style="flex:1;min-width:190px;margin-bottom:0;">
+                <label class="form-label" for="newCoordinatorBranch">Branch <span style="font-weight:400;">(optional — whole school if empty)</span></label>
+                <select class="form-input" id="newCoordinatorBranch">
+                  <option value="">Whole school</option>
+                </select>
+              </div>
+            </div>
+            <div style="display:flex; gap:16px; margin-top:10px; flex-wrap:wrap;">
+              <label style="display:flex;align-items:center;gap:7px;font-size:0.82rem;color:var(--text-secondary);cursor:pointer;">
+                <input type="checkbox" id="newCoordinatorCredentials" checked> Give login (generates ID + password)
+              </label>
+              <label style="display:flex;align-items:center;gap:7px;font-size:0.82rem;color:var(--text-secondary);cursor:pointer;">
+                <input type="checkbox" id="newCoordinatorManagement"> Also allow management modules
+              </label>
+            </div>
+            <div id="noBranchHint" style="display:none;font-size:0.78rem;color:var(--warning);margin-top:8px;">
+              <i class="fas fa-circle-info"></i> You have no branches yet. <a href="#" onclick="switchTab('tab-branches');return false;" style="color:var(--primary);font-weight:600;">Add a branch</a> first, or create one here:
+              <span style="display:inline-flex;gap:6px;margin-left:8px;align-items:center;">
+                <input class="form-input" type="text" id="inlineBranchName" placeholder="Branch name" style="width:160px;padding:6px 10px;">
+                <button class="btn btn-ghost btn-sm" onclick="createInlineBranch()">Create</button>
+              </span>
+            </div>
+            <div id="addCoordinatorError" style="display:none;color:var(--danger);font-size:0.78rem;margin-top:8px;"></div>
+            <div style="display:flex; gap:8px; margin-top:12px;">
+              <button class="btn btn-primary" onclick="saveCoordinator()" id="saveCoordinatorBtn">
+                <i class="fas fa-check"></i> Save Coordinator
+              </button>
+              <button class="btn btn-ghost" onclick="cancelAddCoordinator()">Cancel</button>
+            </div>
+          </div>
+          <!-- Coordinators List -->
+          <div id="coordinatorsTableWrap">
             <!-- Rendered by JS -->
           </div>
         </div>
@@ -2712,78 +2784,6 @@
     </div>
 
   </div>
-
-    <!-- ==================== COORDINATORS TAB ==================== -->
-    <!-- Coordinators are attendance-only staff appointed to one branch or, with
-         no branch picked, to the whole school. They can never see or change it. -->
-    <div id="tab-coordinators" class="tab-content">
-      <div class="section-card">
-        <div class="section-header">
-          <div class="section-header-left">
-            <div class="section-icon purple"><i class="fas fa-user-shield"></i></div>
-            <div>
-              <div class="section-title">Coordinators</div>
-              <div class="section-subtitle">Attendance-only staff, appointed to a branch or the whole school</div>
-            </div>
-          </div>
-          <div style="display:flex; gap:8px;">
-            <button class="btn btn-primary btn-sm" onclick="openAddCoordinatorForm()">
-              <i class="fas fa-plus"></i> Add Coordinator
-            </button>
-          </div>
-        </div>
-        <div class="section-body">
-          <p id="coordinatorsIntroText" style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:16px;">
-            Coordinators log in with their own ID and take attendance. Leave the branch empty to appoint them to the whole school, or pick one branch to scope them to it. With a single branch they are appointed to it automatically.
-          </p>
-          <!-- Add Coordinator Inline Form (hidden initially) -->
-          <div id="addCoordinatorFormWrap" style="display:none;margin-bottom:20px;">
-            <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
-              <div class="form-group" style="flex:1;min-width:180px;margin-bottom:0;">
-                <label class="form-label" for="newCoordinatorName">Coordinator Name</label>
-                <input class="form-input" type="text" id="newCoordinatorName" placeholder="e.g. Mr Ahmed">
-              </div>
-              <div class="form-group" style="flex:1;min-width:170px;margin-bottom:0;">
-                <label class="form-label" for="newCoordinatorPhone">Contact <span style="font-weight:400;">(optional)</span></label>
-                <input class="form-input" type="tel" id="newCoordinatorPhone" placeholder="03001234567">
-              </div>
-              <div class="form-group" style="flex:1;min-width:190px;margin-bottom:0;">
-                <label class="form-label" for="newCoordinatorBranch">Branch <span style="font-weight:400;">(optional — whole school if empty)</span></label>
-                <select class="form-input" id="newCoordinatorBranch">
-                  <option value="">Whole school</option>
-                </select>
-              </div>
-            </div>
-            <div style="display:flex; gap:16px; margin-top:10px; flex-wrap:wrap;">
-              <label style="display:flex;align-items:center;gap:7px;font-size:0.82rem;color:var(--text-secondary);cursor:pointer;">
-                <input type="checkbox" id="newCoordinatorCredentials" checked> Give login (generates ID + password)
-              </label>
-              <label style="display:flex;align-items:center;gap:7px;font-size:0.82rem;color:var(--text-secondary);cursor:pointer;">
-                <input type="checkbox" id="newCoordinatorManagement"> Also allow management modules
-              </label>
-            </div>
-            <div id="noBranchHint" style="display:none;font-size:0.78rem;color:var(--warning);margin-top:8px;">
-              <i class="fas fa-circle-info"></i> You have no branches yet. <a href="#" onclick="switchTab('tab-branches');return false;" style="color:var(--primary);font-weight:600;">Add a branch</a> first, or create one here:
-              <span style="display:inline-flex;gap:6px;margin-left:8px;align-items:center;">
-                <input class="form-input" type="text" id="inlineBranchName" placeholder="Branch name" style="width:160px;padding:6px 10px;">
-                <button class="btn btn-ghost btn-sm" onclick="createInlineBranch()">Create</button>
-              </span>
-            </div>
-            <div id="addCoordinatorError" style="display:none;color:var(--danger);font-size:0.78rem;margin-top:8px;"></div>
-            <div style="display:flex; gap:8px; margin-top:12px;">
-              <button class="btn btn-primary" onclick="saveCoordinator()" id="saveCoordinatorBtn">
-                <i class="fas fa-check"></i> Save Coordinator
-              </button>
-              <button class="btn btn-ghost" onclick="cancelAddCoordinator()">Cancel</button>
-            </div>
-          </div>
-          <!-- Coordinators List -->
-          <div id="coordinatorsTableWrap">
-            <!-- Rendered by JS -->
-          </div>
-        </div>
-      </div>
-    </div>
 
   <div class="edit-modal" id="feePaymentModal" style="display:none; position:fixed; inset:0; z-index:100; align-items:center; justify-content:center; background:rgba(15,23,42,0.7);">
     <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:16px; width:min(92vw, 500px); padding:20px; box-shadow:var(--shadow-lg);">
@@ -5128,12 +5128,14 @@
             </td>
             <td style="text-align:right;">
               <div class="action-buttons" style="justify-content: flex-end;">
+                ${showStudentId ? `
                 <button onclick="openAdminRecoveryReveal(${s.id}, 'student')" class="btn-edit" title="Issue one-time temporary password" style="background:var(--warning-bg); color:var(--warning);">
                   <i class="fas fa-key"></i>
                 </button>
                 <button onclick="markDirty('tab-students', ${s.id}, 'is_frozen', ${!dirtyData.is_frozen})" class="btn-edit" title="${dirtyData.is_frozen ? 'Unfreeze Account' : 'Freeze Account'}" style="background: ${dirtyData.is_frozen ? 'var(--danger-bg)' : 'var(--warning-bg)'}; color: ${dirtyData.is_frozen ? 'var(--danger)' : 'var(--warning)'}; border: none;">
                   <i class="fas ${dirtyData.is_frozen ? 'fa-lock' : 'fa-lock-open'}"></i>
                 </button>
+                ` : ''}
                 <button onclick="openEditStudentModal(${s.id})" class="btn-edit" title="Edit in modal">
                   <i class="fas fa-expand"></i>
                 </button>
@@ -6168,6 +6170,7 @@
               ${mgmtBadge}
               ${c.is_first_login ? `<span class="badge" style="background:rgba(245,158,11,0.15);color:#d97706;">First login pending</span>` : ''}
               <button class="btn btn-ghost btn-sm" onclick="openCoordinatorEditModal(${c.id})"><i class="fas fa-pen"></i> Edit</button>
+              <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="deleteCoordinator(${c.id})"><i class="fas fa-trash"></i> Delete</button>
             </div>
           </div>`;
       }).join('');
@@ -6323,6 +6326,28 @@
         msg('Connection error. Please try again.', true);
       } finally {
         setButtonLoading(btn, false);
+      }
+    }
+
+    async function deleteCoordinator(id) {
+      const confirmed = await showConfirmModal({
+        icon: '🗑️',
+        iconBg: 'rgba(239,68,68,0.12)',
+        title: 'Remove Coordinator',
+        message: 'Are you sure you want to remove this coordinator? Their account and all associated data will be permanently deleted.',
+        confirmText: 'Yes, Remove',
+        confirmClass: 'danger',
+        cancelText: 'Cancel'
+      });
+      if (!confirmed) return;
+      try {
+        const response = await apiFetch(`/api/coordinators/${id}`, { method: 'DELETE' });
+        if (!response.ok) throw new Error('Failed to delete coordinator');
+        window.appData.coordinators = window.appData.coordinators.filter(c => Number(c.id) !== Number(id));
+        renderCoordinators();
+        showToast('Coordinator removed', 'info');
+      } catch (err) {
+        showToast(`Error: ${err.message}`, 'error');
       }
     }
 
