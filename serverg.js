@@ -434,7 +434,8 @@ async function createTables() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS classes (
       id SERIAL PRIMARY KEY,
-      name VARCHAR(100) NOT NULL
+      name VARCHAR(100) NOT NULL,
+      section VARCHAR(50)
     );
 
     CREATE TABLE IF NOT EXISTS teachers (
@@ -485,6 +486,7 @@ async function createTables() {
     ALTER TABLE attendance
       ADD COLUMN IF NOT EXISTS teacher_id INTEGER REFERENCES teachers(id),
       ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+    ALTER TABLE classes ADD COLUMN IF NOT EXISTS section VARCHAR(50);
   `)
 
   await pool.query(`
@@ -2933,14 +2935,18 @@ app.get('/api/classes', requireAuth(['admin', 'teacher', 'super_admin']), async 
 app.post('/api/classes', requireAuth(['admin', 'super_admin']), async (req, res) => {
   const { name } = req.body
   const tenant_id = req.user.tenant_id
+  const section = typeof req.body.section === 'string' ? req.body.section.trim() || null : null
+  if (section && section.length > 50) {
+    return res.status(400).json({ error: 'Section must be 50 characters or fewer' })
+  }
   // Same branch rule as students and teachers: optional with no branches,
   // required once the school has at least one.
   const branchPick = await resolveBranchForWrite(pool, tenant_id, req.body.branch_id)
   if (branchPick.error) return res.status(400).json({ error: branchPick.error })
   const branchId = branchPick.branch ? branchPick.branch.id : null
   const result = await pool.query(
-    'INSERT INTO classes (name, tenant_id, branch_id) VALUES ($1, $2, $3) RETURNING *',
-    [name, tenant_id, branchId]
+    'INSERT INTO classes (name, section, tenant_id, branch_id) VALUES ($1, $2, $3, $4) RETURNING *',
+    [name, section, tenant_id, branchId]
   )
   res.json(result.rows[0])
 })
@@ -3012,9 +3018,18 @@ app.put('/api/classes/:id', requireAuth(['admin', 'super_admin']), async (req, r
       return res.status(400).json({ error: 'Class name is required' })
     }
 
+    const hasSection = Object.prototype.hasOwnProperty.call(req.body, 'section')
+    const section = typeof req.body.section === 'string' ? req.body.section.trim() || null : null
+    if (section && section.length > 50) {
+      return res.status(400).json({ error: 'Section must be 50 characters or fewer' })
+    }
+    const sectionUpdate = hasSection ? ', section = $2' : ''
+    const params = hasSection
+      ? [String(name).trim(), section, classId, tenant_id]
+      : [String(name).trim(), classId, tenant_id]
     const result = await pool.query(
-      'UPDATE classes SET name = $1 WHERE id = $2 AND tenant_id = $3 RETURNING *',
-      [String(name).trim(), classId, tenant_id]
+      `UPDATE classes SET name = $1${sectionUpdate} WHERE id = $${params.length - 1} AND tenant_id = $${params.length} RETURNING *`,
+      params
     )
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Class not found' })
