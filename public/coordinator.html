@@ -606,35 +606,27 @@ async function load() {
       ? `<div class="notice warn">This branch has been flagged for review. Please contact your admin if something looks wrong.</div>`
       : '';
 
-  const management = grants.management ? `
+  // Only show management grid if there's data to display
+  const hasClasses = myClasses.length > 0;
+  const hasTeachers = grants.management && (data.teachers || []).length > 0;
+
+  const management = (hasClasses || hasTeachers) ? `
     <div class="grid">
+      ${hasClasses ? `
       <div class="panel">
         <h3>Classes</h3>
         <p class="muted">Classes added by your admin for this branch.</p>
         <div class="count">${myClasses.length}</div>
         ${listOrEmpty(myClasses, 'No classes yet')}
-      </div>
+      </div>` : ''}
+      ${hasTeachers ? `
       <div class="panel">
         <h3>Teachers</h3>
         <p class="muted">Teachers assigned to this branch.</p>
         <div class="count">${(data.teachers || []).length}</div>
         ${listOrEmptyWithDelete(data.teachers, 'No teachers yet', 'teacher')}
-      </div>
-    </div>` : `
-    <div class="grid">
-      <div class="panel">
-        <h3>Classes</h3>
-        <p class="muted">Classes added by your admin for this branch.</p>
-        <div class="count">${myClasses.length}</div>
-        ${listOrEmpty(myClasses, 'No classes yet')}
-      </div>
-      <div class="panel">
-        <h3>Teachers</h3>
-        <p class="muted">Teachers assigned to this branch (view only).</p>
-        <div class="count">${(data.teachers || []).length}</div>
-        ${listOrEmpty(data.teachers, 'No teachers yet')}
-      </div>
-    </div>`;
+      </div>` : ''}
+    </div>` : '';
 
   const noClassesNote = myClasses.length === 0
     ? `<div class="notice warn">Your branch has no classes yet. Ask your admin to add classes, then reload this page.</div>`
@@ -710,13 +702,6 @@ async function load() {
               <option value="">All Years</option>
             </select>
           </div>
-        </div>
-        <!-- Status filter pills -->
-        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;" id="recStatusFilters">
-          <button type="button" onclick="setRecStatusFilter('')" id="recSF-all" class="btn active" style="padding:6px 12px; font-size:0.8rem; border-radius:999px;">All</button>
-          <button type="button" onclick="setRecStatusFilter('Present')" id="recSF-Present" class="btn" style="padding:6px 12px; font-size:0.8rem; border-radius:999px;">✅ Present</button>
-          <button type="button" onclick="setRecStatusFilter('Absent')" id="recSF-Absent" class="btn" style="padding:6px 12px; font-size:0.8rem; border-radius:999px;">❌ Absent</button>
-          <button type="button" onclick="setRecStatusFilter('Leave')" id="recSF-Leave" class="btn" style="padding:6px 12px; font-size:0.8rem; border-radius:999px;">📝 Leave</button>
         </div>
         <div id="recordsWrap"><div class="empty">Pick a month to view saved attendance.</div></div>
       </div>
@@ -935,24 +920,6 @@ async function submitAttendance() {
 // =============================================================
 // SAVED RECORDS (month view)
 // =============================================================
-let recStatusFilter = '';
-
-function setRecStatusFilter(status) {
-  recStatusFilter = status;
-  const allBtn = document.getElementById('recSF-all');
-  const presentBtn = document.getElementById('recSF-Present');
-  const absentBtn = document.getElementById('recSF-Absent');
-  const leaveBtn = document.getElementById('recSF-Leave');
-  const set = (btn, active) => {
-    if (!btn) return;
-    btn.classList.toggle('active', active);
-  };
-  set(allBtn, status === '');
-  set(presentBtn, status === 'Present');
-  set(absentBtn, status === 'Absent');
-  set(leaveBtn, status === 'Leave');
-  loadRecords();
-}
 
 const REC_MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -1015,12 +982,7 @@ async function loadRecords() {
   const day = document.getElementById('recDaySelect')?.value || '';
   const month = document.getElementById('recMonthSelect')?.value || '';
   const year = document.getElementById('recYearSelect')?.value || '';
-  
-  if (!day && !month && !year) {
-    wrap.innerHTML = '<div class="empty">Select a day, month, or year to view saved attendance.</div>';
-    return;
-  }
-  
+
   wrap.innerHTML = '<div class="empty"><i class="fas fa-spinner fa-spin"></i> Loading records…</div>';
 
   // Branch-scoped server-side: a coordinator always gets their own branch back.
@@ -1039,8 +1001,7 @@ async function loadRecords() {
     const matchesMonth = !month || d.slice(5, 7) === month;
     const matchesYear = !year || d.slice(0, 4) === year;
     const matchesClass = recordsClassId === 'all' || String(r.class_id) === String(recordsClassId);
-    const matchesStatus = !recStatusFilter || (r.status || '').toLowerCase() === recStatusFilter.toLowerCase();
-    return matchesDay && matchesMonth && matchesYear && matchesClass && matchesStatus;
+    return matchesDay && matchesMonth && matchesYear && matchesClass;
   });
 
   if (savedRecords.length === 0) {
@@ -1108,21 +1069,6 @@ function openPasswordModal() {
 
 function closePasswordModal() {
   document.getElementById('passwordModal').classList.remove('open');
-}
-
-// =============================================================
-// DELETE FUNCTIONS
-// =============================================================
-async function deleteTeacher(id) {
-  if (!confirm('Are you sure you want to remove this teacher? This action cannot be undone.')) return;
-  try {
-    const res = await apiFetch(`/api/teachers/${id}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error('Failed to delete teacher');
-    // Reload the page to refresh the list
-    location.reload();
-  } catch (err) {
-    alert('Error: ' + err.message);
-  }
 }
 
 async function handleChangePassword(e) {

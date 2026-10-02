@@ -2412,6 +2412,25 @@
                 <option value="unassigned">Unassigned</option>
               </select>
             </div>
+            <div style="width:160px; min-width:140px;">
+              <input type="date" id="studentDateFilter" class="form-input" onchange="filterStudents()"
+                aria-label="Filter by attendance date">
+            </div>
+          </div>
+          <!-- Status filter pills -->
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px;" id="studentStatusFilters">
+            <button type="button" onclick="setStudentStatusFilter('')" id="stSF-all" class="btn btn-filter filter-all active" aria-pressed="true">
+              All
+            </button>
+            <button type="button" onclick="setStudentStatusFilter('Present')" id="stSF-Present" class="btn btn-filter filter-present" aria-pressed="false">
+              ✅ Present
+            </button>
+            <button type="button" onclick="setStudentStatusFilter('Absent')" id="stSF-Absent" class="btn btn-filter filter-absent" aria-pressed="false">
+              ❌ Absent
+            </button>
+            <button type="button" onclick="setStudentStatusFilter('Leave')" id="stSF-Leave" class="btn btn-filter filter-leave" aria-pressed="false">
+              📝 Leave
+            </button>
           </div>
 
 
@@ -5105,6 +5124,7 @@
     function filterStudents() {
       const query = document.getElementById('studentSearchInput').value.toLowerCase().trim();
       const classFilter = document.getElementById('studentClassFilter').value;
+      const dateFilter = document.getElementById('studentDateFilter').value;
 
       let filtered = window.appData.students;
 
@@ -5123,6 +5143,16 @@
           (s.name && s.name.toLowerCase().includes(query)) ||
           (s.roll_no && s.roll_no.toLowerCase().includes(query))
         );
+      }
+
+      // Status filtering (attendance status for the selected date)
+      if (studentStatusFilter && dateFilter) {
+        const attendanceForDate = window.appData.attendance.filter(a => a.date === dateFilter);
+        filtered = filtered.filter(s => {
+          const att = attendanceForDate.find(a => a.student_id === s.id);
+          if (!att) return studentStatusFilter === '';
+          return att.status === studentStatusFilter;
+        });
       }
 
       renderStudentTable(filtered);
@@ -5341,6 +5371,25 @@
 
     // Tracks the active status pill filter — empty string = All
     let attendanceStatusFilter = '';
+    let studentStatusFilter = '';
+
+    function setStudentStatusFilter(status) {
+      studentStatusFilter = status;
+      const allBtn = document.getElementById('stSF-all');
+      const presentBtn = document.getElementById('stSF-Present');
+      const absentBtn = document.getElementById('stSF-Absent');
+      const leaveBtn = document.getElementById('stSF-Leave');
+      const set = (btn, active) => {
+        if (!btn) return;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-pressed', String(active));
+      };
+      set(allBtn, status === '');
+      set(presentBtn, status === 'Present');
+      set(absentBtn, status === 'Absent');
+      set(leaveBtn, status === 'Leave');
+      filterStudents();
+    }
 
     function setAttendanceStatusFilter(status) {
       attendanceStatusFilter = status;
