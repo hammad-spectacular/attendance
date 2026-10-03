@@ -1043,15 +1043,71 @@
         font-size: 0.9rem;
       }
 
+      .tab-nav {
+        position: sticky;
+        top: 72px;
+        z-index: 25;
+        margin-top: 0;
+        overflow: visible;
+      }
+
+      .tab-nav-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        min-height: 48px;
+        padding: 0.55rem 0.9rem;
+        margin: 0.5rem 0;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--text);
+        background-color: var(--bg-card);
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        cursor: pointer;
+      }
+
+      .tab-nav-toggle:hover {
+        background-color: var(--bg-card-hover);
+        border-color: var(--primary);
+      }
+
+      .tab-nav-toggle-icon {
+        color: var(--text-muted);
+        transition: transform 0.25s ease;
+      }
+
+      .tab-nav.open .tab-nav-toggle-icon {
+        transform: rotate(180deg);
+      }
+
       .tab-nav-inner {
-        padding-left: 14px;
-        padding-right: 14px;
+        display: none;
+        width: 100%;
+        flex-direction: column;
         gap: 0.35rem;
+        padding: 0.35rem 0;
+        max-height: calc(100vh - 130px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .tab-nav.open .tab-nav-inner {
+        display: flex;
       }
 
       .tab-btn {
-        padding: 0.55rem 1rem;
-        font-size: 0.82rem;
+        width: 100%;
+        min-height: 48px;
+        padding: 0.7rem 0.95rem;
+        font-size: 0.9rem;
+        justify-content: flex-start;
+      }
+
+      .tab-btn span {
+        display: inline;
       }
 
       .modal-card {
@@ -1060,6 +1116,60 @@
 
       .stats-grid {
         grid-template-columns: 1fr;
+      }
+
+      /* Fee card mobile fixes */
+      .fee-card-header {
+        padding: 12px;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .fee-card-header-left {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      .fee-card-header-right {
+        flex-shrink: 0;
+      }
+
+      .fee-card-avatar {
+        width: 36px;
+        height: 36px;
+        font-size: 0.95rem;
+      }
+
+      .fee-card-name {
+        font-size: 0.88rem;
+      }
+
+      .fee-card-pill, .fee-status-badge {
+        font-size: 0.7rem;
+        padding: 5px 10px;
+        min-width: auto;
+      }
+
+      .fee-card-chevron {
+        display: none;
+      }
+
+      .fee-card-body {
+        padding: 12px;
+      }
+
+      .fee-card-amount-due {
+        font-size: 1.2rem;
+      }
+
+      .filters-row {
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .filters-row .form-group {
+        width: 100%;
+        min-width: 100%;
       }
     }
   </style>
@@ -1086,8 +1196,12 @@
     </div>
   </header>
 
-  <nav class="tab-nav">
-    <div class="tab-nav-inner">
+  <nav class="tab-nav" id="feeTabNav">
+    <button id="feeTabNavToggle" class="tab-nav-toggle" aria-expanded="false">
+      <span id="feeTabNavLabel">Dashboard</span>
+      <i class="fas fa-bars tab-nav-toggle-icon"></i>
+    </button>
+    <div class="tab-nav-inner" id="feeTabNavInner">
       <button class="tab-btn active" data-tab="dashboard">
         <i class="fa-solid fa-chart-pie"></i>
         <span>Dashboard</span>
@@ -1389,7 +1503,6 @@
     </div>
   </div>
 
-  <script src="api-config.js"></script>
   <script>
     const API_BASE = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
 
@@ -1735,6 +1848,38 @@
       const icon = document.querySelector('.theme-toggle i');
       if (icon) {
         icon.className = theme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+      }
+    })();
+
+    // Hamburger Menu Toggle for Tab Navigation
+    (function setupFeeTabNav() {
+      const tabNav = document.getElementById('feeTabNav');
+      const toggleBtn = document.getElementById('feeTabNavToggle');
+      const label = document.getElementById('feeTabNavLabel');
+      
+      if (!tabNav || !toggleBtn) return;
+      
+      toggleBtn.addEventListener('click', function() {
+        const isOpen = tabNav.classList.toggle('open');
+        this.setAttribute('aria-expanded', isOpen);
+      });
+      
+      // Update label and close on tab click
+      document.querySelectorAll('#feeTabNavInner .tab-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          if (label) {
+            const tabName = this.textContent.trim();
+            label.textContent = tabName;
+          }
+          tabNav.classList.remove('open');
+          toggleBtn.setAttribute('aria-expanded', 'false');
+        });
+      });
+      
+      // Set initial label
+      const activeTab = document.querySelector('#feeTabNavInner .tab-btn.active');
+      if (label && activeTab) {
+        label.textContent = activeTab.textContent.trim();
       }
     })();
 

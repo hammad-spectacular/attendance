@@ -1,88 +1,306 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
+  <script>
+    (function () {
+      const savedTheme = localStorage.getItem('attendance-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Coordinator | The Eye</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --bg: #f4f6fb;
-      --card: #ffffff;
-      --text: #1a2233;
-      --text-muted: #6b7a90;
-      --border: #e3e8f0;
-      --primary: #4f46e5;
-      --primary-light: #818cf8;
-      --success: #0f9d58;
-      --success-bg: #e8f6ee;
-      --warning: #b45309;
-      --warning-bg: #fdf3e3;
-      --danger: #dc2626;
-      --danger-bg: #fdeaea;
-    }
+    /* ================================
+       THEME VARIABLES
+       ================================ */
     [data-theme="dark"] {
       --bg: #0f172a;
-      --card: #1e293b;
-      --text: #f1f5f9;
-      --text-muted: #94a3b8;
+      --bg-card: #1e293b;
+      --bg-card-hover: #263348;
+      --bg-input: #0f172a;
       --border: #334155;
-      --primary: #818cf8;
-      --primary-light: #a5b4fc;
+      --border-focus: #4f46e5;
+      --text: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --primary: #4f46e5;
+      --primary-light: #818cf8;
+      --primary-hover: #6366f1;
       --success: #22c55e;
       --success-bg: rgba(34, 197, 94, 0.1);
-      --warning: #f59e0b;
-      --warning-bg: rgba(245, 158, 11, 0.08);
       --danger: #ef4444;
       --danger-bg: rgba(239, 68, 68, 0.08);
+      --warning: #f59e0b;
+      --warning-bg: rgba(245, 158, 11, 0.08);
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+      --gradient: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+      --table-row-hover: rgba(79, 70, 229, 0.06);
+      --table-stripe: rgba(255, 255, 255, 0.02);
+      --badge-bg: rgba(79, 70, 229, 0.12);
+      --badge-text: #a5b4fc;
     }
-    * { box-sizing: border-box; }
-    body {
+
+    [data-theme="light"] {
+      --bg: #f1f5f9;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f8fafc;
+      --bg-input: #f8fafc;
+      --border: #e2e8f0;
+      --border-focus: #4f46e5;
+      --text: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      --primary: #4f46e5;
+      --primary-light: #6366f1;
+      --primary-hover: #4338ca;
+      --success: #16a34a;
+      --success-bg: rgba(34, 197, 94, 0.08);
+      --danger: #dc2626;
+      --danger-bg: rgba(239, 68, 68, 0.06);
+      --warning: #d97706;
+      --warning-bg: rgba(245, 158, 11, 0.06);
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
+      --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+      --gradient: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+      --table-row-hover: rgba(79, 70, 229, 0.04);
+      --table-stripe: rgba(0, 0, 0, 0.015);
+      --badge-bg: rgba(79, 70, 229, 0.08);
+      --badge-text: #4f46e5;
+    }
+
+    * {
       margin: 0;
-      font-family: 'Inter', system-ui, sans-serif;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
-      transition: background 0.3s ease, color 0.3s ease;
+      transition: background 0.4s ease, color 0.4s ease;
+      overflow-x: hidden;
     }
-    .topbar {
-      background: var(--card);
-      border-bottom: 1px solid var(--border);
-      padding: 14px 24px;
+
+    /* ================================
+       HEADER (Admin-style gradient)
+       ================================ */
+    .header {
+      background: var(--gradient);
+      padding: 20px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(79, 70, 229, 0.3);
+    }
+
+    .header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 30% 50%, rgba(255, 255, 255, 0.08) 0%, transparent 60%),
+        radial-gradient(ellipse at 70% 50%, rgba(255, 255, 255, 0.05) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .header-inner {
+      position: relative;
+      z-index: 1;
+      max-width: 960px;
+      margin: 0 auto;
       display: flex;
       align-items: center;
-      gap: 16px;
-      flex-wrap: wrap;
-      transition: background 0.3s ease;
+      justify-content: space-between;
+      padding: 0 20px;
+      gap: 14px;
     }
-    .brand { font-weight: 800; font-size: 1.1rem; letter-spacing: -0.02em; }
-    .brand span { color: var(--primary); }
-    .who { margin-left: auto; text-align: right; font-size: 0.8rem; color: var(--text-muted); }
-    .who strong { display: block; color: var(--text); font-size: 0.9rem; }
-    .theme-btn {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 8px 12px;
-      cursor: pointer;
-      color: var(--text);
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .header-title strong {
+      display: block;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: white;
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+    }
+
+    .header-title span {
+      font-size: 0.72rem;
+      color: rgba(255, 255, 255, 0.65);
+      font-weight: 400;
+      letter-spacing: 0.3px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .theme-toggle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
       font-size: 0.9rem;
-      transition: all 0.2s ease;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
     }
-    .theme-btn:hover { background: var(--border); }
-    main { max-width: 100%; margin: 0 auto; padding: 24px; }
+
+    .theme-toggle:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.5);
+      transform: scale(1.06);
+    }
+
+    .header-menu-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-menu-toggle {
+      display: none;
+    }
+
+    .header-menu-panel {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-menu-label {
+      display: none;
+    }
+
+    /* ================================
+       TAB NAVIGATION (Mobile Scrollable)
+       ================================ */
+    .tab-nav {
+      background: var(--bg);
+      border-bottom: 2px solid var(--border);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      transition: background 0.3s ease, border-color 0.3s ease;
+      margin-top: 2px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      white-space: nowrap;
+    }
+
+    .tab-nav::-webkit-scrollbar {
+      display: none;
+    }
+
+    .tab-nav {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    [data-theme="dark"] .tab-nav {
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .tab-nav-inner {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      gap: 0.5rem;
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
+      width: max-content;
+    }
+
+    .subnav button {
+      padding: 0.65rem 1.5rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      border-radius: 12px;
+      border: 2px solid transparent;
+      background: var(--bg-card);
+      transition: all 0.25s ease;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: 'Inter', sans-serif;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .subnav button:hover {
+      color: var(--primary);
+      background: var(--bg-card-hover);
+      border-color: var(--border);
+    }
+
+    .subnav button.active {
+      color: #fff;
+      background: var(--gradient);
+      border-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+    }
+
+    .tab-nav-toggle {
+      display: none;
+    }
+
+    /* ================================
+       MAIN CONTAINER
+       ================================ */
+    .main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 28px 20px 60px;
+    }
+
     .branch-card {
-      background: var(--card);
+      background: var(--bg-card);
       border: 1px solid var(--border);
-      border-radius: 14px;
+      border-radius: 16px;
       padding: 20px 22px;
-      margin-bottom: 20px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
       transition: background 0.3s ease, border-color 0.3s ease;
     }
-    .branch-card h2 { margin: 0 0 4px; font-size: 1.05rem; }
-    .branch-name { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; margin: 6px 0 2px; }
-    .muted { color: var(--text-muted); font-size: 0.82rem; }
+
+    .branch-card h2 {
+      margin: 0 0 4px;
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .branch-name {
+      font-size: 1.6rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin: 6px 0 2px;
+      color: var(--text);
+    }
+
     .pill {
       display: inline-block;
       padding: 3px 10px;
@@ -92,9 +310,12 @@
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
+
     .pill.active { background: var(--success-bg); color: var(--success); }
     .pill.flagged { background: var(--warning-bg); color: var(--warning); }
     .pill.deactivated { background: var(--danger-bg); color: var(--danger); }
+    .pill.school-wide { background: var(--badge-bg); color: var(--badge-text); }
+
     .notice {
       border-radius: 12px;
       padding: 14px 16px;
@@ -102,48 +323,27 @@
       font-weight: 500;
       margin-bottom: 20px;
     }
+
     .notice.warn { background: var(--warning-bg); color: var(--warning); }
     .notice.danger { background: var(--danger-bg); color: var(--danger); }
-    .subnav {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 20px;
-      border-bottom: 2px solid var(--border);
-      padding-bottom: 12px;
-      flex-wrap: wrap;
-    }
-    .subnav-menu { display: flex; gap: 8px; flex-wrap: wrap; }
-    .subnav-toggle { display: none; }
-    .subnav button {
-      border: 1px solid var(--border);
-      background: var(--card);
-      color: var(--text-muted);
-      border-radius: 999px;
-      padding: 8px 16px;
-      font-size: 0.82rem;
-      font-weight: 600;
-      cursor: pointer;
-      font-family: inherit;
-      display: flex;
-      align-items: center;
-      gap: 7px;
-    }
-    .subnav button.active {
-      background: var(--primary);
-      border-color: var(--primary);
-      color: white;
-    }
+
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; }
+
     .panel {
-      background: var(--card);
+      background: var(--bg-card);
       border: 1px solid var(--border);
-      border-radius: 14px;
+      border-radius: 16px;
       padding: 18px 20px;
+      box-shadow: var(--shadow);
       transition: background 0.3s ease, border-color 0.3s ease;
     }
+
     .panel h3 { margin: 0 0 4px; font-size: 0.95rem; }
     .panel p { margin: 0 0 14px; }
     .count { font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; }
+
+    .muted { color: var(--text-muted); font-size: 0.82rem; }
+
     .list { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow-y: auto; }
     .list li {
       padding: 9px 0;
@@ -159,32 +359,56 @@
     .state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
     .state i { font-size: 2rem; opacity: 0.4; display: block; margin-bottom: 12px; }
     .state .msg { font-weight: 600; color: var(--text); margin-bottom: 4px; }
+
     .btn {
-      border: 1px solid var(--border);
-      background: var(--card);
-      color: var(--text);
-      border-radius: 9px;
-      padding: 9px 15px;
-      font-size: 0.83rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 22px;
+      border-radius: 10px;
+      font-size: 0.82rem;
       font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      border: none;
       cursor: pointer;
-      font-family: inherit;
-      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+      transition: all 0.25s ease;
+      letter-spacing: 0.2px;
+      text-decoration: none;
     }
-    .btn:hover { background: var(--border); }
-    .btn.primary {
-      background: var(--primary);
-      border-color: var(--primary);
+
+    .btn-primary {
+      background: var(--gradient);
       color: white;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
     }
-    .btn.primary:hover { filter: brightness(1.1); }
-    .btn.primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .btn-primary:hover {
+      box-shadow: 0 6px 18px rgba(79, 70, 229, 0.45);
+      transform: translateY(-1px);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-secondary);
+    }
+
+    .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
     .btn.active {
-      background: var(--primary);
+      background: var(--gradient);
       border-color: var(--primary);
       color: white;
     }
-    /* Attendance filters */
+
+    /* ================================
+       ATTENDANCE FILTERS (Admin style)
+       ================================ */
     .filters {
       display: flex;
       gap: 12px;
@@ -192,7 +416,15 @@
       align-items: flex-end;
       margin-bottom: 18px;
     }
-    .filters .fg { display: flex; flex-direction: column; gap: 5px; }
+
+    .filters .fg {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      flex: 1;
+      min-width: 150px;
+    }
+
     .filters label {
       font-size: 0.7rem;
       font-weight: 700;
@@ -200,51 +432,66 @@
       letter-spacing: 0.05em;
       color: var(--text-muted);
     }
+
     .filters select, .filters input {
       border: 1px solid var(--border);
-      background: var(--card);
+      background: var(--bg-input);
       color: var(--text);
-      border-radius: 9px;
-      padding: 9px 12px;
+      border-radius: 10px;
+      padding: 11px 14px;
       font-size: 0.85rem;
       font-family: inherit;
-      min-width: 170px;
+      min-width: 100%;
       transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+      outline: none;
     }
-    .filters select:focus, .filters input:focus { outline: 2px solid var(--primary-light); }
+
+    .filters select:focus, .filters input:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
+
     .form-group {
       margin-bottom: 14px;
     }
+
     .form-group label {
       display: block;
       font-size: 0.75rem;
       font-weight: 600;
-      color: var(--text-muted);
+      color: var(--text-secondary);
       margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
+
     .form-group textarea {
       width: 100%;
       padding: 11px 14px;
       border-radius: 10px;
       border: 2px solid var(--border);
-      background: var(--card);
+      background: var(--bg-input);
       color: var(--text);
       font-family: inherit;
       font-size: 0.85rem;
       resize: vertical;
-    }
-    .form-group textarea:focus {
       outline: none;
-      border-color: var(--primary-light);
     }
+
+    .form-group textarea:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
+
     .summary {
       display: flex;
       gap: 12px;
       flex-wrap: wrap;
       margin-bottom: 16px;
     }
+
     .summary .chip {
-      background: var(--card);
+      background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 8px 14px;
@@ -254,46 +501,99 @@
       align-items: center;
       gap: 8px;
     }
-    /* Attendance table */
-    .att-table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+
+    /* ================================
+       ATTENDANCE TABLE (Admin style)
+       ================================ */
+    .att-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
     .att-table th {
       text-align: left;
-      font-size: 0.72rem;
+      font-size: 0.68rem;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.8px;
       color: var(--text-muted);
       padding: 11px 14px;
       border-bottom: 1px solid var(--border);
-      background: #fafbfe;
+      background: var(--bg);
     }
-    .att-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.86rem; }
+
+    .att-table td {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
     .att-table tr:last-child td { border-bottom: none; }
-    .status-btns { display: flex; gap: 6px; }
+    .att-table tbody tr:nth-child(even) { background: var(--table-stripe); }
+    .att-table tbody tr:hover { background: var(--table-row-hover); }
+
+    .status-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
     .status-btns button {
-      border: 1.5px solid var(--border);
-      background: var(--card);
+      border: 2px solid var(--border);
+      background: var(--bg-card);
       color: var(--text-muted);
       border-radius: 8px;
-      padding: 6px 13px;
-      font-size: 0.78rem;
+      padding: 8px 16px;
+      font-size: 0.85rem;
       font-weight: 700;
       cursor: pointer;
       font-family: inherit;
+      transition: all 0.2s ease;
+      min-width: 80px;
     }
-    .status-btns button.st-present.active { background: var(--success-bg); border-color: var(--success); color: var(--success); }
-    .status-btns button.st-absent.active { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); }
-    .status-btns button.st-leave.active { background: var(--warning-bg); border-color: var(--warning); color: var(--warning); }
+
+    .status-btns button:hover {
+      border-color: var(--primary-light);
+      color: var(--primary);
+      transform: translateY(-1px);
+    }
+
+    .status-btns button.st-present.active {
+      background: var(--success);
+      border-color: var(--success);
+      color: white;
+      box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+    }
+
+    .status-btns button.st-absent.active {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: white;
+      box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+    }
+
+    .status-btns button.st-leave.active {
+      background: var(--warning);
+      border-color: var(--warning);
+      color: white;
+      box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+    }
+
     .status-badge {
       display: inline-block;
-      padding: 3px 11px;
-      border-radius: 999px;
-      font-size: 0.74rem;
+      padding: 4px 12px;
+      border-radius: 8px;
+      font-size: 0.72rem;
       font-weight: 700;
     }
+
     .status-badge.Present { background: var(--success-bg); color: var(--success); }
     .status-badge.Absent { background: var(--danger-bg); color: var(--danger); }
     .status-badge.Leave { background: var(--warning-bg); color: var(--warning); }
-    .status-badge.none { background: #eef1f6; color: var(--text-muted); }
+    .status-badge.none { background: var(--bg); color: var(--text-muted); }
+
     .badge {
       display: inline-block;
       padding: 2px 8px;
@@ -303,11 +603,15 @@
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
+
+    /* ================================
+       STICKY SAVE BAR
+       ================================ */
     .savebar {
       position: sticky;
       bottom: 0;
-      background: var(--card);
-      border-top: 2px solid var(--border);
+      background: var(--bg-card);
+      border-top: 2px solid var(--warning);
       padding: 14px 0 4px;
       margin-top: 18px;
       display: flex;
@@ -315,8 +619,18 @@
       justify-content: space-between;
       gap: 12px;
       flex-wrap: wrap;
+      box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
     }
-    .savebar .dirty-note { font-size: 0.8rem; font-weight: 600; color: var(--warning); display: none; }
+
+    .savebar .dirty-note {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--warning);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
     .month-group { margin-bottom: 22px; }
     .month-group h4 {
       margin: 0 0 10px;
@@ -324,7 +638,10 @@
       font-weight: 800;
       color: var(--text);
     }
-    /* Password dialog */
+
+    /* ================================
+       PASSWORD DIALOG
+       ================================ */
     .modal-back {
       display: none;
       position: fixed;
@@ -334,18 +651,33 @@
       align-items: center;
       justify-content: center;
       padding: 20px;
+      backdrop-filter: blur(4px);
     }
+
     .modal-back.open { display: flex; }
+
     .modal-card {
-      background: var(--card);
+      background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: 16px;
       padding: 24px;
       width: min(94vw, 420px);
-      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+      box-shadow: var(--shadow-lg);
+      animation: modalSlideIn 0.3s ease-out;
     }
-    .modal-card h3 { margin: 0 0 16px; font-size: 1rem; display: flex; align-items: center; gap: 9px; }
+
+    .modal-card h3 {
+      margin: 0 0 16px;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .modal-card h3 i { color: var(--primary); }
+
     .modal-card .form-group { margin-bottom: 13px; }
+
     .modal-card label {
       display: block;
       font-size: 0.72rem;
@@ -355,19 +687,27 @@
       color: var(--text-muted);
       margin-bottom: 6px;
     }
+
     .modal-card input {
       width: 100%;
       border: 1px solid var(--border);
-      background: var(--bg);
+      background: var(--bg-input);
       color: var(--text);
       border-radius: 9px;
       padding: 11px 13px;
       font-size: 0.88rem;
       font-family: inherit;
+      outline: none;
     }
-    .modal-card input:focus { outline: 2px solid var(--primary-light); }
+
+    .modal-card input:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
+
     .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
     .modal-actions .btn { flex: 1; justify-content: center; display: flex; }
+
     .form-msg {
       display: none;
       border-radius: 9px;
@@ -376,73 +716,265 @@
       font-weight: 600;
       margin-top: 10px;
     }
+
     .form-msg.error { display: block; background: var(--danger-bg); color: var(--danger); }
     .form-msg.success { display: block; background: var(--success-bg); color: var(--success); }
+
     .list-item {
-      background: var(--card);
+      background: var(--bg-card);
       border-radius: 8px;
       margin-bottom: 8px;
     }
-    /* Keep the roster inside the viewport: the table is width:100%, so without
-       an explicit scroll container it spreads past the screen on small widths. */
+
     .table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+    /* ================================
+       ANIMATIONS
+       ================================ */
+    @keyframes modalSlideIn {
+      from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* ================================
+       MOBILE RESPONSIVE (Hamburger menu)
+       ================================ */
     @media (max-width: 640px) {
-      main { padding: 16px 12px; }
-      .topbar { padding: 10px 12px; gap: 8px; }
-      .topbar .who { order: 2; margin-left: auto; }
-      .topbar > .btn { display: none; }
-      .topbar .theme-btn { order: 3; }
-      .subnav {
-        display: block;
-        position: sticky;
-        top: 0;
-        z-index: 25;
-        padding: 8px;
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        background: var(--bg);
+      .header {
+        padding: 16px;
       }
-      .subnav-toggle {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        width: 100%;
-        min-height: 44px;
-        padding: 8px 12px;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        background: var(--card);
-        color: var(--text);
-        font: inherit;
-        font-size: 0.9rem;
-        font-weight: 700;
+
+      .header-title strong {
+        font-size: 1.1rem;
       }
-      .subnav-toggle i { color: var(--text-muted); transition: transform .2s ease; }
-      .subnav.open .subnav-toggle i { transform: rotate(180deg); }
-      .subnav-menu { display: none; flex-direction: column; gap: 4px; padding-top: 6px; }
-      .subnav.open .subnav-menu { display: flex; }
-      .subnav-menu button { width: 100%; justify-content: flex-start; border-radius: 8px; }
+
+      .main {
+        padding: 16px 14px 50px;
+      }
+
       .att-table th, .att-table td { padding: 9px 10px; }
       .att-table { min-width: 100%; }
+
       /* Roster order: 1=#, 2=Student Name, 3=Roll No., 4=Phone, 5=Status.
          Hide the row number and Roll No. so Name, Phone and Status stay readable. */
       .att-table th:nth-child(1), .att-table td:nth-child(1) { display: none; }
       .att-table th:nth-child(3), .att-table td:nth-child(3) { display: none; }
+
+      .tab-nav {
+        position: sticky;
+        top: 72px;
+        z-index: 25;
+        margin-top: 0;
+        overflow: visible;
+      }
+
+      .tab-nav-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        min-height: 48px;
+        padding: 0.55rem 0.9rem;
+        margin: 0.5rem 0;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--text);
+        background-color: var(--bg-card);
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        cursor: pointer;
+      }
+
+      .tab-nav-toggle:hover {
+        background-color: var(--bg-card-hover);
+        border-color: var(--primary);
+      }
+
+      .tab-nav-toggle-icon {
+        color: var(--text-muted);
+        transition: transform 0.25s ease;
+      }
+
+      .tab-nav.open .tab-nav-toggle-icon {
+        transform: rotate(90deg);
+      }
+
+      .tab-nav-inner {
+        display: none;
+        width: 100%;
+        flex-direction: column;
+        gap: 0.35rem;
+        padding: 0.35rem 0;
+        max-height: calc(100vh - 130px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .tab-nav.open .tab-nav-inner {
+        display: flex;
+      }
+
+      .subnav button {
+        width: 100%;
+        min-height: 48px;
+        padding: 0.7rem 0.95rem;
+        font-size: 0.9rem;
+        justify-content: flex-start;
+      }
+
+      .header {
+        overflow: visible;
+      }
+
+      .header-menu-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.25);
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        font-size: 0.95rem;
+        cursor: pointer;
+        backdrop-filter: blur(10px);
+        flex-shrink: 0;
+      }
+
+      .header-menu-toggle:hover {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.5);
+        transform: scale(1.06);
+      }
+
+      .header-menu-panel {
+        display: none;
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        z-index: 100;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.3rem;
+        min-width: 200px;
+        padding: 0.5rem;
+        border-radius: 14px;
+        background: var(--bg-card);
+        border: 2px solid var(--border);
+        box-shadow: var(--shadow-lg);
+      }
+
+      .header-menu-wrap.open .header-menu-panel {
+        display: flex;
+      }
+
+      .header-menu-panel .header-menu-label {
+        display: inline;
+        font-size: 0.9rem;
+        white-space: nowrap;
+      }
+
+      .header-menu-panel > button {
+        width: 100% !important;
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 0.5rem;
+        padding: 0 0.9rem !important;
+        border: none !important;
+        border-radius: 10px !important;
+        background: transparent !important;
+        color: var(--text) !important;
+        font-size: 0.9rem !important;
+        font-weight: 600;
+        transform: none;
+      }
+
+      .header-menu-panel > button:hover {
+        background: var(--bg-card-hover) !important;
+        color: var(--primary) !important;
+        transform: none;
+      }
+
+      .filters {
+        flex-direction: column;
+      }
+
+      .filters .fg {
+        width: 100%;
+        min-width: 100%;
+      }
+
+      .modal-card {
+        padding: 20px;
+      }
+
+      .savebar {
+        padding: 12px 16px;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="topbar">
-    <div class="brand">The <span>Eye</span></div>
-    <div class="pill" id="rolePill">Coordinator</div>
-    <div class="who">
-      <strong id="userName">&nbsp;</strong>
-      <span id="userId">&nbsp;</span>
+  <!-- ======================== HEADER ======================== -->
+  <div class="header">
+    <div class="header-inner">
+      <div class="header-left">
+        <div class="header-title">
+          <strong><i class="fas fa-user-shield" style="margin-right:8px;"></i>Coordinator Dashboard</strong>
+          <span>The Eye — School Management System</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <div id="headerMenuWrap" class="header-menu-wrap">
+          <button id="headerMenuToggle" class="header-menu-toggle" aria-expanded="false" aria-controls="headerMenuPanel" aria-label="Open menu" title="Menu" onclick="toggleHeaderMenu()">
+            <i class="fas fa-ellipsis-vertical"></i>
+          </button>
+          <div id="headerMenuPanel" class="header-menu-panel">
+            <button onclick="openPasswordModal(); closeHeaderMenu();" style="padding:8px 14px;font-size:0.75rem;background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.25);color:white;border-radius:10px;font-weight:600;cursor:pointer;transition:all 0.3s ease;font-family:'Inter',sans-serif;"><i class="fas fa-key"></i> <span class="header-menu-label">Change Password</span></button>
+            <button onclick="signOut()" style="padding:8px 14px;font-size:0.75rem;background:rgba(239,68,68,0.2);border:2px solid rgba(239,68,68,0.3);color:white;border-radius:10px;font-weight:600;cursor:pointer;transition:all 0.3s ease;font-family:'Inter',sans-serif;"><i class="fas fa-sign-out-alt"></i> <span class="header-menu-label">Logout</span></button>
+            <button class="theme-toggle" onclick="toggleTheme(); closeHeaderMenu();" title="Toggle theme" aria-label="Toggle theme">
+              <i class="fas fa-moon" id="themeIcon"></i>
+              <span class="header-menu-label">Toggle theme</span>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
-    <button class="theme-btn" onclick="toggleTheme()" title="Toggle dark/light mode" id="themeToggleBtn"><i class="fas fa-moon" id="themeIcon"></i></button>
-    <button class="btn" onclick="openPasswordModal()"><i class="fas fa-key"></i> Change password</button>
-    <button class="btn" onclick="signOut()"><i class="fas fa-right-from-bracket"></i> Sign out</button>
   </div>
+
+  <!-- ======================== TAB NAVIGATION ======================== -->
+  <nav class="tab-nav" id="tabNav">
+    <button id="mobileNavToggle" class="tab-nav-toggle" aria-expanded="false" aria-controls="tabNavInner" aria-label="Open section menu">
+      <span id="mobileNavToggleLabel">Take Attendance</span>
+      <i class="fas fa-bars tab-nav-toggle-icon"></i>
+    </button>
+    <div class="tab-nav-inner" id="tabNavInner">
+      <button id="navMark" class="active" onclick="switchSubTab('mark')"><i class="fas fa-clipboard-check"></i> Take attendance</button>
+      <button id="navRecords" onclick="switchSubTab('records')"><i class="fas fa-clock-rotate-left"></i> Saved records</button>
+      <button id="navAnnouncements" onclick="switchSubTab('announcements')"><i class="fas fa-bullhorn"></i> Announcements</button>
+    </div>
+  </nav>
 
   <main id="app">
     <div class="state">
@@ -450,25 +982,8 @@
       <div class="msg">Loading your branch</div>
     </div>
   </main>
-  
-  <style>
-    /* Constrain content width for better readability - from student tab onwards */
-    #app > .branch-card,
-    #app > .subnav,
-    #app > #subMark,
-    #app > #subRecords,
-    #app > #subAnnouncements {
-      max-width: 1100px;
-      margin: 0 auto;
-    }
 
-    #app > .subnav,
-    #app > #subMark,
-    #app > #subRecords,
-    #app > #subAnnouncements {
-      width: 100%;
-    }
-  </style>
+  <link rel="stylesheet" href="ui-buttons.css">
 
   <!-- Change password dialog -->
   <div class="modal-back" id="passwordModal">
@@ -513,20 +1028,59 @@ const API_BASE = (typeof window !== 'undefined' && window.API_BASE) ? window.API
 function toggleTheme() {
   const html = document.documentElement;
   const icon = document.getElementById('themeIcon');
-  const current = html.getAttribute('data-theme') || 'light';
+  const current = html.getAttribute('data-theme') || 'dark';
   const next = current === 'dark' ? 'light' : 'dark';
   html.setAttribute('data-theme', next);
   localStorage.setItem('attendance-theme', next);
-  icon.className = next === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+  if (icon) icon.className = next === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
 }
 
 // Apply saved theme on load
 (function() {
-  const saved = localStorage.getItem('attendance-theme') || 'light';
+  const saved = localStorage.getItem('attendance-theme') || 'dark';
   document.documentElement.setAttribute('data-theme', saved);
   const icon = document.getElementById('themeIcon');
   if (icon) icon.className = saved === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
 })();
+
+// Header menu toggle (hamburger on mobile)
+function toggleHeaderMenu() {
+  const wrap = document.getElementById('headerMenuWrap');
+  const toggle = document.getElementById('headerMenuToggle');
+  if (!wrap || !toggle) return;
+  const isOpen = wrap.classList.toggle('open');
+  toggle.setAttribute('aria-expanded', isOpen);
+}
+
+function closeHeaderMenu() {
+  const wrap = document.getElementById('headerMenuWrap');
+  const toggle = document.getElementById('headerMenuToggle');
+  if (!wrap || !toggle) return;
+  wrap.classList.remove('open');
+  toggle.setAttribute('aria-expanded', 'false');
+}
+
+// Mobile tab navigation toggle
+function setupMobileNavToggle() {
+  const tabNav = document.getElementById('tabNav');
+  const mobileToggle = document.getElementById('mobileNavToggle');
+  if (!tabNav || !mobileToggle) return;
+  
+  mobileToggle.addEventListener('click', function() {
+    const isOpen = tabNav.classList.toggle('open');
+    this.setAttribute('aria-expanded', isOpen);
+  });
+  
+  // Close on outside click
+  document.addEventListener('click', function(e) {
+    if (!tabNav.contains(e.target) && isOpen) {
+      tabNav.classList.remove('open');
+      mobileToggle.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
+let isOpen = false;
 
 let isRedirecting = false;
 
@@ -711,17 +1265,12 @@ async function load() {
     <div class="branch-card">
       <h2>Your scope</h2>
       <div class="branch-name">Whole school</div>
-      <span class="pill active">School-wide</span>
+      <span class="pill school-wide">School-wide</span>
     </div>`}
-    <div class="subnav" id="coordinatorSubnav">
-      <button class="subnav-toggle" id="subnavToggle" type="button" aria-expanded="false" aria-controls="subnavMenu" onclick="toggleCoordinatorNav()">
-        <span id="subnavCurrentLabel">Take attendance</span><i class="fas fa-chevron-down"></i>
-      </button>
-      <div class="subnav-menu" id="subnavMenu">
-        <button id="navMark" class="active" onclick="switchSubTab('mark')"><i class="fas fa-clipboard-check"></i> Take attendance</button>
-        <button id="navRecords" onclick="switchSubTab('records')"><i class="fas fa-clock-rotate-left"></i> Saved records</button>
-        <button id="navAnnouncements" onclick="switchSubTab('announcements')"><i class="fas fa-bullhorn"></i> Announcements</button>
-      </div>
+    <div class="subnav">
+      <button id="navMark" class="active" onclick="switchSubTab('mark')"><i class="fas fa-clipboard-check"></i> Take attendance</button>
+      <button id="navRecords" onclick="switchSubTab('records')"><i class="fas fa-clock-rotate-left"></i> Saved records</button>
+      <button id="navAnnouncements" onclick="switchSubTab('announcements')"><i class="fas fa-bullhorn"></i> Announcements</button>
     </div>
     <div id="subMark">${noClassesNote}
       <div class="panel" style="margin-bottom:18px;">
@@ -730,7 +1279,7 @@ async function load() {
             <label for="markClassSelect">Class</label>
             <select id="markClassSelect" onchange="onMarkClassChanged(this.value)">
               <option value="">-- Select class --</option>
-              ${myClasses.map(c => `<option value="${c.id}">${escapeHtml(c.name)}${c.section ? ` - ${escapeHtml(c.section)}` : ''}</option>`).join('')}
+              ${myClasses.map(c => `<option value="${c.id}"${c.section ? ` data-section="${escapeHtml(c.section)}"` : ''}>${escapeHtml(c.name)}${c.section ? ` (${escapeHtml(c.section)})` : ''}</option>`).join('')}
             </select>
           </div>
           <div class="fg">
@@ -753,7 +1302,7 @@ async function load() {
             <label for="recClassSelect">Class</label>
             <select id="recClassSelect" onchange="onRecordsFilterChanged()" style="width:100%;">
               <option value="all">All classes</option>
-              ${myClasses.map(c => `<option value="${c.id}">${escapeHtml(c.name)}${c.section ? ` - ${escapeHtml(c.section)}` : ''}</option>`).join('')}
+              ${myClasses.map(c => `<option value="${c.id}">${escapeHtml(c.name)}${c.section ? ` (${escapeHtml(c.section)})` : ''}</option>`).join('')}
             </select>
           </div>
         </div>
@@ -786,7 +1335,7 @@ async function load() {
           <label for="announcementText">New Announcement</label>
           <textarea id="announcementText" placeholder="Type your announcement here..." rows="3"></textarea>
         </div>
-        <button class="btn primary" onclick="saveAnnouncement()"><i class="fas fa-paper-plane"></i> Save Announcement</button>
+        <button class="btn btn-primary" onclick="saveAnnouncement()"><i class="fas fa-paper-plane"></i> Save Announcement</button>
         <div style="margin-top:22px; padding-top:18px; border-top:1px solid var(--border);">
           <div style="font-size:1rem; font-weight:800; color:var(--text); margin-bottom:10px;">All Announcements</div>
           <div id="announcementsList">
@@ -795,8 +1344,11 @@ async function load() {
         </div>
       </div>
     </div>
-    ${management}
   `;
+
+  // Setup mobile nav toggle after DOM is ready
+  setupMobileNavToggle();
+  closeMobileNav();
 
   if (myClasses.length > 0) {
     selectedClassId = myClasses[0].id;
@@ -813,6 +1365,7 @@ function switchSubTab(which) {
   const navMark = document.getElementById('navMark');
   const navRecords = document.getElementById('navRecords');
   const navAnnouncements = document.getElementById('navAnnouncements');
+  const mobileNavToggleLabel = document.getElementById('mobileNavToggleLabel');
   if (!mark || !records || !announcements) return;
 
   mark.style.display = which === 'mark' ? '' : 'none';
@@ -823,12 +1376,26 @@ function switchSubTab(which) {
   navRecords.classList.toggle('active', which === 'records');
   navAnnouncements.classList.toggle('active', which === 'announcements');
 
+  // Update mobile nav toggle label
+  const labels = { mark: 'Take attendance', records: 'Saved records', announcements: 'Announcements' };
+  if (mobileNavToggleLabel) mobileNavToggleLabel.textContent = labels[which] || 'Menu';
+
+  // Close mobile nav on selection
+  closeMobileNav();
+
   if (which === 'records') {
     populateRecPeriodFilters();
     loadRecords();
   } else if (which === 'announcements') {
     loadAnnouncements();
   }
+}
+
+function closeMobileNav() {
+  const tabNav = document.getElementById('tabNav');
+  const mobileToggle = document.getElementById('mobileNavToggle');
+  if (tabNav) tabNav.classList.remove('open');
+  if (mobileToggle) mobileToggle.setAttribute('aria-expanded', 'false');
 }
 
 // =============================================================
@@ -962,9 +1529,9 @@ function updateMarkSummary() {
   const unmarked = values.filter(v => v === null).length;
   const marked = present + absent;
   summaryEl.innerHTML = `
-    <span class="chip" style="color:var(--success);"><i class="fas fa-user-check"></i> Present: ${present}</span>
-    <span class="chip" style="color:var(--danger);"><i class="fas fa-user-xmark"></i> Absent: ${absent}</span>
-    <span class="chip muted"><i class="fas fa-circle-question"></i> Not marked: ${unmarked}</span>`;
+    <button class="status-btns st-present" style="pointer-events:none; cursor:default;">✅ Present: ${present}</button>
+    <button class="status-btns st-absent" style="pointer-events:none; cursor:default;">❌ Absent: ${absent}</button>
+    <button class="status-btns" style="pointer-events:none; cursor:default; border-color:var(--border); color:var(--text-muted);">⭕ Not marked: ${unmarked}</button>`;
   // A saved day that is re-opened starts clean; edits light the unsaved note up.
   if (dirtyNote) {
     dirtyNote.style.display = JSON.stringify(attendanceState) !== baselineState ? 'block' : 'none';
@@ -1017,7 +1584,6 @@ async function submitAttendance() {
 // =============================================================
 // SAVED RECORDS (month view)
 // =============================================================
-
 const REC_MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
