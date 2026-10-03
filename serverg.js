@@ -2391,7 +2391,7 @@ app.get('/api/admin/bootstrap', requireAuth(['admin', 'super_admin']), async (re
       FROM tenant_grants tg
       WHERE tg.school_id = $1`
     const featuresQuery = `
-      SELECT tf.key, tf.label, tf.sort_order
+      SELECT tf.key, tf.label, tf.sort_order, tf.default_enabled
       FROM tenant_features tf
       ORDER BY tf.sort_order, tf.key`
 
