@@ -4509,7 +4509,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
           document.getElementById('headerTeacherName').textContent = teacher.name;
 
-          document.getElementById('headerClassName').textContent = `Class ${assignedClass.name}`;
+          document.getElementById('headerClassName').textContent = `Class ${assignedClass.name}${assignedClass.section ? ` · ${assignedClass.section}` : ''}`;
 
 
 
@@ -4752,11 +4752,8 @@ function setButtonLoading(btn, loading, loadingHtml) {
           </div>
 
         `;
-
       });
-
       if (container) container.innerHTML = html;
-
       if (container2) container2.innerHTML = html;
 
     }

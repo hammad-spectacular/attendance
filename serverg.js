@@ -2953,8 +2953,41 @@ app.post('/api/classes', requireAuth(['admin', 'super_admin']), async (req, res)
 
 app.delete('/api/classes/:id', requireAuth(['admin', 'super_admin']), async (req, res) => {
   const tenant_id = req.user.tenant_id
-  await pool.query('DELETE FROM classes WHERE id = $1 AND tenant_id = $2', [req.params.id, tenant_id])
-  res.json({ success: true })
+  const classId = parseInt(req.params.id, 10)
+  if (!classId) return res.status(400).json({ error: 'Invalid class id' })
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const classResult = await client.query(
+      'SELECT id FROM classes WHERE id = $1 AND tenant_id = $2 FOR UPDATE',
+      [classId, tenant_id]
+    )
+    if (classResult.rows.length === 0) {
+      await client.query('ROLLBACK')
+      return res.status(404).json({ error: 'Class not found' })
+    }
+
+    await client.query(
+      'UPDATE students SET class_id = NULL WHERE class_id = $1 AND tenant_id = $2',
+      [classId, tenant_id]
+    )
+    await client.query(
+      'UPDATE teachers SET class_id = NULL WHERE class_id = $1 AND tenant_id = $2',
+      [classId, tenant_id]
+    )
+    await client.query('UPDATE homework SET class_id = NULL WHERE class_id = $1', [classId])
+    await client.query('UPDATE announcements SET class_id = NULL WHERE class_id = $1', [classId])
+    await client.query('DELETE FROM classes WHERE id = $1 AND tenant_id = $2', [classId, tenant_id])
+    await client.query('COMMIT')
+    res.json({ success: true, students_unassigned: true })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    console.error('Error deleting class:', err)
+    res.status(500).json({ error: 'Failed to delete class' })
+  } finally {
+    client.release()
+  }
 })
 
 // Assign a teacher to a class. The class<->teacher link lives on teachers.class_id,
@@ -4008,7 +4041,7 @@ app.get('/api/fees/payments', requireAuth(['admin', 'teacher']), async (req, res
   // the recorded-rows view.
   if (mode === 'records' || (year && !month)) {
     let query = `
-      SELECT fee_payments.*, students.name as student_name, students.roll_no, classes.name as class_name
+      SELECT fee_payments.*, students.name as student_name, students.roll_no, classes.name as class_name, classes.section as class_section
       FROM fee_payments
       JOIN students ON fee_payments.student_id = students.id AND fee_payments.tenant_id = students.tenant_id
       LEFT JOIN classes ON students.class_id = classes.id AND students.tenant_id = classes.tenant_id
@@ -4056,6 +4089,7 @@ app.get('/api/fees/payments', requireAuth(['admin', 'teacher']), async (req, res
       students.roll_no,
       students.class_id,
       classes.name as class_name,
+      classes.section as class_section,
       fee_payments.id as payment_id,
       fee_payments.month as month_year,
       fee_payments.amount_due,
@@ -4245,13 +4279,13 @@ app.get('/api/fees/me', requireAuth(['student']), async (req, res) => {
 
   // Look up student's class and name
   const studentInfo = await pool.query(
-    `SELECT s.name as student_name, s.class_id, c.name as class_name
+    `SELECT s.name as student_name, s.class_id, c.name as class_name, c.section as class_section
      FROM students s
      LEFT JOIN classes c ON s.class_id = c.id AND s.tenant_id = c.tenant_id
      WHERE s.id = $1 AND s.tenant_id = $2`,
     [student_id, tenant_id]
   )
-  const student = studentInfo.rows[0] || { student_name: '', class_name: '' }
+  const student = studentInfo.rows[0] || { student_name: '', class_name: '', class_section: null }
 
   // Find fee structure — student override first, then class default (same as getStudentMonthlyFee)
   let monthlyFee = 0
@@ -4280,7 +4314,7 @@ app.get('/api/fees/me', requireAuth(['student']), async (req, res) => {
   // Get all payment records for this student
   let paymentQuery = `
     SELECT fp.id, fp.student_id, fp.month as month_year, fp.amount_due, fp.amount_paid, fp.status, fp.payment_date, fp.payment_method, fp.notes,
-           students.name as student_name, classes.name as class_name
+           students.name as student_name, classes.name as class_name, classes.section as class_section
     FROM fee_payments fp
     JOIN students ON fp.student_id = students.id AND fp.tenant_id = students.tenant_id
     LEFT JOIN classes ON students.class_id = classes.id AND students.tenant_id = classes.tenant_id
@@ -4314,6 +4348,7 @@ app.get('/api/fees/me', requireAuth(['student']), async (req, res) => {
       notes: null,
       student_name: student.student_name,
       class_name: student.class_name,
+      class_section: student.class_section,
     })
   }
 

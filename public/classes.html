@@ -1033,7 +1033,7 @@
             <div class="class-card">
               <div class="class-card-header">
                 <div class="class-card-title">
-                  ${escapeHtml(cls.name)}
+                  ${escapeHtml(`${cls.name}${cls.section ? ` · ${cls.section}` : ''}`)}
                 </div>
                 <div class="class-card-actions">
                   <button class="btn btn-icon" onclick="openEditClassModal(${cls.id})" title="Edit class">
@@ -1152,7 +1152,7 @@
         icon: '🗑️',
         iconBg: 'rgba(239,68,68,0.15)',
         title: 'Delete Class',
-        message: 'Are you sure you want to delete this class and all associated students? This action cannot be undone.',
+        message: 'Delete this class? Its students will be kept in the school and moved to Unassigned.',
         confirmText: 'Delete Class',
         confirmClass: 'danger',
         cancelText: 'Cancel'

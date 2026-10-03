@@ -1232,6 +1232,10 @@ function setButtonLoading(btn, loading, loadingHtml) {
       return div.innerHTML;
     }
 
+    function classDisplayName(cls) {
+      return cls ? `${cls.name}${cls.section ? ` · ${cls.section}` : ''}` : 'No class assigned';
+    }
+
     function normalizeStatus(status) {
       return String(status || '').trim().toLowerCase();
     }
@@ -1347,7 +1351,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
     }
 
     function renderHeader() {
-      const className = state.classInfo ? state.classInfo.name : 'No class assigned';
+      const className = classDisplayName(state.classInfo);
       document.getElementById('studentName').textContent = state.student ? state.student.name : 'Student Portal';
       document.getElementById('studentClass').textContent = className;
 
@@ -1764,7 +1768,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
             <div class="section-icon ${structure.type === 'student' ? 'blue' : 'orange'}"><i class="fas fa-receipt"></i></div>
             <div>
               <div class="section-title">Fee Structure</div>
-              <div class="section-subtitle">${planSource}${escapeHtml(currentMonth?.class_name ? ` — ${currentMonth.class_name}` : '')}</div>
+              <div class="section-subtitle">${planSource}${escapeHtml(currentMonth?.class_name ? ` — ${currentMonth.class_name}${currentMonth.class_section ? ` · ${currentMonth.class_section}` : ''}` : '')}</div>
             </div>
           </div>
           <div class="section-body" style="padding:0;">
@@ -1825,7 +1829,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
       const options = students.map(student => {
         const cls = classes.find(item => Number(item.id) === Number(student.class_id));
-        const label = `${student.name}${student.roll_no ? ` - Roll ${student.roll_no}` : ''}${cls ? ` - ${cls.name}` : ''}`;
+        const label = `${student.name}${student.roll_no ? ` - Roll ${student.roll_no}` : ''}${cls ? ` - ${classDisplayName(cls)}` : ' - No class assigned'}`;
         return `<option value="${student.id}">${escapeHtml(label)}</option>`;
       }).join('');
 

@@ -2183,7 +2183,7 @@
       <a href="#tab-classes" class="tab-btn" data-section="tab-classes">
         <i class="fas fa-book"></i>Classes
       </a>
-      <a href="#tab-attendance" class="tab-btn" data-section="tab-attendance" data-feature-key="attendance">
+      <a href="#tab-attendance" class="tab-btn" data-section="tab-attendance">
         <i class="fas fa-clipboard-list"></i>Attendance
       </a>
       <a href="#tab-stats" class="tab-btn" data-section="tab-stats">
@@ -2964,6 +2964,7 @@
             class="fas fa-times"></i></button>
       </div>
       <input type="hidden" id="editStudentId" aria-label="Hidden student ID">
+      <div id="editStudentClassLabel" style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:12px;"></div>
       <div class="form-group">
         <label class="form-label" for="editStudentName">Student Name</label>
         <input class="form-input" type="text" id="editStudentName" placeholder="e.g. Ali Hassan">
@@ -3319,6 +3320,13 @@
       return div.innerHTML;
     }
 
+    function classDisplayName(classOrName, section) {
+      const isClass = classOrName && typeof classOrName === 'object';
+      const name = isClass ? classOrName.name : classOrName;
+      const classSection = isClass ? classOrName.section : section;
+      return name ? `${name}${classSection ? ` · ${classSection}` : ''}` : 'Unassigned';
+    }
+
     function showToast(message, type = 'info') {
       const container = document.getElementById('toastContainer');
       if (!container) return;
@@ -3657,7 +3665,7 @@
       const filtered = records.filter(record => {
         const student = (window.appData.students || []).find(s => String(s.id) === String(record.student_id)) || {};
         const studentName = String(record.student_name || student.name || '').toLowerCase();
-        const className = String(record.class_name || '');
+        const className = classDisplayName(record.class_name, record.class_section);
         const classId = String(record.class_id || student.class_id || '');
         const month = String(record.month_year || '');
         const status = String(record.status || '').toLowerCase();
@@ -3743,7 +3751,7 @@
           ${filtered.map(record => {
             const student = (window.appData.students || []).find(s => String(s.id) === String(record.student_id)) || {};
             const cls = classes.find(c => String(c.id) === String(record.class_id || student.class_id)) || {};
-            const className = record.class_name || cls.name || 'Unassigned';
+            const className = classDisplayName(record.class_name || cls.name, record.class_section || cls.section);
             const roll = student.roll_no || '';
             const monthlyFee = getStudentMonthlyFee(student);
             const initials = String(record.student_name || student.name || 'S').trim().split(/\s+/).map(w => w[0] || '').join('').slice(0, 2).toUpperCase() || 'S';
@@ -3941,7 +3949,7 @@
         (window.appData.classes || []).forEach(cls => {
           const opt = document.createElement('option');
           opt.value = cls.id;
-          opt.textContent = cls.name;
+          opt.textContent = classDisplayName(cls);
           sel.appendChild(opt);
         });
       } else {
@@ -3949,7 +3957,7 @@
           const opt = document.createElement('option');
           opt.value = stu.id;
           const cls = (window.appData.classes || []).find(c => Number(c.id) === Number(stu.class_id));
-          opt.textContent = `${stu.name}${cls ? ' — ' + cls.name : ''}`;
+          opt.textContent = `${stu.name}${cls ? ' — ' + classDisplayName(cls) : ''}`;
           sel.appendChild(opt);
         });
       }
@@ -4126,12 +4134,14 @@
         return;
       }
       const student = (window.appData.students || []).find(item => String(item.id) === String(studentId));
+      const studentClass = (window.appData.classes || []).find(cls => String(cls.id) === String(student?.class_id));
       const due = Number(monthlyFee || 0) + Number(admissionFee || 0) + Number(transportFee || 0) - Number(discount || 0);
       const setupEntry = {
         id: Date.now(),
         student_id: studentId,
         student_name: student?.name || 'Student',
-        class_name: student?.class_id ? (window.appData.classes || []).find(c => String(c.id) === String(student.class_id))?.name || 'Unassigned' : 'Unassigned',
+        class_name: studentClass?.name || 'Unassigned',
+        class_section: studentClass?.section || null,
         month_year: new Date().toISOString().slice(0, 7),
         amount_due: Math.max(0, due),
         amount_paid: 0,
@@ -4310,7 +4320,7 @@
       if (query) {
         filtered = filtered.filter(c => {
           const assigned = teacherForClass(window.appData.teachers, c.id);
-          return (c.name && c.name.toLowerCase().includes(query)) ||
+             return classDisplayName(c).toLowerCase().includes(query) ||
                  (assigned && assigned.name && assigned.name.toLowerCase().includes(query));
         });
       }
@@ -4522,9 +4532,10 @@
       content.innerHTML = `
         <div style="background: var(--bg-card-hover); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px;">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
-            <h2 style="margin:0; font-size: 1.1rem;">${escapeHtml(cls.name)}</h2>
+            <h2 style="margin:0; font-size: 1.1rem;">${escapeHtml(classDisplayName(cls))}</h2>
             <input type="text" class="form-input" id="editClassSectionInput" value="${escapeHtml(cls.section || '')}" placeholder="Section (e.g. A)" style="max-width:180px;padding:6px 12px;font-size:0.85rem;">
             <button class="btn btn-primary btn-sm" onclick="saveClassEdit(${cls.id})"><i class="fas fa-check"></i> Save</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteClassFromDashboard(${cls.id})"><i class="fas fa-trash-alt"></i> Delete Class</button>
           </div>
 
           <div class="form-group">
@@ -4584,14 +4595,51 @@
       if (!cls) return;
       try {
         const res = await apiFetch(`/api/classes/${classId}`, {
-          method: 'PATCH',
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ section: newSection || null })
+          body: JSON.stringify({ name: cls.name, section: newSection || null })
         });
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed to update section');
         cls.section = newSection || null;
         renderClasses();
         showToast('✅ Section updated', 'success');
+      } catch (err) {
+        showToast(`❌ ${err.message}`, 'error');
+      }
+    }
+
+    async function deleteClassFromDashboard(classId) {
+      const cls = window.appData.classes.find(c => Number(c.id) === Number(classId));
+      if (!cls) return;
+
+      const studentCount = window.appData.students.filter(s => Number(s.class_id) === Number(classId)).length;
+      const confirmed = await showConfirmModal({
+        icon: '🗑️',
+        iconBg: 'rgba(239,68,68,0.15)',
+        title: 'Delete Class',
+        message: `Delete ${classDisplayName(cls)}? ${studentCount} student${studentCount === 1 ? ' will' : 's will'} be kept in the school and moved to Unassigned.`,
+        confirmText: 'Delete Class',
+        confirmClass: 'danger',
+        cancelText: 'Cancel'
+      });
+      if (!confirmed) return;
+
+      try {
+        const response = await apiFetch(`/api/classes/${classId}`, { method: 'DELETE' });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'Failed to delete class');
+
+        window.appData.students.forEach(student => {
+          if (Number(student.class_id) === Number(classId)) student.class_id = null;
+        });
+        window.appData.teachers.forEach(teacher => {
+          if (Number(teacher.class_id) === Number(classId)) teacher.class_id = null;
+        });
+        window.appData.classes = window.appData.classes.filter(item => Number(item.id) !== Number(classId));
+        closeClassIsolation();
+        renderClasses();
+        filterStudents();
+        showToast(`Class deleted. ${studentCount} student${studentCount === 1 ? '' : 's'} moved to Unassigned.`, 'success');
       } catch (err) {
         showToast(`❌ ${err.message}`, 'error');
       }
@@ -4634,7 +4682,7 @@
           const select = document.getElementById('teacherClass');
           select.innerHTML = '<option value="">-- Select a class (optional) --</option>';
           window.appData.classes.forEach(c => {
-            select.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+            select.innerHTML += `<option value="${c.id}">${escapeHtml(classDisplayName(c))}</option>`;
           });
         } catch (err) {
           console.error(err);
@@ -4768,7 +4816,7 @@
 
         if (conflictInCache || conflictInDirty) {
           const cls = window.appData.classes.find(c => c.id === value);
-          const clsName = cls ? cls.name : 'this class';
+          const clsName = cls ? classDisplayName(cls) : 'this class';
           const previousHolder = window.appData.teachers.find(t => t.class_id === value && t.id !== id);
 
           // Don't silently revert: the select snaps back and it looks like nothing was
@@ -4922,7 +4970,7 @@
               <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
                 <select class="inline-edit-input" style="text-align:center; max-width:120px;" onchange="markDirty('tab-teachers', ${t.id}, 'class_id', this.value ? parseInt(this.value) : null)">
                   <option value="">-- Unassigned --</option>
-                  ${classes.map(c => `<option value="${c.id}" ${dirtyData.class_id === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
+                  ${classes.map(c => `<option value="${c.id}" ${dirtyData.class_id === c.id ? 'selected' : ''}>${escapeHtml(classDisplayName(c))}</option>`).join('')}
                 </select>
                 ${dirtyData.class_id ? `<button onclick="jumpToClass(${dirtyData.class_id})" title="Jump to this class in Classes Tab" style="background:transparent; border:none; color:var(--primary); cursor:pointer;"><i class="fas fa-external-link-alt"></i></button>` : ''}
               </div>
@@ -5107,7 +5155,7 @@
         const capacityLabel = isFull ? ` (Full - ${enrolled}/${capacity})` : '';
         const selected = isCurrentClass ? 'selected' : '';
         
-        return `<option value="${c.id}" ${disabledAttr} ${selected}>${escapeHtml(c.name)}${capacityLabel}</option>`;
+        return `<option value="${c.id}" ${disabledAttr} ${selected}>${escapeHtml(classDisplayName(c))}${capacityLabel}</option>`;
       }).join('');
     }
 
@@ -5126,6 +5174,7 @@
       }
 
       const showStudentId = _featureState && _featureState['student_portal'] === true;
+      const showPortalLock = Boolean(_featureState) && _featureState['student_portal'] === false;
       shownStudentIds = students.map(s => s.id);
 
       let html = `
@@ -5154,7 +5203,10 @@
             <td style="color:var(--text-muted); font-size:0.78rem; text-align:center; font-weight:600;">${serialNo}</td>
             <td style="color:var(--text-muted); font-size:0.75rem; text-align:left;${showStudentId ? '' : 'display:none;'}">${showStudentId ? (s.login_id ? (_tenantCode ? _tenantCode + '-' : '') + escapeHtml(s.login_id) : '—') : ''}</td>
             <td style="text-align:left;">
-              <input type="text" class="inline-edit-input" value="${escapeHtml(dirtyData.name)}" oninput="markDirty('tab-students', ${s.id}, 'name', this.value)" style="font-weight:bold;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                ${showPortalLock ? '<i class="fas fa-lock" title="Student Portal is not enabled" aria-label="Student Portal is not enabled" style="color:var(--text-muted);"></i>' : ''}
+                <input type="text" class="inline-edit-input" value="${escapeHtml(dirtyData.name)}" oninput="markDirty('tab-students', ${s.id}, 'name', this.value)" style="font-weight:bold;flex:1;min-width:0;">
+              </div>
             </td>
             <td style="text-align:center;">
               <input type="text" class="inline-edit-input" style="text-align:center;" value="${escapeHtml(dirtyData.roll_no || '')}" placeholder="—" oninput="markDirty('tab-students', ${s.id}, 'roll_no', this.value)">
@@ -5175,7 +5227,7 @@
                   <i class="fas fa-key"></i>
                 </button>` : ''}
                 <button onclick="markDirty('tab-students', ${s.id}, 'is_frozen', ${!dirtyData.is_frozen})" class="btn-edit" title="${dirtyData.is_frozen ? 'Unfreeze Account' : 'Freeze Account'}" style="background: ${dirtyData.is_frozen ? 'var(--danger-bg)' : 'var(--warning-bg)'}; color: ${dirtyData.is_frozen ? 'var(--danger)' : 'var(--warning)'}; border: none;">
-                  <i class="fas ${dirtyData.is_frozen ? 'fa-lock' : 'fa-lock-open'}"></i>
+                  <i class="fas ${dirtyData.is_frozen ? 'fa-user-slash' : 'fa-user-check'}"></i>
                 </button>
                 <button onclick="openEditStudentModal(${s.id})" class="btn-edit" title="Edit in modal">
                   <i class="fas fa-expand"></i>
@@ -5541,7 +5593,7 @@
 
       const rows = [
         ['Student Name', 'Class', 'Date', 'Status', 'Marked By', 'Roll No', 'Phone'],
-        ...records.map(r => [r.studentName, r.className, r.date, r.status, r.markedBy, r.rollNo, r.phone])
+        ...records.map(r => [r.studentName, classDisplayName(r.className, r.classSection), r.date, r.status, r.markedBy, r.rollNo, r.phone])
       ];
       const csv = rows.map(row => row.map(escapeCsvValue).join(',')).join('\n');
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -5586,7 +5638,7 @@
       // Group students by class and calculate attendance stats
       const classStudentMap = {};
       allRecords.forEach(record => {
-        const className = record.className || 'Unassigned';
+        const className = classDisplayName(record.className, record.classSection);
         const studentKey = record.studentId || record.studentName;
 
         if (!classStudentMap[className]) {
@@ -5768,6 +5820,10 @@
 
       filtered.forEach(item => {
         const postedBy = item.teacher_name || item.author || 'Admin';
+        const itemClass = (window.appData.classes || []).find(cls => Number(cls.id) === Number(item.class_id));
+        const announcementClass = item.class_name
+          ? classDisplayName(item.class_name, item.class_section || itemClass?.section)
+          : 'School-wide';
         const date = item.created_at ? new Date(item.created_at).toLocaleString() : '-';
         html += `
           <tr>
@@ -5776,7 +5832,7 @@
               <div style="font-size:0.82rem; color:var(--text-secondary); margin-top:4px; white-space:normal;">${escapeHtml(item.message)}</div>
             </td>
             <td style="text-align:left; color:var(--text-secondary);">${escapeHtml(postedBy)}</td>
-            <td style="text-align:center;"><span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(item.class_name || 'School-wide')}</span></td>
+            <td style="text-align:center;"><span class="badge" style="background:var(--badge-bg); color:var(--badge-text);">${escapeHtml(announcementClass)}</span></td>
             <td style="text-align:center; color:var(--text-secondary);">${escapeHtml(date)}</td>
             <td style="text-align:right;">
               <div class="action-buttons" style="justify-content:flex-end;">
@@ -6504,7 +6560,7 @@
         window.appData.classes.forEach(cls => {
           const option = document.createElement('option');
           option.value = cls.id;
-          option.textContent = cls.name;
+          option.textContent = classDisplayName(cls);
           if (cls.id === teacher.class_id) option.selected = true;
           select.appendChild(option);
         });
@@ -6565,6 +6621,8 @@
       if (!student) return;
 
       document.getElementById('editStudentId').value = student.id;
+      const studentClass = (window.appData.classes || []).find(cls => String(cls.id) === String(student.class_id));
+      document.getElementById('editStudentClassLabel').textContent = `Class / Section: ${studentClass ? classDisplayName(studentClass) : 'Unassigned'}`;
       document.getElementById('editStudentName').value = student.name;
       document.getElementById('editStudentRoll').value = student.roll_no || '';
       document.getElementById('editStudentPhone').value = student.phone || '';
@@ -6662,31 +6720,31 @@
           if (select) {
             const option = document.createElement('option');
             option.value = cls.id;
-            option.textContent = cls.name;
+            option.textContent = classDisplayName(cls);
             select.appendChild(option);
           }
           if (feeClassFilter) {
             const option = document.createElement('option');
             option.value = cls.id;
-            option.textContent = cls.name;
+            option.textContent = classDisplayName(cls);
             feeClassFilter.appendChild(option);
           }
           if (editSelect) {
             const option = document.createElement('option');
             option.value = cls.id;
-            option.textContent = cls.name;
+            option.textContent = classDisplayName(cls);
             editSelect.appendChild(option);
           }
           if (attendanceClassFilter) {
             const option = document.createElement('option');
             option.value = cls.id;
-            option.textContent = cls.name;
+            option.textContent = classDisplayName(cls);
             attendanceClassFilter.appendChild(option);
           }
           if (statsClassSelect) {
             const option = document.createElement('option');
             option.value = cls.id;
-            option.textContent = cls.name;
+            option.textContent = classDisplayName(cls);
             statsClassSelect.appendChild(option);
           }
         });
@@ -6953,7 +7011,6 @@
       'tab-coordinators': 'coordinator_portal',
       'tab-students': 'student_management',
       'tab-teachers': 'teacher_management',
-      'tab-attendance': 'attendance',
       'tab-fees': 'fees'
     };
 

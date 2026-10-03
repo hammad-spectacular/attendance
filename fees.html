@@ -1484,6 +1484,10 @@
         .replace(/'/g, '&#39;');
     }
 
+    function classDisplayName(cls) {
+      return cls ? `${cls.name}${cls.section ? ` · ${cls.section}` : ''}` : 'Unassigned';
+    }
+
     // Local calendar date (YYYY-MM-DD). toISOString() shifts to UTC, which lands on
     // the wrong day for users east or west of Greenwich near midnight.
     function getTodayDate() {
@@ -1529,7 +1533,7 @@
         (window._classesCache || []).forEach(cls => {
           const opt = document.createElement('option');
           opt.value = cls.id;
-          opt.textContent = cls.name;
+          opt.textContent = classDisplayName(cls);
           sel.appendChild(opt);
         });
       } else {
@@ -1538,7 +1542,7 @@
           const cls = (window._classesCache || []).find(c => Number(c.id) === Number(stu.class_id));
           const opt = document.createElement('option');
           opt.value = stu.id;
-          opt.textContent = `${stu.name}${cls ? ' — ' + cls.name : ''}`;
+          opt.textContent = `${stu.name}${cls ? ' — ' + classDisplayName(cls) : ' — Unassigned'}`;
           sel.appendChild(opt);
         });
       }
@@ -1562,7 +1566,7 @@
         const cls = (window._classesCache || []).find(c => Number(c.id) === Number(stu.class_id));
         const opt = document.createElement('option');
         opt.value = stu.id;
-        opt.textContent = `${stu.name}${cls ? ' — ' + cls.name : ''}`;
+        opt.textContent = `${stu.name}${cls ? ' — ' + classDisplayName(cls) : ' — Unassigned'}`;
         sel.appendChild(opt);
       });
     }
@@ -1704,7 +1708,7 @@
         (Array.isArray(classes) ? classes : []).forEach(cls => {
           const opt = document.createElement('option');
           opt.value = cls.id;
-          opt.textContent = cls.name;
+          opt.textContent = classDisplayName(cls);
           sel.appendChild(opt);
         });
       } catch (err) {
@@ -1769,15 +1773,17 @@
 
     // Load fee structures
     function getStructureTargetName(s) {
-      if (s.target_name) return s.target_name;
       if (s.type === 'class') {
         const cls = (window._classesCache || []).find(c => Number(c.id) === Number(s.target_id));
-        return cls ? cls.name : '#${s.target_id}';
+        return cls ? classDisplayName(cls) : s.target_name || `#${s.target_id}`;
       }
       if (s.type === 'student') {
         const stu = (window._studentsCache || []).find(st => Number(st.id) === Number(s.target_id));
-        return stu ? stu.name : '#${s.target_id}';
+        if (!stu) return s.target_name || `#${s.target_id}`;
+        const cls = (window._classesCache || []).find(item => Number(item.id) === Number(stu.class_id));
+        return `${stu.name} — ${classDisplayName(cls)}`;
       }
+      if (s.target_name) return s.target_name;
       return s.target_id;
     }
 
@@ -1858,7 +1864,7 @@
           
           const initials = (p.student_name || '?').substring(0, 2).toUpperCase();
           const studentName = escapeHtml(p.student_name || 'Unknown');
-          const classRoll = escapeHtml(`${p.class_name || 'N/A'} · ${p.roll_no || 'N/A'}`);
+          const classRoll = escapeHtml(`${p.class_name || 'Unassigned'}${p.class_section ? ` · ${p.class_section}` : ''} · ${p.roll_no || 'N/A'}`);
           
           let progressHtml = '';
           if (!isNotSetUp && amountDueNum > 0) {
