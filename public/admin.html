@@ -3455,8 +3455,7 @@
 
         // Populate dropdowns used globally
         populateClassDropdown(classes);
-        loadFeeData();
-        loadFeeStructures();
+        await Promise.all([loadFeeData(), loadFeeStructures()]);
 
         // Staggered section reveals with min skeleton time
         await revealAfterMinTime(() => {
@@ -3499,6 +3498,13 @@
               </div>`;
           }
         }
+      }
+    }
+
+    async function refreshDashboardAfterSave() {
+      await reloadAllData(false, true);
+      if (activeTabId === 'tab-fees' && document.getElementById('feeSubTabBtn-history')?.classList.contains('active')) {
+        await renderPaymentHistoryTab();
       }
     }
 
@@ -4507,11 +4513,9 @@
           const data = await response.json().catch(() => ({}));
           throw new Error(data.error || 'Failed to create class');
         }
-        const createdClass = await response.json();
-
+        await response.json();
         toggleAddClass();
-        window.appData.classes.push(createdClass);
-        renderClasses();
+        await refreshDashboardAfterSave();
         showToast('✅ Class created successfully', 'success');
       } catch (err) {
         showToast(`❌ ${err.message}`, 'error');
@@ -4606,8 +4610,8 @@
           body: JSON.stringify({ name: cls.name, section: newSection || null })
         });
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed to update section');
-        cls.section = newSection || null;
-        renderClasses();
+        await refreshDashboardAfterSave();
+        openClassIsolation(classId);
         showToast('✅ Section updated', 'success');
       } catch (err) {
         showToast(`❌ ${err.message}`, 'error');
@@ -4635,16 +4639,8 @@
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || 'Failed to delete class');
 
-        window.appData.students.forEach(student => {
-          if (Number(student.class_id) === Number(classId)) student.class_id = null;
-        });
-        window.appData.teachers.forEach(teacher => {
-          if (Number(teacher.class_id) === Number(classId)) teacher.class_id = null;
-        });
-        window.appData.classes = window.appData.classes.filter(item => Number(item.id) !== Number(classId));
         closeClassIsolation();
-        renderClasses();
-        filterStudents();
+        await refreshDashboardAfterSave();
         showToast(`Class deleted. ${studentCount} student${studentCount === 1 ? '' : 's'} moved to Unassigned.`, 'success');
       } catch (err) {
         showToast(`❌ ${err.message}`, 'error');
@@ -4761,12 +4757,7 @@
 
         clearTeacherForm();
         toggleAddTeacher();
-        if (data.teacher) {
-          const idx = window.appData.teachers.findIndex(t => String(t.id) === String(data.teacher.id));
-          if (idx === -1) window.appData.teachers.push(data.teacher);
-          else window.appData.teachers[idx] = data.teacher;
-        }
-        renderTeachers();
+        await refreshDashboardAfterSave();
         btn.innerHTML = '<i class="fas fa-check"></i> Created';
         if (btn) btn.dataset.originalHtml = btn.innerHTML;
         showToast('✅ Teacher created successfully', 'success');
@@ -4798,8 +4789,7 @@
       try {
         const response = await apiFetch(`/api/teachers/${id}`, { method: 'DELETE' });
         if (!response.ok) throw new Error('Failed to delete teacher');
-        window.appData.teachers = window.appData.teachers.filter(t => Number(t.id) !== Number(id));
-        renderTeachers();
+        await refreshDashboardAfterSave();
         showToast('Teacher removed', 'info');
       } catch (err) {
         showToast(`Error: ${err.message}`, 'error');
@@ -4911,6 +4901,7 @@
         else window.appData.teachers = window.appData.teachers.filter(t => !ids.includes(Number(t.id)));
       }
       set.clear();
+      if (ok > 0) await refreshDashboardAfterSave();
       if (fail > 0) showToast(`Deleted ${ok}, ${fail} failed${firstErr ? ` (${firstErr})` : ''}`, 'warning');
       else if (ok > 0) showToast(`Deleted ${ok} ${label}${ok > 1 ? 's' : ''}`, 'success');
       if (kind === 'students') filterStudents(); else filterTeachers();
@@ -5100,19 +5091,15 @@
           throw new Error('Server did not return the new account. Please try again.');
         }
 
-        // 1. Add student to cache immediately
-        if (data.student) upsertStudentInCache(data.student);
+        // Refresh from the server so every dashboard view sees the saved student.
+        await refreshDashboardAfterSave();
 
-        // 2. Close form
+        // Close the form after the refreshed class list is ready.
         toggleAddStudent();
-
-        // 3. Re-render table immediately so student appears
         filterStudents();
-
-        // 4. Show success
         showToast('✅ Student saved successfully', 'success');
 
-        // 5. Show the ID and password - but only if one was actually created. With the
+        // Show credentials only if a password was actually created. With the
         // portal off there is deliberately nothing to hand out, and nothing to say.
         if (data.temp_password) {
           showCredentialsPanel(data.student_id, data.temp_password, 'student', () => {
@@ -5141,8 +5128,7 @@
       try {
         const response = await apiFetch(`/api/students/${id}`, { method: 'DELETE' });
         if (!response.ok) throw new Error('Failed to delete student');
-        window.appData.students = window.appData.students.filter(s => Number(s.id) !== Number(id));
-        filterStudents();
+        await refreshDashboardAfterSave();
         showToast('Student removed', 'info');
       } catch (err) {
         showToast(`Error: ${err.message}`, 'error');
@@ -6622,12 +6608,8 @@
 
         if (!response.ok) throw new Error('Failed to update teacher');
         
-        const updatedTeacher = await response.json();
-        const idx = window.appData.teachers.findIndex(t => t.id === id);
-        if (idx !== -1) window.appData.teachers[idx] = updatedTeacher;
-        renderTeachers();
-
         closeEditTeacherModal();
+        await refreshDashboardAfterSave();
         showToast('✅ Teacher updated successfully', 'success');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -6696,12 +6678,8 @@
             : errData.error || `Failed to update student (${response.status})`);
         }
         
-        const updatedStudent = await response.json();
-        const idx = window.appData.students.findIndex(s => s.id === id);
-        if (idx !== -1) window.appData.students[idx] = updatedStudent;
-        filterStudents();
-
         closeEditStudentModal();
+        await refreshDashboardAfterSave();
         showToast('✅ Student updated successfully', 'success');
       } catch (err) {
         showToast(`❌ Error: ${err.message}`, 'error');
@@ -6961,6 +6939,8 @@
           dirtyState['tab-students'].clear();
           filterStudents();
         }
+
+        if (savedCount > 0) await refreshDashboardAfterSave();
 
         if (failedCount === 0 && savedCount > 0) {
           showToast('✅ All changes saved successfully', 'success');
@@ -7718,7 +7698,7 @@
         showBulkResults(data.accounts, data.credentials_issued === true);
 
         // Refresh data
-        fetchDashboardData();
+        await refreshDashboardAfterSave();
         showToast('Successfully created ' + data.accounts.length + ' teachers.', 'success');
       } catch (err) {
         showToast('Error: ' + err.message, 'error');
@@ -7784,7 +7764,7 @@
         showBulkResults(data.accounts, data.credentials_issued === true);
 
         // Refresh data
-        fetchDashboardData();
+        await refreshDashboardAfterSave();
         showToast('Successfully created ' + data.accounts.length + ' students.', 'success');
       } catch (err) {
         showToast('Error: ' + err.message, 'error');
