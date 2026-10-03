@@ -231,7 +231,7 @@
       width: max-content;
     }
 
-    .subnav button {
+    .tab-nav button {
       padding: 0.65rem 1.5rem;
       font-weight: 600;
       font-size: 0.9rem;
@@ -249,13 +249,13 @@
       flex-shrink: 0;
     }
 
-    .subnav button:hover {
+    .tab-nav button:hover {
       color: var(--primary);
       background: var(--bg-card-hover);
       border-color: var(--border);
     }
 
-    .subnav button.active {
+    .tab-nav button.active {
       color: #fff;
       background: var(--gradient);
       border-color: var(--primary);
@@ -637,6 +637,10 @@
       font-size: 0.9rem;
       font-weight: 800;
       color: var(--text);
+    }
+
+    .records-group-content {
+      display: block;
     }
 
     /* ================================
@@ -1271,11 +1275,6 @@ async function load() {
       <div class="branch-name">Whole school</div>
       <span class="pill school-wide">School-wide</span>
     </div>`}
-    <div class="subnav">
-      <button id="navMark" class="active" onclick="switchSubTab('mark')"><i class="fas fa-clipboard-check"></i> Take attendance</button>
-      <button id="navRecords" onclick="switchSubTab('records')"><i class="fas fa-clock-rotate-left"></i> Saved records</button>
-      <button id="navAnnouncements" onclick="switchSubTab('announcements')"><i class="fas fa-bullhorn"></i> Announcements</button>
-    </div>
     <div id="subMark">${noClassesNote}
       <div class="panel" style="margin-bottom:18px;">
         <div class="filters">
@@ -1329,6 +1328,21 @@ async function load() {
               <option value="">All Years</option>
             </select>
           </div>
+        </div>
+        <!-- Status filter pills -->
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;" id="recordsStatusFilters">
+          <button type="button" onclick="setRecordsStatusFilter('')" id="recSF-all" class="btn btn-filter filter-all active">
+            All
+          </button>
+          <button type="button" onclick="setRecordsStatusFilter('Present')" id="recSF-Present" class="btn btn-filter filter-present">
+            ✅ Present
+          </button>
+          <button type="button" onclick="setRecordsStatusFilter('Absent')" id="recSF-Absent" class="btn btn-filter filter-absent">
+            ❌ Absent
+          </button>
+          <button type="button" onclick="setRecordsStatusFilter('Leave')" id="recSF-Leave" class="btn btn-filter filter-leave">
+            📝 Leave
+          </button>
         </div>
         <div id="recordsWrap"><div class="empty">Pick a month to view saved attendance.</div></div>
       </div>
@@ -1428,6 +1442,7 @@ async function loadMarkRoster() {
   const wrap = document.getElementById('markTableWrap');
   const summaryEl = document.getElementById('markSummary');
   const savebar = document.getElementById('markSavebar');
+  const saveBtn = document.getElementById('saveAttBtn');
   if (!selectedClassId) {
     wrap.innerHTML = '<div class="empty">Select a class to load its students.</div>';
     summaryEl.style.display = 'none';
@@ -1451,6 +1466,7 @@ async function loadMarkRoster() {
   const attRes = await apiFetch(`/api/attendance?date=${encodeURIComponent(selectedDate)}&class_id=${selectedClassId}`);
   const saved = attRes.ok ? await attRes.json() : [];
   const savedByStudent = new Map(saved.map(r => [r.student_id, r.status]));
+  const hasExistingAttendance = saved.length > 0;
   attendanceDate = selectedDate;
 
   if (students.length === 0) {
@@ -1472,9 +1488,21 @@ async function loadMarkRoster() {
   const selectedClass = myClasses.find(c => c.id === selectedClassId);
   const classDisplay = selectedClass ? escapeHtml(selectedClass.name) + (selectedClass.section ? ` - ${escapeHtml(selectedClass.section)}` : '') : '';
 
+  // Update save button text based on whether attendance exists
+  if (saveBtn) {
+    if (hasExistingAttendance) {
+      saveBtn.innerHTML = '<i class="fas fa-floppy-disk"></i> Update attendance';
+      saveBtn.dataset.alreadySaved = 'true';
+    } else {
+      saveBtn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save attendance';
+      saveBtn.dataset.alreadySaved = 'false';
+    }
+  }
+
   wrap.innerHTML = `
-    <div style="margin-bottom:12px;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.85rem;font-weight:600;color:var(--text);">
-      <i class="fas fa-book" style="margin-right:8px;color:var(--primary);"></i>${classDisplay}
+    <div style="margin-bottom:12px;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.85rem;font-weight:600;color:var(--text); display:flex; align-items:center; gap:10px;">
+      <i class="fas fa-book" style="color:var(--primary);"></i>${classDisplay}
+      ${hasExistingAttendance ? '<span style="margin-left:auto; font-size:0.75rem; padding:4px 10px; background:var(--success-bg); color:var(--success); border-radius:6px; font-weight:600;"><i class="fas fa-check-circle"></i> Already taken</span>' : '<span style="margin-left:auto; font-size:0.75rem; padding:4px 10px; background:var(--warning-bg); color:var(--warning); border-radius:6px; font-weight:600;"><i class="fas fa-edit"></i> Not taken yet</span>'}
     </div>
     <div class="table-scroll">
     <table class="att-table">
@@ -1547,10 +1575,10 @@ async function submitAttendance() {
   const btn = document.getElementById('saveAttBtn');
   if (!selectedClassId || !selectedDate) return;
   const records = Object.entries(attendanceState)
-    .filter(([, status]) => status === 'Present' || status === 'Absent')
+    .filter(([, status]) => status === 'Present' || status === 'Absent' || status === 'Leave')
     .map(([studentId, status]) => ({ student_id: Number(studentId), status }));
   if (records.length === 0) {
-    alert('Mark at least one student as Present or Absent before saving.');
+    alert('Mark at least one student as Present, Absent, or Leave before saving.');
     return;
   }
 
@@ -1566,22 +1594,20 @@ async function submitAttendance() {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       alert(data.error || 'Could not save attendance.');
+      btn.innerHTML = original;
       return;
     }
     // Reload so the summary reflects exactly what the server stored.
     await loadMarkRoster();
-    // Show success confirmation
-    const savebar = document.getElementById('markSavebar');
-    const successMsg = document.createElement('span');
-    successMsg.id = 'attendanceSavedMsg';
-    successMsg.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success);"></i> Attendance saved successfully!';
-    successMsg.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:600;color:var(--success);padding:8px 12px;background:var(--success-bg);border-radius:8px;margin-right:auto;';
-    savebar.insertBefore(successMsg, savebar.firstChild);
-    // Remove after 3 seconds
-    setTimeout(() => { if (successMsg.parentNode) successMsg.remove(); }, 3000);
+    // Update button to show saved
+    if (btn) {
+      btn.innerHTML = '<i class="fas fa-check-circle"></i> Saved!';
+      setTimeout(() => {
+        if (btn) btn.innerHTML = '<i class="fas fa-floppy-disk"></i> Update attendance';
+      }, 2000);
+    }
   } finally {
     btn.disabled = false;
-    btn.innerHTML = original;
   }
 }
 
@@ -1593,10 +1619,27 @@ const REC_MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
+let recordsStatusFilter = ''; // Filter for Present/Absent/Leave
+
 function getTodayDate() {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit'
   }).format(new Date());
+}
+
+function setRecordsStatusFilter(status) {
+  recordsStatusFilter = status;
+  // Update filter pill styles
+  ['all', 'Present', 'Absent', 'Leave'].forEach(s => {
+    const btn = document.getElementById('recSF-' + s);
+    if (btn) {
+      btn.classList.toggle('active', s === status || (status === '' && s === 'all'));
+      btn.style.background = (s === status || (status === '' && s === 'all')) ? 'var(--primary)' : '';
+      btn.style.color = (s === status || (status === '' && s === 'all')) ? 'white' : '';
+      btn.style.borderColor = (s === status || (status === '' && s === 'all')) ? 'var(--primary)' : '';
+    }
+  });
+  loadRecords();
 }
 
 function populateRecPeriodFilters() {
@@ -1644,6 +1687,18 @@ function onRecordsFilterChanged() {
   loadRecords();
 }
 
+function toggleRecordsGroup(header) {
+  const content = header.nextElementSibling;
+  const chevron = header.querySelector('.expand-chevron');
+  if (content) {
+    const isOpen = content.style.display !== 'none';
+    content.style.display = isOpen ? 'none' : 'block';
+    if (chevron) {
+      chevron.style.transform = isOpen ? 'rotate(-90deg)' : 'rotate(0deg)';
+    }
+  }
+}
+
 async function loadRecords() {
   const wrap = document.getElementById('recordsWrap');
   const day = document.getElementById('recDaySelect')?.value || '';
@@ -1668,7 +1723,8 @@ async function loadRecords() {
     const matchesMonth = !month || d.slice(5, 7) === month;
     const matchesYear = !year || d.slice(0, 4) === year;
     const matchesClass = recordsClassId === 'all' || String(r.class_id) === String(recordsClassId);
-    return matchesDay && matchesMonth && matchesYear && matchesClass;
+    const matchesStatus = !recordsStatusFilter || r.status === recordsStatusFilter;
+    return matchesDay && matchesMonth && matchesYear && matchesClass && matchesStatus;
   });
 
   if (savedRecords.length === 0) {
@@ -1692,26 +1748,46 @@ async function loadRecords() {
       if (!byClass.has(key)) byClass.set(key, []);
       byClass.get(key).push(r);
     }
+    const presentCount = rows.filter(r => r.status === 'Present').length;
+    const absentCount = rows.filter(r => r.status === 'Absent').length;
+    const leaveCount = rows.filter(r => r.status === 'Leave').length;
     return `
       <div class="month-group">
-        <h4><i class="fas fa-calendar-day" style="opacity:.5;"></i> ${escapeHtml(d)}</h4>
+        <h4 onclick="toggleRecordsGroup(this)" style="cursor:pointer; display:flex; align-items:center; gap:8px;">
+          <i class="fas fa-calendar-day" style="opacity:.5;"></i> ${escapeHtml(d)}
+          <span style="font-size:0.75rem; font-weight:500; color:var(--text-muted); margin-left:auto;">
+            <span style="color:var(--success);">${presentCount} ✅</span> ·
+            <span style="color:var(--danger);">${absentCount} ❌</span> ·
+            <span style="color:var(--warning);">${leaveCount} 📝</span>
+          </span>
+          <i class="fas fa-chevron-down expand-chevron" style="font-size:0.75rem; transition:transform 0.2s; margin-left:8px;"></i>
+        </h4>
+        <div style="margin-top:12px;">
         ${[...byClass.entries()].map(([className, recs]) => `
           <div class="panel" style="margin-bottom:12px;">
-            <h3>${escapeHtml(className)}${recs[0].class_section ? ` <span class="badge" style="background:var(--badge-bg); color:var(--badge-text); font-size:0.7rem; margin-left:6px;">${escapeHtml(recs[0].class_section)}</span>` : ''}</h3>
-            <p class="muted">${recs.filter(r => r.status === 'Present').length} present · ${recs.filter(r => r.status === 'Absent').length} absent · marked by ${escapeHtml(recs[0].marked_by || '—')}</p>
-            <div class="table-scroll">
-            <table class="att-table">
-              <thead><tr><th>Student</th><th>Status</th></tr></thead>
-              <tbody>
-                ${recs.map(r => `
-                  <tr>
-                    <td style="font-weight:600;">${escapeHtml(r.name)}${r.roll_no != null ? ` <span class="muted">(#${escapeHtml(r.roll_no)})</span>` : ''}</td>
-                    <td><span class="status-badge ${escapeHtml(r.status)}">${escapeHtml(r.status)}</span></td>
-                  </tr>`).join('')}
-              </tbody>
-            </table>
+            <h3 onclick="toggleRecordsGroup(this)" style="cursor:pointer; display:flex; align-items:center; gap:8px;">
+              <i class="fas fa-chevron-down expand-chevron" style="font-size:0.7rem; transition:transform 0.2s;"></i>
+              ${escapeHtml(className)}${recs[0].class_section ? ` <span class="badge" style="background:var(--badge-bg); color:var(--badge-text); font-size:0.7rem; margin-left:6px;">${escapeHtml(recs[0].class_section)}</span>` : ''}
+              <span style="font-size:0.75rem; font-weight:500; color:var(--text-muted); margin-left:auto;">
+                ${recs.filter(r => r.status === 'Present').length} ✅ · ${recs.filter(r => r.status === 'Absent').length} ❌
+              </span>
+            </h3>
+            <div class="records-group-content" style="margin-top:12px;">
+              <div class="table-scroll">
+              <table class="att-table">
+                <thead><tr><th>Student</th><th>Status</th></tr></thead>
+                <tbody>
+                  ${recs.map(r => `
+                    <tr>
+                      <td style="font-weight:600;">${escapeHtml(r.name)}${r.roll_no != null ? ` <span class="muted">(#${escapeHtml(r.roll_no)})</span>` : ''}</td>
+                      <td><span class="status-badge ${escapeHtml(r.status)}">${escapeHtml(r.status)}</span></td>
+                    </tr>`).join('')}
+                </tbody>
+              </table>
+              </div>
             </div>
           </div>`).join('')}
+        </div>
       </div>`;
   }).join('');
 }
