@@ -1,10 +1,15 @@
-(function () {
-  const hostname = window.location.hostname
-  const isLocal = hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    /^192\.168\.\d+\.\d+$/.test(hostname) ||
-    /^10\.\d+\.\d+\.\d+$/.test(hostname) ||
-    /^172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+$/.test(hostname)
+/**
+ * API Configuration for The Eye Frontend
+ *
+ * Loaded before auth-utils.js on every page. It sets window.API_BASE.
+ *
+ * API_BASE is ALWAYS an empty string: every API call uses a relative path
+ * (/api/...) so the browser stays same-origin and Nginx proxies /api to the
+ * backend. A previous version pointed non-local hostnames straight at the
+ * backend IP, which broke with CORS whenever the site
+ * was opened by IP address instead of a domain.
+ */
 
-  window.API_BASE = isLocal ? '' : 'http://13.63.55.73'
-})()
+(function () {
+  window.API_BASE = '';
+})();

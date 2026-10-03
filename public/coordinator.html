@@ -1022,7 +1022,7 @@
 
   <script src="./api-config.js"></script>
   <script>
-const API_BASE = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
+const API_BASE = ''; // Always same-origin: Nginx proxies /api (never a backend IP, avoids CORS)
 
 // Theme toggle
 function toggleTheme() {
