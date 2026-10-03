@@ -2390,6 +2390,12 @@
                 <input class="form-input" type="email" id="studentEmail" placeholder="student@example.com">
               </div>
             </div>
+            <div class="form-group" style="max-width:320px;">
+              <label class="form-label" for="studentClass">Class / Section</label>
+              <select class="form-input" id="studentClass" required>
+                <option value="">-- Select a class --</option>
+              </select>
+            </div>
             <div style="display:flex; gap:8px; margin-top:4px;">
               <button class="btn btn-primary" onclick="saveStudent()"
                 style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
@@ -5010,6 +5016,14 @@
       const btn = document.getElementById('addStudentToggleBtn');
 
       if (addStudentOpen) {
+        const classSelect = document.getElementById('studentClass');
+        classSelect.innerHTML = '<option value="">-- Select a class --</option>';
+        (window.appData.classes || []).forEach(cls => {
+          const option = document.createElement('option');
+          option.value = cls.id;
+          option.textContent = classDisplayName(cls);
+          classSelect.appendChild(option);
+        });
         form.classList.add('open');
         btn.innerHTML = '<i class="fas fa-times"></i> Cancel';
         document.getElementById('studentName').focus();
@@ -5020,6 +5034,7 @@
         document.getElementById('studentRoll').value = '';
         document.getElementById('studentPhone').value = '';
         document.getElementById('studentEmail').value = '';
+        document.getElementById('studentClass').value = '';
       }
     }
 
@@ -5028,6 +5043,7 @@
       const rollNo = document.getElementById('studentRoll').value.trim();
       const phone = document.getElementById('studentPhone').value.trim();
       const email = document.getElementById('studentEmail').value.trim();
+      const classId = document.getElementById('studentClass').value;
       const btn = document.querySelector('#addStudentForm .btn-primary, button[onclick="saveStudent()"]');
 
       if (!name) {
@@ -5036,6 +5052,11 @@
       }
       if (!rollNo) {
         showToast('⚠️ Please enter roll number', 'warning');
+        return;
+      }
+      if (!classId) {
+        showToast('⚠️ Please select a class and section', 'warning');
+        document.getElementById('studentClass').focus();
         return;
       }
       if (phone && !/^[0-9]{11}$/.test(phone)) {
@@ -5057,7 +5078,7 @@
         name,
         roll_no: rollNo,
         phone: phone || null,
-        class_id: null,
+        class_id: Number(classId),
         email: email || null
       };
       if (window.appData.selectedBranchId) studentBody.branch_id = window.appData.selectedBranchId;
@@ -7638,7 +7659,7 @@
       const select = document.getElementById('bulkStudentClass');
       select.innerHTML = '<option value="">-- Select a class --</option>';
       (window.appData.classes || []).forEach(function(c) {
-        select.innerHTML += '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>';
+        select.innerHTML += '<option value="' + c.id + '">' + escapeHtml(classDisplayName(c)) + '</option>';
       });
       bulkNamesClear('student');
       const input = document.getElementById('bulkStudentNamesInput');

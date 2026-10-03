@@ -1439,13 +1439,13 @@ app.post('/api/auth/create-teacher', requireAuth(['admin']), async (req, res) =>
     const branchId = branchPick.branch ? branchPick.branch.id : null
 
     // A class in another branch cannot take this teacher, so the two must agree.
-    if (class_id && branchId) {
-      const classBranch = await pool.query(
+    if (class_id) {
+      const selectedClass = await pool.query(
         'SELECT branch_id FROM classes WHERE id = $1 AND tenant_id = $2',
         [class_id, tenant_id]
       )
-      if (classBranch.rows.length === 0) return res.status(400).json({ error: 'Class not found' })
-      if (classBranch.rows[0].branch_id && classBranch.rows[0].branch_id !== branchId) {
+      if (selectedClass.rows.length === 0) return res.status(400).json({ error: 'Class not found' })
+      if (branchId && selectedClass.rows[0].branch_id && selectedClass.rows[0].branch_id !== branchId) {
         return res.status(400).json({ error: 'That class belongs to a different branch.' })
       }
     }
@@ -3113,10 +3113,10 @@ app.get('/api/teachers', requireAuth(['admin', 'teacher', 'student', 'super_admi
   const params = [tenant_id]
   // Students only need display details for their own class teacher.
   const columns = req.user.role === 'student'
-    ? `teachers.id, teachers.name, teachers.phone, teachers.class_id, classes.name as class_name`
+      ? `teachers.id, teachers.name, teachers.phone, teachers.class_id, classes.name as class_name, classes.section as class_section`
     : `teachers.id, teachers.name, teachers.phone, teachers.class_id, teachers.login_id,
            teachers.role, teachers.tenant_id, teachers.is_first_login, teachers.email,
-           teachers.email_verified_at, teachers.created_at, teachers.is_frozen, classes.name as class_name,
+        teachers.email_verified_at, teachers.created_at, teachers.is_frozen, classes.name as class_name, classes.section as class_section,
            teachers.branch_id, branches.name as branch_name`
 
   let query = `
@@ -3546,7 +3546,7 @@ app.get('/api/attendance/me', requireAuth(['student']), async (req, res) => {
            attendance.status,
            attendance.teacher_id,
            to_char(attendance.created_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at,
-           students.name, students.phone, students.roll_no, students.class_id, classes.name as class_name
+           students.name, students.phone, students.roll_no, students.class_id, classes.name as class_name, classes.section as class_section
     FROM attendance
     JOIN students ON attendance.student_id = students.id
     LEFT JOIN classes ON students.class_id = classes.id
@@ -3792,7 +3792,7 @@ app.get('/api/homework', requireAuth(['admin', 'teacher', 'student', 'super_admi
   let result
   if (class_id && effectiveBranchId) {
     result = await pool.query(`
-      SELECT homework.*, classes.name as class_name, teachers.name as teacher_name
+      SELECT homework.*, classes.name as class_name, classes.section as class_section, teachers.name as teacher_name
       FROM homework
       LEFT JOIN classes ON homework.class_id = classes.id
       LEFT JOIN teachers ON homework.teacher_id = teachers.id
@@ -3801,7 +3801,7 @@ app.get('/api/homework', requireAuth(['admin', 'teacher', 'student', 'super_admi
     `, [class_id, tenant_id, effectiveBranchId])
   } else if (class_id) {
     result = await pool.query(`
-      SELECT homework.*, classes.name as class_name, teachers.name as teacher_name
+      SELECT homework.*, classes.name as class_name, classes.section as class_section, teachers.name as teacher_name
       FROM homework
       LEFT JOIN classes ON homework.class_id = classes.id
       LEFT JOIN teachers ON homework.teacher_id = teachers.id
@@ -3810,7 +3810,7 @@ app.get('/api/homework', requireAuth(['admin', 'teacher', 'student', 'super_admi
     `, [class_id, tenant_id])
   } else if (effectiveBranchId) {
     result = await pool.query(`
-      SELECT homework.*, classes.name as class_name, teachers.name as teacher_name
+      SELECT homework.*, classes.name as class_name, classes.section as class_section, teachers.name as teacher_name
       FROM homework
       LEFT JOIN classes ON homework.class_id = classes.id
       LEFT JOIN teachers ON homework.teacher_id = teachers.id
@@ -3819,7 +3819,7 @@ app.get('/api/homework', requireAuth(['admin', 'teacher', 'student', 'super_admi
     `, [tenant_id, effectiveBranchId])
   } else {
     result = await pool.query(`
-      SELECT homework.*, classes.name as class_name, teachers.name as teacher_name
+      SELECT homework.*, classes.name as class_name, classes.section as class_section, teachers.name as teacher_name
       FROM homework
       LEFT JOIN classes ON homework.class_id = classes.id
       LEFT JOIN teachers ON homework.teacher_id = teachers.id
@@ -3863,7 +3863,7 @@ app.get('/api/announcements', requireAuth(['admin', 'teacher', 'student', 'coord
   let result
   if (class_id && effectiveBranchId) {
     result = await pool.query(`
-      SELECT announcements.*, classes.name as class_name, teachers.name as teacher_name
+      SELECT announcements.*, classes.name as class_name, classes.section as class_section, teachers.name as teacher_name
       FROM announcements
       LEFT JOIN classes ON announcements.class_id = classes.id
       LEFT JOIN teachers ON announcements.teacher_id = teachers.id
@@ -3872,7 +3872,7 @@ app.get('/api/announcements', requireAuth(['admin', 'teacher', 'student', 'coord
     `, [class_id, tenant_id, effectiveBranchId])
   } else if (class_id) {
     result = await pool.query(`
-      SELECT announcements.*, classes.name as class_name, teachers.name as teacher_name
+      SELECT announcements.*, classes.name as class_name, classes.section as class_section, teachers.name as teacher_name
       FROM announcements
       LEFT JOIN classes ON announcements.class_id = classes.id
       LEFT JOIN teachers ON announcements.teacher_id = teachers.id
@@ -3881,7 +3881,7 @@ app.get('/api/announcements', requireAuth(['admin', 'teacher', 'student', 'coord
     `, [class_id, tenant_id])
   } else if (effectiveBranchId) {
     result = await pool.query(`
-      SELECT announcements.*, classes.name as class_name, teachers.name as teacher_name
+      SELECT announcements.*, classes.name as class_name, classes.section as class_section, teachers.name as teacher_name
       FROM announcements
       LEFT JOIN classes ON announcements.class_id = classes.id
       LEFT JOIN teachers ON announcements.teacher_id = teachers.id
@@ -3890,7 +3890,7 @@ app.get('/api/announcements', requireAuth(['admin', 'teacher', 'student', 'coord
     `, [tenant_id, effectiveBranchId])
   } else {
     result = await pool.query(`
-      SELECT announcements.*, classes.name as class_name, teachers.name as teacher_name
+      SELECT announcements.*, classes.name as class_name, classes.section as class_section, teachers.name as teacher_name
       FROM announcements
       LEFT JOIN classes ON announcements.class_id = classes.id
       LEFT JOIN teachers ON announcements.teacher_id = teachers.id
