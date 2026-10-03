@@ -112,6 +112,8 @@
       padding-bottom: 12px;
       flex-wrap: wrap;
     }
+    .subnav-menu { display: flex; gap: 8px; flex-wrap: wrap; }
+    .subnav-toggle { display: none; }
     .subnav button {
       border: 1px solid var(--border);
       background: var(--card);
@@ -385,7 +387,41 @@
        an explicit scroll container it spreads past the screen on small widths. */
     .table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     @media (max-width: 640px) {
-      main { padding: 16px; }
+      main { padding: 16px 12px; }
+      .topbar { padding: 10px 12px; gap: 8px; }
+      .topbar .who { order: 2; margin-left: auto; }
+      .topbar > .btn { display: none; }
+      .topbar .theme-btn { order: 3; }
+      .subnav {
+        display: block;
+        position: sticky;
+        top: 0;
+        z-index: 25;
+        padding: 8px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--bg);
+      }
+      .subnav-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        min-height: 44px;
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--card);
+        color: var(--text);
+        font: inherit;
+        font-size: 0.9rem;
+        font-weight: 700;
+      }
+      .subnav-toggle i { color: var(--text-muted); transition: transform .2s ease; }
+      .subnav.open .subnav-toggle i { transform: rotate(180deg); }
+      .subnav-menu { display: none; flex-direction: column; gap: 4px; padding-top: 6px; }
+      .subnav.open .subnav-menu { display: flex; }
+      .subnav-menu button { width: 100%; justify-content: flex-start; border-radius: 8px; }
       .att-table th, .att-table td { padding: 9px 10px; }
       .att-table { min-width: 100%; }
       /* Roster order: 1=#, 2=Student Name, 3=Roll No., 4=Phone, 5=Status.
@@ -677,10 +713,15 @@ async function load() {
       <div class="branch-name">Whole school</div>
       <span class="pill active">School-wide</span>
     </div>`}
-    <div class="subnav">
-      <button id="navMark" class="active" onclick="switchSubTab('mark')"><i class="fas fa-clipboard-check"></i> Take attendance</button>
-      <button id="navRecords" onclick="switchSubTab('records')"><i class="fas fa-clock-rotate-left"></i> Saved records</button>
-      <button id="navAnnouncements" onclick="switchSubTab('announcements')"><i class="fas fa-bullhorn"></i> Announcements</button>
+    <div class="subnav" id="coordinatorSubnav">
+      <button class="subnav-toggle" id="subnavToggle" type="button" aria-expanded="false" aria-controls="subnavMenu" onclick="toggleCoordinatorNav()">
+        <span id="subnavCurrentLabel">Take attendance</span><i class="fas fa-chevron-down"></i>
+      </button>
+      <div class="subnav-menu" id="subnavMenu">
+        <button id="navMark" class="active" onclick="switchSubTab('mark')"><i class="fas fa-clipboard-check"></i> Take attendance</button>
+        <button id="navRecords" onclick="switchSubTab('records')"><i class="fas fa-clock-rotate-left"></i> Saved records</button>
+        <button id="navAnnouncements" onclick="switchSubTab('announcements')"><i class="fas fa-bullhorn"></i> Announcements</button>
+      </div>
     </div>
     <div id="subMark">${noClassesNote}
       <div class="panel" style="margin-bottom:18px;">
