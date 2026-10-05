@@ -2347,13 +2347,13 @@
                 <input class="form-input" type="text" id="studentName" placeholder="e.g. Ali Hassan">
               </div>
               <div class="form-group">
-                <label class="form-label" for="studentRoll">Roll Number</label>
+                <label class="form-label" for="studentRoll">Roll Number <span style="font-weight:400;color:var(--text-muted);">(optional)</span></label>
                 <input class="form-input" type="text" id="studentRoll" placeholder="e.g. CS-109">
               </div>
-              <div class="form-group">
-                <label class="form-label" for="studentPhone">Contact</label>
+              <div class="form-group" id="studentPhoneGroup">
+                <label class="form-label" for="studentPhone">Contact <span style="font-weight:400;color:var(--text-muted);" id="studentPhoneLabel">(optional)</span></label>
                 <input class="form-input" type="tel" id="studentPhone" placeholder="03001234567" pattern="[0-9]{11}"
-                  title="11 digits (e.g., 03001234567)" required>
+                  title="11 digits (e.g., 03001234567)">
               </div>
               <div class="form-group">
                 <label class="form-label" for="studentEmail">Recovery email <span style="font-weight:400;">(optional)</span></label>
@@ -2961,13 +2961,13 @@
         <input class="form-input" type="text" id="editStudentName" placeholder="e.g. Ali Hassan">
       </div>
       <div class="form-group">
-        <label class="form-label" for="editStudentRoll">Roll Number</label>
+        <label class="form-label" for="editStudentRoll">Roll Number <span style="font-weight:400;color:var(--text-muted);">(optional)</span></label>
         <input class="form-input" type="text" id="editStudentRoll" placeholder="e.g. CS-109">
       </div>
-      <div class="form-group">
-        <label class="form-label" for="editStudentPhone">Contact</label>
+      <div class="form-group" id="editStudentPhoneGroup">
+        <label class="form-label" for="editStudentPhone">Contact <span style="font-weight:400;color:var(--text-muted);" id="editStudentPhoneLabel">(optional)</span></label>
         <input class="form-input" type="tel" id="editStudentPhone" placeholder="03001234567" pattern="[0-9]{11}"
-          title="11 digits (e.g., 03001234567)" required>
+          title="11 digits (e.g., 03001234567)">
       </div>
       <div class="form-group">
         <label class="form-label" for="editStudentEmail">Recovery email</label>
@@ -4995,13 +4995,15 @@
         showToast('⚠️ Please enter student name', 'warning');
         return;
       }
-      if (!rollNo) {
-        showToast('⚠️ Please enter roll number', 'warning');
-        return;
-      }
       if (!classId) {
         showToast('⚠️ Please select a class and section', 'warning');
         document.getElementById('studentClass').focus();
+        return;
+      }
+      // Phone is required only if WhatsApp feature is enabled
+      if (_featureState && _featureState['whatsapp'] === true && !phone) {
+        showToast('⚠️ Phone number is required for WhatsApp notifications', 'warning');
+        document.getElementById('studentPhone').focus();
         return;
       }
       if (phone && !/^[0-9]{11}$/.test(phone)) {
@@ -6645,8 +6647,10 @@
         showToast('⚠️ Please enter student name', 'warning');
         return;
       }
-      if (!rollNo) {
-        showToast('⚠️ Please enter roll number', 'warning');
+      // Phone is required only if WhatsApp feature is enabled
+      if (_featureState && _featureState['whatsapp'] === true && !phone) {
+        showToast('⚠️ Phone number is required for WhatsApp notifications', 'warning');
+        document.getElementById('editStudentPhone').focus();
         return;
       }
       if (phone && !/^[0-9]{11}$/.test(phone)) {
@@ -7084,6 +7088,26 @@
           section.style.display = 'none';
         }
       });
+
+      // Update phone field status based on WhatsApp feature
+      updatePhoneFieldStatus();
+    }
+
+    // Update phone field labels and placeholders based on WhatsApp feature
+    function updatePhoneFieldStatus() {
+      const whatsappEnabled = _featureState && _featureState['whatsapp'] === true;
+
+      // Add Student form
+      const studentPhoneLabel = document.getElementById('studentPhoneLabel');
+      if (studentPhoneLabel) {
+        studentPhoneLabel.textContent = whatsappEnabled ? '(required for WhatsApp)' : '(optional)';
+      }
+
+      // Edit Student modal
+      const editStudentPhoneLabel = document.getElementById('editStudentPhoneLabel');
+      if (editStudentPhoneLabel) {
+        editStudentPhoneLabel.textContent = whatsappEnabled ? '(required for WhatsApp)' : '(optional)';
+      }
     }
 
     function firstPermittedSection() {

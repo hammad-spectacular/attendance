@@ -1,0 +1,20 @@
+◇ injected env (8) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+Connection string exists: true
+Pool created: object
+Pool query: function
+◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+JWT_SECRET loaded: YES
+Tables ready
+Server running on port 3000
+DEBUG /api/auth/me - decoded role: super_admin user_id: 5
+DEBUG /api/auth/me - decoded role: super_admin user_id: 5
+DEBUG /api/auth/me - decoded role: super_admin user_id: 5
+DEBUG /api/auth/me - decoded role: super_admin user_id: 5
+DEBUG /api/auth/me - decoded role: super_admin user_id: 5
+DEBUG /api/auth/me - decoded role: super_admin user_id: 5
+DEBUG /api/auth/me - decoded role: super_admin user_id: 5
+DEBUG /api/auth/me - decoded role: super_admin user_id: 5
+DEBUG /api/auth/me - decoded role: super_admin user_id: 5
+DEBUG /api/auth/me - decoded role: admin user_id: 9
+DEBUG /api/auth/me - decoded role: admin user_id: 9
+DEBUG /api/auth/me - decoded role: super_admin user_id: 5

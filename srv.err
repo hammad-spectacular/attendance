@@ -1,0 +1,85 @@
+SMTP not configured — email recovery is unavailable until SMTP is configured
+(node:38496) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+requireAuth generation check DB error: password authentication failed for user 'neondb_owner'
+Admin bootstrap error: error: password authentication failed for user 'neondb_owner'
+    at C:\Users\Hammad\Desktop\the eyeg\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async BoundPool.resilientQuery [as query] (C:\Users\Hammad\Desktop\the eyeg\db.js:65:14)
+    at async Promise.all (index 1)
+    at async C:\Users\Hammad\Desktop\the eyeg\serverg.js:2379:60 {
+  length: 75,
+  severity: 'ERROR',
+  code: '28P01',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: undefined,
+  line: undefined,
+  routine: undefined
+}
+requireAuth generation check DB error: password authentication failed for user 'neondb_owner'
+Portal feature lookup failed: password authentication failed for user 'neondb_owner'
+Fetch coordinators error: error: password authentication failed for user 'neondb_owner'
+    at C:\Users\Hammad\Desktop\the eyeg\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async BoundPool.resilientQuery [as query] (C:\Users\Hammad\Desktop\the eyeg\db.js:65:14)
+    at async C:\Users\Hammad\Desktop\the eyeg\serverg.js:2530:20 {
+  length: 75,
+  severity: 'ERROR',
+  code: '28P01',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: undefined,
+  line: undefined,
+  routine: undefined
+}
+requireAuth generation check DB error: password authentication failed for user 'neondb_owner'
+Fetch tenant features error: error: password authentication failed for user 'neondb_owner'
+    at C:\Users\Hammad\Desktop\the eyeg\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async BoundPool.resilientQuery [as query] (C:\Users\Hammad\Desktop\the eyeg\db.js:65:14)
+    at async Promise.all (index 1)
+    at async C:\Users\Hammad\Desktop\the eyeg\serverg.js:2207:41 {
+  length: 75,
+  severity: 'ERROR',
+  code: '28P01',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: undefined,
+  line: undefined,
+  routine: undefined
+}
