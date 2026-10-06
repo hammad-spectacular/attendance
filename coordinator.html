@@ -179,17 +179,79 @@
     }
 
     .header-menu-toggle {
-      display: none;
-    }
-
-    .header-menu-panel {
       display: flex;
       align-items: center;
-      gap: 10px;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-size: 0.95rem;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+      flex-shrink: 0;
     }
 
-    .header-menu-label {
+    .header-menu-toggle:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.5);
+      transform: scale(1.06);
+    }
+
+    /* Desktop/laptop shows the three-dot "more options" icon. Mobile (below)
+       swaps back to the hamburger. Only the icon differs per breakpoint. */
+    .header-icon-mobile { display: none; }
+
+    .header-menu-panel {
       display: none;
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      z-index: 100;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.3rem;
+      min-width: 200px;
+      padding: 0.5rem;
+      border-radius: 14px;
+      background: var(--bg-card);
+      border: 2px solid var(--border);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .header-menu-wrap.open .header-menu-panel {
+      display: flex;
+    }
+
+    .header-menu-panel .header-menu-label {
+      display: inline;
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+
+    .header-menu-panel > button {
+      width: 100% !important;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 0.5rem;
+      padding: 0 0.9rem !important;
+      border: none !important;
+      border-radius: 10px !important;
+      background: transparent !important;
+      color: var(--text) !important;
+      font-size: 0.9rem !important;
+      font-weight: 600;
+      transform: none;
+    }
+
+    .header-menu-panel > button:hover {
+      background: var(--bg-card-hover) !important;
+      color: var(--primary) !important;
+      transform: none;
     }
 
     /* ================================
@@ -231,7 +293,7 @@
       width: max-content;
     }
 
-    .tab-nav button {
+    .tab-nav button:not(.tab-nav-toggle) {
       padding: 0.65rem 1.5rem;
       font-weight: 600;
       font-size: 0.9rem;
@@ -263,7 +325,7 @@
     }
 
     .tab-nav-toggle {
-      display: none !important;
+      display: none;
     }
 
     /* ================================
@@ -273,6 +335,17 @@
       max-width: 960px;
       margin: 0 auto;
       padding: 28px 20px 60px;
+    }
+
+    /* Large screens only: the Take Attendance panel - and with it the roster
+       table - keeps the same contained width as the header and tab row instead
+       of stretching edge-to-edge. Phones keep the full-width layout. */
+    @media (min-width: 641px) {
+      #subMark > .panel {
+        width: calc(100% - 48px);
+        max-width: 960px;
+        margin: 0 auto;
+      }
     }
 
     .branch-card {
@@ -870,6 +943,10 @@
         transform: scale(1.06);
       }
 
+      /* Mobile keeps the hamburger icon; the three-dot icon is desktop-only. */
+      .header-icon-desktop { display: none; }
+      .header-icon-mobile { display: inline-block; }
+
       .header-menu-panel {
         display: none;
         position: absolute;
@@ -955,8 +1032,9 @@
       </div>
       <div class="header-right">
         <div id="headerMenuWrap" class="header-menu-wrap">
-          <button id="headerMenuToggle" class="header-menu-toggle" aria-expanded="false" aria-controls="headerMenuPanel" aria-label="Open menu" title="Menu">
-            <i class="fas fa-bars"></i>
+          <button id="headerMenuToggle" class="header-menu-toggle" aria-expanded="false" aria-controls="headerMenuPanel" aria-label="Open menu" title="Menu" onclick="toggleHeaderMenu()">
+            <i class="fas fa-ellipsis-vertical header-icon-desktop"></i>
+            <i class="fas fa-bars header-icon-mobile"></i>
           </button>
           <div id="headerMenuPanel" class="header-menu-panel">
             <button onclick="openPasswordModal(); closeHeaderMenu();" style="padding:8px 14px;font-size:0.75rem;background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.25);color:white;border-radius:10px;font-weight:600;cursor:pointer;transition:all 0.3s ease;font-family:'Inter',sans-serif;"><i class="fas fa-key"></i> <span class="header-menu-label">Change Password</span></button>
@@ -1052,44 +1130,33 @@ function toggleTheme() {
 })();
 
 // Header menu toggle (hamburger on mobile)
-function setHeaderMenuOpen(open) {
-  const wrap = document.getElementById('headerMenuWrap');
-  const toggle = document.getElementById('headerMenuToggle');
-  if (wrap) wrap.classList.toggle('open', open);
-  if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-}
-
 function toggleHeaderMenu() {
   const wrap = document.getElementById('headerMenuWrap');
-  if (wrap) setHeaderMenuOpen(!wrap.classList.contains('open'));
+  const toggle = document.getElementById('headerMenuToggle');
+  if (!wrap || !toggle) return;
+  const isOpen = wrap.classList.toggle('open');
+  toggle.setAttribute('aria-expanded', isOpen);
 }
 
 function closeHeaderMenu() {
-  setHeaderMenuOpen(false);
-}
-
-function setupHeaderMenu() {
+  const wrap = document.getElementById('headerMenuWrap');
   const toggle = document.getElementById('headerMenuToggle');
-  if (toggle) {
-    toggle.addEventListener('click', event => {
-      event.preventDefault();
-      event.stopPropagation();
-      const wrap = document.getElementById('headerMenuWrap');
-      setHeaderMenuOpen(wrap ? !wrap.classList.contains('open') : false);
-    });
-  }
-
-  document.addEventListener('click', event => {
-    const wrap = document.getElementById('headerMenuWrap');
-    if (wrap && wrap.classList.contains('open') && !wrap.contains(event.target)) {
-      setHeaderMenuOpen(false);
-    }
-  });
-
-  document.addEventListener('keydown', event => {
-    if (event.key === 'Escape') setHeaderMenuOpen(false);
-  });
+  if (!wrap || !toggle) return;
+  wrap.classList.remove('open');
+  toggle.setAttribute('aria-expanded', 'false');
 }
+
+// Close header menu when clicking outside or pressing Escape
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('headerMenuWrap');
+  if (wrap && wrap.classList.contains('open') && !wrap.contains(e.target)) {
+    closeHeaderMenu();
+  }
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeHeaderMenu();
+});
 
 // Mobile tab navigation toggle
 function setupMobileNavToggle() {
@@ -1109,6 +1176,11 @@ function setupMobileNavToggle() {
       tabNav.classList.remove('open');
       if (mobileToggle) mobileToggle.setAttribute('aria-expanded', 'false');
     }
+  });
+
+  // Close on Escape, like every other hamburger menu in the app
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeMobileNav();
   });
 }
 
@@ -1388,8 +1460,7 @@ async function load() {
     </div>
   `;
 
-  // Setup mobile nav toggle and header menu after DOM is ready
-  setupHeaderMenu();
+  // Setup mobile nav toggle after DOM is ready
   setupMobileNavToggle();
   closeMobileNav();
 
@@ -1529,6 +1600,10 @@ async function loadMarkRoster() {
       <i class="fas fa-book" style="color:var(--primary);"></i>${classDisplay}
       ${hasExistingAttendance ? '<span style="margin-left:auto; font-size:0.75rem; padding:4px 10px; background:var(--success-bg); color:var(--success); border-radius:6px; font-weight:600;"><i class="fas fa-check-circle"></i> Already taken</span>' : '<span style="margin-left:auto; font-size:0.75rem; padding:4px 10px; background:var(--warning-bg); color:var(--warning); border-radius:6px; font-weight:600;"><i class="fas fa-edit"></i> Not taken yet</span>'}
     </div>
+    <div style="margin-bottom:10px; position:relative;">
+      <i class="fas fa-search" style="position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:0.8rem; pointer-events:none;"></i>
+      <input type="text" id="markSearchInput" placeholder="Search student by name&hellip;" autocomplete="off" oninput="filterMarkRoster(this.value)" style="width:100%; box-sizing:border-box; padding:9px 12px 9px 36px; border:2px solid var(--border); border-radius:10px; background:var(--bg-card); color:var(--text); font-family:'Inter',sans-serif; font-size:0.85rem; outline:none;">
+    </div>
     <div class="table-scroll">
     <table class="att-table">
       <thead>
@@ -1561,6 +1636,10 @@ async function loadMarkRoster() {
       </tbody>
     </table>
     </div>`;
+  // Restore any active search: the input is re-created with every roster render.
+  const searchInput = document.getElementById('markSearchInput');
+  if (searchInput) searchInput.value = markSearchQuery;
+  filterMarkRoster(markSearchQuery);
   summaryEl.style.display = 'flex';
   savebar.style.display = 'flex';
   updateMarkSummary();
@@ -1594,6 +1673,17 @@ function updateMarkSummary() {
     dirtyNote.style.display = JSON.stringify(attendanceState) !== baselineState ? 'block' : 'none';
   }
   if (savebar) savebar.style.display = 'flex';
+}
+
+// Live roster search: hides rows client-side while typing. Nothing is
+// re-fetched from the server and saved marks are untouched.
+let markSearchQuery = '';
+function filterMarkRoster(query) {
+  markSearchQuery = query || '';
+  const q = markSearchQuery.trim().toLowerCase();
+  document.querySelectorAll('#markTableWrap tbody tr[data-student]').forEach(row => {
+    row.style.display = !q || row.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
 }
 
 async function submitAttendance() {
