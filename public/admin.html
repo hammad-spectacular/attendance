@@ -7147,24 +7147,25 @@
       // whose management feature has been blocked (e.g. teacher management switched off
       // by the Super Admin) shows no count and no label - nobody should be reminded of
       // a tool they are not allowed to use.
-      const students = Number(data.student_limit) > 0 && data.student_count !== undefined && data.student_count !== null
-        ? `${Number(data.student_count)} / ${Number(data.student_limit)}`
-        : '';
-      const teachers = Number(data.teacher_limit) > 0 && data.teacher_count !== undefined && data.teacher_count !== null
-        ? `${Number(data.teacher_count)} / ${Number(data.teacher_limit)}`
-        : '';
-      const sEl = document.getElementById('capStudents');
-      const tEl = document.getElementById('capTeachers');
-      if (students && sEl) sEl.textContent = students;
-      if (teachers && tEl) tEl.textContent = teachers;
-      const sWrap = sEl ? sEl.parentElement : null;
-      const tWrap = tEl ? tEl.parentElement : null;
-      
-      const sBlocked = !isSectionPermitted('tab-students');
-      const tBlocked = !isSectionPermitted('tab-teachers');
+      apiFetch('/api/auth/capacity').then(r => r.json().catch(() => ({}))).then(data => {
+        const students = Number(data.student_limit) > 0 && data.student_count !== undefined && data.student_count !== null
+          ? `${Number(data.student_count)} / ${Number(data.student_limit)}`
+          : '';
+        const teachers = Number(data.teacher_limit) > 0 && data.teacher_count !== undefined && data.teacher_count !== null
+          ? `${Number(data.teacher_count)} / ${Number(data.teacher_limit)}`
+          : '';
+        const sEl = document.getElementById('capStudents');
+        const tEl = document.getElementById('capTeachers');
+        if (students && sEl) sEl.textContent = students;
+        if (teachers && tEl) tEl.textContent = teachers;
+        const sWrap = sEl ? sEl.parentElement : null;
+        const tWrap = tEl ? tEl.parentElement : null;
+        
+        const sBlocked = !isSectionPermitted('tab-students');
+        const tBlocked = !isSectionPermitted('tab-teachers');
 
-      if (sWrap) sWrap.style.display = sBlocked ? 'none' : 'flex';
-      if (tWrap) tWrap.style.display = tBlocked ? 'none' : 'flex';
+        if (sWrap) sWrap.style.display = sBlocked ? 'none' : 'flex';
+        if (tWrap) tWrap.style.display = tBlocked ? 'none' : 'flex';
         if ((!sBlocked && students) || (!tBlocked && teachers)) strip.style.display = 'flex';
         else strip.style.display = 'none';
       }).catch(() => {});
