@@ -96,7 +96,7 @@
       position: sticky;
       top: 0;
       z-index: 30;
-      overflow: hidden;
+      overflow: visible;
       box-shadow: 0 4px 20px rgba(79, 70, 229, 0.3);
     }
 
@@ -209,7 +209,7 @@
       position: absolute;
       top: calc(100% + 10px);
       right: 0;
-      z-index: 100;
+      z-index: 1000;
       flex-direction: column;
       align-items: stretch;
       gap: 0.3rem;
@@ -337,14 +337,16 @@
       padding: 28px 20px 60px;
     }
 
-    /* Large screens only: the Take Attendance panel - and with it the roster
-       table - keeps the same contained width as the header and tab row instead
-       of stretching edge-to-edge. Phones keep the full-width layout. */
+    /* Large screens only: the "Your scope" banner and the attendance/table card
+       share one contained width (same as the header and tab row) so they line up
+       exactly on wide viewports instead of one stretching edge-to-edge. Phones
+       keep the full-width layout. */
     @media (min-width: 641px) {
+      .branch-card,
       #subMark > .panel {
         width: calc(100% - 48px);
         max-width: 960px;
-        margin: 0 auto;
+        margin: 0 auto 18px;
       }
     }
 
@@ -352,25 +354,25 @@
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: 16px;
-      padding: 20px 22px;
-      margin-bottom: 24px;
+      padding: 18px 20px;
+      margin-bottom: 18px;
       box-shadow: var(--shadow);
       transition: background 0.3s ease, border-color 0.3s ease;
     }
 
     .branch-card h2 {
       margin: 0 0 4px;
-      font-size: 1.05rem;
+      font-size: 0.95rem;
       color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
 
     .branch-name {
-      font-size: 1.6rem;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      margin: 6px 0 2px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: normal;
+      margin: 2px 0 6px;
       color: var(--text);
     }
 
@@ -952,7 +954,7 @@
         position: absolute;
         top: calc(100% + 10px);
         right: 0;
-        z-index: 100;
+        z-index: 1000;
         flex-direction: column;
         align-items: stretch;
         gap: 0.3rem;
@@ -1689,11 +1691,28 @@ function filterMarkRoster(query) {
 async function submitAttendance() {
   const btn = document.getElementById('saveAttBtn');
   if (!selectedClassId || !selectedDate) return;
+
+  // Auto-mark unmarked students as Present
+  const unmarkedEntries = Object.entries(attendanceState).filter(([, status]) => status === null || status === undefined);
+  if (unmarkedEntries.length > 0) {
+    unmarkedEntries.forEach(([studentId]) => {
+      attendanceState[studentId] = 'Present';
+      // Update the row UI to reflect the auto-mark
+      const row = document.querySelector(`tr[data-student="${studentId}"]`);
+      if (row) {
+        row.querySelector('.st-present').classList.add('active');
+        row.querySelector('.st-absent').classList.remove('active');
+        row.querySelector('.st-leave').classList.remove('active');
+      }
+    });
+    updateMarkSummary();
+  }
+
   const records = Object.entries(attendanceState)
     .filter(([, status]) => status === 'Present' || status === 'Absent' || status === 'Leave')
     .map(([studentId, status]) => ({ student_id: Number(studentId), status }));
   if (records.length === 0) {
-    alert('Mark at least one student as Present, Absent, or Leave before saving.');
+    alert('No students to save attendance for.');
     return;
   }
 
@@ -1714,12 +1733,27 @@ async function submitAttendance() {
     }
     // Reload so the summary reflects exactly what the server stored.
     await loadMarkRoster();
-    // Update button to show saved
+    // Update button to show saved state
     if (btn) {
-      btn.innerHTML = '<i class="fas fa-check-circle"></i> Saved!';
+      btn.innerHTML = '<i class="fas fa-check-circle"></i> Attendance Saved';
+      btn.style.background = 'var(--success, #059669)';
+      btn.style.borderColor = 'var(--success, #059669)';
+      if (unmarkedEntries.length > 0) {
+        // Brief notification about auto-marked students
+        const noteEl = document.getElementById('dirtyNote');
+        if (noteEl) {
+          noteEl.innerHTML = `<i class="fas fa-info-circle"></i> ${unmarkedEntries.length} unmarked student${unmarkedEntries.length !== 1 ? 's' : ''} auto-marked as Present`;
+          noteEl.style.display = 'block';
+          noteEl.style.color = 'var(--success, #059669)';
+        }
+      }
       setTimeout(() => {
-        if (btn) btn.innerHTML = '<i class="fas fa-floppy-disk"></i> Update attendance';
-      }, 2000);
+        if (btn) {
+          btn.innerHTML = '<i class="fas fa-floppy-disk"></i> Update attendance';
+          btn.style.background = '';
+          btn.style.borderColor = '';
+        }
+      }, 3000);
     }
   } finally {
     btn.disabled = false;

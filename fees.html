@@ -1875,6 +1875,22 @@
           toggleBtn.setAttribute('aria-expanded', 'false');
         });
       });
+
+      // Close the menu when tapping outside it or pressing Escape, the same
+      // behaviour every other hamburger menu in the app already has.
+      document.addEventListener('click', function(e) {
+        if (tabNav.classList.contains('open') && !tabNav.contains(e.target)) {
+          tabNav.classList.remove('open');
+          toggleBtn.setAttribute('aria-expanded', 'false');
+        }
+      });
+
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          tabNav.classList.remove('open');
+          toggleBtn.setAttribute('aria-expanded', 'false');
+        }
+      });
       
       // Set initial label
       const activeTab = document.querySelector('#feeTabNavInner .tab-btn.active');

@@ -981,7 +981,7 @@
             <i class="fas fa-ellipsis-vertical"></i>
           </button>
           <div id="headerMenuPanel" class="header-menu-panel">
-            <button class="theme-toggle" onclick="openChangePasswordModal()" title="Change Password" aria-label="Change Password" style="position:static;">
+            <button class="theme-toggle" onclick="openChangePasswordModal(); closeHeaderMenu();" title="Change Password" aria-label="Change Password" style="position:static;">
               <i class="fas fa-key"></i>
               <span class="header-menu-label">Change Password</span>
             </button>
@@ -989,7 +989,7 @@
               <i class="fas fa-sign-out-alt"></i>
               <span class="header-menu-label">Logout</span>
             </button>
-            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme" style="position:static;">
+            <button class="theme-toggle" onclick="toggleTheme(); closeHeaderMenu();" title="Toggle theme" aria-label="Toggle theme" style="position:static;">
               <i id="themeIcon" class="fas fa-sun"></i>
               <span class="header-menu-label">Toggle theme</span>
             </button>
@@ -2094,6 +2094,13 @@ function setButtonLoading(btn, loading, loadingHtml) {
       const toggle = document.getElementById('headerMenuToggle');
       if (wrap) wrap.classList.toggle('open', open);
       if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    // Header menu options dismiss the menu after they act, so a tap on
+    // "Change Password" or the theme toggle never leaves the panel floating
+    // over the page - same behaviour as the other portals.
+    function closeHeaderMenu() {
+      setHeaderMenuOpen(false);
     }
 
     function setupHeaderMenu() {

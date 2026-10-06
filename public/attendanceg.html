@@ -62,8 +62,8 @@
       border-left: 4px solid #059669;
     }
 
-    .row-marked-absent {
-      border-left: 4px solid #dc2626;
+    .row-marked-leave {
+      border-left: 4px solid #d97706;
     }
 
     .row-default {
@@ -176,7 +176,7 @@
   <main class="max-w-2xl mx-auto px-4 py-5 sm:py-8 pb-24">
 
     <!-- Summary Cards -->
-    <div class="grid grid-cols-3 gap-3 mb-6" id="summaryCards">
+    <div class="grid grid-cols-4 gap-2 mb-6" id="summaryCards">
       <div class="summary-card bg-white rounded-xl p-3 sm:p-4 text-center border border-gray-100 shadow-sm">
         <div class="text-2xl sm:text-3xl font-800 text-gray-800" id="countTotal">0</div>
         <div class="text-xs text-gray-400 font-600 uppercase tracking-wider mt-1">Total</div>
@@ -184,6 +184,10 @@
       <div class="summary-card bg-emerald-50 rounded-xl p-3 sm:p-4 text-center border border-emerald-100 shadow-sm">
         <div class="text-2xl sm:text-3xl font-800 text-emerald-600" id="countPresent">0</div>
         <div class="text-xs text-emerald-500 font-600 uppercase tracking-wider mt-1">Present</div>
+      </div>
+      <div class="summary-card bg-amber-50 rounded-xl p-3 sm:p-4 text-center border border-amber-100 shadow-sm">
+        <div class="text-2xl sm:text-3xl font-800 text-amber-600" id="countLeave">0</div>
+        <div class="text-xs text-amber-500 font-600 uppercase tracking-wider mt-1">Leave</div>
       </div>
       <div class="summary-card bg-red-50 rounded-xl p-3 sm:p-4 text-center border border-red-100 shadow-sm">
         <div class="text-2xl sm:text-3xl font-800 text-red-500" id="countAbsent">0</div>
@@ -257,8 +261,8 @@
            bg-gradient-to-r from-blue-600 to-indigo-600 text-white
            hover:from-blue-700 hover:to-indigo-700
            active:scale-[0.95] shadow-xl shadow-blue-500/30
-           flex items-center gap-2" aria-label="Submit Attendance">
-    <span>Submit</span>
+           flex items-center gap-2" aria-label="Save Attendance">
+    <span>Save Attendance</span>
     <span class="text-lg">→</span>
   </button>
 
@@ -368,7 +372,7 @@
 
         // Restore each student's status into attendanceState
         todayRecord.students.forEach(record => {
-          if (attendanceState.hasOwnProperty(record.id) && (record.status === 'Present' || record.status === 'Absent')) {
+          if (attendanceState.hasOwnProperty(record.id) && (record.status === 'Present' || record.status === 'Leave' || record.status === 'Absent')) {
             attendanceState[record.id] = record.status;
           }
         });
@@ -445,6 +449,7 @@
           const studentsRecord = dayRecord.students || [];
 
           const presentCount = studentsRecord.filter(r => r.status === 'Present').length;
+          const leaveCount = studentsRecord.filter(r => r.status === 'Leave').length;
           const absentCount = studentsRecord.filter(r => r.status === 'Absent').length;
 
           html += `
@@ -454,8 +459,9 @@
                 <span class="text-xs text-gray-400">${studentsRecord.length} students</span>
               </div>
               <div class="flex items-center justify-between mb-3">
-                <div class="flex gap-3">
+                <div class="flex gap-3 flex-wrap">
                   <span class="text-xs px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-600">✅ Present: ${presentCount}</span>
+                  <span class="text-xs px-2.5 py-1 rounded-lg bg-amber-50 text-amber-600 font-600">📋 Leave: ${leaveCount}</span>
                   <span class="text-xs px-2.5 py-1 rounded-lg bg-red-50 text-red-600 font-600">❌ Absent: ${absentCount}</span>
                 </div>
                 <button onclick="toggleDayDetails('${date}')" class="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-600 rounded-lg transition-colors cursor-pointer flex items-center gap-1">
@@ -466,9 +472,10 @@
 
           studentsRecord.forEach(record => {
             const isPresent = record.status === 'Present';
+            const isLeave = record.status === 'Leave';
             const isAbsent = record.status === 'Absent';
-            const statusBg = isPresent ? 'bg-emerald-50 text-emerald-700' : (isAbsent ? 'bg-red-50 text-red-600' : 'bg-gray-50 text-gray-500');
-            const statusIcon = isPresent ? '✅' : (isAbsent ? '❌' : '➖');
+            const statusBg = isPresent ? 'bg-emerald-50 text-emerald-700' : (isLeave ? 'bg-amber-50 text-amber-700' : (isAbsent ? 'bg-red-50 text-red-600' : 'bg-gray-50 text-gray-500'));
+            const statusIcon = isPresent ? '✅' : (isLeave ? '📋' : (isAbsent ? '❌' : '➖'));
 
             html += `
               <div class="flex items-center justify-between px-3 py-2.5 text-sm bg-white hover:bg-gray-50 transition-colors">
@@ -584,7 +591,7 @@
           <div class="flex gap-2 sm:gap-3 ml-13 sm:ml-0">
             <button
               type="button"
-              class="att-btn flex-1 sm:flex-none px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 border-emerald-200 text-emerald-700 bg-emerald-50 cursor-pointer"
+              class="att-btn flex-1 sm:flex-none px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 border-emerald-200 text-emerald-700 bg-emerald-50 cursor-pointer"
               data-student-id="${student.id}"
               data-action="Present"
               onclick="markAttendance(${student.id}, 'Present')"
@@ -594,7 +601,17 @@
             </button>
             <button
               type="button"
-              class="att-btn flex-1 sm:flex-none px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 border-red-200 text-red-600 bg-red-50 cursor-pointer"
+              class="att-btn flex-1 sm:flex-none px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 border-amber-200 text-amber-700 bg-amber-50 cursor-pointer"
+              data-student-id="${student.id}"
+              data-action="Leave"
+              onclick="markAttendance(${student.id}, 'Leave')"
+              aria-label="Mark ${student.name} as on leave"
+            >
+              Leave 📋
+            </button>
+            <button
+              type="button"
+              class="att-btn flex-1 sm:flex-none px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 border-red-200 text-red-600 bg-red-50 cursor-pointer"
               data-student-id="${student.id}"
               data-action="Absent"
               onclick="markAttendance(${student.id}, 'Absent')"
@@ -650,24 +667,40 @@
       const presentBtn = row.querySelector('[data-action="Present"]');
       const absentBtn = row.querySelector('[data-action="Absent"]');
 
-      // Reset both buttons
-      presentBtn.className = 'att-btn flex-1 sm:flex-none px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 cursor-pointer';
-      absentBtn.className = 'att-btn flex-1 sm:flex-none px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 cursor-pointer';
+      // Reset all three buttons
+      presentBtn.className = 'att-btn flex-1 sm:flex-none px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 cursor-pointer';
+      absentBtn.className = 'att-btn flex-1 sm:flex-none px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 cursor-pointer';
+      const leaveBtn = row.querySelector('[data-action="Leave"]');
+      if (leaveBtn) leaveBtn.className = 'att-btn flex-1 sm:flex-none px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm font-600 border-2 cursor-pointer';
 
       // Reset row border
-      row.classList.remove('row-marked-present', 'row-marked-absent', 'row-default', 'row-unmarked');
+      row.classList.remove('row-marked-present', 'row-marked-leave', 'row-marked-absent', 'row-default', 'row-unmarked');
 
       if (status === 'Present') {
         presentBtn.classList.add('present-active');
         absentBtn.classList.add('border-gray-200', 'text-gray-400', 'bg-gray-50');
+        if (leaveBtn) leaveBtn.classList.add('border-gray-200', 'text-gray-400', 'bg-gray-50');
         row.classList.add('row-marked-present');
+      } else if (status === 'Leave') {
+        if (leaveBtn) {
+          leaveBtn.style.backgroundColor = '#d97706';
+          leaveBtn.style.color = 'white';
+          leaveBtn.style.borderColor = '#d97706';
+          leaveBtn.style.boxShadow = '0 0 0 3px rgba(217, 119, 6, 0.25)';
+          leaveBtn.style.transform = 'scale(1.03)';
+        }
+        presentBtn.classList.add('border-gray-200', 'text-gray-400', 'bg-gray-50');
+        absentBtn.classList.add('border-gray-200', 'text-gray-400', 'bg-gray-50');
+        row.classList.add('row-marked-leave');
       } else if (status === 'Absent') {
         absentBtn.classList.add('absent-active');
         presentBtn.classList.add('border-gray-200', 'text-gray-400', 'bg-gray-50');
+        if (leaveBtn) leaveBtn.classList.add('border-gray-200', 'text-gray-400', 'bg-gray-50');
         row.classList.add('row-marked-absent');
       } else {
         presentBtn.classList.add('border-emerald-200', 'text-emerald-700', 'bg-emerald-50');
         absentBtn.classList.add('border-red-200', 'text-red-600', 'bg-red-50');
+        if (leaveBtn) leaveBtn.classList.add('border-amber-200', 'text-amber-700', 'bg-amber-50');
         row.classList.add('row-default');
       }
     }
@@ -678,11 +711,13 @@
     function updateCounts() {
       const total = students.length;
       const present = Object.values(attendanceState).filter(s => s === 'Present').length;
+      const leave = Object.values(attendanceState).filter(s => s === 'Leave').length;
       const absent = Object.values(attendanceState).filter(s => s === 'Absent').length;
-      const marked = present + absent;
+      const marked = present + leave + absent;
 
       document.getElementById('countTotal').textContent = total;
       document.getElementById('countPresent').textContent = present;
+      document.getElementById('countLeave').textContent = leave;
       document.getElementById('countAbsent').textContent = absent;
       document.getElementById('progressText').textContent = `${marked} / ${total}`;
 
@@ -713,11 +748,16 @@
       // Sync UI state into student object (since UI uses attendanceState)
       students.forEach(s => s.status = attendanceState[s.id]);
 
-      // 1. VALIDATION - No unmarked students
+      // 1. AUTO-MARK — any unmarked student gets marked Present automatically
       const unmarked = students.filter(s => s.status === null);
       if (unmarked.length > 0) {
-        alert(`⚠️ Please mark attendance for ${unmarked.length} student(s)`);
-        return;
+        unmarked.forEach(s => {
+          attendanceState[s.id] = 'Present';
+          s.status = 'Present';
+          updateRowUI(s.id);
+        });
+        updateCounts();
+        showToast(`✅ ${unmarked.length} unmarked student(s) marked as Present`, 'success');
       }
 
       // 2. FIXED DATE FORMAT
@@ -732,14 +772,15 @@
         students: students.map(s => ({ id: s.id, name: s.name, status: s.status }))
       });
 
-      // 4. DETECT ABSENTEES
-      const absentees = students.filter(s => s.status === "Absent" || s.status === null);
+      // 4. DETECT ABSENTEES (Absent + Leave count as not-present)
+      const absentees = students.filter(s => s.status === "Absent" || s.status === "Leave");
 
       console.log(`🔍 ${today} - ABSENTEES DETECTED: ${absentees.length}`);
 
       const totalStudents = students.length;
       const presentCount = students.filter(s => s.status === "Present").length;
-      const absentCount = absentees.length;
+      const leaveCount = students.filter(s => s.status === "Leave").length;
+      const absentCount = students.filter(s => s.status === "Absent").length;
 
       // 5. Send to Express server
       fetch((window.API_BASE || '') + '/submit-attendance', {
@@ -749,6 +790,7 @@
           date: today,
           totalStudents,
           presentCount,
+          leaveCount,
           absentCount,
           absentees: absentees.map(s => ({ ...s, phoneValid: !!s.phone }))
         })
@@ -756,11 +798,11 @@
         .then(response => response.json())
         .then(data => {
           console.log('✅ Server response:', data);
-          alert(`✅ Attendance submitted! Server received ${absentees.length} absentees.`);
+          showToast(`✅ Attendance saved — P:${presentCount} L:${leaveCount} A:${absentCount}`, 'success');
         })
         .catch(error => {
           console.error('❌ Server error:', error);
-          alert('⚠️ Server connection failed - attendance still saved locally');
+          showToast('⚠️ Server connection failed — saved locally', 'warning');
         });
 
       // Update UI panels if applicable
@@ -768,13 +810,20 @@
         renderSavedRecords();
       }
 
-      // 7. Reset for next day (optional)
-      students.forEach(s => {
-        attendanceState[s.id] = null;
-        s.status = null;
-        if (typeof updateRowUI === 'function') updateRowUI(s.id);
-      });
-      if (typeof updateCounts === 'function') updateCounts();
+      // 7. BUTTON FEEDBACK — show saved state, then restore
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span>✅ Attendance Saved</span><span class="text-lg">✓</span>';
+      submitBtn.classList.remove('submit-ready');
+      submitBtn.classList.add('opacity-60', 'cursor-not-allowed');
+
+      setTimeout(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<span>Save Attendance</span><span class="text-lg">→</span>';
+        submitBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+        submitBtn.classList.add('shadow-xl', 'shadow-blue-500/30');
+        if (typeof updateCounts === 'function') updateCounts();
+      }, 3000);
 
       // TODO Phase 4: Replace console.logs → fetch("/send-sms")
     }

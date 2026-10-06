@@ -1536,7 +1536,7 @@
               </button>
                 
 
-              <button onclick="openChangePasswordModal()" class="theme-toggle" aria-label="Change Password" id="changePwdBtn" title="Change Password" style="font-size:14px;">
+              <button onclick="openChangePasswordModal(); closeHeaderMenu()" class="theme-toggle" aria-label="Change Password" id="changePwdBtn" title="Change Password" style="font-size:14px;">
 
                 <i class="fas fa-key"></i>
 
@@ -1552,7 +1552,7 @@
 
               </button>
 
-              <button onclick="toggleTheme()" class="theme-toggle" aria-label="Toggle theme" id="themeToggleBtn">
+              <button onclick="toggleTheme(); closeHeaderMenu()" class="theme-toggle" aria-label="Toggle theme" id="themeToggleBtn">
 
                 <i id="themeIcon" class="fas fa-sun"></i>
 
@@ -3543,18 +3543,23 @@ function setButtonLoading(btn, loading, loadingHtml) {
       // Sync UI state into student object (since UI uses attendanceState)
       students.forEach(s => s.status = attendanceState[s.id]);
 
-      // 1. VALIDATION - Every student must be marked before submit
-      const unmarkedStudents = students.filter(s => s.status === null || s.status === undefined);
-      if (unmarkedStudents.length > 0) {
-        showToast(`⚠️ ${unmarkedStudents.length} student${unmarkedStudents.length !== 1 ? 's' : ''} not yet marked`, 'warning');
-        return;
-      }
+      // 1. AUTO-MARK — any unmarked student gets marked Present automatically
       if (students.length === 0) {
         showToast('⚠️ No students loaded for this class', 'warning');
         return;
       }
+      const unmarkedStudents = students.filter(s => s.status === null || s.status === undefined);
+      if (unmarkedStudents.length > 0) {
+        unmarkedStudents.forEach(s => {
+          attendanceState[s.id] = 'Present';
+          s.status = 'Present';
+          updateRowUI(s.id);
+        });
+        updateCounts();
+        showToast(`✅ ${unmarkedStudents.length} unmarked student${unmarkedStudents.length !== 1 ? 's' : ''} auto-marked as Present`, 'success');
+      }
 
-      // Guard above guarantees every student has a status, so all of them are marked.
+      // All students now have a status
       const markedStudents = students;
 
       // Highlight any unmarked rows subtly
@@ -5259,6 +5264,13 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
       if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
 
+    }
+
+    // Header menu options dismiss the menu after they act, so a tap on
+    // "Change Password" or the theme toggle never leaves the panel floating
+    // over the page - same behaviour as the other portals.
+    function closeHeaderMenu() {
+      setHeaderMenuOpen(false);
     }
 
     function setupHeaderMenu() {

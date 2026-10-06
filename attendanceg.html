@@ -261,8 +261,8 @@
            bg-gradient-to-r from-blue-600 to-indigo-600 text-white
            hover:from-blue-700 hover:to-indigo-700
            active:scale-[0.95] shadow-xl shadow-blue-500/30
-           flex items-center gap-2" aria-label="Submit Attendance">
-    <span>Submit</span>
+           flex items-center gap-2" aria-label="Save Attendance">
+    <span>Save Attendance</span>
     <span class="text-lg">→</span>
   </button>
 
@@ -798,11 +798,11 @@
         .then(response => response.json())
         .then(data => {
           console.log('✅ Server response:', data);
-          alert(`✅ Attendance submitted!\nPresent: ${presentCount}\nLeave: ${leaveCount}\nAbsent: ${absentCount}`);
+          showToast(`✅ Attendance saved — P:${presentCount} L:${leaveCount} A:${absentCount}`, 'success');
         })
         .catch(error => {
           console.error('❌ Server error:', error);
-          alert('⚠️ Server connection failed - attendance still saved locally');
+          showToast('⚠️ Server connection failed — saved locally', 'warning');
         });
 
       // Update UI panels if applicable
@@ -819,7 +819,7 @@
 
       setTimeout(() => {
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<span>Submit</span><span class="text-lg">→</span>';
+        submitBtn.innerHTML = '<span>Save Attendance</span><span class="text-lg">→</span>';
         submitBtn.classList.remove('opacity-60', 'cursor-not-allowed');
         submitBtn.classList.add('shadow-xl', 'shadow-blue-500/30');
         if (typeof updateCounts === 'function') updateCounts();
