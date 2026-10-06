@@ -1068,6 +1068,18 @@ function closeHeaderMenu() {
   toggle.setAttribute('aria-expanded', 'false');
 }
 
+// Close header menu when clicking outside or pressing Escape
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('headerMenuWrap');
+  if (wrap && wrap.classList.contains('open') && !wrap.contains(e.target)) {
+    closeHeaderMenu();
+  }
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeHeaderMenu();
+});
+
 // Mobile tab navigation toggle
 function setupMobileNavToggle() {
   const tabNav = document.getElementById('tabNav');

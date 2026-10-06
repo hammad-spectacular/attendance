@@ -955,8 +955,8 @@
       </div>
       <div class="header-right">
         <div id="headerMenuWrap" class="header-menu-wrap">
-          <button id="headerMenuToggle" class="header-menu-toggle" aria-expanded="false" aria-controls="headerMenuPanel" aria-label="Open menu" title="Menu" onclick="toggleHeaderMenu()">
-            <i class="fas fa-ellipsis-vertical"></i>
+          <button id="headerMenuToggle" class="header-menu-toggle" aria-expanded="false" aria-controls="headerMenuPanel" aria-label="Open menu" title="Menu">
+            <i class="fas fa-bars"></i>
           </button>
           <div id="headerMenuPanel" class="header-menu-panel">
             <button onclick="openPasswordModal(); closeHeaderMenu();" style="padding:8px 14px;font-size:0.75rem;background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.25);color:white;border-radius:10px;font-weight:600;cursor:pointer;transition:all 0.3s ease;font-family:'Inter',sans-serif;"><i class="fas fa-key"></i> <span class="header-menu-label">Change Password</span></button>
@@ -1052,20 +1052,43 @@ function toggleTheme() {
 })();
 
 // Header menu toggle (hamburger on mobile)
-function toggleHeaderMenu() {
+function setHeaderMenuOpen(open) {
   const wrap = document.getElementById('headerMenuWrap');
   const toggle = document.getElementById('headerMenuToggle');
-  if (!wrap || !toggle) return;
-  const isOpen = wrap.classList.toggle('open');
-  toggle.setAttribute('aria-expanded', isOpen);
+  if (wrap) wrap.classList.toggle('open', open);
+  if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function toggleHeaderMenu() {
+  const wrap = document.getElementById('headerMenuWrap');
+  if (wrap) setHeaderMenuOpen(!wrap.classList.contains('open'));
 }
 
 function closeHeaderMenu() {
-  const wrap = document.getElementById('headerMenuWrap');
+  setHeaderMenuOpen(false);
+}
+
+function setupHeaderMenu() {
   const toggle = document.getElementById('headerMenuToggle');
-  if (!wrap || !toggle) return;
-  wrap.classList.remove('open');
-  toggle.setAttribute('aria-expanded', 'false');
+  if (toggle) {
+    toggle.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      const wrap = document.getElementById('headerMenuWrap');
+      setHeaderMenuOpen(wrap ? !wrap.classList.contains('open') : false);
+    });
+  }
+
+  document.addEventListener('click', event => {
+    const wrap = document.getElementById('headerMenuWrap');
+    if (wrap && wrap.classList.contains('open') && !wrap.contains(event.target)) {
+      setHeaderMenuOpen(false);
+    }
+  });
+
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') setHeaderMenuOpen(false);
+  });
 }
 
 // Mobile tab navigation toggle
@@ -1074,16 +1097,17 @@ function setupMobileNavToggle() {
   const mobileToggle = document.getElementById('mobileNavToggle');
   if (!tabNav || !mobileToggle) return;
   
-  mobileToggle.addEventListener('click', function() {
+  mobileToggle.addEventListener('click', function(e) {
+    e.stopPropagation();
     const isOpen = tabNav.classList.toggle('open');
     this.setAttribute('aria-expanded', isOpen);
   });
   
   // Close on outside click
   document.addEventListener('click', function(e) {
-    if (!tabNav.contains(e.target) && isOpen) {
+    if (tabNav && tabNav.classList.contains('open') && !tabNav.contains(e.target)) {
       tabNav.classList.remove('open');
-      mobileToggle.setAttribute('aria-expanded', 'false');
+      if (mobileToggle) mobileToggle.setAttribute('aria-expanded', 'false');
     }
   });
 }
@@ -1364,7 +1388,8 @@ async function load() {
     </div>
   `;
 
-  // Setup mobile nav toggle after DOM is ready
+  // Setup mobile nav toggle and header menu after DOM is ready
+  setupHeaderMenu();
   setupMobileNavToggle();
   closeMobileNav();
 
