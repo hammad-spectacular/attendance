@@ -258,6 +258,18 @@
       display: none;
     }
 
+    /* While the feature-permission fetch is in-flight (body has class 'gates-pending'),
+       keep all feature-gated CONTENT panels invisible too. This blocks the second source
+       of flash: switchTab() running before permissions are confirmed and adding .active
+       to a panel the admin is not supposed to see. The class is removed by
+       applyFeatureVisibility().finally() so it always lifts, even on network failure. */
+    body.gates-pending #tab-teachers,
+    body.gates-pending #tab-students,
+    body.gates-pending #tab-coordinators,
+    body.gates-pending #tab-fees {
+      display: none !important;
+    }
+
     .theme-toggle {
       width: 40px;
       height: 40px;
@@ -2088,7 +2100,7 @@
     <link rel="stylesheet" href="ui-buttons.css">
 </head>
 
-<body>
+<body class="gates-pending">
 
   <!-- ======================== LOADING OVERLAY ======================== -->
   <div id="loadingOverlay"
@@ -2151,7 +2163,7 @@
       <i class="fas fa-bars tab-nav-toggle-icon"></i>
     </button>
     <div class="tab-nav-inner" id="tabNavInner">
-      <a href="#tab-teachers" class="tab-btn active" data-section="tab-teachers" data-feature-key="teacher_management">
+      <a href="#tab-teachers" class="tab-btn" data-section="tab-teachers" data-feature-key="teacher_management">
         <i class="fas fa-chalkboard-user"></i>Teachers
       </a>
       <a href="#tab-students" class="tab-btn" data-section="tab-students" data-feature-key="student_management">
@@ -7129,8 +7141,20 @@
     }
 
     function firstPermittedSection() {
-      const first = document.querySelector('.tab-btn[data-section]');
-      return first ? first.dataset.section : null;
+      // Must skip feature-gated tabs: querySelector finds elements regardless of
+      // CSS display:none, so without this check a hidden/gated tab (e.g. tab-teachers
+      // when teacher_management is off) would be returned as the 'first' tab and
+      // switchTab() would briefly reveal its content panel before applyFeatureGates
+      // could hide it — the exact flash-of-unauthorized-content we are preventing.
+      const tabs = Array.from(document.querySelectorAll('.tab-btn[data-section]'));
+      const permitted = tabs.find(tab => {
+        // Skip tabs explicitly hidden by inline style (set by applyFeatureGates)
+        if (tab.style.display === 'none') return false;
+        // Skip tabs whose section is not permitted by the current _featureState
+        if (!isSectionPermitted(tab.dataset.section)) return false;
+        return true;
+      });
+      return permitted ? permitted.dataset.section : null;
     }
 
     function setupSectionTabs() {
@@ -7218,6 +7242,10 @@
       // otherwise the page would briefly show, and could land on, a section the school
       // is not allowed.
       applyFeatureVisibility().finally(() => {
+        // Remove the gates-pending class: all feature-gated content panels are now
+        // either confirmed-visible or confirmed-hidden. Removing it here (in finally)
+        // guarantees it always lifts even on network failure so the page is never stuck.
+        document.body.classList.remove('gates-pending');
         setupSectionTabs();
         // Must run after applyFeatureVisibility() resolves: loadCapacity() gates the
         // Students/Teachers counts on _featureState.
