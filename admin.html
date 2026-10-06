@@ -251,6 +251,13 @@
       cursor: not-allowed;
     }
 
+    /* Feature-gated tabs: hidden by default so they are NEVER visible before the
+       bootstrap fetch resolves. applyFeatureGates() reveals them if enabled.
+       This prevents any flash of unauthorized content on login. */
+    .tab-btn[data-feature-key] {
+      display: none;
+    }
+
     .theme-toggle {
       width: 40px;
       height: 40px;
@@ -2229,7 +2236,7 @@
     </div>
 
     <!-- ==================== TEACHERS TAB ==================== -->
-    <div id="tab-teachers" class="tab-content active">
+    <div id="tab-teachers" class="tab-content">
 
       <!-- Teachers List Section -->
       <div class="section-card" id="teachersSection">
@@ -3452,6 +3459,7 @@
 
     async function refreshDashboardAfterSave() {
       await reloadAllData(false, true);
+      loadCapacity(); // Automatically refresh the capacity counts in the top header
       if (activeTabId === 'tab-fees' && document.getElementById('feeSubTabBtn-history')?.classList.contains('active')) {
         await renderPaymentHistoryTab();
       }
@@ -5947,16 +5955,19 @@
     // Coordinators are already blocked at the API level.
     function applyFeatureGates() {
       const features = window.appData.features || {};
+      const bootstrapFailed = !window.appData.bootstrapLoaded || Object.keys(features).length === 0;
       const tabBtns = document.querySelectorAll('.tab-btn[data-feature-key]');
       tabBtns.forEach(btn => {
         const key = btn.getAttribute('data-feature-key');
-        if (key && features.hasOwnProperty(key)) {
-          if (!features[key]) {
-            btn.style.display = 'none';
-          } else {
-            // Feature is enabled — make sure it's visible
-            // (don't force display:inline-flex here; let the tab system handle it)
-          }
+        if (bootstrapFailed) {
+          // Bootstrap failed or returned no features — show all tabs (fail open, never lock out)
+          btn.style.display = '';
+        } else if (key && features.hasOwnProperty(key)) {
+          // Explicitly show or hide based on the server's answer
+          btn.style.display = features[key] ? '' : 'none';
+        } else {
+          // Feature key not in the map — show the tab (unknown = permitted)
+          btn.style.display = '';
         }
       });
     }
