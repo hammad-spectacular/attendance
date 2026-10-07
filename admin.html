@@ -5905,6 +5905,7 @@
         document.body.classList.remove('gates-pending');
         setupSectionTabs();
         loadCapacity();
+        updatePhoneFieldStatus();
 
         // Render branch selector (shows if branches > 0, else Branches tab is shown instead)
         renderBranchSelector();
@@ -7091,13 +7092,12 @@
     // applyFeatureVisibility removed: gating logic is now handled entirely by applyFeatureGates
     // which runs safely inside loadAdminBootstrap without deleting DOM elements.
 
-    // Update phone field status based on WhatsApp feature
-      updatePhoneFieldStatus();
-    }
-
     // Update phone field labels and placeholders based on WhatsApp feature
     function updatePhoneFieldStatus() {
-      const whatsappEnabled = _featureState && _featureState['whatsapp'] === true;
+      let whatsappEnabled = false;
+      if (window.appData && window.appData.features && window.appData.features['whatsapp']) {
+        whatsappEnabled = true;
+      }
 
       // Add Student form
       const studentPhoneLabel = document.getElementById('studentPhoneLabel');
