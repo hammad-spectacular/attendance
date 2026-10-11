@@ -1258,6 +1258,53 @@
       flex: 1;
     }
 
+    /* Bulk Modals (Add Multiple & Accounts Generated) */
+    .bulk-modal-card {
+      width: 92%;
+      max-width: 580px;
+      max-height: calc(100dvh - 24px);
+      max-height: calc(100vh - 24px);
+      display: flex;
+      flex-direction: column;
+      padding: 0 !important;
+      overflow: hidden;
+      border-radius: 16px;
+    }
+
+    .bulk-modal-header {
+      padding: 16px 20px;
+      margin-bottom: 0;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .bulk-modal-body {
+      padding: 18px 20px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      flex: 1 1 auto;
+    }
+
+    .bulk-results-table-wrap {
+      max-height: 280px;
+      overflow-y: auto;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 14px;
+    }
+
+    .bulk-results-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+
     /* Edit button in table */
     .btn-edit {
       width: 28px;
@@ -1530,6 +1577,84 @@
       .edit-modal-card {
         padding: 20px;
       }
+
+      /* Bulk Modals on Mobile */
+      .bulk-modal-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: calc(100dvh - 16px);
+        max-height: calc(100vh - 16px);
+        border-radius: 14px;
+        margin: auto;
+      }
+
+      .bulk-modal-header {
+        padding: 12px 14px !important;
+      }
+
+      .bulk-modal-header h3 {
+        font-size: 0.95rem;
+      }
+
+      .bulk-modal-body {
+        padding: 12px 14px !important;
+      }
+
+      .bulk-modal-body p {
+        font-size: 0.78rem !important;
+        margin-bottom: 8px !important;
+        line-height: 1.35;
+      }
+
+      .bulk-results-table-wrap {
+        max-height: 210px;
+        margin-bottom: 10px;
+      }
+
+      .bulk-results-table-wrap th {
+        padding: 6px 8px !important;
+        font-size: 0.68rem !important;
+      }
+
+      .bulk-results-table-wrap td {
+        padding: 6px 8px !important;
+        font-size: 0.78rem !important;
+      }
+
+      .bulk-results-table-wrap td input.form-input {
+        padding: 6px 8px !important;
+        font-size: 0.82rem !important;
+        min-width: 110px;
+      }
+
+      .bulk-results-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      /* Save Names button: prominent full-width on phone */
+      .bulk-results-actions #bulkSaveNamesBtn {
+        flex: 1 1 100%;
+        order: 1;
+        padding: 11px 16px;
+        font-size: 0.88rem;
+        font-weight: 700;
+        justify-content: center;
+      }
+
+      /* Secondary action buttons underneath in a clean row */
+      .bulk-results-actions button:not(#bulkSaveNamesBtn) {
+        flex: 1 1 calc(33.333% - 6px);
+        min-width: 65px;
+        padding: 8px 6px;
+        font-size: 0.75rem;
+        order: 2;
+        justify-content: center;
+        white-space: nowrap;
+      }
+
     }
 
     /* Mobile hamburger section menu */
@@ -7507,12 +7632,12 @@
   </div>
 
   <div class="edit-modal" id="bulkAddStudentModal">
-    <div class="edit-modal-card">
-      <div class="edit-modal-header">
+    <div class="edit-modal-card bulk-modal-card">
+      <div class="edit-modal-header bulk-modal-header">
         <h3><i class="fas fa-users"></i> Add Multiple Students</h3>
         <button class="edit-modal-close" onclick="closeBulkAddStudentModal()"><i class="fas fa-times"></i></button>
       </div>
-      <div style="padding: 20px;">
+      <div class="bulk-modal-body">
         <div class="form-group">
           <label class="form-label" for="bulkStudentClass">Class</label>
           <select class="form-input" id="bulkStudentClass" required onchange="document.getElementById('bulkClassError').style.display='none'">
@@ -7542,22 +7667,22 @@
 
   <!-- Bulk Results Modal -->
   <div class="edit-modal" id="bulkResultsModal">
-    <div class="edit-modal-card" style="max-width: 600px; width: 90%;">
-      <div class="edit-modal-header">
+    <div class="edit-modal-card bulk-modal-card">
+      <div class="edit-modal-header bulk-modal-header">
         <h3><i class="fas fa-check-circle" style="color:var(--success);"></i> Accounts Generated</h3>
         <button class="edit-modal-close" onclick="closeBulkResultsModal()"><i class="fas fa-times"></i></button>
       </div>
-      <div style="padding: 20px;">
-        <p id="bulkCredsNote" style="margin-bottom:15px; color:var(--text-secondary); display:none;">
+      <div class="bulk-modal-body">
+        <p id="bulkCredsNote" style="margin-bottom:12px; color:var(--text-secondary); display:none;">
           Please download or copy these credentials now. You will not be able to see these temporary passwords again.
         </p>
-        <p id="bulkNoCredsNote" style="margin-bottom:15px; color:var(--text-secondary); display:none;">
+        <p id="bulkNoCredsNote" style="margin-bottom:12px; color:var(--text-secondary); display:none;">
           These accounts were saved without portal sign-ins because the portal is not enabled for your school. Once the Super Admin enables it, use "Reset password" to give them logins.
         </p>
         <p style="margin-bottom:10px; color:var(--text-secondary); font-size:0.85rem;">
           <i class="fas fa-pen"></i> You can edit the names below and save them all at once.
         </p>
-        <div style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px;">
+        <div class="bulk-results-table-wrap">
           <table class="data-table" id="bulkResultsTable">
             <thead>
               <tr>
@@ -7569,7 +7694,7 @@
             <tbody></tbody>
           </table>
         </div>
-        <div class="edit-modal-actions">
+        <div class="edit-modal-actions bulk-results-actions">
           <button class="btn primary" id="bulkSaveNamesBtn" onclick="saveBulkNames()"><i class="fas fa-save"></i> Save Names</button>
           <button class="btn ghost" onclick="copyBulkResults()"><i class="fas fa-copy"></i> Copy All</button>
           <button class="btn ghost" onclick="downloadBulkCSV()"><i class="fas fa-download"></i> Download CSV</button>
