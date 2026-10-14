@@ -1109,6 +1109,7 @@
   </div>
 
   <script src="./api-config.js"></script>
+  <script src="./draft-store.js"></script>
   <script>
 const API_BASE = ''; // Always same-origin: Nginx proxies /api (never a backend IP, avoids CORS)
 
@@ -1286,13 +1287,52 @@ let attendanceState = {};    // { studentId: 'Present' | 'Absent' }
 let baselineState = '{}';    // what was loaded from the server, for the dirty note
 let savedRecords = [];       // month view rows
 let attendanceDate = null;   // the date currently loaded in the Mark tab
+let currentSubTab = 'mark';  // which of mark / records / announcements is showing
+
+// =============================================================
+// RELOAD-SAFE STATE (drafts)
+// =============================================================
+// Attendance being taken is operational, not sensitive, so it lives in
+// localStorage and is keyed by class + date. That way switching class or date
+// keeps each day's in-progress marks until it is saved. A saved day clears its
+// draft so the server's data is what loads back.
+const VIEW_DRAFT_KEY = 'draft:coord:view';
+const ATT_DRAFT_MAX_AGE = 24 * 60 * 60 * 1000;   // discard drafts older than a day
+const VIEW_DRAFT_MAX_AGE = 12 * 60 * 60 * 1000;  // view state is lighter-lived
+
+function viewDraftKey() { return VIEW_DRAFT_KEY; }
+function attDraftKey(classId, date) { return `draft:coord:att:${classId}:${date}`; }
+
+function saveViewDraft() {
+  if (!DraftStore) return;
+  DraftStore.save(viewDraftKey(), {
+    classId: selectedClassId,
+    date: selectedDate,
+    subTab: currentSubTab,
+    search: markSearchQuery
+  }, true);
+}
+function loadViewDraft() {
+  return (DraftStore && DraftStore.load(viewDraftKey(), VIEW_DRAFT_MAX_AGE, true)) || {};
+}
+function saveAttDraft() {
+  if (!DraftStore || !selectedClassId || !selectedDate) return;
+  DraftStore.save(attDraftKey(selectedClassId, selectedDate), attendanceState, true);
+}
+function loadAttDraft(classId, date) {
+  return (DraftStore && DraftStore.load(attDraftKey(classId, date), ATT_DRAFT_MAX_AGE, true)) || {};
+}
+function clearAttDraft() {
+  if (!DraftStore || !selectedClassId || !selectedDate) return;
+  DraftStore.clear(attDraftKey(selectedClassId, selectedDate), true);
+}
 
 // =============================================================
 // LOAD
 // =============================================================
 async function load() {
   const app = document.getElementById('app');
-
+  try {
   // A coordinator account is refused at login when credentials were not granted,
   // but a grant can be revoked while a session is live, so re-check on load.
   const res = await apiFetch('/api/coordinator/me');
@@ -1322,7 +1362,12 @@ async function load() {
   document.getElementById('userId').textContent = profile.login_id || '';
 
   myClasses = Array.isArray(data.classes) ? data.classes : [];
+  const viewDraft = loadViewDraft();
   selectedDate = await fetchSchoolToday();
+  // Keep the day the coordinator was working on, but never a future date.
+  if (viewDraft.date && /^\d{4}-\d{2}-\d{2}$/.test(viewDraft.date) && viewDraft.date <= selectedDate) {
+    selectedDate = viewDraft.date;
+  }
   attendanceDate = selectedDate;
 
   // Hidden, not locked: a module the school has not granted is simply not shown.
@@ -1467,10 +1512,29 @@ async function load() {
   closeMobileNav();
 
   if (myClasses.length > 0) {
-    selectedClassId = myClasses[0].id;
+    // Restore the class the coordinator was last taking attendance for.
+    selectedClassId = myClasses.some(c => c.id === viewDraft.classId)
+      ? viewDraft.classId
+      : myClasses[0].id;
     document.getElementById('markClassSelect').value = String(selectedClassId);
     recordsClassId = 'all';
+    markSearchQuery = typeof viewDraft.search === 'string' ? viewDraft.search : '';
     await loadMarkRoster();
+    // Restore which sub-tab the user was on (mark is the default, no work needed).
+    if (viewDraft.subTab && viewDraft.subTab !== 'mark') {
+      switchSubTab(viewDraft.subTab);
+    }
+  }
+  saveViewDraft();
+  } catch (err) {
+    // A failed request must never leave the page stuck on the loading state.
+    console.error('Coordinator load failed:', err);
+    app.innerHTML = `<div class="state">
+      <i class="fas fa-triangle-exclamation"></i>
+      <div class="msg">Could not load your branch</div>
+      <div class="sub">Please check your connection and try again.</div>
+      <button type="button" onclick="location.reload()" class="btn" style="margin-top:14px;">Reload page</button>
+    </div>`;
   }
 }
 
@@ -1483,6 +1547,8 @@ function switchSubTab(which) {
   const navAnnouncements = document.getElementById('navAnnouncements');
   const mobileNavToggleLabel = document.getElementById('mobileNavToggleLabel');
   if (!mark || !records || !announcements) return;
+
+  currentSubTab = which;
 
   mark.style.display = which === 'mark' ? '' : 'none';
   records.style.display = which === 'records' ? '' : 'none';
@@ -1505,6 +1571,8 @@ function switchSubTab(which) {
   } else if (which === 'announcements') {
     loadAnnouncements();
   }
+
+  saveViewDraft();
 }
 
 function closeMobileNav() {
@@ -1519,6 +1587,7 @@ function closeMobileNav() {
 // =============================================================
 function onMarkClassChanged(value) {
   selectedClassId = value ? parseInt(value, 10) : null;
+  saveViewDraft();
   loadMarkRoster();
 }
 
@@ -1532,6 +1601,7 @@ function onMarkDateChanged(value) {
       return;
     }
     selectedDate = value;
+    saveViewDraft();
     loadMarkRoster();
   }
 }
@@ -1580,7 +1650,19 @@ async function loadMarkRoster() {
     // unmarked — the system never treats "not taken" as absent.
     attendanceState[s.id] = (st === 'Present' || st === 'Absent' || st === 'Leave') ? st : null;
   }
+  // The baseline is the server's view, used by the dirty note.
   baselineState = JSON.stringify(attendanceState);
+
+  // Overlay any unsaved marks for this class + date so a reload continues where
+  // the coordinator left off. The draft only ever adds non-null marks, so it
+  // cannot invent an absence and cannot clear a saved status.
+  const attDraft = loadAttDraft(selectedClassId, selectedDate);
+  for (const s of students) {
+    const d = attDraft[s.id];
+    if (d === 'Present' || d === 'Absent' || d === 'Leave') {
+      attendanceState[s.id] = d;
+    }
+  }
 
   // Get class info for display
   const selectedClass = myClasses.find(c => c.id === selectedClassId);
@@ -1655,6 +1737,8 @@ function setStatus(studentId, status, btn) {
   row.querySelector('.st-absent').classList.toggle('active', attendanceState[studentId] === 'Absent');
   row.querySelector('.st-leave').classList.toggle('active', attendanceState[studentId] === 'Leave');
   updateMarkSummary();
+  // Persist the in-progress marks so a reload resumes exactly here.
+  saveAttDraft();
 }
 
 function updateMarkSummary() {
@@ -1686,6 +1770,7 @@ function filterMarkRoster(query) {
   document.querySelectorAll('#markTableWrap tbody tr[data-student]').forEach(row => {
     row.style.display = !q || row.textContent.toLowerCase().includes(q) ? '' : 'none';
   });
+  saveViewDraft();
 }
 
 async function submitAttendance() {
@@ -1706,6 +1791,8 @@ async function submitAttendance() {
       }
     });
     updateMarkSummary();
+    // Keep a draft of the auto-marked state in case the save request fails.
+    saveAttDraft();
   }
 
   const records = Object.entries(attendanceState)
@@ -1731,6 +1818,8 @@ async function submitAttendance() {
       btn.innerHTML = original;
       return;
     }
+    // Saved: drop the draft so the server's rows are the source of truth.
+    clearAttDraft();
     // Reload so the summary reflects exactly what the server stored.
     await loadMarkRoster();
     // Update button to show saved state
@@ -2085,6 +2174,6 @@ function startKeepAlive() {
   setInterval(refreshSession, 10 * 60 * 1000);
 }
   </script>
-<script src="./idle-logout.js"></script>
+  <script src="./idle-logout.js"></script>
 </body>
 </html>

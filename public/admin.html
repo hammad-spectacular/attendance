@@ -2518,25 +2518,25 @@
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label" for="studentName">Student Name</label>
-                <input class="form-input" type="text" id="studentName" placeholder="e.g. Ali Hassan">
+                <input class="form-input" type="text" id="studentName" placeholder="e.g. Ali Hassan" oninput="saveStudentFormDraft()">
               </div>
               <div class="form-group">
                 <label class="form-label" for="studentRoll">Roll Number</label>
-                <input class="form-input" type="text" id="studentRoll" placeholder="e.g. CS-109">
+                <input class="form-input" type="text" id="studentRoll" placeholder="e.g. CS-109" oninput="saveStudentFormDraft()">
               </div>
               <div class="form-group">
                 <label class="form-label" for="studentPhone">Contact</label>
                 <input class="form-input" type="tel" id="studentPhone" placeholder="03001234567" pattern="[0-9]{11}"
-                  title="11 digits (e.g., 03001234567)" required>
+                  title="11 digits (e.g., 03001234567)" required oninput="saveStudentFormDraft()">
               </div>
               <div class="form-group">
                 <label class="form-label" for="studentEmail">Recovery email <span style="font-weight:400;">(optional)</span></label>
-                <input class="form-input" type="email" id="studentEmail" placeholder="student@example.com">
+                <input class="form-input" type="email" id="studentEmail" placeholder="student@example.com" oninput="saveStudentFormDraft()">
               </div>
             </div>
             <div class="form-group" style="max-width:320px;">
               <label class="form-label" for="studentClass">Class / Section</label>
-              <select class="form-input" id="studentClass" required>
+              <select class="form-input" id="studentClass" required onchange="saveStudentFormDraft()">
                 <option value="">-- Select a class --</option>
               </select>
             </div>
@@ -3255,6 +3255,7 @@
   <!-- ======================== JAVASCRIPT ======================== -->
   <script src="./api-config.js"></script>
   <script src="./auth-utils.js"></script>
+  <script src="./draft-store.js"></script>
   <script>
     let credentialsDoneCallback = null;
     let activeCredentialsType = null;
@@ -3599,6 +3600,10 @@
 
         // Populate dropdowns used globally
         populateClassDropdown(classes);
+        // Restore the student-form draft once, now that classes exist.
+        if (isInitial) {
+          restoreStudentFormDraft();
+        }
         await Promise.all([loadFeeData(), loadFeeStructures()]);
 
         // Staggered section reveals with min skeleton time
@@ -5146,6 +5151,46 @@
     // =============================================================
     let addStudentOpen = false;
 
+    // =============================================================
+    // RELOAD-SAFE DRAFT (student form)
+    // =============================================================
+    // Stored in sessionStorage (per-tab, cleared when the tab closes) because it
+    // can hold personal details. No password or token is ever stored here.
+    const STUDENT_FORM_DRAFT_KEY = 'draft:admin:studentForm';
+    const ADMIN_DRAFT_MAX_AGE = 12 * 60 * 60 * 1000; // 12 hours
+
+    function saveStudentFormDraft() {
+      if (!window.DraftStore) return;
+      const val = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+      DraftStore.save(STUDENT_FORM_DRAFT_KEY, {
+        name: val('studentName'),
+        roll: val('studentRoll'),
+        phone: val('studentPhone'),
+        email: val('studentEmail'),
+        classId: val('studentClass')
+      }, false);
+    }
+
+    function clearStudentFormDraft() {
+      if (window.DraftStore) DraftStore.clear(STUDENT_FORM_DRAFT_KEY, false);
+    }
+
+    function restoreStudentFormDraft() {
+      if (!window.DraftStore) return false;
+      const d = DraftStore.load(STUDENT_FORM_DRAFT_KEY, ADMIN_DRAFT_MAX_AGE, false);
+      if (!d) return false;
+      if (!(d.name || d.roll || d.phone || d.email || d.classId)) return false;
+      // Opening the form populates the class dropdown from the loaded classes.
+      if (!addStudentOpen) toggleAddStudent();
+      const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+      set('studentName', d.name);
+      set('studentRoll', d.roll);
+      set('studentPhone', d.phone);
+      set('studentEmail', d.email);
+      set('studentClass', d.classId);
+      return true;
+    }
+
     function toggleAddStudent() {
       addStudentOpen = !addStudentOpen;
       const form = document.getElementById('addStudentForm');
@@ -5171,6 +5216,8 @@
         document.getElementById('studentPhone').value = '';
         document.getElementById('studentEmail').value = '';
         document.getElementById('studentClass').value = '';
+        // Form closed (cancel or after save): the draft is no longer needed.
+        clearStudentFormDraft();
       }
     }
 

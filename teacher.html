@@ -2348,6 +2348,8 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
 </script>
 
+  <script src="./draft-store.js"></script>
+
   <script>
 
     // =============================================================
@@ -2431,6 +2433,72 @@ function setButtonLoading(btn, loading, loadingHtml) {
     // Storage key — keep consistent for future backend swap
 
     const STORAGE_KEY = 'attendance';
+
+
+
+    // =============================================================
+    // RELOAD-SAFE DRAFT (in-progress marks)
+    // =============================================================
+    // Marks that have been tapped but NOT yet submitted would otherwise be lost
+    // on a reload. We keep them in localStorage, keyed by class + date, and only
+    // for students who are not already saved on the server. A successful submit
+    // clears the draft, so the server stays the source of truth. Nothing
+    // sensitive (no password/token) is ever stored here.
+    const ATT_DRAFT_KEY_BASE = 'draft:teacher:att';
+    const ATT_DRAFT_MAX_AGE = 24 * 60 * 60 * 1000; // discard drafts older than a day
+
+    function attDraftKey() {
+      const classId = currentClass ? currentClass.id : null;
+      if (!classId) return null;
+      return `${ATT_DRAFT_KEY_BASE}:${classId}:${getTodayDate()}`;
+    }
+
+    function saveAttDraftTeacher() {
+      if (!window.DraftStore) return;
+      const key = attDraftKey();
+      if (!key) return;
+      const pending = {};
+      students.forEach(s => {
+        const st = attendanceState[s.id];
+        if ((st === 'Present' || st === 'Absent' || st === 'Leave') &&
+            !submittedStudentIds.has(Number(s.id))) {
+          pending[s.id] = st;
+        }
+      });
+      if (Object.keys(pending).length === 0) {
+        DraftStore.clear(key, true);
+      } else {
+        DraftStore.save(key, pending, true);
+      }
+    }
+
+    function applyAttDraftTeacher() {
+      if (!window.DraftStore) return;
+      const key = attDraftKey();
+      if (!key) return;
+      const draft = DraftStore.load(key, ATT_DRAFT_MAX_AGE, true) || {};
+      let changed = false;
+      students.forEach(s => {
+        const st = draft[s.id];
+        // Never override a backend-confirmed (already submitted) status.
+        if ((st === 'Present' || st === 'Absent' || st === 'Leave') &&
+            !submittedStudentIds.has(Number(s.id)) &&
+            attendanceState[s.id] !== st) {
+          attendanceState[s.id] = st;
+          changed = true;
+        }
+      });
+      if (changed) {
+        students.forEach(s => updateRowUI(s.id));
+        updateCounts();
+      }
+    }
+
+    function clearAttDraftTeacher() {
+      if (!window.DraftStore) return;
+      const key = attDraftKey();
+      if (key) DraftStore.clear(key, true);
+    }
 
 
 
@@ -2557,6 +2625,9 @@ function setButtonLoading(btn, loading, loadingHtml) {
         }
       }
 
+      // Overlay any unsaved in-progress marks so a reload resumes them.
+      applyAttDraftTeacher();
+
       // Then check the backend to see if attendance was already saved
       const classId = currentClass ? currentClass.id : null;
       if (!classId) return;
@@ -2567,6 +2638,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
           if (!Array.isArray(rows) || rows.length === 0) {
             submittedStudentIds.clear();
             setNotSubmittedState();
+            applyAttDraftTeacher();
             return;
           }
 
@@ -2602,6 +2674,9 @@ function setButtonLoading(btn, loading, loadingHtml) {
           students.forEach(s => updateRowUI(s.id));
           updateCounts();
 
+          // Re-overlay unsaved marks that the backend did not confirm.
+          applyAttDraftTeacher();
+
           const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
           // Only trigger full "Already Submitted" if ALL students in the class have records
@@ -2616,6 +2691,8 @@ function setButtonLoading(btn, loading, loadingHtml) {
         })
         .catch(err => {
           console.warn('Could not verify backend attendance status:', err);
+          // Backend unreachable: still restore unsaved in-progress marks.
+          applyAttDraftTeacher();
         });
     }
 
@@ -3167,6 +3244,8 @@ function setButtonLoading(btn, loading, loadingHtml) {
       enableSubmitButton('Update / Submit Attendance');
       updateRowUI(id);
       updateCounts();
+      // Persist the in-progress mark so a reload resumes it.
+      saveAttDraftTeacher();
     }
 
     /**
@@ -3558,6 +3637,8 @@ function setButtonLoading(btn, loading, loadingHtml) {
         updateCounts();
         showToast(`✅ ${unmarkedStudents.length} unmarked student${unmarkedStudents.length !== 1 ? 's' : ''} auto-marked as Present`, 'success');
       }
+      // Keep a draft of the auto-marked state in case the submit request fails.
+      saveAttDraftTeacher();
 
       // All students now have a status
       const markedStudents = students;
@@ -3630,6 +3711,9 @@ function setButtonLoading(btn, loading, loadingHtml) {
           recordsSnapshot.forEach(r => {
             submittedStudentIds.add(Number(r.student_id));
           });
+
+          // Saved: drop the in-progress draft so the server is the source of truth.
+          clearAttDraftTeacher();
 
           // Sync localStorage matching authoritative data
           saveAttendance({
