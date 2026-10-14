@@ -5285,29 +5285,13 @@
       renderStudentTable(window.appData.students);
     }
 
-    function getClassCapacity(classId) {
-      const cls = window.appData.classes.find(c => c.id === classId);
-      return cls?.max_capacity || 30; // fallback capacity
-    }
-    
-    function getEnrolledCount(classId) {
-      return window.appData.students.filter(s => s.class_id === classId).length;
-    }
-
+    // Classes have no per-class cap: a school may put any number of students in a
+    // single class. The only ceiling is the combined school-wide student limit,
+    // which is advisory and surfaced in the capacity strip at the top of the page.
     function getStudentClassOptionsHtml(currentClassId) {
-      const classes = window.appData.classes;
-      return classes.map(c => {
-        const capacity = getClassCapacity(c.id);
-        const enrolled = getEnrolledCount(c.id);
-        
-        const isCurrentClass = currentClassId === c.id;
-        const isFull = !isCurrentClass && enrolled >= capacity;
-        
-        const disabledAttr = isFull ? 'disabled' : '';
-        const capacityLabel = isFull ? ` (Full - ${enrolled}/${capacity})` : '';
-        const selected = isCurrentClass ? 'selected' : '';
-        
-        return `<option value="${c.id}" ${disabledAttr} ${selected}>${escapeHtml(classDisplayName(c))}${capacityLabel}</option>`;
+      return window.appData.classes.map(c => {
+        const selected = currentClassId === c.id ? 'selected' : '';
+        return `<option value="${c.id}" ${selected}>${escapeHtml(classDisplayName(c))}</option>`;
       }).join('');
     }
 

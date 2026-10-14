@@ -242,6 +242,11 @@ async function capacityViolation(q, tenantId, type, batchSize = 1) {
   const cap = await fetchCapacity(q, tenantId)
   if (!cap) return null
   const isStudent = type === 'student'
+  // Students are a soft, exceedable ceiling. A school may grow past its plan, and
+  // is told about it through capacityNotice() instead of being blocked. This is
+  // deliberate: the school-wide student limit is guidance, not a wall. Teachers
+  // remain a hard limit.
+  if (isStudent) return null
   const limit = Number(cap[isStudent ? 'student_limit' : 'teacher_limit'])
   const current = Number(cap[isStudent ? 'student_count' : 'teacher_count'])
   const needing = Math.max(1, Math.floor(Number(batchSize) || 1))
@@ -501,7 +506,10 @@ async function createTables() {
 
     ALTER TABLE organizations ADD COLUMN IF NOT EXISTS student_limit INTEGER NOT NULL DEFAULT ${DEFAULT_STUDENT_LIMIT};
     ALTER TABLE organizations ADD COLUMN IF NOT EXISTS teacher_limit INTEGER NOT NULL DEFAULT ${DEFAULT_TEACHER_LIMIT};
-    UPDATE organizations SET student_limit = GREATEST(student_limit, (SELECT COUNT(*) FROM students s WHERE s.tenant_id = organizations.school_code));
+    -- teacher_limit stays a wall, so keep it at or above the current count to avoid
+    -- locking a school out of its own existing data. student_limit is deliberately
+    -- NOT raised to match: it is the advisory combined ceiling, and a school that
+    -- has outgrown it should still see the real number (e.g. 520 / 500).
     UPDATE organizations SET teacher_limit = GREATEST(teacher_limit, (SELECT COUNT(*) FROM teachers t WHERE t.tenant_id = organizations.school_code));
 
     CREATE TABLE IF NOT EXISTS school_requests (
