@@ -238,7 +238,66 @@ test.describe('coordinator saved records on mobile', () => {
     await expect(nameCell).toBeVisible();
     await expect(nameCell).toContainText('Alice Absentia');
     // The Status cell must also stay visible.
-    await expect(page.locator('#recordsWrap .att-table tbody tr .status-badge')).toBeVisible();
+    await expect(page.locator('#recordsWrap .att-table tbody .status-badge')).toBeVisible();
+  });
+});
+
+// ---- Coordinator records filter summary ---------------------------------
+// Regression: onRecordsFilterChanged used to rebuild the Day/Month/Year
+// <select>s, which wiped the chosen value back to "All" before loadRecords
+// read it — so filters appeared to do nothing. Verify the chosen value sticks,
+// the plain-language "Showing" summary appears, and Clear all resets it.
+test.describe('coordinator records filter feedback', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => window.localStorage.setItem('auth_token', 'test-token'));
+    await page.route('**/api/**', coordinatorApi);
+    await page.route('**/api/attendance/all', route => json(route, [
+      { date: '2026-01-17', class_id: 1, class_name: 'Class 1', class_section: 'A', name: 'Alice', roll_no: '1', status: 'Absent' },
+      { date: '2026-02-05', class_id: 1, class_name: 'Class 1', class_section: 'A', name: 'Bob', roll_no: '2', status: 'Present' }
+    ]));
+    await page.goto(`${base}/coordinator.html`);
+    await page.waitForSelector('#markClassSelect');
+    await page.evaluate(() => switchSubTab('records'));
+    await page.waitForSelector('#recDaySelect');
+  });
+
+  test('choosing a Date keeps its value, filters rows, and shows a Showing summary', async ({ page }) => {
+    // Pick Date = 17.
+    await page.selectOption('#recDaySelect', '17');
+
+    // The dropdown must keep the chosen value (not be reset to "").
+    await expect(page.locator('#recDaySelect')).toHaveValue('17');
+
+    // The summary must appear and name the chosen date in plain language.
+    const summary = page.locator('#recActiveFilters');
+    await expect(summary).toBeVisible();
+    await expect(summary).toContainText('Date: 17');
+
+    // Only the 17th row remains.
+    await expect(page.locator('#recordsWrap .att-table tbody tr')).toHaveCount(1);
+    await expect(page.locator('#recordsWrap .att-table tbody')).toContainText('Alice');
+
+    // Clear all hides the summary and restores every row.
+    await page.click('#recActiveFilters button:has-text("Clear all")');
+    await expect(summary).toBeHidden();
+    await expect(page.locator('#recDaySelect')).toHaveValue('');
+    await expect(page.locator('#recordsWrap .att-table tbody tr')).toHaveCount(2);
+  });
+
+  test('Month and Year choices also survive and appear in the summary', async ({ page }) => {
+    await page.selectOption('#recMonthSelect', '01');
+    await page.selectOption('#recYearSelect', '2026');
+
+    await expect(page.locator('#recMonthSelect')).toHaveValue('01');
+    await expect(page.locator('#recYearSelect')).toHaveValue('2026');
+
+    const summary = page.locator('#recActiveFilters');
+    await expect(summary).toContainText('Month: January');
+    await expect(summary).toContainText('Year: 2026');
+
+    // Jan 2026 keeps only Alice.
+    await expect(page.locator('#recordsWrap .att-table tbody tr')).toHaveCount(1);
+    await expect(page.locator('#recordsWrap .att-table tbody')).toContainText('Alice');
   });
 });
 

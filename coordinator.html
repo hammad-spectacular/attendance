@@ -1456,9 +1456,9 @@ async function load() {
         </div>
         <div class="filters" style="margin-top:10px;">
           <div class="fg">
-            <label for="recDaySelect">Day</label>
+            <label for="recDaySelect">Date</label>
             <select id="recDaySelect" onchange="onRecordsFilterChanged()">
-              <option value="">All Days</option>
+              <option value="">All Dates</option>
             </select>
           </div>
           <div class="fg">
@@ -1489,6 +1489,8 @@ async function load() {
             📝 Leave
           </button>
         </div>
+        <!-- Active-filter summary: shows non-technical users exactly what is applied -->
+        <div id="recActiveFilters" style="display:none; margin-top:14px; padding:10px 14px; background:var(--bg-card); border:1px solid var(--border); border-radius:12px; font-size:0.82rem; color:var(--text);"></div>
         <div id="recordsWrap"><div class="empty">Pick a month to view saved attendance.</div></div>
       </div>
     </div>
@@ -1888,6 +1890,11 @@ function populateRecPeriodFilters() {
   const yearSel = document.getElementById('recYearSelect');
   if (!daySel || !monthSel || !yearSel) return;
 
+  // Remember current choices so rebuilding the option lists never wipes them.
+  const prevDay = daySel.value;
+  const prevMonth = monthSel.value;
+  const prevYear = yearSel.value;
+
   const today = getTodayDate();
   const thisYear = today.slice(0, 4);
   const thisMonth = today.slice(5, 7);
@@ -1912,7 +1919,7 @@ function populateRecPeriodFilters() {
     monthSel.appendChild(o);
   });
 
-  daySel.innerHTML = '<option value="">All Days</option>';
+  daySel.innerHTML = '<option value="">All Dates</option>';
   for (let d = 1; d <= 31; d++) {
     const value = String(d).padStart(2, '0');
     const o = document.createElement('option');
@@ -1920,10 +1927,73 @@ function populateRecPeriodFilters() {
     o.textContent = String(d);
     daySel.appendChild(o);
   }
+
+  // Restore the previous selections (valid options only).
+  if ([...yearSel.options].some(o => o.value === prevYear)) yearSel.value = prevYear;
+  if ([...monthSel.options].some(o => o.value === prevMonth)) monthSel.value = prevMonth;
+  if ([...daySel.options].some(o => o.value === prevDay)) daySel.value = prevDay;
+}
+
+// Renders a plain-language summary of every applied filter so a
+// non-technical user can see exactly what is being shown (and clear it).
+function updateRecActiveFilters() {
+  const el = document.getElementById('recActiveFilters');
+  if (!el) return;
+
+  const day = document.getElementById('recDaySelect')?.value || '';
+  const month = document.getElementById('recMonthSelect')?.value || '';
+  const year = document.getElementById('recYearSelect')?.value || '';
+  const classSel = document.getElementById('recClassSelect');
+  const classVal = classSel?.value || 'all';
+  const className = classVal === 'all' ? '' : (classSel.selectedOptions[0]?.textContent || '');
+
+  const chips = [];
+  if (className) chips.push(`<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--primary);color:#fff;font-weight:600;">Class: ${escapeHtml(className)} <button type="button" onclick="clearRecFilter('class')" aria-label="Clear class filter" style="all:unset;cursor:pointer;font-weight:700;">✕</button></span>`);
+  if (day) chips.push(`<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--primary);color:#fff;font-weight:600;">Date: ${escapeHtml(String(Number(day)))} <button type="button" onclick="clearRecFilter('day')" aria-label="Clear date filter" style="all:unset;cursor:pointer;font-weight:700;">✕</button></span>`);
+  if (month) chips.push(`<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--primary);color:#fff;font-weight:600;">Month: ${escapeHtml(REC_MONTH_NAMES[Number(month) - 1] || month)} <button type="button" onclick="clearRecFilter('month')" aria-label="Clear month filter" style="all:unset;cursor:pointer;font-weight:700;">✕</button></span>`);
+  if (year) chips.push(`<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--primary);color:#fff;font-weight:600;">Year: ${escapeHtml(year)} <button type="button" onclick="clearRecFilter('year')" aria-label="Clear year filter" style="all:unset;cursor:pointer;font-weight:700;">✕</button></span>`);
+  if (recordsStatusFilter) chips.push(`<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--primary);color:#fff;font-weight:600;">Status: ${escapeHtml(recordsStatusFilter)} <button type="button" onclick="clearRecFilter('status')" aria-label="Clear status filter" style="all:unset;cursor:pointer;font-weight:700;">✕</button></span>`);
+
+  if (chips.length === 0) {
+    el.style.display = 'none';
+    el.innerHTML = '';
+    return;
+  }
+  el.style.display = 'block';
+  el.innerHTML = `<div style="font-weight:700;text-transform:uppercase;font-size:0.68rem;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:8px;"><i class="fas fa-filter" style="margin-right:5px;"></i>Showing</div>` +
+    `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">` + chips.join('') +
+    `<button type="button" onclick="clearAllRecFilters()" style="padding:4px 12px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-weight:600;cursor:pointer;">Clear all</button></div>`;
+}
+
+function clearRecFilter(which) {
+  if (which === 'class') document.getElementById('recClassSelect').value = 'all';
+  else if (which === 'day') document.getElementById('recDaySelect').value = '';
+  else if (which === 'month') document.getElementById('recMonthSelect').value = '';
+  else if (which === 'year') document.getElementById('recYearSelect').value = '';
+  else if (which === 'status') setRecordsStatusFilter('');
+  loadRecords();
+}
+
+function clearAllRecFilters() {
+  document.getElementById('recClassSelect').value = 'all';
+  document.getElementById('recDaySelect').value = '';
+  document.getElementById('recMonthSelect').value = '';
+  document.getElementById('recYearSelect').value = '';
+  recordsStatusFilter = '';
+  ['all', 'Present', 'Absent', 'Leave'].forEach(s => {
+    const btn = document.getElementById('recSF-' + s);
+    if (btn) {
+      const on = s === 'all';
+      btn.classList.toggle('active', on);
+      btn.style.background = on ? 'var(--primary)' : '';
+      btn.style.color = on ? 'white' : '';
+      btn.style.borderColor = on ? 'var(--primary)' : '';
+    }
+  });
+  loadRecords();
 }
 
 function onRecordsFilterChanged() {
-  populateRecPeriodFilters();
   loadRecords();
 }
 
@@ -1944,6 +2014,9 @@ async function loadRecords() {
   const day = document.getElementById('recDaySelect')?.value || '';
   const month = document.getElementById('recMonthSelect')?.value || '';
   const year = document.getElementById('recYearSelect')?.value || '';
+
+  // Keep the plain-language "Showing" summary in sync with the controls.
+  updateRecActiveFilters();
 
   wrap.innerHTML = '<div class="empty"><i class="fas fa-spinner fa-spin"></i> Loading records…</div>';
 
