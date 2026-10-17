@@ -852,9 +852,11 @@
       .att-table { min-width: 100%; }
 
       /* Roster order: 1=#, 2=Student Name, 3=Roll No., 4=Phone, 5=Status.
-         Hide the row number and Roll No. so Name, Phone and Status stay readable. */
-      .att-table th:nth-child(1), .att-table td:nth-child(1) { display: none; }
-      .att-table th:nth-child(3), .att-table td:nth-child(3) { display: none; }
+         Hide the row number and Roll No. so Name, Phone and Status stay readable.
+         Scoped to #markTableWrap only: the Saved Records table also uses
+         .att-table but has just Student + Status, and must keep both columns. */
+      #markTableWrap .att-table th:nth-child(1), #markTableWrap .att-table td:nth-child(1) { display: none; }
+      #markTableWrap .att-table th:nth-child(3), #markTableWrap .att-table td:nth-child(3) { display: none; }
 
       .tab-nav {
         position: sticky;

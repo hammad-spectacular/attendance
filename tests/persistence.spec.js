@@ -213,3 +213,32 @@ test.describe('admin student-form draft persistence', () => {
   });
 });
 
+// ---- Coordinator mobile records -----------------------------------------
+// Regression: the mobile media query used to hide column 1 of EVERY
+// .att-table (written for the 5-column roster), which also hid the Student
+// name column in the 2-column Saved Records table. Verify names stay visible
+// at phone width.
+test.describe('coordinator saved records on mobile', () => {
+  test('saved-records table keeps the student name column at phone width', async ({ page }) => {
+    await page.addInitScript(() => window.localStorage.setItem('auth_token', 'test-token'));
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.route('**/api/**', coordinatorApi);
+    // Provide real saved records so the table actually renders rows.
+    await page.route('**/api/attendance/all', route => json(route, [
+      { date: '2026-01-02', class_id: 1, class_name: 'Class 1', class_section: 'A', name: 'Alice Absentia', roll_no: '1', status: 'Absent' }
+    ]));
+
+    await page.goto(`${base}/coordinator.html`);
+    await page.waitForSelector('#markClassSelect');
+    await page.evaluate(() => switchSubTab('records'));
+    await page.waitForSelector('#recordsWrap .att-table tbody tr');
+
+    // The Student name cell (column 1) must stay visible on a phone.
+    const nameCell = page.locator('#recordsWrap .att-table tbody tr td').first();
+    await expect(nameCell).toBeVisible();
+    await expect(nameCell).toContainText('Alice Absentia');
+    // The Status cell must also stay visible.
+    await expect(page.locator('#recordsWrap .att-table tbody tr .status-badge')).toBeVisible();
+  });
+});
+
