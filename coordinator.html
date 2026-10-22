@@ -1639,6 +1639,14 @@ async function loadMarkRoster() {
   const saved = attRes.ok ? await attRes.json() : [];
   const savedByStudent = new Map(saved.map(r => [r.student_id, r.status]));
   const hasExistingAttendance = saved.length > 0;
+  // Who saved this day's attendance? A teacher save carries their name;
+  // a coordinator/admin save has no teacher_id, so it is labelled as staff.
+  const markedRow = saved.find(r => r.marked_by) || saved[0] || null;
+  const takenByText = hasExistingAttendance
+    ? (markedRow && markedRow.marked_by
+        ? `Taken by ${escapeHtml(markedRow.marked_by)}`
+        : 'Taken by Coordinator/Admin')
+    : '';
   attendanceDate = selectedDate;
 
   if (students.length === 0) {
@@ -1686,7 +1694,7 @@ async function loadMarkRoster() {
   wrap.innerHTML = `
     <div style="margin-bottom:12px;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.85rem;font-weight:600;color:var(--text); display:flex; align-items:center; gap:10px;">
       <i class="fas fa-book" style="color:var(--primary);"></i>${classDisplay}
-      ${hasExistingAttendance ? '<span style="margin-left:auto; font-size:0.75rem; padding:4px 10px; background:var(--success-bg); color:var(--success); border-radius:6px; font-weight:600;"><i class="fas fa-check-circle"></i> Already taken</span>' : '<span style="margin-left:auto; font-size:0.75rem; padding:4px 10px; background:var(--warning-bg); color:var(--warning); border-radius:6px; font-weight:600;"><i class="fas fa-edit"></i> Not taken yet</span>'}
+      ${hasExistingAttendance ? `<span style="margin-left:auto; font-size:0.75rem; padding:4px 10px; background:var(--success-bg); color:var(--success); border-radius:6px; font-weight:600;"><i class="fas fa-check-circle"></i> ${takenByText}</span>` : '<span style="margin-left:auto; font-size:0.75rem; padding:4px 10px; background:var(--warning-bg); color:var(--warning); border-radius:6px; font-weight:600;"><i class="fas fa-edit"></i> Not taken yet</span>'}
     </div>
     <div style="margin-bottom:10px; position:relative;">
       <i class="fas fa-search" style="position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:0.8rem; pointer-events:none;"></i>

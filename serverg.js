@@ -3586,9 +3586,13 @@ app.get('/api/attendance', requireAuth(['admin', 'teacher', 'student', 'super_ad
            attendance.date::text AS date,
            attendance.status,
            to_char(attendance.created_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at,
-           students.name, students.phone, students.roll_no
+           students.name, students.phone, students.roll_no,
+           marking_teacher.name AS marked_by,
+           attendance.teacher_id AS marked_by_id,
+           CASE WHEN attendance.teacher_id IS NULL THEN 'staff' ELSE 'teacher' END AS marked_by_role
     FROM attendance
     JOIN students ON attendance.student_id = students.id
+    LEFT JOIN teachers marking_teacher ON attendance.teacher_id = marking_teacher.id
     WHERE attendance.date = $1 AND students.class_id = $2 AND attendance.tenant_id = $3
       ${effectiveBranchId ? 'AND students.branch_id = $4' : ''}
     ORDER BY students.id

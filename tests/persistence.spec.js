@@ -213,6 +213,78 @@ test.describe('admin student-form draft persistence', () => {
   });
 });
 
+// ---- Attendance "taken by" visibility ------------------------------------
+// Both the coordinator and the teacher must be able to see whether the other
+// person already took attendance for a class/date.
+test.describe('attendance taken-by visibility', () => {
+  test('coordinator sees the teacher name when a teacher saved attendance', async ({ page }) => {
+    await page.addInitScript(() => window.localStorage.setItem('auth_token', 'test-token'));
+    await page.route('**/api/**', coordinatorApi);
+    await page.route(u => u.pathname === '/api/attendance', route => json(route, [
+      { student_id: 101, status: 'Present', marked_by: 'Ms T', marked_by_id: 5, marked_by_role: 'teacher' },
+      { student_id: 102, status: 'Absent', marked_by: 'Ms T', marked_by_id: 5, marked_by_role: 'teacher' }
+    ]));
+
+    await page.goto(`${base}/coordinator.html`);
+    await page.waitForSelector('tr[data-student="101"]');
+    await expect(page.locator('#markTableWrap')).toContainText('Taken by Ms T');
+  });
+
+  test('coordinator sees Coordinator/Admin when staff saved attendance', async ({ page }) => {
+    await page.addInitScript(() => window.localStorage.setItem('auth_token', 'test-token'));
+    await page.route('**/api/**', coordinatorApi);
+    await page.route(u => u.pathname === '/api/attendance', route => json(route, [
+      { student_id: 101, status: 'Present', marked_by: null, marked_by_id: null, marked_by_role: 'staff' },
+      { student_id: 102, status: 'Present', marked_by: null, marked_by_id: null, marked_by_role: 'staff' }
+    ]));
+
+    await page.goto(`${base}/coordinator.html`);
+    await page.waitForSelector('tr[data-student="101"]');
+    await expect(page.locator('#markTableWrap')).toContainText('Taken by Coordinator/Admin');
+  });
+
+  test('coordinator sees Not taken yet when nothing is saved', async ({ page }) => {
+    await page.addInitScript(() => window.localStorage.setItem('auth_token', 'test-token'));
+    await page.route('**/api/**', coordinatorApi);
+
+    await page.goto(`${base}/coordinator.html`);
+    await page.waitForSelector('tr[data-student="101"]');
+    await expect(page.locator('#markTableWrap')).toContainText('Not taken yet');
+  });
+
+  async function teacherWithRows(page, rows) {
+    await page.addInitScript(() => window.localStorage.setItem('auth_token', 'test-token'));
+    await page.route('**/api/**', teacherApi);
+    await page.route(u => u.pathname === '/api/attendance', route => json(route, rows));
+    await page.goto(`${base}/teacher.html`);
+    await page.waitForSelector('#row-101', { timeout: 15000 });
+  }
+
+  test('teacher sees the coordinator as the marker when staff took attendance', async ({ page }) => {
+    await teacherWithRows(page, [
+      { student_id: 101, status: 'Present', marked_by: null, marked_by_id: null, marked_by_role: 'staff' },
+      { student_id: 102, status: 'Present', marked_by: null, marked_by_id: null, marked_by_role: 'staff' }
+    ]);
+    await expect(page.locator('#statusBannerSub')).toContainText('Taken by Coordinator/Admin');
+  });
+
+  test('teacher sees another teacher as the marker', async ({ page }) => {
+    await teacherWithRows(page, [
+      { student_id: 101, status: 'Present', marked_by: 'Mr Z', marked_by_id: 7, marked_by_role: 'teacher' },
+      { student_id: 102, status: 'Present', marked_by: 'Mr Z', marked_by_id: 7, marked_by_role: 'teacher' }
+    ]);
+    await expect(page.locator('#statusBannerSub')).toContainText('Taken by Mr Z');
+  });
+
+  test('teacher sees their own marker as "Taken by you"', async ({ page }) => {
+    await teacherWithRows(page, [
+      { student_id: 101, status: 'Present', marked_by: 'Ms T', marked_by_id: 5, marked_by_role: 'teacher' },
+      { student_id: 102, status: 'Present', marked_by: 'Ms T', marked_by_id: 5, marked_by_role: 'teacher' }
+    ]);
+    await expect(page.locator('#statusBannerSub')).toContainText('Taken by you');
+  });
+});
+
 // ---- Coordinator mobile records -----------------------------------------
 // Regression: the mobile media query used to hide column 1 of EVERY
 // .att-table (written for the 5-column roster), which also hid the Student

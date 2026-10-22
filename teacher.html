@@ -2679,13 +2679,25 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
           const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
+          // Identify who saved this day's attendance so the banner can name them.
+          const markerRow = rows.find(r => r.marked_by) || rows[0] || null;
+          let markedByText = '';
+          if (markerRow) {
+            if (markerRow.marked_by_role === 'teacher') {
+              const isSelf = currentTeacher && Number(markerRow.marked_by_id) === Number(currentTeacher.id);
+              markedByText = isSelf ? 'Taken by you' : `Taken by ${markerRow.marked_by || 'another teacher'}`;
+            } else {
+              markedByText = 'Taken by Coordinator/Admin';
+            }
+          }
+
           // Only trigger full "Already Submitted" if ALL students in the class have records
           if (rows.length >= students.length && students.length > 0) {
-            setSubmittedState(rows.length, timeStr, true);
+            setSubmittedState(rows.length, timeStr, true, markedByText);
             showToast('📂 Attendance already submitted today', 'info');
           } else {
             // Partial submission — show partial banner and allow submitting remaining
-            setPartialSubmittedState(rows.length, students.length, timeStr);
+            setPartialSubmittedState(rows.length, students.length, timeStr, markedByText);
             showToast(`📂 Partial attendance found (${rows.length}/${students.length} students)`, 'info');
           }
         })
@@ -3447,7 +3459,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
       showToast('✏️ You can now change attendance for ' + (s ? s.name : 'student'), 'info');
     }
 
-    function setPartialSubmittedState(savedCount, totalCount, timeStr) {
+    function setPartialSubmittedState(savedCount, totalCount, timeStr, markedBy) {
       const banner   = document.getElementById('attendanceStatusBanner');
       const icon     = document.getElementById('statusBannerIcon');
       const title    = document.getElementById('statusBannerTitle');
@@ -3460,7 +3472,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
         if (icon) icon.textContent = '⏳';
         if (title) title.textContent = 'Partial Attendance Saved';
-        if (sub) sub.textContent = `${savedCount} of ${totalCount} students recorded • Saved at ${timeStr}`;
+        if (sub) sub.textContent = `${savedCount} of ${totalCount} students recorded • Saved at ${timeStr}${markedBy ? ' • ' + markedBy : ''}`;
 
         if (badge) {
           badge.textContent = `${savedCount}/${totalCount} saved`;
@@ -3472,7 +3484,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
       enableSubmitButton(`Submit Remaining (${totalCount - savedCount})`);
     }
 
-    function setSubmittedState(studentCount, timeStr, alreadySaved) {
+    function setSubmittedState(studentCount, timeStr, alreadySaved, markedBy) {
 
       const banner  = document.getElementById('attendanceStatusBanner');
 
@@ -3508,7 +3520,7 @@ function setButtonLoading(btn, loading, loadingHtml) {
 
       title.textContent = alreadySaved ? 'Attendance Already Submitted' : 'Attendance Submitted';
 
-      sub.textContent   = `${studentCount} student${studentCount !== 1 ? 's' : ''} • Saved at ${timeStr}`;
+      sub.textContent   = `${studentCount} student${studentCount !== 1 ? 's' : ''} • Saved at ${timeStr}${markedBy ? ' • ' + markedBy : ''}`;
 
 
 
