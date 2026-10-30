@@ -702,12 +702,22 @@ function adjacentDifficult(model, state, classIdx, day, period) {
   const at = state.entryAt.get(classIdx * 1000 + day)
   if (!at) return false
   const prev = model.prevTeach.get(period)
+  if (prev !== undefined && prev >= 0) {
+    const prevEntry = at.get(prev)
+    if (prevEntry) {
+      const other = model.subjects.get(prevEntry.subjectId)
+      if (other && other.difficult) return true
+    }
+  }
   const next = model.nextTeach.get(period)
-  let entry = prev >= 0 ? at.get(prev) : undefined
-  if (!entry) entry = next >= 0 ? at.get(next) : undefined
-  if (!entry) return false
-  const other = model.subjects.get(entry.subjectId)
-  return !!(other && other.difficult)
+  if (next !== undefined && next >= 0) {
+    const nextEntry = at.get(next)
+    if (nextEntry) {
+      const other = model.subjects.get(nextEntry.subjectId)
+      if (other && other.difficult) return true
+    }
+  }
+  return false
 }
 
 /** Heuristic value ordering: lower is better. Purely a tie-breaker — it never
@@ -716,7 +726,7 @@ function scoreValue(model, state, group, tIdx, subjDayBase, day, period) {
   let score = (state.subjDay.get(subjDayBase + day) || 0) * 100
   if (model.prefs.avoidConsecutiveDifficult && group.subjDifficult &&
       adjacentDifficult(model, state, group.classIdx, day, period)) {
-    score += 150
+    score += 2000
   }
   if (model.prefs.balanceClassDays) score += (state.classDay.get(group.classIdx * 1000 + day) || 0) * 8
   if (model.prefs.balanceTeacherDays) score += (state.teacherDay.get(tIdx * 1000 + day) || 0) * 6
@@ -818,6 +828,10 @@ function search(model, state, stats) {
     state.entries.push(entry)
     bestGroup.remaining--
 
+    if (stats.bestEntries && state.entries.length > stats.bestEntries.length) {
+      stats.bestEntries = [...state.entries]
+    }
+
     if (search(model, state, stats)) return true
 
     bestGroup.remaining++
@@ -871,13 +885,23 @@ function generateTimetable(rawInput, options = {}) {
   const placedByLock = state.entries.length
   stats.scheduledLessons = placedByLock
 
-  const searchStats = { nodeCount: 0, aborted: null, blocker: null, deadline: Date.now() + model.options.timeBudgetMs }
+  const searchStats = {
+    nodeCount: 0,
+    aborted: null,
+    blocker: null,
+    deadline: Date.now() + model.options.timeBudgetMs,
+    bestEntries: [...state.entries]
+  }
   const solved = search(model, state, searchStats)
   stats.nodeCount = searchStats.nodeCount
   stats.aborted = searchStats.aborted
   stats.generationMs = Date.now() - started
 
-  const entries = [...state.entries].sort((a, b) =>
+  const sourceEntries = (solved || !searchStats.bestEntries.length)
+    ? state.entries
+    : searchStats.bestEntries
+
+  const entries = [...sourceEntries].sort((a, b) =>
     a.classId.localeCompare(b.classId) || a.day - b.day || a.period - b.period)
 
   stats.scheduledLessons = entries.length

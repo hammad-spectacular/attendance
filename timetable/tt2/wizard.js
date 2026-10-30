@@ -357,6 +357,16 @@ function validateConfig(raw) {
   }
 
   if (!config.classes.length) errors.push('Add at least one class.')
+  else {
+    const seenClassKeys = new Set()
+    for (const cls of config.classes) {
+      const key = `${cls.name.toLowerCase().trim()}:::${(cls.section || '').toLowerCase().trim()}`
+      if (seenClassKeys.has(key)) {
+        errors.push(`Duplicate class: "${cls.name}"${cls.section ? ` (Section ${cls.section})` : ''} already exists. You cannot add the same section for the same class.`)
+      }
+      seenClassKeys.add(key)
+    }
+  }
   if (!config.subjects.length) errors.push('Add at least one subject.')
   if (!config.teachers.length) errors.push('Add at least one teacher.')
 

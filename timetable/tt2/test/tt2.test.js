@@ -472,3 +472,21 @@ test('api: the store persists to disk', async () => {
   assert.equal(reopened.get('dev', doc.id).config.schoolName, 'Greenwood Academy')
   require('node:fs').unlinkSync(file)
 })
+
+test('wizard: duplicate class section is an error', () => {
+  const cfg = sampleConfig()
+  cfg.classes.push({ id: 'c3', name: 'Grade 9A', section: 'A' })
+  cfg.classes[0].section = 'A'
+  const res = validateConfig(cfg)
+  assert.equal(res.canGenerate, false)
+  assert.ok(res.errors.some(e => e.includes('Duplicate class')))
+})
+
+test('api: /existing-classes returns class templates', async () => {
+  const res = await fetch(`${base}/existing-classes`)
+  assert.equal(res.status, 200)
+  const data = await res.json()
+  assert.equal(data.ok, true)
+  assert.ok(Array.isArray(data.classes) && data.classes.length > 0)
+})
+

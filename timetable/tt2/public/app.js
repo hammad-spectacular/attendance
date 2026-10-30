@@ -19,7 +19,11 @@ const state = {
   activeClassId: null,
   activeTeacherId: null,
   readiness: { errors: [], warnings: [], canGenerate: false },
-  busy: false
+  busy: false,
+  existingClasses: [],
+  fetchedExistingClasses: false,
+  quickClassCount: 2,
+  cornerErrorMinimized: false
 }
 
 let checkTimer = null
@@ -41,6 +45,58 @@ async function api(path, options = {}) {
     throw err
   }
   return data
+}
+
+async function fetchExistingClasses() {
+  if (state.fetchedExistingClasses) return
+  state.fetchedExistingClasses = true
+  try {
+    const res = await api('/existing-classes')
+    if (res && Array.isArray(res.classes)) {
+      state.existingClasses = res.classes
+      if (state.screen === 'wizard' && state.meta && state.meta.steps[state.step] && state.meta.steps[state.step].id === 'classes') {
+        renderWizard()
+      }
+    }
+  } catch (_) {
+    state.existingClasses = []
+  }
+}
+
+function checkClassDuplicates(classes) {
+  const seen = new Set()
+  for (const c of classes) {
+    const key = `${(c.name || '').trim().toLowerCase()}:::${(c.section || '').trim().toLowerCase()}`
+    if (seen.has(key)) return { duplicate: true, class: c }
+    seen.add(key)
+  }
+  return { duplicate: false }
+}
+
+function getStepErrors(stepId) {
+  const errs = (state.readiness && state.readiness.errors) || []
+  switch (stepId) {
+    case 'identity':
+      return errs.filter(e => e.toLowerCase().includes('school name'))
+    case 'week':
+      return errs.filter(e => e.toLowerCase().includes('working day'))
+    case 'periods':
+      return errs.filter(e => e.toLowerCase().includes('period') || e.toLowerCase().includes('duration') || e.toLowerCase().includes('break'))
+    case 'classes':
+      return errs.filter(e => e.toLowerCase().includes('class'))
+    case 'subjects':
+      return errs.filter(e => e.toLowerCase().includes('subject'))
+    case 'teachers':
+      return errs.filter(e => e.toLowerCase().includes('teacher'))
+    case 'rooms':
+      return errs.filter(e => e.toLowerCase().includes('room'))
+    case 'curriculum':
+      return errs.filter(e => e.toLowerCase().includes('curriculum') || e.toLowerCase().includes('teaching slots'))
+    case 'preferences':
+      return errs.filter(e => e.toLowerCase().includes('preference'))
+    default:
+      return []
+  }
 }
 
 function toast(message, kind = '') {
@@ -77,10 +133,6 @@ function setPath(path, value) {
 /** Read a value that may be a number-ish string from an input. */
 function readValue(el) {
   if (el.type === 'number') {
-    // A blank optional number (marked data-empty-null) means "not set" -> null,
-    // which is what "no limit" looks like to the server. Every other blank
-    // number stays 0, because for counts such as student numbers 0 is a real
-    // answer.
     if (el.value === '') return el.hasAttribute('data-empty-null') ? null : 0
     return Number(el.value)
   }
@@ -264,36 +316,84 @@ const stepRenderers = {
     </div>`
   },
 
-  classes: () => `
+  classes: () => {
+    fetchExistingClasses()
+    const cfg = state.config
+    const dupInfo = checkClassDuplicates(cfg.classes)
+    return `
+    <div class="card" style="margin-bottom:14px;background:#f8faff;border:1px solid #dbeafe">
+      <h4 style="color:#1e40af">⚡ How many classes do you have?</h4>
+      <p class="muted" style="margin-bottom:10px">Quickly set up your classes by entering the count, or pick from existing school classes below.</p>
+      <div class="row tight" style="align-items:center;max-width:420px">
+        <label class="field" style="margin:0;flex:0 0 160px">
+          <span style="font-size:12px;font-weight:600">Total classes</span>
+          <input type="number" min="1" max="50" id="quick-class-count" value="${state.quickClassCount || 2}">
+        </label>
+        <button class="btn btn-sm btn-primary" data-act="quick-setup-classes" style="margin-top:16px">+ Create classes</button>
+      </div>
+    </div>
+
+    ${state.existingClasses && state.existingClasses.length ? `
+    <div class="card" style="margin-bottom:14px">
+      <h4>🏫 Choose from existing school classes</h4>
+      <p class="muted" style="margin-bottom:10px">Tick which classes you want to generate a timetable for:</p>
+      <div class="chip-set">
+        ${state.existingClasses.map(ec => {
+          const isSelected = cfg.classes.some(c =>
+            c.name.trim().toLowerCase() === ec.name.trim().toLowerCase() &&
+            (c.section || '').trim().toLowerCase() === (ec.section || '').trim().toLowerCase()
+          )
+          return `<label class="chip ${isSelected ? 'on' : ''}" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+            <input type="checkbox" data-act="toggle-existing-class" data-name="${esc(ec.name)}" data-section="${esc(ec.section || '')}" ${isSelected ? 'checked' : ''} style="margin:0">
+            <span>${esc(ec.name)}${ec.section ? ` (${esc(ec.section)})` : ''}</span>
+          </label>`
+        }).join('')}
+      </div>
+    </div>` : ''}
+
     <div class="card">
-      <h4>Classes</h4>
-      <p class="muted" style="margin-bottom:6px">Each class gets its own timetable. Add the groups of students you teach.</p>
-      <p class="muted" style="margin-bottom:14px">Use the <b>Section</b> field for classes that share a name — e.g. "Grade 1" with sections "A", "B", "C".</p>
+      <h4>Classes in this Timetable (${cfg.classes.length})</h4>
+      <p class="muted" style="margin-bottom:6px">Each class gets its own timetable.</p>
+      <p class="muted" style="margin-bottom:14px">Use the <b>Section</b> field for classes that share a name — e.g. "Grade 1" with sections "A", "B". <b>Duplicate sections for the same class are not allowed.</b></p>
+      ${dupInfo.duplicate ? `
+        <div style="background:var(--bad-soft);border:1px solid var(--bad);border-radius:6px;padding:8px 12px;margin-bottom:12px;color:var(--bad);font-size:13px">
+          ⚠️ Duplicate class section: <b>"${esc(dupInfo.class.name)}" (Section "${esc(dupInfo.class.section || 'None')}")</b> already exists. Each section must be unique.
+        </div>` : ''}
       <div class="row tight" style="margin-bottom:6px;padding:0 4px">
         <span style="flex:1 1 0;font-size:12px;font-weight:600;color:var(--ink-2)">Class name</span>
         <span style="width:110px;font-size:12px;font-weight:600;color:var(--ink-2)">Section (A, B…)</span>
         <span style="width:100px;font-size:12px;font-weight:600;color:var(--ink-2)">Students</span>
         <span style="width:32px"></span>
       </div>
-      ${state.config.classes.map(c => `
+      ${cfg.classes.map(c => `
         <div class="item-row">
           <div class="grow row tight">
             <input type="text" data-list="classes" data-id="${esc(c.id)}" data-field="name" value="${esc(c.name)}" placeholder="e.g. Grade 1">
-            <input type="text" data-list="classes" data-id="${esc(c.id)}" data-field="section" value="${esc(c.section || '')}" placeholder="A" style="max-width:110px" title="Section label — leave blank if there is only one section for this class">
+            <input type="text" data-list="classes" data-id="${esc(c.id)}" data-field="section" value="${esc(c.section || '')}" placeholder="A" style="max-width:110px" title="Section label">
             <input type="number" min="0" data-list="classes" data-id="${esc(c.id)}" data-field="studentCount" value="${c.studentCount}" placeholder="0" style="max-width:100px">
           </div>
           <button class="btn btn-sm btn-danger" data-act="del-class" data-id="${esc(c.id)}">✕</button>
-        </div>`).join('') || '<p class="muted">No classes yet.</p>'}
+        </div>`).join('') || '<p class="muted">No classes yet. Use the setup above or click + Add a class.</p>'}
       <div class="add-row">
         <button class="btn btn-sm" data-act="add-class">+ Add a class</button>
       </div>
-    </div>`,
+    </div>`
+  },
 
-  subjects: () => `
+  subjects: () => {
+    const classLabels = state.config.classes.map(c => c.section ? `${esc(c.name)} (${esc(c.section)})` : esc(c.name)).join(', ') || 'None selected'
+    return `
+    <div class="card" style="margin-bottom:14px;background:#fefce8;border:1px solid #fef08a">
+      <h4 style="color:#854d0e">📚 Subjects for Selected Classes</h4>
+      <p style="font-size:13px;color:#713f12;margin-top:4px">
+        These subjects apply to your selected classes: <b>${classLabels}</b>.<br>
+        In the Curriculum step, you will specify the exact number of periods each class gets for each subject.
+      </p>
+    </div>
     <div class="card">
       <h4>Subjects</h4>
       <p class="muted" style="margin-bottom:14px">
-        Mark a subject <b>difficult</b> if two of them should never land back to back.
+        Mark a subject <b>difficult</b> (such as Mathematics or Physics) so two difficult subjects are never scheduled back to back. Sports, Music, and Labs can be marked Easy or Medium to space out tough subjects.
       </p>
       ${state.config.subjects.map(s => `
         <div class="item-row">
@@ -312,7 +412,8 @@ const stepRenderers = {
       <div class="add-row">
         <button class="btn btn-sm" data-act="add-subject">+ Add a subject</button>
       </div>
-    </div>`,
+    </div>`
+  },
 
   teachers: () => {
     const cfg = state.config
@@ -508,9 +609,15 @@ function renderWizard() {
   const step = steps[state.step]
 
   document.getElementById('wizard-steps').innerHTML = steps.map((s, i) => {
-    const cls = i === state.step ? 'active' : (i < state.step ? 'done' : '')
-    return `<li class="${cls}" data-act="goto-step" data-index="${i}">
-      <span class="dot">${i < state.step ? '✓' : i + 1}</span>
+    const stepErrs = getStepErrors(s.id)
+    const hasErr = stepErrs.length > 0
+    let cls = ''
+    if (i === state.step) cls = 'active'
+    else if (i < state.step) cls = hasErr ? 'has-error' : 'done'
+    else if (hasErr) cls = 'has-error'
+
+    return `<li class="${cls}" data-act="goto-step" data-index="${i}" title="${hasErr ? stepErrs.join('; ') : ''}">
+      <span class="dot">${hasErr ? '!' : (i < state.step ? '✓' : i + 1)}</span>
       <span>${esc(s.title)}</span>
     </li>`
   }).join('')
@@ -518,7 +625,20 @@ function renderWizard() {
   document.getElementById('step-title').textContent = step.title
   document.getElementById('step-blurb').textContent = step.blurb
   document.getElementById('step-counter').textContent = `Step ${state.step + 1} of ${steps.length}`
-  document.getElementById('step-body').innerHTML = stepRenderers[step.id]()
+
+  const currentStepErrs = getStepErrors(step.id)
+  let bannerHtml = ''
+  if (currentStepErrs.length) {
+    bannerHtml = `
+      <div class="step-error-banner">
+        <strong>⚠️ Please fix the following issue${currentStepErrs.length > 1 ? 's' : ''} in this step:</strong>
+        <ul>
+          ${currentStepErrs.map(e => `<li>${esc(e)}</li>`).join('')}
+        </ul>
+      </div>`
+  }
+
+  document.getElementById('step-body').innerHTML = bannerHtml + stepRenderers[step.id]()
 
   const isLast = state.step === steps.length - 1
   document.getElementById('btn-next').hidden = isLast
@@ -576,7 +696,8 @@ function renderTable() {
   // entity picker
   const picker = document.getElementById('entity-picker')
   if (state.view === 'classes') {
-    picker.innerHTML = cfg.classes.map(c => {
+    const allChip = `<button class="chip ${state.activeClassId === '__all__' ? 'on' : ''}" data-act="pick-class" data-id="__all__">All Classes (${cfg.classes.length})</button>`
+    picker.innerHTML = allChip + cfg.classes.map(c => {
       const label = c.section ? `${esc(c.name)} (${esc(c.section)})` : esc(c.name)
       return `<button class="chip ${c.id === state.activeClassId ? 'on' : ''}" data-act="pick-class" data-id="${esc(c.id)}">${label}</button>`
     }).join('')
@@ -617,10 +738,70 @@ function renderLegend() {
     <span class="muted">Click any period to place or change a lesson.</span>`
 }
 
+function renderSingleClassTableHtml(doc, classId) {
+  const cfg = doc.config
+  const periods = doc.periods
+  const grid = (doc.grids && doc.grids[classId]) || {}
+
+  let head = '<thead><tr><th></th>' + periods.map(p => {
+    const cls = p.kind === 'break' ? 'break-col' : ''
+    const label = p.kind === 'break' ? esc(p.label) : `P${p.teachingNumber}`
+    return `<th class="${cls}">${label}<span class="t">${esc(p.text)}</span></th>`
+  }).join('') + '</tr></thead>'
+
+  let body = '<tbody>'
+  for (let d = 0; d < cfg.days.length; d++) {
+    body += `<tr><th>${esc(cfg.days[d])}<span class="d">day ${d + 1}</span></th>`
+    for (const p of periods) {
+      if (p.kind === 'break') {
+        body += `<td><div class="cell break">${esc(p.label)}<br><span style="font-size:10px">${p.duration}m</span></div></td>`
+        continue
+      }
+      const key = `${classId}|${d}|${p.index}`
+      const cell = grid[key]
+      body += renderCell(cell, d, p, true, classId)
+    }
+    body += '</tr>'
+  }
+  body += '</tbody>'
+  return head + body
+}
+
 function renderGrid() {
   const doc = state.doc
   const cfg = doc.config
   const periods = doc.periods
+
+  const multiGrid = document.getElementById('multi-grid')
+  const singleGrid = document.getElementById('grid')
+
+  if (state.view === 'classes' && state.activeClassId === '__all__') {
+    if (multiGrid) {
+      multiGrid.hidden = false
+      multiGrid.innerHTML = cfg.classes.map(c => `
+        <div class="class-timetable-block" id="block-${c.id}">
+          <div class="class-timetable-header">
+            <h3>
+              <span>🏫</span>
+              <span>Class: ${esc(c.name)}${c.section ? ` (Section ${esc(c.section)})` : ''}</span>
+            </h3>
+            <span class="badge">${c.studentCount ? `${c.studentCount} students` : 'Timetable'}</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="grid">
+              ${renderSingleClassTableHtml(doc, c.id)}
+            </table>
+          </div>
+        </div>
+      `).join('')
+    }
+    if (singleGrid) singleGrid.hidden = true
+    return
+  }
+
+  // Single class or teacher view
+  if (multiGrid) multiGrid.hidden = true
+  if (singleGrid) singleGrid.hidden = false
 
   let head = '<thead><tr><th></th>' + periods.map(p => {
     const cls = p.kind === 'break' ? 'break-col' : ''
@@ -631,7 +812,8 @@ function renderGrid() {
   let body = '<tbody>'
 
   if (state.view === 'classes') {
-    const grid = (doc.grids[state.activeClassId]) || {}
+    const activeId = (state.activeClassId && state.activeClassId !== '__all__') ? state.activeClassId : (cfg.classes[0] && cfg.classes[0].id)
+    const grid = (doc.grids[activeId]) || {}
     for (let d = 0; d < cfg.days.length; d++) {
       body += `<tr><th>${esc(cfg.days[d])}<span class="d">day ${d + 1}</span></th>`
       for (const p of periods) {
@@ -639,9 +821,9 @@ function renderGrid() {
           body += `<td><div class="cell break">${esc(p.label)}<br><span style="font-size:10px">${p.duration}m</span></div></td>`
           continue
         }
-        const key = `${state.activeClassId}|${d}|${p.index}`
+        const key = `${activeId}|${d}|${p.index}`
         const cell = grid[key]
-        body += renderCell(cell, d, p, true)
+        body += renderCell(cell, d, p, true, activeId)
       }
       body += '</tr>'
     }
@@ -654,27 +836,99 @@ function renderGrid() {
           continue
         }
         const cell = findTeacherCell(state.activeTeacherId, d, p.index)
-        body += renderCell(cell, d, p, false)
+        body += renderCell(cell, d, p, false, cell ? cell.classId : null)
       }
       body += '</tr>'
     }
   }
 
   body += '</tbody>'
-  document.getElementById('grid').innerHTML = head + body
+  singleGrid.innerHTML = head + body
 }
 
-function renderCell(cell, day, period, editable) {
+function explainEmptyCell(classId, day, periodIndex) {
+  const doc = state.doc
+  if (!doc) return 'Free slot'
+  const cfg = doc.config
+  const grids = doc.grids || {}
+
+  let reqTotal = 0
+  for (const r of cfg.curriculum) {
+    if (r.classId === classId) reqTotal += r.periodsPerWeek
+  }
+
+  const classGrid = grids[classId] || {}
+  const scheduledCount = Object.values(classGrid).filter(c => c && c.subjectId).length
+
+  if (reqTotal > 0 && scheduledCount >= reqTotal) {
+    return 'Free · Class curriculum 100% scheduled'
+  }
+
+  const needed = []
+  for (const r of cfg.curriculum) {
+    if (r.classId !== classId || r.periodsPerWeek <= 0) continue
+    const placed = Object.values(classGrid).filter(c => c && c.subjectId === r.subjectId).length
+    if (placed < r.periodsPerWeek) {
+      const subj = cfg.subjects.find(s => s.id === r.subjectId)
+      if (subj) needed.push(subj)
+    }
+  }
+
+  if (!needed.length) return 'Free slot · No subjects assigned'
+
+  for (const subj of needed) {
+    const qualified = cfg.teachers.filter(t => t.subjectIds.includes(subj.id))
+    if (!qualified.length) return `Unscheduled · No teacher for ${subj.name}`
+
+    const busy = qualified.every(t => {
+      for (const grid of Object.values(grids)) {
+        for (const cell of Object.values(grid)) {
+          if (cell && cell.teacherId === t.id && Number(cell.day) === day && Number(cell.period) === periodIndex) return true
+        }
+      }
+      return false
+    })
+    if (busy) return `Open · Teacher busy with another class`
+
+    const unavailable = qualified.every(t => {
+      return t.unavailableSlots.some(s => Number(s.day) === day && Number(s.period) === Number(periodIndex + 1))
+    })
+    if (unavailable) return `Open · Teacher unavailable at this slot`
+
+    const atDailyLimit = qualified.every(t => {
+      if (t.maxPerDay === null) return false
+      let count = 0
+      for (const grid of Object.values(grids)) {
+        for (const cell of Object.values(grid)) {
+          if (cell && cell.teacherId === t.id && Number(cell.day) === day) count++
+        }
+      }
+      return count >= t.maxPerDay
+    })
+    if (atDailyLimit) return `Open · Teacher daily workload cap reached`
+  }
+
+  return 'Free slot · Click to place lesson'
+}
+
+function renderCell(cell, day, period, editable, classId) {
   if (!cell || !cell.subjectId) {
-    return `<td><div class="cell empty ${editable ? '' : 'readonly'}" ${editable ? `data-act="edit-cell" data-day="${day}" data-period="${period.index}"` : ''}></div></td>`
+    const reason = explainEmptyCell(classId, day, period.index)
+    return `<td><div class="cell empty ${editable ? '' : 'readonly'}"
+      data-class-id="${esc(classId || '')}" data-cell-day="${day}" data-cell-period="${period.index}"
+      ${editable ? `data-act="edit-cell" data-class="${esc(classId || '')}" data-day="${day}" data-period="${period.index}"` : ''}
+      title="${esc(reason)}">
+        <span class="empty-title">Free</span>
+        <span class="empty-reason">${esc(reason)}</span>
+      </div></td>`
   }
   const subject = subjectById(cell.subjectId)
   const teacher = cell.teacherId ? teacherById(cell.teacherId) : null
   const difficult = subject && subject.difficult === 'difficult'
-  // In the teacher view the subject name alone is ambiguous — show the class.
   const second = cell.className ? cell.className : (teacher ? teacher.name : '')
   return `<td><div class="cell ${cell.manual ? 'manual' : ''} ${difficult ? 'diff' : ''} ${editable ? '' : 'readonly'}"
-      ${editable ? `data-act="edit-cell" data-day="${day}" data-period="${period.index}"` : ''}>
+      data-class-id="${esc(classId || cell.classId || '')}" data-cell-day="${day}" data-cell-period="${period.index}"
+      ${editable ? `data-act="edit-cell" data-class="${esc(classId || cell.classId || '')}" data-day="${day}" data-period="${period.index}"` : ''}>
     <div class="subj">${esc(subject ? subject.name : cell.subjectId)}</div>
     ${second ? `<div class="teach">${esc(second)}</div>` : ''}
   </div></td>`
@@ -687,27 +941,73 @@ function findTeacherCell(teacherId, day, column) {
     const cell = grid[`${classId}|${day}|${column}`]
     if (cell && cell.teacherId === teacherId) {
       const cls = state.doc.config.classes.find(c => c.id === classId)
-      return { ...cell, className: cls ? cls.name : classId }
+      return { ...cell, className: cls ? cls.name : classId, classId }
     }
   }
   return null
 }
 
 function renderReport() {
-  const v = state.doc.validation
+  const v = (state.doc && state.doc.validation) || { hard: [], soft: [] }
   const el = document.getElementById('report')
-  if (!v.hard.length && !v.soft.length) {
-    el.innerHTML = '<p class="none">No problems found. The timetable is clean.</p>'
+  const cornerEl = document.getElementById('corner-error-panel')
+
+  const totalErrors = v.hard.length + v.soft.length
+
+  if (!totalErrors) {
+    if (el) el.innerHTML = '<p class="none">No problems found. The timetable is clean.</p>'
+    if (cornerEl) cornerEl.hidden = true
     return
   }
-  const row = (issue, kind) => `
+
+  const row = (issue, kind, idx) => `
     <div class="issue ${kind}">
       <span class="tag">${kind}</span>
       <span>${esc(issue.message)}</span>
+      <button class="btn btn-sm" style="margin-left:auto" data-act="jump-to-error" data-error-kind="${kind}" data-error-idx="${idx}">🎯 Go to Error</button>
     </div>`
-  el.innerHTML =
-    v.hard.map(i => row(i, 'hard')).join('') +
-    v.soft.map(i => row(i, 'soft')).join('')
+  if (el) {
+    el.innerHTML =
+      v.hard.map((i, idx) => row(i, 'hard', idx)).join('') +
+      v.soft.map((i, idx) => row(i, 'soft', idx)).join('')
+  }
+
+  if (cornerEl) {
+    cornerEl.hidden = false
+    cornerEl.innerHTML = `
+      <div class="corner-error-head">
+        <div class="title">
+          <span>⚠️</span>
+          <span>Timetable Issues</span>
+          <span class="badge">${totalErrors}</span>
+        </div>
+        <div>
+          <button data-act="toggle-corner-error" title="${state.cornerErrorMinimized ? 'Expand' : 'Minimize'}">
+            ${state.cornerErrorMinimized ? '▲ Expand' : '▼ Minimize'}
+          </button>
+        </div>
+      </div>
+      ${state.cornerErrorMinimized ? '' : `
+      <div class="corner-error-body">
+        ${v.hard.map((i, idx) => `
+          <div class="corner-error-item hard">
+            <span class="msg"><b>Error:</b> ${esc(i.message)}</span>
+            <button class="btn-jump" data-act="jump-to-error" data-error-kind="hard" data-error-idx="${idx}">
+              🎯 Go to Error
+            </button>
+          </div>
+        `).join('')}
+        ${v.soft.map((i, idx) => `
+          <div class="corner-error-item soft">
+            <span class="msg"><b>Note:</b> ${esc(i.message)}</span>
+            <button class="btn-jump" data-act="jump-to-error" data-error-kind="soft" data-error-idx="${idx}">
+              🎯 Go to Error
+            </button>
+          </div>
+        `).join('')}
+      </div>`}
+    `
+  }
 }
 
 function renderCoverage() {
@@ -747,13 +1047,13 @@ function renderCoverage() {
 
 /* --------------------------------------------------------------- modal --- */
 
-function openCellModal(day, column) {
+function openCellModal(day, column, explicitClassId) {
   const doc = state.doc
   const cfg = doc.config
   const period = doc.periods[column]
   if (!period) return
 
-  const classId = state.activeClassId
+  const classId = explicitClassId || (state.activeClassId && state.activeClassId !== '__all__' ? state.activeClassId : (cfg.classes[0] && cfg.classes[0].id))
   const cls = cfg.classes.find(c => c.id === classId)
   const key = `${classId}|${day}|${column}`
   const current = (doc.grids[classId] || {})[key]
@@ -885,6 +1185,11 @@ async function doGenerate() {
     const res = await api(`/timetables/${state.docId}/generate`, { method: 'POST', body: {} })
     state.doc = res.timetable
     const report = res.report
+    if (res.timetable.config.classes.length > 1) {
+      state.activeClassId = '__all__'
+    } else {
+      state.activeClassId = res.timetable.config.classes.length ? res.timetable.config.classes[0].id : null
+    }
     if (report.ok) {
       toast(`Timetable generated in ${report.stats.generationMs}ms.`, 'good')
     } else {
@@ -893,6 +1198,7 @@ async function doGenerate() {
       toast(first, 'bad')
     }
     showScreen('table')
+    renderTable()
   } catch (err) {
     const errors = err.payload && err.payload.errors
     toast(errors && errors.length ? errors.slice(0, 2).join(' · ') : err.message, 'bad')
@@ -907,7 +1213,11 @@ async function openDoc(id, mode) {
   state.doc = res.timetable
   state.docId = res.timetable.id
   state.config = res.timetable.config
-  state.activeClassId = res.timetable.config.classes.length ? res.timetable.config.classes[0].id : null
+  if (res.timetable.config.classes.length > 1) {
+    state.activeClassId = '__all__'
+  } else {
+    state.activeClassId = res.timetable.config.classes.length ? res.timetable.config.classes[0].id : null
+  }
   state.activeTeacherId = res.timetable.config.teachers.length ? res.timetable.config.teachers[0].id : null
   state.view = 'classes'
   if (mode === 'edit') {
@@ -916,6 +1226,7 @@ async function openDoc(id, mode) {
     runCheck()
   } else {
     showScreen('table')
+    renderTable()
   }
 }
 
@@ -931,7 +1242,7 @@ function showScreen(name) {
 
 /* ------------------------------------------------------------- listeners -- */
 
-document.addEventListener('input', e => {
+function handleFormInput(e) {
   const el = e.target
   if (el.dataset.bind) {
     setPath(el.dataset.bind, readValue(el))
@@ -939,8 +1250,18 @@ document.addEventListener('input', e => {
     return
   }
   if (el.dataset.list && el.dataset.field) {
-    const item = (state.config[el.dataset.list] || []).find(x => x.id === el.dataset.id)
-    if (item) { item[el.dataset.field] = readValue(el); scheduleCheck() }
+    const list = state.config[el.dataset.list] || []
+    const item = list.find(x => x.id === el.dataset.id)
+    if (item) {
+      item[el.dataset.field] = readValue(el)
+      if (el.dataset.list === 'classes' && (el.dataset.field === 'name' || el.dataset.field === 'section')) {
+        const dupInfo = checkClassDuplicates(list)
+        if (dupInfo.duplicate) {
+          toast(`⚠️ Duplicate section: "${dupInfo.class.name}" (Section "${dupInfo.class.section || 'None'}") already exists. Each section must be unique!`, 'bad')
+        }
+      }
+      scheduleCheck()
+    }
     return
   }
   if (el.dataset.curriculum && el.dataset.field) {
@@ -957,23 +1278,19 @@ document.addEventListener('input', e => {
   }
   if (el.dataset.pref) {
     const key = el.dataset.pref
-    state.config.preferences[key] = el.tagName === 'SELECT' && el.value === 'true' ? true
-      : el.tagName === 'SELECT' ? false : readValue(el)
+    state.config.preferences[key] = (el.tagName === 'SELECT' && el.value === 'true') ? true
+      : (el.tagName === 'SELECT' && el.value === 'false') ? false
+      : readValue(el)
     scheduleCheck()
     return
   }
   if (el.dataset.override) {
     scheduleCheck()
   }
-})
+}
 
-document.addEventListener('change', e => {
-  const el = e.target
-  if (el.dataset.list && el.dataset.field) {
-    const item = (state.config[el.dataset.list] || []).find(x => x.id === el.dataset.id)
-    if (item) { item[el.dataset.field] = readValue(el); scheduleCheck() }
-  }
-})
+document.addEventListener('input', handleFormInput)
+document.addEventListener('change', handleFormInput)
 
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]')
@@ -1009,14 +1326,27 @@ document.addEventListener('click', async e => {
     case 'goto-step':
       state.step = Number(el.dataset.index)
       renderWizard()
+      window.scrollTo({ top: 0, behavior: 'smooth' })
       return
 
     case 'prev':
-      if (state.step > 0) { state.step--; renderWizard() }
+      if (state.step > 0) { state.step--; renderWizard(); window.scrollTo({ top: 0, behavior: 'smooth' }) }
       return
 
     case 'next':
-      if (state.step < state.meta.steps.length - 1) { state.step++; renderWizard() }
+      if (state.step < state.meta.steps.length - 1) {
+        const curStep = state.meta.steps[state.step]
+        const errs = getStepErrors(curStep.id)
+        if (errs.length) {
+          toast(`Please resolve errors in "${curStep.title}" first: ${errs[0]}`, 'bad')
+          renderWizard()
+          window.scrollTo({ top: 0, behavior: 'smooth' })
+          return
+        }
+        state.step++
+        renderWizard()
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
       return
 
     case 'save-draft':
@@ -1061,10 +1391,68 @@ document.addEventListener('click', async e => {
       return
 
     /* ---- step: classes / subjects / rooms ---- */
-    case 'add-class':
-      cfg.classes.push({ id: uid('class'), name: `Class ${cfg.classes.length + 1}`, section: '', studentCount: 0 })
+    case 'quick-setup-classes': {
+      const inputEl = document.getElementById('quick-class-count')
+      const count = Math.max(1, Math.min(30, Number(inputEl ? inputEl.value : 2) || 2))
+      state.quickClassCount = count
+      cfg.classes = []
+      for (let i = 1; i <= count; i++) {
+        cfg.classes.push({
+          id: uid('class'),
+          name: `Class ${i}`,
+          section: 'A',
+          studentCount: 30
+        })
+      }
+      toast(`Created ${count} classes. You can now adjust their names, sections, and student counts.`, 'good')
       renderWizard(); scheduleCheck()
       return
+    }
+
+    case 'toggle-existing-class': {
+      const name = el.dataset.name
+      const section = el.dataset.section || ''
+      const isChecked = el.checked
+      if (isChecked) {
+        const exists = cfg.classes.some(c =>
+          c.name.trim().toLowerCase() === name.trim().toLowerCase() &&
+          (c.section || '').trim().toLowerCase() === section.trim().toLowerCase()
+        )
+        if (!exists) {
+          cfg.classes.push({
+            id: uid('class'),
+            name,
+            section,
+            studentCount: 30
+          })
+          toast(`Added ${name}${section ? ` (${section})` : ''}`, 'good')
+        }
+      } else {
+        const idx = cfg.classes.findIndex(c =>
+          c.name.trim().toLowerCase() === name.trim().toLowerCase() &&
+          (c.section || '').trim().toLowerCase() === section.trim().toLowerCase()
+        )
+        if (idx >= 0) {
+          const removedId = cfg.classes[idx].id
+          cfg.classes.splice(idx, 1)
+          cfg.curriculum = cfg.curriculum.filter(r => r.classId !== removedId)
+          toast(`Removed ${name}${section ? ` (${section})` : ''}`)
+        }
+      }
+      renderWizard(); scheduleCheck()
+      return
+    }
+
+    case 'add-class': {
+      let newName = `Class ${cfg.classes.length + 1}`
+      let newSec = 'A'
+      while (cfg.classes.some(c => c.name.toLowerCase() === newName.toLowerCase() && (c.section || '').toLowerCase() === newSec.toLowerCase())) {
+        newName = `Class ${cfg.classes.length + 2}`
+      }
+      cfg.classes.push({ id: uid('class'), name: newName, section: newSec, studentCount: 30 })
+      renderWizard(); scheduleCheck()
+      return
+    }
     case 'del-class':
       cfg.classes = cfg.classes.filter(c => c.id !== el.dataset.id)
       cfg.curriculum = cfg.curriculum.filter(r => r.classId !== el.dataset.id)
@@ -1133,8 +1521,68 @@ document.addEventListener('click', async e => {
       return
 
     case 'edit-cell':
-      openCellModal(Number(el.dataset.day), Number(el.dataset.period))
+      openCellModal(Number(el.dataset.day), Number(el.dataset.period), el.dataset.class)
       return
+
+    case 'toggle-corner-error':
+      state.cornerErrorMinimized = !state.cornerErrorMinimized
+      renderReport()
+      return
+
+    case 'jump-to-error': {
+      const kind = el.dataset.errorKind
+      const idx = Number(el.dataset.errorIdx)
+      const list = kind === 'soft' ? ((state.doc && state.doc.validation && state.doc.validation.soft) || [])
+        : ((state.doc && state.doc.validation && state.doc.validation.hard) || [])
+      const issue = list[idx]
+      if (!issue) return
+
+      const detail = issue.detail || {}
+      let targetClassId = detail.classId
+      let day = detail.day
+      let period = detail.period
+
+      if (state.view !== 'classes') {
+        state.view = 'classes'
+        document.querySelectorAll('#view-switch button').forEach(b => b.classList.toggle('active', b.dataset.view === 'classes'))
+        renderTable()
+      }
+
+      if (targetClassId && state.activeClassId !== '__all__' && state.activeClassId !== targetClassId) {
+        state.activeClassId = targetClassId
+        renderTable()
+      }
+
+      let selector = ''
+      if (day !== undefined && period !== undefined) {
+        selector = `.cell[data-cell-day="${day}"][data-cell-period="${period}"]`
+        if (targetClassId) selector += `[data-class-id="${targetClassId}"]`
+      } else if (targetClassId) {
+        selector = `.cell.empty[data-class-id="${targetClassId}"]`
+      } else {
+        selector = `.cell.empty`
+      }
+
+      let cellEl = document.querySelector(selector)
+      if (!cellEl && targetClassId) {
+        cellEl = document.querySelector(`.cell[data-class-id="${targetClassId}"]`)
+      }
+      if (!cellEl && day !== undefined && period !== undefined) {
+        cellEl = document.querySelector(`.cell[data-cell-day="${day}"][data-cell-period="${period}"]`)
+      }
+
+      if (cellEl) {
+        cellEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        cellEl.classList.remove('cell-error-target')
+        void cellEl.offsetWidth
+        cellEl.classList.add('cell-error-target')
+        setTimeout(() => cellEl.classList.remove('cell-error-target'), 5000)
+        toast(`Jumped to error: ${issue.message.slice(0, 50)}...`, 'bad')
+      } else {
+        toast(`Could not locate cell on screen: ${issue.message}`, 'bad')
+      }
+      return
+    }
 
     case 'modal-subject':
       state.modal.subjectId = el.dataset.subject
@@ -1218,11 +1666,23 @@ document.getElementById('btn-new').addEventListener('click', () => {
 })
 
 document.getElementById('btn-prev').addEventListener('click', () => {
-  if (state.step > 0) { state.step--; renderWizard() }
+  if (state.step > 0) { state.step--; renderWizard(); window.scrollTo({ top: 0, behavior: 'smooth' }) }
 })
 
 document.getElementById('btn-next').addEventListener('click', () => {
-  if (state.step < state.meta.steps.length - 1) { state.step++; renderWizard() }
+  const currentStep = state.meta.steps[state.step]
+  const errs = getStepErrors(currentStep.id)
+  if (errs.length) {
+    toast(`Please fix the errors in "${currentStep.title}" before proceeding: ${errs[0]}`, 'bad')
+    renderWizard()
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    return
+  }
+  if (state.step < state.meta.steps.length - 1) {
+    state.step++
+    renderWizard()
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 })
 
 document.getElementById('btn-generate').addEventListener('click', doGenerate)
