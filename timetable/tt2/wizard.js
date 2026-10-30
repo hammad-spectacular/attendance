@@ -192,6 +192,21 @@ function asNumber(value, fallback) {
   return Number.isFinite(n) ? n : fallback
 }
 
+/**
+ * Normalise a teacher's workload cap.
+ *
+ * Blank means "no limit". So does 0: a cap of zero periods would mean the
+ * teacher can never teach anything, which is never what leaving the field
+ * empty was meant to say — the UI shows blank as "auto".
+ *
+ * @returns {number|null} the cap, or null for "no limit"
+ */
+function workloadCap(value) {
+  if (value === null || value === undefined || value === '') return null
+  const n = Math.round(asNumber(value, 0))
+  return n > 0 ? n : null
+}
+
 function asTrimmedString(value) {
   return typeof value === 'string' ? value.trim() : ''
 }
@@ -257,12 +272,8 @@ function normaliseConfig(raw) {
       id: asTrimmedString(t && t.id) || `teacher_${i + 1}`,
       name: asTrimmedString(t && t.name) || `Teacher ${i + 1}`,
       subjectIds: Array.from(new Set(asArray(t && t.subjectIds).map(String))),
-      maxPerDay: t && (t.maxPerDay !== null && t.maxPerDay !== undefined && t.maxPerDay !== '')
-        ? Math.max(0, Math.round(asNumber(t.maxPerDay, 0)))
-        : null,
-      maxPerWeek: t && (t.maxPerWeek !== null && t.maxPerWeek !== undefined && t.maxPerWeek !== '')
-        ? Math.max(0, Math.round(asNumber(t.maxPerWeek, 0)))
-        : null,
+      maxPerDay: workloadCap(t && t.maxPerDay),
+      maxPerWeek: workloadCap(t && t.maxPerWeek),
       unavailableSlots: asArray(t && t.unavailableSlots)
         .map(slot => ({
           day: Math.round(asNumber(slot && slot.day, -1)),
@@ -436,10 +447,10 @@ function validateConfig(raw) {
       .reduce((sum, r) => sum + r.periodsPerWeek, 0)
 
     if (t.maxPerWeek !== null && load > t.maxPerWeek) {
-      errors.push(`Teacher "${t.name}" would teach ${load} periods a week but is capped at ${t.maxPerWeek}.`)
+      errors.push(`Teacher "${t.name}" would teach ${load} periods a week but is capped at ${t.maxPerWeek}. Raise the weekly limit in the Teachers step, or reduce the periods in the Curriculum step.`)
     }
     if (t.maxPerDay !== null && load > t.maxPerDay * config.days.length) {
-      errors.push(`Teacher "${t.name}" would teach ${load} periods a week but can only teach ${t.maxPerDay} a day.`)
+      errors.push(`Teacher "${t.name}" would teach ${load} periods a week but can only teach ${t.maxPerDay} a day. With ${config.days.length} working days that is ${t.maxPerDay * config.days.length} periods — raise the daily limit or reduce their load.`)
     }
   }
 

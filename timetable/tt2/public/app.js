@@ -76,7 +76,14 @@ function setPath(path, value) {
 
 /** Read a value that may be a number-ish string from an input. */
 function readValue(el) {
-  if (el.type === 'number') return el.value === '' ? 0 : Number(el.value)
+  if (el.type === 'number') {
+    // A blank optional number (marked data-empty-null) means "not set" -> null,
+    // which is what "no limit" looks like to the server. Every other blank
+    // number stays 0, because for counts such as student numbers 0 is a real
+    // answer.
+    if (el.value === '') return el.hasAttribute('data-empty-null') ? null : 0
+    return Number(el.value)
+  }
   if (el.type === 'checkbox') return el.checked
   return el.value
 }
@@ -293,11 +300,11 @@ const stepRenderers = {
               <input type="text" data-list="teachers" data-id="${esc(t.id)}" data-field="name" value="${esc(t.name)}" placeholder="Teacher name" style="max-width:240px">
               <label class="field" style="margin:0;flex:0 0 130px">
                 <span>Max / day</span>
-                <input type="number" min="0" max="${cfg.periodCount}" data-list="teachers" data-id="${esc(t.id)}" data-field="maxPerDay" value="${t.maxPerDay === null ? '' : t.maxPerDay}" placeholder="auto">
+                <input type="number" min="0" max="${cfg.periodCount}" data-empty-null="1" data-list="teachers" data-id="${esc(t.id)}" data-field="maxPerDay" value="${t.maxPerDay === null ? '' : t.maxPerDay}" placeholder="auto">
               </label>
               <label class="field" style="margin:0;flex:0 0 130px">
                 <span>Max / week</span>
-                <input type="number" min="0" max="60" data-list="teachers" data-id="${esc(t.id)}" data-field="maxPerWeek" value="${t.maxPerWeek === null ? '' : t.maxPerWeek}" placeholder="auto">
+                <input type="number" min="0" max="60" data-empty-null="1" data-list="teachers" data-id="${esc(t.id)}" data-field="maxPerWeek" value="${t.maxPerWeek === null ? '' : t.maxPerWeek}" placeholder="auto">
               </label>
               <button class="btn btn-sm btn-danger" data-act="del-teacher" data-id="${esc(t.id)}">✕</button>
             </div>
