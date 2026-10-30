@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tt2 — Timetable Builder</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🗓️</text></svg>">
+</head>
+<body>
+
+<div id="toast" class="toast" hidden></div>
+
+<!-- ===================================================================== -->
+<!-- SCREEN: LIST                                                          -->
+<!-- ===================================================================== -->
+<section id="screen-list" class="screen">
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="brand">
+        <span class="brand-mark">tt2</span>
+        <div>
+          <h1>Timetable Builder</h1>
+          <p>Set up your week, then generate and hand-edit the timetable.</p>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-lg" id="btn-new">+ New timetable</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="list-empty" class="empty" hidden>
+      <h2>No timetables yet</h2>
+      <p>Create one to answer the setup questions and generate your first timetable.</p>
+    </div>
+    <div id="list-items" class="card-grid"></div>
+  </main>
+</section>
+
+<!-- ===================================================================== -->
+<!-- SCREEN: WIZARD                                                        -->
+<!-- ===================================================================== -->
+<section id="screen-wizard" class="screen" hidden>
+  <div class="wizard-shell">
+    <aside class="wizard-side">
+      <div class="wizard-side-head">
+        <span class="brand-mark sm">tt2</span>
+        <div>
+          <strong id="wizard-title">New timetable</strong>
+          <small id="wizard-school" class="muted">Not named yet</small>
+        </div>
+      </div>
+      <ol id="wizard-steps" class="stepper"></ol>
+      <div class="readiness" id="readiness"></div>
+    </aside>
+
+    <div class="wizard-main">
+      <div class="wizard-head">
+        <div>
+          <h2 id="step-title">Step</h2>
+          <p id="step-blurb" class="muted"></p>
+        </div>
+        <span class="pill" id="step-counter"></span>
+      </div>
+
+      <div id="step-body" class="step-body"></div>
+
+      <footer class="wizard-foot">
+        <button class="btn" id="btn-prev">← Back</button>
+        <div class="spacer"></div>
+        <button class="btn" id="btn-save-draft">Save draft</button>
+        <button class="btn btn-primary" id="btn-next">Next →</button>
+        <button class="btn btn-accent" id="btn-generate" hidden>Generate timetable</button>
+      </footer>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- SCREEN: TIMETABLE                                                     -->
+<!-- ===================================================================== -->
+<section id="screen-table" class="screen" hidden>
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="brand-mark sm">tt2</span>
+      <div>
+        <strong id="table-title">Timetable</strong>
+        <small id="table-subtitle" class="muted"></small>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn" id="btn-back-to-wizard">Setup</button>
+      <button class="btn" id="btn-regenerate">Regenerate</button>
+      <button class="btn" id="btn-export">Export CSV</button>
+      <button class="btn btn-primary" id="btn-save-table">Save</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="table-toolbar">
+      <div class="segmented" id="view-switch">
+        <button data-view="classes" class="active">By class</button>
+        <button data-view="teachers">By teacher</button>
+      </div>
+      <div class="picker" id="entity-picker"></div>
+      <div class="spacer"></div>
+      <div id="table-status" class="status-pill"></div>
+    </div>
+
+    <div id="legend" class="legend"></div>
+
+    <div class="grid-wrap">
+      <table id="grid" class="grid"></table>
+    </div>
+
+    <div class="panel-grid">
+      <section class="panel">
+        <h3>Report</h3>
+        <div id="report"></div>
+      </section>
+      <section class="panel">
+        <h3>Subject coverage</h3>
+        <div id="coverage"></div>
+      </section>
+    </div>
+  </main>
+</section>
+
+<script src="app.js"></script>
+</body>
+</html>

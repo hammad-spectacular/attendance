@@ -22,3 +22,11 @@ tests/test-failures/
 .qoder/
 .freebuff/
 skills-lock.json
+
+# Timetable dev artifacts (runtime state, logs, scratch, generated images)
+timetable/**/dev-state.json
+timetable/**/*.log
+timetable/**/_scratch_backup/
+timetable/**/*.zip
+timetable/**/*.png
+timetable/tt2/test/_debug.js

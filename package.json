@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "scripts": {
     "start": "node serverg.js",
+    "test:unit": "node --test \"unit-tests/*.test.js\"",
+    "dev:timetable": "node timetable/dev-server.js",
+    "bench:timetable": "node unit-tests/benchmark.js",
     "build": "echo built"
   },
   "dependencies": {

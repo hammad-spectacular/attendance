@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Timetable — The Eye</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- ================= Standalone sign-in (dev server only) ================= -->
+  <section id="signin" class="signin hidden">
+    <div class="signin-card">
+      <h1>Timetable <span class="muted">standalone test module</span></h1>
+      <p class="hint">Pick a demo identity. Each one is a real JWT with The Eye's
+        exact payload shape, so the API code below is the production code.</p>
+      <div id="devUserList" class="dev-users"></div>
+      <p class="hint small">Two schools are seeded on purpose (DEMO1 / DEMO2) so tenant
+        isolation can be tested by switching identity.</p>
+    </div>
+  </section>
+
+  <!-- ============================ Main app ============================ -->
+  <div id="app" class="app hidden">
+    <header class="topbar">
+      <div class="brand">
+        <strong>Timetable</strong>
+        <span id="schoolName" class="muted"></span>
+      </div>
+      <div class="topbar-right">
+        <span id="statusBadge" class="badge badge-draft">draft</span>
+        <span id="whoami" class="muted small"></span>
+        <button id="btnPrint" class="btn btn-ghost" type="button">Print / PDF</button>
+        <button id="btnSignout" class="btn btn-ghost" type="button">Sign out</button>
+      </div>
+    </header>
+
+    <nav class="tabs" id="viewTabs">
+      <button class="tab active" data-view="class" type="button">Class grid</button>
+      <button class="tab" data-view="teacher" type="button">Teachers</button>
+      <button class="tab" data-view="room" type="button">Rooms</button>
+      <button class="tab" data-view="school" type="button">School overview</button>
+    </nav>
+
+    <section class="toolbar" id="toolbar">
+      <label id="classWrap" class="field">
+        <span>Class</span>
+        <select id="classSelect"></select>
+      </label>
+
+      <div class="toolbar-actions">
+        <button id="btnGenerate" class="btn btn-primary" type="button">Generate (automatic)</button>
+        <button id="btnRegenerate" class="btn" type="button" title="Keeps locked cells">Regenerate (keep locks)</button>
+        <button id="btnSave" class="btn" type="button">Save draft</button>
+        <button id="btnValidate" class="btn" type="button">Validate</button>
+        <button id="btnPublish" class="btn btn-accent" type="button">Publish</button>
+      </div>
+    </section>
+
+    <!-- Preview banner shown after generation, before anything is saved -->
+    <div id="previewBanner" class="banner hidden">
+      <span><strong>Generated preview</strong> — not saved yet. Review it below, then
+        accept it as a draft or discard it.</span>
+      <span class="banner-actions">
+        <button id="btnAccept" class="btn btn-primary" type="button">Accept as draft</button>
+        <button id="btnDiscard" class="btn" type="button">Discard</button>
+      </span>
+    </div>
+
+    <main class="layout">
+      <div class="panel grid-panel">
+        <div id="grid" class="grid-host" aria-label="Timetable grid"></div>
+      </div>
+
+      <aside class="panel side-panel">
+        <section class="side-block">
+          <h2>Completeness</h2>
+          <div class="meter"><div id="meterFill" class="meter-fill"></div></div>
+          <p id="meterText" class="small muted">—</p>
+        </section>
+
+        <section class="side-block">
+          <h2>Validation</h2>
+          <div id="validationList" class="validation-list">
+            <p class="small muted">No report yet. Press Validate, Save or Publish.</p>
+          </div>
+        </section>
+
+        <section class="side-block" id="editBlock">
+          <h2>Edit cell</h2>
+          <div id="editor" class="editor">
+            <p class="small muted">Select a cell in the grid to edit, move, lock or clear it.</p>
+          </div>
+        </section>
+
+        <section class="side-block">
+          <h2>Stats</h2>
+          <p id="statsText" class="small muted">—</p>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
