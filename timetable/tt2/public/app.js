@@ -174,6 +174,23 @@ const stepRenderers = {
 
   periods: () => {
     const cfg = state.config
+    // Calculate school end time from startTime, periodCount, periodDuration and breaks
+    function calcEndTime() {
+      try {
+        const [h, m] = cfg.startTime.split(':').map(Number)
+        let totalMins = h * 60 + m
+        for (let i = 1; i <= cfg.periodCount; i++) {
+          const override = cfg.periodOverrides && cfg.periodOverrides[String(i)]
+          totalMins += override || cfg.periodDuration
+          const brk = cfg.breaks.find(b => b.afterPeriod === i)
+          if (brk) totalMins += brk.duration
+        }
+        const endH = Math.floor(totalMins / 60) % 24
+        const endM = totalMins % 60
+        return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`
+      } catch (_) { return '—' }
+    }
+    const endTime = calcEndTime()
     return `
     <div class="card">
       <h4>Length of a class</h4>
@@ -191,7 +208,12 @@ const stepRenderers = {
         <label class="field">
           <span>School starts at</span>
           <input type="time" data-bind="startTime" value="${esc(cfg.startTime)}">
-          <small>Used to label the time column.</small>
+          <small>When the first period begins.</small>
+        </label>
+        <label class="field">
+          <span>School ends at (calculated)</span>
+          <input type="time" value="${endTime}" disabled style="opacity:0.6;cursor:not-allowed">
+          <small>Automatically calculated from start, ${cfg.periodCount} period${cfg.periodCount === 1 ? '' : 's'} × ${cfg.periodDuration} min + breaks.</small>
         </label>
       </div>
     </div>
@@ -245,12 +267,20 @@ const stepRenderers = {
   classes: () => `
     <div class="card">
       <h4>Classes</h4>
-      <p class="muted" style="margin-bottom:14px">Each class gets its own timetable. Add the groups of students you teach.</p>
+      <p class="muted" style="margin-bottom:6px">Each class gets its own timetable. Add the groups of students you teach.</p>
+      <p class="muted" style="margin-bottom:14px">Use the <b>Section</b> field for classes that share a name — e.g. "Grade 1" with sections "A", "B", "C".</p>
+      <div class="row tight" style="margin-bottom:6px;padding:0 4px">
+        <span style="flex:1 1 0;font-size:12px;font-weight:600;color:var(--ink-2)">Class name</span>
+        <span style="width:110px;font-size:12px;font-weight:600;color:var(--ink-2)">Section (A, B…)</span>
+        <span style="width:100px;font-size:12px;font-weight:600;color:var(--ink-2)">Students</span>
+        <span style="width:32px"></span>
+      </div>
       ${state.config.classes.map(c => `
         <div class="item-row">
           <div class="grow row tight">
-            <input type="text" data-list="classes" data-id="${esc(c.id)}" data-field="name" value="${esc(c.name)}" placeholder="Class name">
-            <input type="number" min="0" data-list="classes" data-id="${esc(c.id)}" data-field="studentCount" value="${c.studentCount}" placeholder="Students" style="max-width:110px">
+            <input type="text" data-list="classes" data-id="${esc(c.id)}" data-field="name" value="${esc(c.name)}" placeholder="e.g. Grade 1">
+            <input type="text" data-list="classes" data-id="${esc(c.id)}" data-field="section" value="${esc(c.section || '')}" placeholder="A" style="max-width:110px" title="Section label — leave blank if there is only one section for this class">
+            <input type="number" min="0" data-list="classes" data-id="${esc(c.id)}" data-field="studentCount" value="${c.studentCount}" placeholder="0" style="max-width:100px">
           </div>
           <button class="btn btn-sm btn-danger" data-act="del-class" data-id="${esc(c.id)}">✕</button>
         </div>`).join('') || '<p class="muted">No classes yet.</p>'}
@@ -293,18 +323,22 @@ const stepRenderers = {
         A teacher can teach <b>two or three subjects</b> — tick every subject they are responsible for.
         The generator will spread their workload across the week.
       </div>
+      <div class="hint" style="margin-top:8px;font-size:12.5px;color:var(--ink-3)">
+        <b>Max periods per day</b> — the most classes a teacher teaches in a single school day (leave blank for no limit).<br>
+        <b>Max periods per week</b> — the most classes a teacher teaches across the entire week (leave blank for no limit).
+      </div>
       ${cfg.teachers.map(t => `
         <div class="item-row">
           <div class="grow">
             <div class="row tight">
               <input type="text" data-list="teachers" data-id="${esc(t.id)}" data-field="name" value="${esc(t.name)}" placeholder="Teacher name" style="max-width:240px">
-              <label class="field" style="margin:0;flex:0 0 130px">
-                <span>Max / day</span>
-                <input type="number" min="0" max="${cfg.periodCount}" data-empty-null="1" data-list="teachers" data-id="${esc(t.id)}" data-field="maxPerDay" value="${t.maxPerDay === null ? '' : t.maxPerDay}" placeholder="auto">
+              <label class="field" style="margin:0;flex:0 0 180px">
+                <span>Max periods per day</span>
+                <input type="number" min="0" max="${cfg.periodCount}" data-empty-null="1" data-list="teachers" data-id="${esc(t.id)}" data-field="maxPerDay" value="${t.maxPerDay === null ? '' : t.maxPerDay}" placeholder="No limit">
               </label>
-              <label class="field" style="margin:0;flex:0 0 130px">
-                <span>Max / week</span>
-                <input type="number" min="0" max="60" data-empty-null="1" data-list="teachers" data-id="${esc(t.id)}" data-field="maxPerWeek" value="${t.maxPerWeek === null ? '' : t.maxPerWeek}" placeholder="auto">
+              <label class="field" style="margin:0;flex:0 0 180px">
+                <span>Max periods per week</span>
+                <input type="number" min="0" max="60" data-empty-null="1" data-list="teachers" data-id="${esc(t.id)}" data-field="maxPerWeek" value="${t.maxPerWeek === null ? '' : t.maxPerWeek}" placeholder="No limit">
               </label>
               <button class="btn btn-sm btn-danger" data-act="del-teacher" data-id="${esc(t.id)}">✕</button>
             </div>
@@ -378,6 +412,8 @@ const stepRenderers = {
 
     const pair = (classId, subjectId) => `${classId}::${subjectId}`
 
+    const classLabel = c => c.section ? `${esc(c.name)} (${esc(c.section)})` : esc(c.name)
+
     return `
     <div class="card">
       <h4>Periods per week</h4>
@@ -389,7 +425,7 @@ const stepRenderers = {
           <thead>
             <tr>
               <th>Subject</th>
-              ${cfg.classes.map(c => `<th>${esc(c.name)}</th>`).join('')}
+              ${cfg.classes.map(c => `<th>${classLabel(c)}</th>`).join('')}
               <th>Total</th>
             </tr>
           </thead>
@@ -424,38 +460,6 @@ const stepRenderers = {
               }).join('')}
               <td></td>
             </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="card">
-      <h4>Preferred teacher</h4>
-      <p class="muted" style="margin-bottom:12px">
-        Pin a specific teacher to a subject for a class, or leave it on <b>Auto</b> and let the
-        generator choose from everyone qualified.
-      </p>
-      <div class="matrix-wrap">
-        <table class="matrix">
-          <thead>
-            <tr><th>Subject</th>${cfg.classes.map(c => `<th>${esc(c.name)}</th>`).join('')}</tr>
-          </thead>
-          <tbody>
-            ${cfg.subjects.map(s => `
-              <tr>
-                <th>${esc(s.name)}</th>
-                ${cfg.classes.map(c => {
-                  const r = rowFor(c.id, s.id)
-                  const current = (r && r.teacherIds && r.teacherIds[0]) || ''
-                  const qualified = cfg.teachers.filter(t => t.subjectIds.includes(s.id))
-                  return `<td class="num">
-                    <select data-curriculum="${esc(pair(c.id, s.id))}" data-field="teacherId" style="width:100%;min-width:120px">
-                      <option value="">Auto</option>
-                      ${qualified.map(t => `<option value="${esc(t.id)}" ${current === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}
-                    </select>
-                  </td>`
-                }).join('')}
-              </tr>`).join('')}
           </tbody>
         </table>
       </div>
@@ -572,11 +576,13 @@ function renderTable() {
   // entity picker
   const picker = document.getElementById('entity-picker')
   if (state.view === 'classes') {
-    picker.innerHTML = cfg.classes.map(c => `
-      <button class="chip ${c.id === state.activeClassId ? 'on' : ''}" data-act="pick-class" data-id="${esc(c.id)}">${esc(c.name)}</button>`).join('')
+    picker.innerHTML = cfg.classes.map(c => {
+      const label = c.section ? `${esc(c.name)} (${esc(c.section)})` : esc(c.name)
+      return `<button class="chip ${c.id === state.activeClassId ? 'on' : ''}" data-act="pick-class" data-id="${esc(c.id)}">${label}</button>`
+    }).join('')
   } else {
-    picker.innerHTML = cfg.teachers.map(t => `
-      <button class="chip ${t.id === state.activeTeacherId ? 'on' : ''}" data-act="pick-teacher" data-id="${esc(t.id)}">${esc(t.name)}</button>`).join('')
+    picker.innerHTML = cfg.teachers.map(t =>
+      `<button class="chip ${t.id === state.activeTeacherId ? 'on' : ''}" data-act="pick-teacher" data-id="${esc(t.id)}">${esc(t.name)}</button>`).join('')
   }
 
   // status
@@ -1056,7 +1062,7 @@ document.addEventListener('click', async e => {
 
     /* ---- step: classes / subjects / rooms ---- */
     case 'add-class':
-      cfg.classes.push({ id: uid('class'), name: `Class ${cfg.classes.length + 1}`, studentCount: 0 })
+      cfg.classes.push({ id: uid('class'), name: `Class ${cfg.classes.length + 1}`, section: '', studentCount: 0 })
       renderWizard(); scheduleCheck()
       return
     case 'del-class':

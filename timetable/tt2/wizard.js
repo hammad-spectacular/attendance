@@ -247,6 +247,7 @@ function normaliseConfig(raw) {
     .map((c, i) => ({
       id: asTrimmedString(c && c.id) || `class_${i + 1}`,
       name: asTrimmedString(c && c.name) || `Class ${i + 1}`,
+      section: asTrimmedString(c && c.section) || '',
       studentCount: Math.max(0, Math.round(asNumber(c && c.studentCount, 0)))
     }))
     .filter(c => c.name)

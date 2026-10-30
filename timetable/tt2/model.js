@@ -142,7 +142,7 @@ function buildSolverInput(rawConfig, opts = {}) {
   const solverInput = {
     days: config.days.slice(),
     periods: periods.map(p => ({ label: p.label, kind: p.kind })),
-    classes: config.classes.map(c => ({ id: c.id, name: c.name })),
+    classes: config.classes.map(c => ({ id: c.id, name: c.name, section: c.section || null })),
     subjects: config.subjects.map(s => ({
       id: s.id,
       name: s.name,
