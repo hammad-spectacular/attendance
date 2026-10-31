@@ -17,7 +17,8 @@ const assert = require('node:assert/strict')
 const express = require('express')
 const path = require('path')
 
-const { defaultConfig, normaliseConfig, validateConfig, STEPS } = require('../wizard')
+const { defaultConfig, normaliseConfig, validateConfig, STEPS, ALL_DAYS } = require('../wizard')
+const { createFileStore } = require('../store')
 const {
   buildPeriods,
   buildDayPeriods,
@@ -26,10 +27,12 @@ const {
   buildGrids,
   gridToEntries,
   collectLocks,
-  formatClock
+  formatClock,
+  resolveTiming,
+  buildPeriodsForDate,
+  validateLockedCells
 } = require('../model')
 const { createTt2Router } = require('../routes')
-const { createFileStore } = require('../store')
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -177,6 +180,410 @@ test('wizard: normaliseConfig drops junk and fills defaults', () => {
   assert.deepEqual(config.days, ['Monday'])
   assert.deepEqual(config.classes, [])
   assert.equal(config.periodCount, defaultConfig().periodCount)
+})
+
+test('wizard: endTime must be after startTime', () => {
+  const config = sampleConfig({ startTime: '14:00', endTime: '08:00' })
+  const result = validateConfig(config)
+  assert.equal(result.canGenerate, false)
+  assert.ok(result.errors.some(e => /end time must be after the start time/i.test(e)))
+})
+
+test('wizard: endTime must be in HH:MM format', () => {
+  const config = normaliseConfig(sampleConfig({ endTime: 'invalid' }))
+  // Invalid endTime should be normalised to default
+  assert.equal(config.endTime, defaultConfig().endTime)
+})
+
+test('wizard: periods must fit within start-end window', () => {
+  const config = sampleConfig({ startTime: '08:00', endTime: '10:00', periodCount: 6, periodDuration: 40 })
+  const result = validateConfig(config)
+  assert.equal(result.canGenerate, false)
+  assert.ok(result.errors.some(e => /require until/i.test(e)))
+})
+
+test('wizard: calculateEndTime helper works correctly', () => {
+  const { calculateEndTime } = require('../wizard')
+  const config = sampleConfig({ startTime: '08:00', periodCount: 3, periodDuration: 40, breaks: [] })
+  const endMinutes = calculateEndTime(config)
+  assert.equal(endMinutes, 10 * 60) // 10:00 AM = 600 minutes
+})
+
+test('wizard: date override with valid date and timing', () => {
+  const config = sampleConfig({
+    dateOverrides: {
+      '2026-11-06': { periodDuration: 30, startTime: '09:00', breakDuration: 10 }
+    }
+  })
+  const result = validateConfig(config)
+  assert.equal(result.canGenerate, true)
+  assert.equal(result.errors.length, 0)
+})
+
+test('wizard: date override with invalid date format', () => {
+  const config = normaliseConfig(sampleConfig({
+    dateOverrides: {
+      'invalid-date': { periodDuration: 30, startTime: '09:00', breakDuration: 10 }
+    }
+  }))
+  // Invalid date should be filtered out during normalisation
+  assert.deepEqual(config.dateOverrides, {})
+})
+
+test('wizard: date override for non-school day is an error', () => {
+  const config = sampleConfig({
+    days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+    dateOverrides: {
+      '2026-11-07': { periodDuration: 30, startTime: '09:00', breakDuration: 10 } // Saturday
+    }
+  })
+  const result = validateConfig(config)
+  assert.equal(result.canGenerate, false)
+  assert.ok(result.errors.some(e => /not a configured school day/i.test(e)))
+})
+
+test('wizard: date override with invalid timing (exceeds end time)', () => {
+  const config = sampleConfig({
+    endTime: '10:00',
+    dateOverrides: {
+      '2026-11-16': { periodDuration: 40, startTime: '08:00', breakDuration: 10 }
+    }
+  })
+  const result = validateConfig(config)
+  assert.equal(result.canGenerate, false)
+  assert.ok(result.errors.some(e => /past the school end time/i.test(e)))
+})
+
+test('wizard: date overrides are separate from recurring dayOverrides', () => {
+  const config = normaliseConfig(sampleConfig({
+    dayOverrides: {
+      'Friday': { periodDuration: 30, startTime: '08:00', breakDuration: 15 }
+    },
+    dateOverrides: {
+      '2026-11-06': { periodDuration: 25, startTime: '09:00', breakDuration: 10 }
+    }
+  }))
+  // Both should coexist independently
+  assert.ok(config.dayOverrides['Friday'])
+  assert.ok(config.dateOverrides['2026-11-06'])
+  assert.equal(config.dayOverrides['Friday'].periodDuration, 30)
+  assert.equal(config.dateOverrides['2026-11-06'].periodDuration, 25)
+})
+
+test('wizard: date override normalises timing values', () => {
+  const config = normaliseConfig(sampleConfig({
+    dateOverrides: {
+      '2026-11-16': { periodDuration: 200, startTime: 'invalid', breakDuration: 150 }
+    }
+  }))
+  // Should normalise to valid ranges
+  assert.equal(config.dateOverrides['2026-11-16'].periodDuration, 180) // max
+  assert.equal(config.dateOverrides['2026-11-16'].startTime, '08:00') // default
+  assert.equal(config.dateOverrides['2026-11-16'].breakDuration, 120) // max
+})
+
+test('wizard: date override with backward compatibility (missing field)', () => {
+  const config = normaliseConfig(sampleConfig({
+    // No dateOverrides field - should default to empty object
+  }))
+  assert.deepEqual(config.dateOverrides, {})
+})
+
+// ---------------------------------------------------------------------------
+// Phase 1: Date-aware period logic tests
+// ---------------------------------------------------------------------------
+
+test('model: resolveTiming uses date override (highest priority)', () => {
+  const config = sampleConfig({
+    periodDuration: 40,
+    startTime: '08:00',
+    dayTimingMode: 'custom',
+    dayOverrides: {
+      'Monday': { periodDuration: 30, startTime: '09:00', breakDuration: 10 }
+    },
+    dateOverrides: {
+      '2026-11-02': { periodDuration: 25, startTime: '10:00', breakDuration: 5 }
+    }
+  })
+  const result = resolveTiming(config, '2026-11-02') // Monday
+  assert.equal(result.source, 'date')
+  assert.equal(result.timing.periodDuration, 25)
+  assert.equal(result.timing.startTime, '10:00')
+})
+
+test('model: resolveTiming uses recurring override when no date override', () => {
+  const config = sampleConfig({
+    days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+    periodDuration: 40,
+    startTime: '08:00',
+    dayTimingMode: 'custom',
+    dayOverrides: {
+      'Friday': { periodDuration: 30, startTime: '09:00', breakDuration: 10 }
+    }
+  })
+  const result = resolveTiming(config, '2026-11-06') // Friday
+  assert.equal(result.source, 'recurring')
+  assert.equal(result.timing.periodDuration, 30)
+  assert.equal(result.timing.startTime, '09:00')
+})
+
+test('model: resolveTiming uses default when no overrides exist', () => {
+  const config = sampleConfig({
+    periodDuration: 40,
+    startTime: '08:00'
+  })
+  const result = resolveTiming(config, '2026-11-02')
+  assert.equal(result.source, 'default')
+  assert.equal(result.timing.periodDuration, 40)
+  assert.equal(result.timing.startTime, '08:00')
+})
+
+test('model: buildPeriodsForDate with date override', () => {
+  const config = sampleConfig({
+    periodDuration: 40,
+    startTime: '08:00',
+    dateOverrides: {
+      '2026-11-02': { periodDuration: 30, startTime: '09:00', breakDuration: 10 }
+    }
+  })
+  const result = buildPeriodsForDate(config, '2026-11-02')
+  assert.equal(result.source, 'date')
+  assert.equal(result.periods[0].duration, 30)
+  assert.equal(result.periods[0].text, '9:00 AM – 9:30 AM')
+  assert.equal(result.startTime, '9:00 AM')
+})
+
+test('model: buildPeriodsForDate with recurring override', () => {
+  const config = sampleConfig({
+    days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+    periodDuration: 40,
+    startTime: '08:00',
+    dayTimingMode: 'custom',
+    dayOverrides: {
+      'Friday': { periodDuration: 35, startTime: '08:30', breakDuration: 15 }
+    }
+  })
+  const result = buildPeriodsForDate(config, '2026-11-06') // Friday
+  assert.equal(result.source, 'recurring')
+  assert.equal(result.periods[0].duration, 35)
+  assert.equal(result.periods[0].text, '8:30 AM – 9:05 AM')
+})
+
+test('model: buildPeriodsForDate with default timing', () => {
+  const config = sampleConfig({
+    periodDuration: 40,
+    startTime: '08:00'
+  })
+  const result = buildPeriodsForDate(config, '2026-11-02')
+  assert.equal(result.source, 'default')
+  assert.equal(result.periods[0].duration, 40)
+  assert.equal(result.periods[0].text, '8:00 AM – 8:40 AM')
+})
+
+test('model: date override does not modify recurring settings', () => {
+  const config = sampleConfig({
+    days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+    dayTimingMode: 'custom',
+    dayOverrides: {
+      'Friday': { periodDuration: 30, startTime: '09:00', breakDuration: 10 }
+    },
+    dateOverrides: {
+      '2026-11-06': { periodDuration: 25, startTime: '10:00', breakDuration: 5 }
+    }
+  })
+  
+  // Date override takes priority for the specific date
+  const dateResult = buildPeriodsForDate(config, '2026-11-06') // Friday
+  assert.equal(dateResult.source, 'date')
+  assert.equal(dateResult.periods[0].duration, 25)
+  
+  // Recurring settings remain unchanged for other dates
+  const recurringResult = buildPeriodsForDate(config, '2026-11-13') // Another Friday
+  assert.equal(recurringResult.source, 'recurring')
+  assert.equal(recurringResult.periods[0].duration, 30)
+})
+
+test('model: backward compatibility - date with no overrides', () => {
+  const config = sampleConfig({
+    periodDuration: 40,
+    startTime: '08:00'
+  })
+  const result = buildPeriodsForDate(config, '2026-11-02')
+  assert.equal(result.source, 'default')
+  assert.equal(result.periods.length, 8) // 6 teaching + 2 breaks
+  assert.equal(result.teachingIndex['1'], 0)
+})
+
+test('model: period labels match resolved schedule', () => {
+  const config = sampleConfig({
+    periodDuration: 40,
+    startTime: '08:00',
+    dateOverrides: {
+      '2026-11-02': { periodDuration: 30, startTime: '09:00', breakDuration: 15 }
+    }
+  })
+  const result = buildPeriodsForDate(config, '2026-11-02')
+  
+  // First period: 9:00 AM - 9:30 AM (30 min)
+  assert.equal(result.periods[0].text, '9:00 AM – 9:30 AM')
+  assert.equal(result.periods[0].duration, 30)
+  
+  // Break after P2: 10:00 AM - 10:15 AM (15 min break)
+  assert.equal(result.periods[2].kind, 'break')
+  assert.equal(result.periods[2].duration, 15)
+  
+  // P3 starts after break: 10:15 AM
+  assert.equal(result.periods[3].text, '10:15 AM – 10:45 AM')
+})
+
+// ---------------------------------------------------------------------------
+// Phase 1: Locked lesson validation tests
+// ---------------------------------------------------------------------------
+
+test('model: validateLockedCells with valid locked lessons', () => {
+  const config = sampleConfig({ periodCount: 6, periodDuration: 40 })
+  const oldPeriods = buildPeriods(config).periods
+  
+  // Change period duration by 5 minutes (within 10 min threshold)
+  const newConfig = sampleConfig({ periodCount: 6, periodDuration: 35 })
+  const newPeriods = buildPeriods(newConfig).periods
+  
+  const grids = {
+    'c1': {
+      'c1|0|0': { classId: 'c1', day: 0, period: 0, teachingNumber: 1, subjectId: 's_math', teacherId: 't_a', locked: true, manual: true }
+    }
+  }
+  
+  const result = validateLockedCells(config, grids, oldPeriods, newPeriods)
+  assert.equal(result.valid, true)
+  assert.equal(result.invalidCells.length, 0)
+  assert.equal(result.warnings.length, 0) // Only 5 min change, no warning
+})
+
+test('model: validateLockedCells with invalid period reference', () => {
+  const config = sampleConfig({ periodCount: 6, periodDuration: 40 })
+  const oldPeriods = buildPeriods(config).periods
+  
+  // Reduce period count - period 6 (teachingNumber) no longer exists
+  const newConfig = sampleConfig({ periodCount: 5, periodDuration: 40 })
+  const newPeriods = buildPeriods(newConfig).periods
+  
+  // Lock a cell at column index 7 (which was P6 with periodCount: 6)
+  // With periodCount: 6 and a break after P2: columns are [P1, P2, break, P3, P4, P5, P6]
+  // With periodCount: 5 and a break after P2: columns are [P1, P2, break, P3, P4, P5]
+  // Column 7 no longer exists in new config
+  const grids = {
+    'c1': {
+      'c1|0|7': { classId: 'c1', day: 0, period: 7, teachingNumber: 6, subjectId: 's_math', teacherId: 't_a', locked: true, manual: true }
+    }
+  }
+  
+  const result = validateLockedCells(config, grids, oldPeriods, newPeriods)
+  assert.equal(result.valid, false)
+  assert.equal(result.invalidCells.length, 1)
+  assert.ok(result.invalidCells[0].reason.includes('no longer exists'))
+})
+
+test('model: validateLockedCells with break conflict', () => {
+  const config = sampleConfig({
+    periodCount: 6,
+    periodDuration: 40,
+    breaks: [{ afterPeriod: 2, label: 'Lunch', duration: 30 }]
+  })
+  const oldPeriods = buildPeriods(config).periods
+  
+  // Old columns: P1, P2, break, P3, P4, P5, P6
+  // Column 3 is P3 (teaching)
+  
+  // New config: turn column 3 into a break
+  const newConfig = sampleConfig({
+    periodCount: 2,
+    periodDuration: 40,
+    breaks: [
+      { afterPeriod: 1, label: 'Break', duration: 10 },
+      { afterPeriod: 2, label: 'Lunch', duration: 30 }
+    ]
+  })
+  const newPeriods = buildPeriods(newConfig).periods
+  // New columns: P1, break, P2, break
+  // Column 3 is now a break
+  
+  const grids = {
+    'c1': {
+      'c1|0|3': { classId: 'c1', day: 0, period: 3, teachingNumber: 3, subjectId: 's_math', teacherId: 't_a', locked: true, manual: true }
+    }
+  }
+  
+  const result = validateLockedCells(config, grids, oldPeriods, newPeriods)
+  assert.equal(result.valid, false)
+  assert.equal(result.invalidCells.length, 1)
+  assert.ok(result.invalidCells[0].reason.includes('now a break'))
+})
+
+test('model: validateLockedCells with timing change warning', () => {
+  const config = sampleConfig({ periodCount: 6, periodDuration: 40 })
+  const oldPeriods = buildPeriods(config).periods
+  
+  // Change duration by 20 minutes (> 10 min threshold)
+  const newConfig = sampleConfig({ periodCount: 6, periodDuration: 60 })
+  const newPeriods = buildPeriods(newConfig).periods
+  
+  const grids = {
+    'c1': {
+      'c1|0|0': { classId: 'c1', day: 0, period: 0, teachingNumber: 1, subjectId: 's_math', teacherId: 't_a', locked: true, manual: true }
+    }
+  }
+  
+  const result = validateLockedCells(config, grids, oldPeriods, newPeriods)
+  assert.equal(result.valid, true)
+  assert.equal(result.invalidCells.length, 0)
+  assert.equal(result.warnings.length, 1)
+  assert.ok(result.warnings[0].reason.includes('changed from 40 to 60'))
+})
+
+test('model: validateLockedCells with no locked cells', () => {
+  const config = sampleConfig({ periodCount: 6, periodDuration: 40 })
+  const oldPeriods = buildPeriods(config).periods
+  const newPeriods = buildPeriods(config).periods
+  
+  const grids = {
+    'c1': {
+      'c1|0|0': { classId: 'c1', day: 0, period: 0, teachingNumber: 1, subjectId: 's_math', teacherId: 't_a', locked: false, manual: false }
+    }
+  }
+  
+  const result = validateLockedCells(config, grids, oldPeriods, newPeriods)
+  assert.equal(result.valid, true)
+  assert.equal(result.invalidCells.length, 0)
+  assert.equal(result.warnings.length, 0)
+})
+
+test('model: validateLockedCells preserves teacher and subject assignments', () => {
+  const config = sampleConfig({ periodCount: 6, periodDuration: 40 })
+  const oldPeriods = buildPeriods(config).periods
+  const newPeriods = buildPeriods(config).periods
+  
+  const grids = {
+    'c1': {
+      'c1|0|0': { 
+        classId: 'c1', 
+        day: 0, 
+        period: 0, 
+        teachingNumber: 1, 
+        subjectId: 's_math', 
+        teacherId: 't_a', 
+        locked: true, 
+        manual: true 
+      }
+    }
+  }
+  
+  const result = validateLockedCells(config, grids, oldPeriods, newPeriods)
+  assert.equal(result.valid, true)
+  // The validation does not modify the grids
+  assert.equal(grids.c1['c1|0|0'].subjectId, 's_math')
+  assert.equal(grids.c1['c1|0|0'].teacherId, 't_a')
+  assert.equal(grids.c1['c1|0|0'].locked, true)
 })
 
 // ---------------------------------------------------------------------------
@@ -503,6 +910,283 @@ test('api: the store persists to disk', async () => {
   const reopened = createFileStore({ persistPath: file })
   assert.equal(reopened.get('dev', doc.id).config.schoolName, 'Greenwood Academy')
   require('node:fs').unlinkSync(file)
+})
+
+test('api: GET /timetables/:id/date-overrides retrieves overrides', async () => {
+  const created = await post('/timetables', { config: sampleConfig() })
+  const id = created.body.timetable.id
+
+  const res = await fetch(`${base}/timetables/${id}/date-overrides`)
+  assert.equal(res.status, 200)
+  const data = await res.json()
+  assert.equal(data.ok, true)
+  assert.ok(typeof data.dateOverrides === 'object')
+})
+
+test('api: POST /timetables/:id/date-overrides creates override', async () => {
+  const created = await post('/timetables', { config: sampleConfig() })
+  const id = created.body.timetable.id
+
+  const res = await post(`/timetables/${id}/date-overrides`, {
+    date: '2026-11-06', // Friday
+    timing: { periodDuration: 30, startTime: '09:00', breakDuration: 15 }
+  })
+  if (res.status !== 200) {
+    console.log('Error:', res.body)
+  }
+  assert.equal(res.status, 200)
+  assert.equal(res.body.ok, true)
+  assert.ok(res.body.dateOverrides['2026-11-06'])
+  assert.equal(res.body.dateOverrides['2026-11-06'].periodDuration, 30)
+})
+
+test('api: POST date override with invalid date format', async () => {
+  const created = await post('/timetables', { config: sampleConfig() })
+  const id = created.body.timetable.id
+
+  const res = await post(`/timetables/${id}/date-overrides`, {
+    date: 'invalid-date',
+    timing: { periodDuration: 30 }
+  })
+  assert.equal(res.status, 400)
+  assert.ok(res.body.error.includes('YYYY-MM-DD'))
+})
+
+test('api: POST date override for non-school day', async () => {
+  const created = await post('/timetables', { config: sampleConfig() })
+  const id = created.body.timetable.id
+
+  // 2026-11-22 is a Saturday (not in config.days)
+  const res = await post(`/timetables/${id}/date-overrides`, {
+    date: '2026-11-22',
+    timing: { periodDuration: 30 }
+  })
+  assert.equal(res.status, 400)
+  assert.ok(res.body.error.includes('not a configured school day'))
+})
+
+test('api: POST date override with invalid timing', async () => {
+  const created = await post('/timetables', { config: sampleConfig() })
+  const id = created.body.timetable.id
+
+  const res = await post(`/timetables/${id}/date-overrides`, {
+    date: '2026-11-06',
+    timing: { periodDuration: 200 } // exceeds end time
+  })
+  assert.equal(res.status, 400)
+  assert.ok(res.body.error.includes('Invalid timing'))
+})
+
+test('api: DELETE /timetables/:id/date-overrides/:date removes override', async () => {
+  const created = await post('/timetables', { config: sampleConfig() })
+  const id = created.body.timetable.id
+
+  // Create an override
+  await post(`/timetables/${id}/date-overrides`, {
+    date: '2026-11-06',
+    timing: { periodDuration: 30 }
+  })
+
+  // Delete it
+  const res = await fetch(`${base}/timetables/${id}/date-overrides/2026-11-06`, {
+    method: 'DELETE'
+  })
+  const body = await res.json()
+  assert.equal(res.status, 200)
+  assert.equal(body.ok, true)
+  assert.equal(body.dateOverrides['2026-11-06'], undefined)
+})
+
+test('api: DELETE date override that does not exist', async () => {
+  const created = await post('/timetables', { config: sampleConfig() })
+  const id = created.body.timetable.id
+
+  const res = await fetch(`${base}/timetables/${id}/date-overrides/2026-11-06`, {
+    method: 'DELETE'
+  })
+  const body = await res.json()
+  assert.equal(res.status, 404)
+  assert.ok(body.error && body.error.includes('No override found'))
+})
+
+test('api: date overrides remain separate from recurring dayOverrides', async () => {
+  const config = sampleConfig({
+    dayTimingMode: 'custom',
+    dayOverrides: {
+      Friday: { periodDuration: 30, startTime: '08:00', breakDuration: 15 }
+    }
+  })
+  const created = await post('/timetables', { config })
+  const id = created.body.timetable.id
+
+  // Add a date override
+  await post(`/timetables/${id}/date-overrides`, {
+    date: '2026-11-06',
+    timing: { periodDuration: 25, startTime: '09:00' }
+  })
+
+  // Verify both exist separately
+  const fetched = await fetch(`${base}/timetables/${id}`)
+  const doc = (await fetched.json()).timetable
+  assert.ok(doc.config.dayOverrides.Friday)
+  assert.ok(doc.config.dateOverrides['2026-11-06'])
+  assert.equal(doc.config.dayOverrides.Friday.periodDuration, 30)
+  assert.equal(doc.config.dateOverrides['2026-11-06'].periodDuration, 25)
+})
+
+test('api: tenant isolation - cannot access another tenant\'s date overrides', async () => {
+  const store = createFileStore()
+  const a = store.create({ tenantId: 'A', config: sampleConfig() })
+  const b = store.create({ tenantId: 'B', config: sampleConfig() })
+
+  // Add override to tenant A's timetable via direct store manipulation
+  const configA = { ...a.config, dateOverrides: { '2026-11-06': { periodDuration: 30 } } }
+  store.update('A', a.id, { config: configA })
+
+  // Tenant B cannot access tenant A's timetable
+  const docB = store.get('B', a.id)
+  assert.equal(docB, null)
+})
+
+test('api: POST /timetables/:id/apply-batch-timing updates multiple days', async () => {
+  const created = await post('/timetables', { config: sampleConfig() })
+  const id = created.body.timetable.id
+
+  const res = await post(`/timetables/${id}/apply-batch-timing`, {
+    weekdays: ['Monday', 'Wednesday', 'Friday'],
+    timing: { periodDuration: 35, startTime: '08:30', breakDuration: 15 }
+  })
+  assert.equal(res.status, 200)
+  assert.equal(res.body.ok, true)
+  assert.equal(res.body.updatedCount, 3)
+  assert.equal(res.body.skippedDays.length, 0)
+
+  const fetched = await fetch(`${base}/timetables/${id}`)
+  const doc = (await fetched.json()).timetable
+  assert.equal(doc.config.dayTimingMode, 'custom')
+  assert.equal(doc.config.dayOverrides.Monday.periodDuration, 35)
+  assert.equal(doc.config.dayOverrides.Wednesday.periodDuration, 35)
+  assert.equal(doc.config.dayOverrides.Friday.periodDuration, 35)
+})
+
+test('api: batch apply timing with one selected day', async () => {
+  const created = await post('/timetables', { config: sampleConfig() })
+  const id = created.body.timetable.id
+
+  const res = await post(`/timetables/${id}/apply-batch-timing`, {
+    weekdays: ['Tuesday'],
+    timing: { periodDuration: 30, startTime: '09:00' }
+  })
+  assert.equal(res.status, 200)
+  assert.equal(res.body.updatedCount, 1)
+
+  const fetched = await fetch(`${base}/timetables/${id}`)
+  const doc = (await fetched.json()).timetable
+  assert.equal(doc.config.dayOverrides.Tuesday.periodDuration, 30)
+  assert.equal(doc.config.dayOverrides.Monday, undefined) // Unselected day unchanged
+})
+
+test('api: batch apply timing preserves unselected weekday settings', async () => {
+  const config = sampleConfig({
+    dayTimingMode: 'custom',
+    dayOverrides: {
+      'Friday': { periodDuration: 30, startTime: '08:00', breakDuration: 15 }
+    }
+  })
+  const created = await post('/timetables', { config })
+  const id = created.body.timetable.id
+
+  // Apply timing to Monday and Wednesday only
+  const res = await post(`/timetables/${id}/apply-batch-timing`, {
+    weekdays: ['Monday', 'Wednesday'],
+    timing: { periodDuration: 35, startTime: '08:30' }
+  })
+  assert.equal(res.status, 200)
+
+  const fetched = await fetch(`${base}/timetables/${id}`)
+  const doc = (await fetched.json()).timetable
+  // Friday should remain unchanged
+  assert.equal(doc.config.dayOverrides.Friday.periodDuration, 30)
+  assert.equal(doc.config.dayOverrides.Friday.startTime, '08:00')
+  // Monday and Wednesday should be updated
+  assert.equal(doc.config.dayOverrides.Monday.periodDuration, 35)
+  assert.equal(doc.config.dayOverrides.Wednesday.periodDuration, 35)
+})
+
+test('api: batch apply timing does not modify date-specific overrides', async () => {
+  const config = sampleConfig({
+    dateOverrides: {
+      '2026-11-06': { periodDuration: 25, startTime: '10:00' }
+    }
+  })
+  const created = await post('/timetables', { config })
+  const id = created.body.timetable.id
+
+  const res = await post(`/timetables/${id}/apply-batch-timing`, {
+    weekdays: ['Friday'],
+    timing: { periodDuration: 35, startTime: '08:30' }
+  })
+  assert.equal(res.status, 200)
+
+  const fetched = await fetch(`${base}/timetables/${id}`)
+  const doc = (await fetched.json()).timetable
+  // Date override should remain unchanged
+  assert.ok(doc.config.dateOverrides['2026-11-06'])
+  assert.equal(doc.config.dateOverrides['2026-11-06'].periodDuration, 25)
+})
+
+test('api: batch apply timing with invalid weekday', async () => {
+  const created = await post('/timetables', { config: sampleConfig() })
+  const id = created.body.timetable.id
+
+  const res = await post(`/timetables/${id}/apply-batch-timing`, {
+    weekdays: ['Monday', 'Funday'], // Invalid weekday
+    timing: { periodDuration: 35 }
+  })
+  assert.equal(res.status, 200)
+  assert.equal(res.body.updatedCount, 1)
+  assert.equal(res.body.skippedDays.length, 1)
+  assert.equal(res.body.skippedDays[0].day, 'Funday')
+  assert.ok(res.body.skippedDays[0].reason.includes('Not a valid weekday'))
+})
+
+test('api: batch apply timing with non-school day', async () => {
+  const created = await post('/timetables', { config: sampleConfig() })
+  const id = created.body.timetable.id
+
+  const res = await post(`/timetables/${id}/apply-batch-timing`, {
+    weekdays: ['Monday', 'Saturday'], // Saturday not in config.days
+    timing: { periodDuration: 35 }
+  })
+  assert.equal(res.status, 200)
+  assert.equal(res.body.updatedCount, 1)
+  assert.equal(res.body.skippedDays.length, 1)
+  assert.equal(res.body.skippedDays[0].day, 'Saturday')
+  assert.ok(res.body.skippedDays[0].reason.includes('Not a configured school day'))
+})
+
+test('api: batch apply timing with no weekdays selected', async () => {
+  const created = await post('/timetables', { config: sampleConfig() })
+  const id = created.body.timetable.id
+
+  const res = await post(`/timetables/${id}/apply-batch-timing`, {
+    weekdays: [],
+    timing: { periodDuration: 35 }
+  })
+  assert.equal(res.status, 400)
+  assert.ok(res.body.error.includes('At least one weekday'))
+})
+
+test('api: batch apply timing with invalid timing configuration', async () => {
+  const created = await post('/timetables', { config: sampleConfig({ endTime: '10:00' }) })
+  const id = created.body.timetable.id
+
+  const res = await post(`/timetables/${id}/apply-batch-timing`, {
+    weekdays: ['Monday'],
+    timing: { periodDuration: 120 } // 6 periods * 120 min = 720 min, exceeds 10:00 end time
+  })
+  assert.equal(res.status, 400)
+  assert.ok(res.body.error.includes('Invalid timing'))
 })
 
 test('wizard: duplicate class section is an error', () => {

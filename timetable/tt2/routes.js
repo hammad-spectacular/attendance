@@ -533,6 +533,208 @@ function createTt2Router(options = {}) {
     res.json({ ok: true, timetable: describeDocument(updated) })
   })
 
+  // -- date overrides -------------------------------------------------------
+
+  /**
+   * Retrieve all date-specific overrides for a timetable.
+   * GET /timetables/:id/date-overrides
+   */
+  router.get('/timetables/:id/date-overrides', (req, res) => {
+    const tenantId = tenantOf(req, devAuth)
+    const doc = store.get(tenantId, req.params.id)
+    if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
+
+    const config = normaliseConfig(doc.config)
+    res.json({
+      ok: true,
+      dateOverrides: config.dateOverrides || {}
+    })
+  })
+
+  /**
+   * Create or update a date-specific override.
+   * POST /timetables/:id/date-overrides
+   */
+  router.post('/timetables/:id/date-overrides', (req, res) => {
+    const tenantId = tenantOf(req, devAuth)
+    const doc = store.get(tenantId, req.params.id)
+    if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
+
+    const body = req.body || {}
+    const date = String(body.date || '').trim()
+    const timing = body.timing || {}
+
+    // Validate date format (YYYY-MM-DD)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ error: 'Date must be in YYYY-MM-DD format.' })
+    }
+
+    // Validate date is a real calendar date
+    const dateObj = new Date(date)
+    if (isNaN(dateObj.getTime())) {
+      return res.status(400).json({ error: 'Invalid date.' })
+    }
+
+    const config = normaliseConfig(doc.config)
+
+    // Check if date falls on a configured school day
+    // Map Date.getDay() to ALL_DAYS index (Monday=0 in ALL_DAYS, but getDay()=1 for Monday)
+    const dayIndex = dateObj.getDay() // 0=Sunday, 1=Monday, ...
+    const dayMapping = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 0: null }
+    const allDaysIndex = dayMapping[dayIndex]
+    const dayName = allDaysIndex !== null ? ALL_DAYS[allDaysIndex] : null
+    if (!dayName || !config.days.includes(dayName)) {
+      return res.status(400).json({
+        error: `${dayName || 'Unknown'} is not a configured school day.`,
+        details: `Current school days: ${config.days.join(', ')}`
+      })
+    }
+
+    // Validate timing structure using the same normalisation as wizard
+    const testConfig = {
+      ...config,
+      dateOverrides: {
+        ...config.dateOverrides,
+        [date]: timing
+      }
+    }
+    const normalised = normaliseConfig(testConfig)
+    const check = validateConfig(normalised)
+
+    if (!check.canGenerate) {
+      return res.status(400).json({
+        error: 'Invalid timing configuration for this date.',
+        details: check.errors
+      })
+    }
+
+    // Apply the override (dateOverrides are separate from dayOverrides)
+    const updatedConfig = {
+      ...config,
+      dateOverrides: {
+        ...config.dateOverrides,
+        [date]: normalised.dateOverrides[date]
+      }
+    }
+
+    const updated = store.update(tenantId, req.params.id, { config: updatedConfig })
+    res.json({
+      ok: true,
+      timetable: describeDocument(updated),
+      dateOverrides: updatedConfig.dateOverrides
+    })
+  })
+
+  /**
+   * Delete a date-specific override.
+   * DELETE /timetables/:id/date-overrides/:date
+   */
+  router.delete('/timetables/:id/date-overrides/:date', (req, res) => {
+    const tenantId = tenantOf(req, devAuth)
+    const doc = store.get(tenantId, req.params.id)
+    if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
+
+    const date = String(req.params.date || '').trim()
+
+    // Validate date format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ error: 'Date must be in YYYY-MM-DD format.' })
+    }
+
+    const config = normaliseConfig(doc.config)
+
+    // Check if override exists
+    if (!config.dateOverrides || !config.dateOverrides[date]) {
+      return res.status(404).json({ error: 'No override found for this date.' })
+    }
+
+    // Remove the override (does not affect dayOverrides)
+    const updatedConfig = {
+      ...config,
+      dateOverrides: { ...config.dateOverrides }
+    }
+    delete updatedConfig.dateOverrides[date]
+
+    const updated = store.update(tenantId, req.params.id, { config: updatedConfig })
+    res.json({
+      ok: true,
+      timetable: describeDocument(updated),
+      dateOverrides: updatedConfig.dateOverrides
+    })
+  })
+
+  /**
+   * Apply timing settings to multiple selected weekdays in one request.
+   * POST /timetables/:id/apply-batch-timing
+   */
+  router.post('/timetables/:id/apply-batch-timing', (req, res) => {
+    const tenantId = tenantOf(req, devAuth)
+    const doc = store.get(tenantId, req.params.id)
+    if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
+
+    const body = req.body || {}
+    const weekdays = body.weekdays || []
+    const timing = body.timing || {}
+
+    const config = normaliseConfig(doc.config)
+
+    // Validate weekdays array
+    if (!Array.isArray(weekdays) || weekdays.length === 0) {
+      return res.status(400).json({ error: 'At least one weekday must be selected.' })
+    }
+
+    // Only update selected weekdays, preserve others
+    const updatedDayOverrides = { ...config.dayOverrides }
+    let updatedCount = 0
+    const skippedDays = []
+
+    for (const day of weekdays) {
+      if (!ALL_DAYS.includes(day)) {
+        skippedDays.push({ day, reason: 'Not a valid weekday' })
+        continue
+      }
+
+      if (!config.days.includes(day)) {
+        skippedDays.push({ day, reason: 'Not a configured school day' })
+        continue
+      }
+
+      // Apply timing only to selected days
+      updatedDayOverrides[day] = {
+        periodDuration: timing.periodDuration !== undefined ? Number(timing.periodDuration) : config.periodDuration,
+        startTime: timing.startTime || config.startTime,
+        breakDuration: timing.breakDuration !== undefined ? Number(timing.breakDuration) : null
+      }
+      updatedCount++
+    }
+
+    // Set dayTimingMode to custom if any overrides exist
+    const hasOverrides = Object.keys(updatedDayOverrides).length > 0
+    const newConfig = {
+      ...config,
+      dayTimingMode: hasOverrides ? 'custom' : 'all',
+      dayOverrides: updatedDayOverrides
+    }
+
+    // Validate the new configuration
+    const check = validateConfig(newConfig)
+    if (!check.canGenerate) {
+      return res.status(400).json({
+        error: 'Invalid timing configuration.',
+        details: check.errors
+      })
+    }
+
+    const updated = store.update(tenantId, req.params.id, { config: newConfig })
+    res.json({
+      ok: true,
+      timetable: describeDocument(updated),
+      updatedCount,
+      skippedDays,
+      message: `Applied timing to ${updatedCount} day(s).`
+    })
+  })
+
   // -- CSV export ----------------------------------------------------------
 
   router.get('/timetables/:id/export.csv', (req, res) => {

@@ -57,6 +57,7 @@ function defaultConfig() {
     // -- Step 2: the shape of the week ------------------------------------
     days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
     startTime: '08:00',
+    endTime: '14:00',        // PHASE 1: Explicit school end time
     periodCount: 6,          // TEACHING periods per day (breaks are extra columns)
     periodDuration: 40,      // minutes, default length of one class
     breaks: [
@@ -66,6 +67,7 @@ function defaultConfig() {
     periodOverrides: {},     // { '3': 50 } — per teaching-period duration in minutes
     dayTimingMode: 'all',    // 'all' | 'custom'
     dayOverrides: {},        // { 'Friday': { periodDuration: 30, startTime: '08:00', breakDuration: 10 } }
+    dateOverrides: {},       // PHASE 1: { '2026-11-15': { periodDuration, startTime, breakDuration } }
 
     // -- Step 3: classes (who is being taught) ----------------------------
     classes: [],             // [{ id, name, studentCount }]
@@ -124,6 +126,7 @@ const STEPS = [
       { key: 'periodCount', question: 'Teaching periods per day', type: 'number', required: true },
       { key: 'periodDuration', question: 'Class duration (minutes)', type: 'number', required: true },
       { key: 'startTime', question: 'School start time', type: 'time', required: true },
+      { key: 'endTime', question: 'School end time', type: 'time', required: true },
       { key: 'breaks', question: 'Breaks & lunch', type: 'break-list', required: false },
       { key: 'periodOverrides', question: 'Per-period duration overrides', type: 'duration-list', required: false }
     ]
@@ -214,6 +217,49 @@ function asTrimmedString(value) {
 }
 
 /**
+ * Parse a time string (HH:MM) to minutes past midnight.
+ * Returns 8:00 AM (480 minutes) as fallback for invalid input.
+ */
+function parseClock(value) {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(String(value || '').trim())
+  if (!match) return 8 * 60
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return 8 * 60
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return 8 * 60
+  return hours * 60 + minutes
+}
+
+/**
+ * Format minutes past midnight to 12-hour time string.
+ * 480 → "8:00 AM", 780 → "1:00 PM"
+ */
+function formatClock(minutes) {
+  const total = ((Math.round(minutes) % 1440) + 1440) % 1440
+  const hours = Math.floor(total / 60)
+  const mins = total % 60
+  const suffix = hours >= 12 ? 'PM' : 'AM'
+  const displayHour = hours % 12 === 0 ? 12 : hours % 12
+  return mins === 0 ? `${displayHour}:00 ${suffix}` : `${displayHour}:${String(mins).padStart(2, '0')} ${suffix}`
+}
+
+/**
+ * Calculate the school end time based on start time, periods, and breaks.
+ * Returns minutes past midnight.
+ */
+function calculateEndTime(config) {
+  let totalMinutes = parseClock(config.startTime)
+  for (let i = 1; i <= config.periodCount; i++) {
+    const override = config.periodOverrides[String(i)]
+    totalMinutes += override || config.periodDuration
+    for (const b of config.breaks) {
+      if (b.afterPeriod === i) totalMinutes += b.duration
+    }
+  }
+  return totalMinutes
+}
+
+/**
  * Coerce whatever came off the wire into a complete, well-typed config.
  * Unknown keys are dropped; missing keys get defaults. This is deliberately
  * forgiving so a half-finished wizard can be saved and resumed.
@@ -255,6 +301,34 @@ function normaliseConfig(raw) {
         periodDuration: Math.max(15, Math.min(180, Math.round(asNumber(dVal.periodDuration, 30)))),
         startTime: /^\d{1,2}:\d{2}$/.test(String(dVal.startTime)) ? String(dVal.startTime) : '08:00',
         breakDuration: Math.max(0, Math.min(120, Math.round(asNumber(dVal.breakDuration, 10))))
+      }
+    }
+  }
+
+  // PHASE 1: Normalise date overrides (separate from recurring dayOverrides)
+  const dateOverrides = {}
+  if (input.dateOverrides && typeof input.dateOverrides === 'object') {
+    for (const [dateStr, timing] of Object.entries(input.dateOverrides)) {
+      // Validate date format YYYY-MM-DD
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        console.warn(`Invalid date format: ${dateStr}, skipping`)
+        continue
+      }
+
+      // Validate date is a real calendar date
+      const date = new Date(dateStr)
+      if (isNaN(date.getTime())) {
+        console.warn(`Invalid date: ${dateStr}, skipping`)
+        continue
+      }
+
+      // Validate timing structure
+      if (!timing || typeof timing !== 'object') continue
+
+      dateOverrides[dateStr] = {
+        periodDuration: Math.max(15, Math.min(180, Math.round(asNumber(timing.periodDuration, 30)))),
+        startTime: /^\d{1,2}:\d{2}$/.test(String(timing.startTime)) ? String(timing.startTime) : '08:00',
+        breakDuration: Math.max(0, Math.min(120, Math.round(asNumber(timing.breakDuration, 10))))
       }
     }
   }
@@ -320,12 +394,14 @@ function normaliseConfig(raw) {
     branchName: asTrimmedString(input.branchName) || base.branchName,
     days: days.length ? days : base.days,
     startTime: /^\d{1,2}:\d{2}$/.test(String(input.startTime)) ? String(input.startTime) : base.startTime,
+    endTime: /^\d{1,2}:\d{2}$/.test(String(input.endTime)) ? String(input.endTime) : base.endTime,
     periodCount: Math.max(0, Math.round(asNumber(input.periodCount, base.periodCount))),
     periodDuration: Math.max(0, Math.round(asNumber(input.periodDuration, base.periodDuration))),
     breaks,
     periodOverrides,
     dayTimingMode,
     dayOverrides,
+    dateOverrides,
     classes,
     subjects,
     teachers,
@@ -366,6 +442,17 @@ function validateConfig(raw) {
   else if (config.periodDuration < 15) errors.push('Class duration must be at least 15 minutes.')
   else if (config.periodDuration > 180) errors.push('Class duration must be 180 minutes or less.')
 
+  // PHASE 1: Validate endTime
+  if (!/^\d{1,2}:\d{2}$/.test(config.endTime)) {
+    errors.push('School end time must be in HH:MM format (e.g., 14:00).')
+  } else {
+    const startMins = parseClock(config.startTime)
+    const endMins = parseClock(config.endTime)
+    if (endMins <= startMins) {
+      errors.push('School end time must be after the start time.')
+    }
+  }
+
   for (const [key, mins] of Object.entries(config.periodOverrides)) {
     if (mins < 15) errors.push(`Period ${key} duration must be at least 15 minutes.`)
     if (mins > 180) errors.push(`Period ${key} duration must be 180 minutes or less.`)
@@ -374,6 +461,53 @@ function validateConfig(raw) {
   for (const b of config.breaks) {
     if (b.afterPeriod > config.periodCount) {
       errors.push(`Break "${b.label}" is placed after period ${b.afterPeriod}, but there are only ${config.periodCount} periods.`)
+    }
+  }
+
+  // PHASE 1: Validate that periods fit within start-end window
+  const calculatedEndMinutes = calculateEndTime(config)
+  const userEndMinutes = parseClock(config.endTime)
+  if (calculatedEndMinutes > userEndMinutes) {
+    errors.push(
+      `School ends at ${formatClock(userEndMinutes)} but ` +
+      `${config.periodCount} periods of ${config.periodDuration} minutes ` +
+      `plus breaks require until ${formatClock(calculatedEndMinutes)}. ` +
+      `Either reduce periods, shorten durations, or extend the end time.`
+    )
+  }
+
+  // PHASE 1: Validate date overrides
+  for (const [dateStr, timing] of Object.entries(config.dateOverrides || {})) {
+    // Check if date is a configured school day
+    const date = new Date(dateStr)
+    const dayIndex = date.getDay() // 0 = Sunday, 1 = Monday, etc.
+    const dayName = ALL_DAYS[dayIndex === 0 ? 6 : dayIndex - 1] || 'Unknown'
+
+    if (!config.days.includes(dayName)) {
+      errors.push(
+        `Date override for ${dateStr} (${dayName}) is not a configured school day. ` +
+        `Current school days: ${config.days.join(', ')}.`
+      )
+    }
+
+    // Check if timing produces valid schedule within end time
+    const testConfig = {
+      ...config,
+      periodDuration: timing.periodDuration,
+      startTime: timing.startTime,
+      breaks: config.breaks.map(b => ({
+        ...b,
+        duration: timing.breakDuration !== undefined ? timing.breakDuration : b.duration
+      }))
+    }
+
+    const calculatedEnd = calculateEndTime(testConfig)
+    if (calculatedEnd > userEndMinutes) {
+      errors.push(
+        `Date override for ${dateStr} would end at ${formatClock(calculatedEnd)}, ` +
+        `which is past the school end time of ${formatClock(userEndMinutes)}. ` +
+        `Adjust the timing or extend the school day.`
+      )
     }
   }
 
@@ -496,5 +630,8 @@ module.exports = {
   STEPS,
   defaultConfig,
   normaliseConfig,
-  validateConfig
+  validateConfig,
+  parseClock,
+  formatClock,
+  calculateEndTime
 }

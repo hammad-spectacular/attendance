@@ -21,7 +21,7 @@
  * a server, a database, or a browser.
  */
 
-const { normaliseConfig } = require('./wizard')
+const { normaliseConfig, ALL_DAYS } = require('./wizard')
 
 // ---------------------------------------------------------------------------
 // Periods, breaks and time labels
@@ -194,6 +194,185 @@ function buildTimeLabels(rawConfig, dayName) {
       text: `${formatClock(start)} – ${formatClock(end)}`
     }
   })
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 1: Date-aware timing resolution
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve timing configuration for a specific date.
+ * Priority: date override > recurring day override > default
+ *
+ * @param {object} rawConfig
+ * @param {string} dateString - YYYY-MM-DD format
+ * @returns {{timing: object, source: 'date'|'recurring'|'default'}}
+ */
+function resolveTiming(rawConfig, dateString) {
+  const config = normaliseConfig(rawConfig)
+
+  // 1. Check date-specific override (highest priority)
+  if (config.dateOverrides && config.dateOverrides[dateString]) {
+    return {
+      timing: config.dateOverrides[dateString],
+      source: 'date'
+    }
+  }
+
+  // 2. Check recurring day override
+  const date = new Date(dateString)
+  const dayIndex = date.getDay() // 0 = Sunday, 1 = Monday, etc.
+  // Map Date.getDay() to ALL_DAYS index (Monday=0 in ALL_DAYS, but getDay()=1 for Monday)
+  const dayMapping = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 0: null } // Sunday maps to null (not in ALL_DAYS)
+  const allDaysIndex = dayMapping[dayIndex]
+  const dayName = allDaysIndex !== null ? ALL_DAYS[allDaysIndex] : null
+
+  if (dayName && config.dayTimingMode === 'custom' && config.dayOverrides && config.dayOverrides[dayName]) {
+    return {
+      timing: config.dayOverrides[dayName],
+      source: 'recurring'
+    }
+  }
+
+  // 3. Use default timing
+  return {
+    timing: {
+      periodDuration: config.periodDuration,
+      startTime: config.startTime,
+      breakDuration: null
+    },
+    source: 'default'
+  }
+}
+
+/**
+ * Build periods for a specific calendar date with date-aware timing.
+ * Uses priority: date override > recurring day override > default
+ *
+ * @param {object} rawConfig
+ * @param {string} dateString - YYYY-MM-DD format
+ * @returns {{periods: Array, teachingIndex: Object, source: string, startTime: string, endTime: string}}
+ */
+function buildPeriodsForDate(rawConfig, dateString) {
+  const config = normaliseConfig(rawConfig)
+  const { timing, source } = resolveTiming(config, dateString)
+
+  const periodDuration = timing.periodDuration
+  const startTime = timing.startTime
+  const breakDuration = timing.breakDuration
+
+  const periods = []
+  const teachingIndex = {}
+
+  const breaksByAfter = new Map()
+  for (const b of config.breaks) {
+    if (b.afterPeriod < 1 || b.afterPeriod > config.periodCount) continue
+    if (!breaksByAfter.has(b.afterPeriod)) breaksByAfter.set(b.afterPeriod, [])
+    breaksByAfter.get(b.afterPeriod).push(b)
+  }
+
+  for (let i = 1; i <= config.periodCount; i++) {
+    teachingIndex[String(i)] = periods.length
+    const override = config.periodOverrides[String(i)]
+    periods.push({
+      index: periods.length,
+      label: `P${i}`,
+      kind: 'teaching',
+      teachingNumber: i,
+      duration: override && override > 0 ? override : periodDuration
+    })
+
+    for (const b of breaksByAfter.get(i) || []) {
+      periods.push({
+        index: periods.length,
+        label: b.label,
+        kind: 'break',
+        teachingNumber: null,
+        duration: breakDuration !== null ? breakDuration : b.duration
+      })
+    }
+  }
+
+  let cursor = parseClock(startTime)
+  const labelledPeriods = periods.map(p => {
+    const start = cursor
+    const end = start + p.duration
+    cursor = end
+    return {
+      ...p,
+      start,
+      end,
+      text: `${formatClock(start)} – ${formatClock(end)}`
+    }
+  })
+
+  return {
+    periods: labelledPeriods,
+    teachingIndex,
+    source,
+    startTime: formatClock(parseClock(startTime)),
+    endTime: formatClock(cursor)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 1: Locked lesson validation
+// ---------------------------------------------------------------------------
+
+/**
+ * Verify that locked cells remain valid after timing changes.
+ * Returns { valid: boolean, invalidCells: [], warnings: [] }
+ *
+ * @param {object} rawConfig - The new config with timing changes
+ * @param {object} grids - Existing timetable grids with locked cells
+ * @param {Array} oldPeriods - Period structure before timing change
+ * @param {Array} newPeriods - Period structure after timing change
+ * @returns {{valid: boolean, invalidCells: Array, warnings: Array}}
+ */
+function validateLockedCells(rawConfig, grids, oldPeriods, newPeriods) {
+  const invalidCells = []
+  const warnings = []
+
+  for (const grid of Object.values(grids || {})) {
+    for (const [key, cell] of Object.entries(grid || {})) {
+      if (!cell.locked) continue
+      
+      const oldPeriod = oldPeriods[cell.period]
+      const newPeriod = newPeriods[cell.period]
+      
+      // Check if period still exists
+      if (!newPeriod) {
+        invalidCells.push({
+          cell,
+          reason: `Period ${cell.teachingNumber} no longer exists after timing change`
+        })
+        continue
+      }
+      
+      // Check if period kind changed (teaching -> break)
+      if (oldPeriod && oldPeriod.kind === 'teaching' && newPeriod.kind !== 'teaching') {
+        invalidCells.push({
+          cell,
+          reason: `Period ${cell.teachingNumber} is now a ${newPeriod.kind}, not a teaching period`
+        })
+        continue
+      }
+      
+      // Warning if duration changed significantly (more than 10 minutes)
+      if (oldPeriod && newPeriod && Math.abs(oldPeriod.duration - newPeriod.duration) > 10) {
+        warnings.push({
+          cell,
+          reason: `Period duration changed from ${oldPeriod.duration} to ${newPeriod.duration} minutes`
+        })
+      }
+    }
+  }
+  
+  return {
+    valid: invalidCells.length === 0,
+    invalidCells,
+    warnings
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -394,5 +573,8 @@ module.exports = {
   collectLocks,
   cellKey,
   parseClock,
-  formatClock
+  formatClock,
+  resolveTiming,
+  buildPeriodsForDate,
+  validateLockedCells
 }

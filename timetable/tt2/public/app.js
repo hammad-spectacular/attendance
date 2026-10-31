@@ -377,6 +377,51 @@ const stepRenderers = {
       <div class="add-row">
         <button class="btn btn-sm" data-act="add-override">+ Override one period</button>
       </div>
+    </div>
+
+    <div class="card">
+      <h4>📅 Date-specific schedule overrides</h4>
+      <p class="muted" style="margin-bottom:12px">
+        Override the schedule for a specific calendar date (e.g., for a shortened day, exam schedule, or special event).
+        Date overrides take priority over recurring weekday settings.
+      </p>
+      
+      <div class="row tight" style="margin-bottom:12px">
+        <label class="field" style="flex:0 0 200px">
+          <span>Select date</span>
+          <input type="date" id="date-override-picker" value="">
+        </label>
+        <label class="field" style="flex:0 0 160px">
+          <span>Period duration (min)</span>
+          <input type="number" id="date-override-duration" min="15" max="180" step="5" value="${cfg.periodDuration}">
+        </label>
+        <label class="field" style="flex:0 0 160px">
+          <span>Start time</span>
+          <input type="time" id="date-override-start" value="${cfg.startTime}">
+        </label>
+        <label class="field" style="flex:0 0 160px">
+          <span>Break length (min)</span>
+          <input type="number" id="date-override-break" min="0" max="120" step="5" value="10">
+        </label>
+        <button class="btn btn-sm btn-primary" data-act="save-date-override" style="align-self:flex-end">Save Override</button>
+      </div>
+
+      ${Object.keys(cfg.dateOverrides || {}).length > 0 ? `
+        <div style="margin-top:16px">
+          <h5 style="margin:0 0 8px 0;font-size:13px;font-weight:600;color:var(--ink-2)">Saved date overrides:</h5>
+          ${Object.entries(cfg.dateOverrides || {}).map(([date, timing]) => `
+            <div class="item-row" style="padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:6px">
+              <div class="grow row tight">
+                <span style="font-weight:600;color:#0f766e">${esc(date)}</span>
+                <span class="muted" style="font-size:12px">
+                  ${timing.periodDuration}min · ${esc(timing.startTime)} · ${timing.breakDuration}min break
+                </span>
+              </div>
+              <button class="btn btn-sm btn-danger" data-act="delete-date-override" data-date="${esc(date)}">✕</button>
+            </div>
+          `).join('')}
+        </div>
+      ` : '<p class="muted" style="margin-top:12px">No date overrides configured yet.</p>'}
     </div>`
   },
 
@@ -1748,6 +1793,66 @@ document.addEventListener('click', async e => {
       if (i >= 0) t.unavailableSlots.splice(i, 1)
       else t.unavailableSlots.push({ day, period })
       renderWizard(); scheduleCheck()
+      return
+    }
+
+    /* ---- step: periods - date overrides ---- */
+    case 'save-date-override': {
+      const dateInput = document.getElementById('date-override-picker')
+      const durationInput = document.getElementById('date-override-duration')
+      const startInput = document.getElementById('date-override-start')
+      const breakInput = document.getElementById('date-override-break')
+      
+      const date = dateInput.value
+      if (!date) {
+        toast('Please select a date', 'warn')
+        return
+      }
+      
+      const timing = {
+        periodDuration: Number(durationInput.value) || cfg.periodDuration,
+        startTime: startInput.value || cfg.startTime,
+        breakDuration: Number(breakInput.value) || 10
+      }
+      
+      try {
+        state.busy = true
+        const res = await api(`/timetables/${state.docId}/date-overrides`, {
+          method: 'POST',
+          body: { date, timing }
+        })
+        state.doc = res.timetable
+        state.config = state.doc.config
+        toast(`Saved override for ${date}`, 'good')
+        renderWizard()
+        scheduleCheck()
+      } catch (err) {
+        toast(err.message || 'Failed to save date override', 'bad')
+      } finally {
+        state.busy = false
+      }
+      return
+    }
+    
+    case 'delete-date-override': {
+      const date = el.dataset.date
+      if (!confirm(`Remove override for ${date}?`)) return
+      
+      try {
+        state.busy = true
+        const res = await api(`/timetables/${state.docId}/date-overrides/${date}`, {
+          method: 'DELETE'
+        })
+        state.doc = res.timetable
+        state.config = state.doc.config
+        toast(`Removed override for ${date}`, 'good')
+        renderWizard()
+        scheduleCheck()
+      } catch (err) {
+        toast(err.message || 'Failed to remove date override', 'bad')
+      } finally {
+        state.busy = false
+      }
       return
     }
 
