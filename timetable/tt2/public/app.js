@@ -273,7 +273,10 @@ const stepRenderers = {
     <div class="card" style="margin-bottom:14px;background:#f0fdf4;border:1px solid #bbf7d0">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
         <h4 style="color:#166534;margin:0">🕌 Custom Day Schedule (e.g. Friday Early Dismissal)</h4>
-        <button class="btn btn-sm btn-accent" data-act="apply-pakistan-friday">⚡ Apply Pakistan Friday Preset (~12:30 PM finish)</button>
+        <div class="row tight">
+          <button class="btn btn-sm btn-accent" data-act="apply-pakistan-friday">⚡ Apply Pakistan Friday Preset</button>
+          <button class="btn btn-sm" data-act="show-batch-apply-modal">📅 Batch Apply to Multiple Days</button>
+        </div>
       </div>
       <p style="font-size:13px;color:#15803d;margin-bottom:14px">
         In Pakistan and other regions, Friday classes are shorter so students and staff finish early (typically by 12:30 PM for Jummah prayers). Configure shorter period durations below.
@@ -406,15 +409,25 @@ const stepRenderers = {
         <button class="btn btn-sm btn-primary" data-act="save-date-override" style="align-self:flex-end">Save Override</button>
       </div>
 
+      <div id="date-override-preview" style="margin-top:12px;padding:10px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;display:none">
+        <h5 style="margin:0 0 6px 0;font-size:12px;font-weight:600;color:#0369a1">📋 Resolved schedule for selected date:</h5>
+        <div class="row tight" style="font-size:13px;color:#0c4a6e">
+          <span><strong>Priority:</strong> <span id="date-priority">Default</span></span>
+          <span><strong>Duration:</strong> <span id="date-duration">${cfg.periodDuration}min</span></span>
+          <span><strong>Start:</strong> <span id="date-start">${cfg.startTime}</span></span>
+          <span><strong>Break:</strong> <span id="date-break">10min</span></span>
+        </div>
+      </div>
+
       ${Object.keys(cfg.dateOverrides || {}).length > 0 ? `
         <div style="margin-top:16px">
           <h5 style="margin:0 0 8px 0;font-size:13px;font-weight:600;color:var(--ink-2)">Saved date overrides:</h5>
           ${Object.entries(cfg.dateOverrides || {}).map(([date, timing]) => `
-            <div class="item-row" style="padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:6px">
+            <div class="item-row" style="padding:8px 12px;background:#fef3c7;border:1px solid #fde68a;border-radius:6px;margin-bottom:6px">
               <div class="grow row tight">
-                <span style="font-weight:600;color:#0f766e">${esc(date)}</span>
-                <span class="muted" style="font-size:12px">
-                  ${timing.periodDuration}min · ${esc(timing.startTime)} · ${timing.breakDuration}min break
+                <span style="font-weight:600;color:#92400e">📅 ${esc(date)}</span>
+                <span class="muted" style="font-size:12px;color:#92400e">
+                  <strong>Priority:</strong> Date override · ${timing.periodDuration}min · ${esc(timing.startTime)} · ${timing.breakDuration}min break
                 </span>
               </div>
               <button class="btn btn-sm btn-danger" data-act="delete-date-override" data-date="${esc(date)}">✕</button>
@@ -1512,6 +1525,48 @@ function handleFormInput(e) {
   }
 }
 
+// Date picker preview logic
+document.addEventListener('change', e => {
+  if (e.target.id === 'date-override-picker') {
+    const date = e.target.value
+    const preview = document.getElementById('date-override-preview')
+    if (!date) {
+      preview.style.display = 'none'
+      return
+    }
+    
+    const cfg = state.config
+    const dateObj = new Date(date)
+    const dayIndex = dateObj.getDay()
+    const dayMapping = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 0: null }
+    const allDaysIndex = dayMapping[dayIndex]
+    const dayName = allDaysIndex !== null ? cfg.days[allDaysIndex] : null
+    
+    let priority = 'Default'
+    let duration = cfg.periodDuration
+    let startTime = cfg.startTime
+    let breakDuration = 10
+    
+    if (cfg.dateOverrides && cfg.dateOverrides[date]) {
+      priority = 'Date override'
+      duration = cfg.dateOverrides[date].periodDuration
+      startTime = cfg.dateOverrides[date].startTime
+      breakDuration = cfg.dateOverrides[date].breakDuration
+    } else if (dayName && cfg.dayTimingMode === 'custom' && cfg.dayOverrides && cfg.dayOverrides[dayName]) {
+      priority = 'Recurring weekday'
+      duration = cfg.dayOverrides[dayName].periodDuration
+      startTime = cfg.dayOverrides[dayName].startTime
+      breakDuration = cfg.dayOverrides[dayName].breakDuration
+    }
+    
+    document.getElementById('date-priority').textContent = priority
+    document.getElementById('date-duration').textContent = duration + 'min'
+    document.getElementById('date-start').textContent = startTime
+    document.getElementById('date-break').textContent = breakDuration + 'min'
+    preview.style.display = 'block'
+  }
+})
+
 document.addEventListener('input', handleFormInput)
 document.addEventListener('change', handleFormInput)
 
@@ -1852,6 +1907,90 @@ document.addEventListener('click', async e => {
         toast(err.message || 'Failed to remove date override', 'bad')
       } finally {
         state.busy = false
+      }
+      return
+    }
+
+    case 'show-batch-apply-modal': {
+      const cfg = state.config
+      const modal = document.createElement('div')
+      modal.className = 'modal-overlay'
+      modal.innerHTML = `
+        <div class="modal" style="max-width:600px">
+          <h3>Apply Timing to Multiple Days</h3>
+          <p class="muted">Select the weekdays that should use this timing configuration. Unselected days will keep their current settings.</p>
+          
+          <div class="day-selector" style="margin-bottom:16px">
+            ${cfg.days.map(day => `
+              <label class="checkbox-row" style="display:flex;align-items:center;gap:8px;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:6px">
+                <input type="checkbox" value="${esc(day)}" checked style="margin:0">
+                <span style="flex:1;font-weight:500">${esc(day)}</span>
+                ${cfg.dayOverrides && cfg.dayOverrides[day] ? '<small class="warn" style="color:#dc2626">Currently custom</small>' : ''}
+              </label>
+            `).join('')}
+          </div>
+          
+          <div class="timing-form" style="margin-bottom:16px">
+            <label class="field">
+              <span>Period duration (minutes)</span>
+              <input type="number" id="batch-period-duration" value="${cfg.periodDuration}" min="15" max="180">
+            </label>
+            <label class="field">
+              <span>Start time</span>
+              <input type="time" id="batch-start-time" value="${cfg.startTime}">
+            </label>
+            <label class="field">
+              <span>Break duration (minutes)</span>
+              <input type="number" id="batch-break-duration" value="10" min="0" max="120">
+            </label>
+          </div>
+          
+          <div class="modal-actions">
+            <button class="btn" data-act="cancel-batch-apply">Cancel</button>
+            <button class="btn btn-primary" data-act="confirm-batch-apply">Apply</button>
+          </div>
+        </div>
+      `
+      
+      document.body.appendChild(modal)
+      
+      modal.querySelector('[data-act="cancel-batch-apply"]').onclick = () => modal.remove()
+      
+      modal.querySelector('[data-act="confirm-batch-apply"]').onclick = async () => {
+        const checkboxes = modal.querySelectorAll('input[type="checkbox"]:checked')
+        const weekdays = Array.from(checkboxes).map(cb => cb.value)
+        
+        if (weekdays.length === 0) {
+          toast('Please select at least one weekday', 'warn')
+          return
+        }
+        
+        const timing = {
+          periodDuration: Number(modal.querySelector('#batch-period-duration').value),
+          startTime: modal.querySelector('#batch-start-time').value,
+          breakDuration: Number(modal.querySelector('#batch-break-duration').value)
+        }
+        
+        try {
+          state.busy = true
+          const res = await api(`/timetables/${state.docId}/apply-batch-timing`, {
+            method: 'POST',
+            body: { weekdays, timing }
+          })
+          state.doc = res.timetable
+          state.config = state.doc.config
+          modal.remove()
+          toast(res.message, 'good')
+          if (res.skippedDays && res.skippedDays.length > 0) {
+            toast(`Skipped ${res.skippedDays.length} day(s): ${res.skippedDays.map(d => d.day).join(', ')}`, 'warn')
+          }
+          renderWizard()
+          scheduleCheck()
+        } catch (err) {
+          toast(err.message || 'Failed to apply batch timing', 'bad')
+        } finally {
+          state.busy = false
+        }
       }
       return
     }
