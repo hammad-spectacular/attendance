@@ -24,6 +24,7 @@ const { validateTimetable } = require('../validator')
 const { STEPS, ALL_DAYS, DIFFICULTIES, defaultConfig, normaliseConfig, validateConfig } = require('./wizard')
 const {
   buildPeriods,
+  buildDayPeriods,
   buildTimeLabels,
   buildSolverInput,
   buildGrids,
@@ -151,6 +152,10 @@ function pickTeacher(config, subjectId, classId, day, column, grids, ignoreKey) 
 function describeDocument(doc) {
   const config = normaliseConfig(doc.config)
   const periods = buildTimeLabels(config)
+  const dayPeriods = {}
+  for (const day of config.days) {
+    dayPeriods[day] = buildDayPeriods(config, day)
+  }
   const solverInput = buildSolverInput(config)
   const entries = gridToEntries(doc.grids)
   const validation = validateTimetable(solverInput, entries)
@@ -162,6 +167,7 @@ function describeDocument(doc) {
     grids: doc.grids || {},
     report: doc.report || null,
     periods,
+    dayPeriods,
     days: config.days,
     validation: {
       ok: validation.ok,

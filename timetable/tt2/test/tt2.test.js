@@ -20,6 +20,7 @@ const path = require('path')
 const { defaultConfig, normaliseConfig, validateConfig, STEPS } = require('../wizard')
 const {
   buildPeriods,
+  buildDayPeriods,
   buildTimeLabels,
   buildSolverInput,
   buildGrids,
@@ -215,6 +216,33 @@ test('model: a per-period duration override is applied', () => {
   const config = sampleConfig({ periodOverrides: { '1': 90 } })
   const labels = buildTimeLabels(config)
   assert.equal(labels[0].text, '8:00 AM – 9:30 AM')
+})
+
+test('model: custom day timings (e.g. Pakistan Friday shorter schedule)', () => {
+  const config = sampleConfig({
+    dayTimingMode: 'custom',
+    periodDuration: 40,
+    startTime: '08:00',
+    dayOverrides: {
+      Friday: {
+        periodDuration: 30,
+        startTime: '08:00',
+        breakDuration: 15
+      }
+    }
+  })
+  // Standard day (e.g. Monday)
+  const mondayLabels = buildTimeLabels(config, 'Monday')
+  assert.equal(mondayLabels[0].text, '8:00 AM – 8:40 AM')
+
+  // Friday custom shorter periods (30 min)
+  const fridayLabels = buildTimeLabels(config, 'Friday')
+  assert.equal(fridayLabels[0].text, '8:00 AM – 8:30 AM')
+  assert.equal(fridayLabels[1].text, '8:30 AM – 9:00 AM')
+
+  const dayPeriods = buildDayPeriods(config, 'Friday')
+  assert.equal(dayPeriods.periods[0].duration, 30)
+  assert.equal(dayPeriods.isCustom, true)
 })
 
 test('model: solver input carries days, periods and requirements', () => {

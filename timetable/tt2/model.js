@@ -97,10 +97,84 @@ function formatClock(minutes) {
 }
 
 /**
+ * Build column and time list for a specific day.
+ * If dayTimingMode is 'custom' and dayOverrides has settings for this day,
+ * it uses that day's duration and break timing.
+ */
+function buildDayPeriods(rawConfig, dayName) {
+  const config = normaliseConfig(rawConfig)
+  const isCustom = config.dayTimingMode === 'custom' &&
+    config.dayOverrides &&
+    dayName &&
+    config.dayOverrides[dayName]
+  const dVal = isCustom ? config.dayOverrides[dayName] : null
+
+  const periodDuration = (dVal && dVal.periodDuration > 0) ? dVal.periodDuration : config.periodDuration
+  const startTime = (dVal && dVal.startTime) ? dVal.startTime : config.startTime
+  const breakDuration = (dVal && dVal.breakDuration !== undefined) ? dVal.breakDuration : null
+
+  const periods = []
+  const teachingIndex = {}
+
+  const breaksByAfter = new Map()
+  for (const b of config.breaks) {
+    if (b.afterPeriod < 1 || b.afterPeriod > config.periodCount) continue
+    if (!breaksByAfter.has(b.afterPeriod)) breaksByAfter.set(b.afterPeriod, [])
+    breaksByAfter.get(b.afterPeriod).push(b)
+  }
+
+  for (let i = 1; i <= config.periodCount; i++) {
+    teachingIndex[String(i)] = periods.length
+    const override = config.periodOverrides[String(i)]
+    periods.push({
+      index: periods.length,
+      label: `P${i}`,
+      kind: 'teaching',
+      teachingNumber: i,
+      duration: override && override > 0 ? override : periodDuration
+    })
+
+    for (const b of breaksByAfter.get(i) || []) {
+      periods.push({
+        index: periods.length,
+        label: b.label,
+        kind: 'break',
+        teachingNumber: null,
+        duration: breakDuration !== null ? breakDuration : b.duration
+      })
+    }
+  }
+
+  let cursor = parseClock(startTime)
+  const labelledPeriods = periods.map(p => {
+    const start = cursor
+    const end = start + p.duration
+    cursor = end
+    return {
+      ...p,
+      start,
+      end,
+      text: `${formatClock(start)} – ${formatClock(end)}`
+    }
+  })
+
+  return {
+    periods: labelledPeriods,
+    teachingIndex,
+    startTime: formatClock(parseClock(startTime)),
+    endTime: formatClock(cursor),
+    isCustom: Boolean(isCustom)
+  }
+}
+
+/**
  * Compute the clock range of every column for one day.
  * @returns {Array<{index:number,label:string,kind:string,duration:number,start:number,end:number,text:string}>}
  */
-function buildTimeLabels(rawConfig) {
+function buildTimeLabels(rawConfig, dayName) {
+  if (dayName) {
+    return buildDayPeriods(rawConfig, dayName).periods
+  }
   const config = normaliseConfig(rawConfig)
   const { periods } = buildPeriods(config)
   let cursor = parseClock(config.startTime)
@@ -312,6 +386,7 @@ function collectLocks(grids) {
 
 module.exports = {
   buildPeriods,
+  buildDayPeriods,
   buildTimeLabels,
   buildSolverInput,
   buildGrids,

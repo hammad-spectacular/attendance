@@ -60,13 +60,17 @@
           <h2 id="step-title">Step</h2>
           <p id="step-blurb" class="muted"></p>
         </div>
-        <span class="pill" id="step-counter"></span>
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="btn btn-sm" id="btn-return-table" data-act="return-to-table" hidden>← Back to Timetable</button>
+          <span class="pill" id="step-counter"></span>
+        </div>
       </div>
 
       <div id="step-body" class="step-body"></div>
 
       <footer class="wizard-foot">
         <button class="btn" id="btn-prev">← Back</button>
+        <button class="btn" id="btn-cancel-to-table" data-act="cancel-to-table" hidden>Cancel & Return to Timetable</button>
         <div class="spacer"></div>
         <button class="btn" id="btn-save-draft">Save draft</button>
         <button class="btn btn-primary" id="btn-next">Next →</button>

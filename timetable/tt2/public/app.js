@@ -23,7 +23,8 @@ const state = {
   existingClasses: [],
   fetchedExistingClasses: false,
   quickClassCount: 2,
-  cornerErrorMinimized: false
+  cornerErrorMinimized: false,
+  activeCustomDay: 'Friday'
 }
 
 let checkTimer = null
@@ -226,26 +227,89 @@ const stepRenderers = {
 
   periods: () => {
     const cfg = state.config
+    if (!cfg.dayTimingMode) cfg.dayTimingMode = 'all'
+    if (!cfg.dayOverrides) cfg.dayOverrides = {}
+
     // Calculate school end time from startTime, periodCount, periodDuration and breaks
-    function calcEndTime() {
+    function calcEndTime(startTime, periodDuration, breakDuration) {
       try {
-        const [h, m] = cfg.startTime.split(':').map(Number)
+        const [h, m] = (startTime || '08:00').split(':').map(Number)
         let totalMins = h * 60 + m
         for (let i = 1; i <= cfg.periodCount; i++) {
           const override = cfg.periodOverrides && cfg.periodOverrides[String(i)]
-          totalMins += override || cfg.periodDuration
+          totalMins += override || periodDuration
           const brk = cfg.breaks.find(b => b.afterPeriod === i)
-          if (brk) totalMins += brk.duration
+          if (brk) totalMins += (breakDuration !== undefined && breakDuration !== null ? breakDuration : brk.duration)
         }
         const endH = Math.floor(totalMins / 60) % 24
         const endM = totalMins % 60
         return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`
       } catch (_) { return '—' }
     }
-    const endTime = calcEndTime()
+
+    const standardEndTime = calcEndTime(cfg.startTime, cfg.periodDuration)
+
+    // Current active custom day (defaults to Friday if in cfg.days, or first day)
+    const customDay = state.activeCustomDay || (cfg.days.includes('Friday') ? 'Friday' : (cfg.days[0] || 'Friday'))
+    state.activeCustomDay = customDay
+    const customDayCfg = cfg.dayOverrides[customDay] || {
+      periodDuration: 30,
+      startTime: cfg.startTime || '08:00',
+      breakDuration: 10
+    }
+    const customDayEndTime = calcEndTime(customDayCfg.startTime, customDayCfg.periodDuration, customDayCfg.breakDuration)
+
     return `
+    <div class="card" style="margin-bottom:14px">
+      <h4>📅 Period Timing Schedule Mode</h4>
+      <p class="muted" style="margin-bottom:12px">Choose whether period times apply identically to all days, or if specific days (like Friday in Pakistan) have a shorter schedule with early dismissal.</p>
+      <div class="segmented" style="max-width:440px">
+        <button class="${cfg.dayTimingMode !== 'custom' ? 'active' : ''}" data-act="set-timing-mode" data-mode="all">Apply for all days</button>
+        <button class="${cfg.dayTimingMode === 'custom' ? 'active' : ''}" data-act="set-timing-mode" data-mode="custom">Custom per day (e.g. Friday)</button>
+      </div>
+    </div>
+
+    ${cfg.dayTimingMode === 'custom' ? `
+    <div class="card" style="margin-bottom:14px;background:#f0fdf4;border:1px solid #bbf7d0">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <h4 style="color:#166534;margin:0">🕌 Custom Day Schedule (e.g. Friday Early Dismissal)</h4>
+        <button class="btn btn-sm btn-accent" data-act="apply-pakistan-friday">⚡ Apply Pakistan Friday Preset (~12:30 PM finish)</button>
+      </div>
+      <p style="font-size:13px;color:#15803d;margin-bottom:14px">
+        In Pakistan and other regions, Friday classes are shorter so students and staff finish early (typically by 12:30 PM for Jummah prayers). Configure shorter period durations below.
+      </p>
+      <div class="row" style="margin-bottom:10px">
+        <label class="field" style="flex:0 0 160px">
+          <span>Day to customize</span>
+          <select data-act="change-custom-day">
+            ${cfg.days.map(d => `<option value="${esc(d)}" ${d === customDay ? 'selected' : ''}>${esc(d)}</option>`).join('')}
+          </select>
+        </label>
+        <label class="field" style="flex:0 0 160px">
+          <span>${esc(customDay)} period duration (min)</span>
+          <input type="number" min="15" max="180" step="5" data-act="set-custom-day-duration" value="${customDayCfg.periodDuration}">
+          <small>Standard days: ${cfg.periodDuration} min</small>
+        </label>
+        <label class="field" style="flex:0 0 160px">
+          <span>${esc(customDay)} start time</span>
+          <input type="time" data-act="set-custom-day-start" value="${esc(customDayCfg.startTime)}">
+          <small>Starts at ${customDayCfg.startTime}</small>
+        </label>
+        <label class="field" style="flex:0 0 160px">
+          <span>${esc(customDay)} break length (min)</span>
+          <input type="number" min="0" max="120" step="5" data-act="set-custom-day-break" value="${customDayCfg.breakDuration}">
+          <small>Break length on ${esc(customDay)}</small>
+        </label>
+        <label class="field" style="flex:0 0 180px">
+          <span>${esc(customDay)} ends at (calculated)</span>
+          <input type="time" id="custom-day-end-time" value="${customDayEndTime}" disabled style="opacity:0.95;font-weight:700;color:#166534;background:#dcfce7;cursor:not-allowed">
+          <small>Calculated end time for ${esc(customDay)}</small>
+        </label>
+      </div>
+    </div>` : ''}
+
     <div class="card">
-      <h4>Length of a class</h4>
+      <h4>${cfg.dayTimingMode === 'custom' ? 'Standard Days Class Length' : 'Length of a class'}</h4>
       <div class="row">
         <label class="field">
           <span>Class duration (minutes) *</span>
@@ -264,7 +328,7 @@ const stepRenderers = {
         </label>
         <label class="field">
           <span>School ends at (calculated)</span>
-          <input type="time" value="${endTime}" disabled style="opacity:0.6;cursor:not-allowed">
+          <input type="time" value="${standardEndTime}" disabled style="opacity:0.6;cursor:not-allowed">
           <small>Automatically calculated from start, ${cfg.periodCount} period${cfg.periodCount === 1 ? '' : 's'} × ${cfg.periodDuration} min + breaks.</small>
         </label>
       </div>
@@ -419,6 +483,9 @@ const stepRenderers = {
       <div class="hint" style="margin-top:8px;font-size:12.5px;color:var(--ink-3)">
         <b>Max periods per day</b> — the most classes a teacher teaches in a single school day (leave blank for no limit).<br>
         <b>Max periods per week</b> — the most classes a teacher teaches across the entire week (leave blank for no limit).
+      </div>
+      <div class="hint" style="margin-top:8px;font-size:12.5px;color:var(--ink-2);background:#eff6ff;padding:8px 12px;border-radius:6px;border:1px solid #bfdbfe">
+        💡 <b>How teacher workload works:</b> <i>"Max periods per week"</i> (e.g. 20) is a workload limit (maximum allowed), not a target quota. A teacher will only be scheduled for as many classes as their assigned subjects are requested in the <b>Curriculum</b> step.
       </div>
       ${cfg.teachers.map(t => `
         <div class="item-row">
@@ -642,6 +709,12 @@ function renderWizard() {
   document.getElementById('btn-generate').hidden = !isLast
   document.getElementById('btn-prev').disabled = state.step === 0
 
+  const hasTimetable = Boolean(state.doc && state.doc.grids && Object.keys(state.doc.grids).length > 0)
+  const returnBtn = document.getElementById('btn-return-table')
+  if (returnBtn) returnBtn.hidden = !hasTimetable
+  const cancelBtn = document.getElementById('btn-cancel-to-table')
+  if (cancelBtn) cancelBtn.hidden = !hasTimetable
+
   document.getElementById('wizard-school').textContent =
     state.config.schoolName || 'Not named yet'
 
@@ -763,7 +836,11 @@ function renderSingleClassTableHtml(doc, classId) {
 
   let body = '<tbody>'
   for (let d = 0; d < cfg.days.length; d++) {
-    body += `<tr><th>${esc(cfg.days[d])}<span class="d">day ${d + 1}</span></th>`
+    const dayName = cfg.days[d]
+    const dayTiming = (doc.dayPeriods && doc.dayPeriods[dayName]) || null
+    const isCustomDay = dayTiming && dayTiming.isCustom
+    const daySub = isCustomDay ? `${dayTiming.startTime} – ${dayTiming.endTime} (Early Dismissal)` : `day ${d + 1}`
+    body += `<tr><th>${esc(dayName)}<span class="d" style="${isCustomDay ? 'color:var(--accent);font-weight:600' : ''}">${esc(daySub)}</span></th>`
     for (const p of periods) {
       if (p.kind === 'break') {
         body += `<td><div class="cell break">${esc(p.label)}<br><span style="font-size:10px">${p.duration}m</span></div></td>`
@@ -864,7 +941,11 @@ function renderGrid() {
     const activeId = (state.activeClassId && state.activeClassId !== '__all__') ? state.activeClassId : (cfg.classes[0] && cfg.classes[0].id)
     const grid = (doc.grids[activeId]) || {}
     for (let d = 0; d < cfg.days.length; d++) {
-      body += `<tr><th>${esc(cfg.days[d])}<span class="d">day ${d + 1}</span></th>`
+      const dayName = cfg.days[d]
+      const dayTiming = (doc.dayPeriods && doc.dayPeriods[dayName]) || null
+      const isCustomDay = dayTiming && dayTiming.isCustom
+      const daySub = isCustomDay ? `${dayTiming.startTime} – ${dayTiming.endTime} (Early Dismissal)` : `day ${d + 1}`
+      body += `<tr><th>${esc(dayName)}<span class="d" style="${isCustomDay ? 'color:var(--accent);font-weight:600' : ''}">${esc(daySub)}</span></th>`
       for (const p of periods) {
         if (p.kind === 'break') {
           body += `<td><div class="cell break">${esc(p.label)}<br><span style="font-size:10px">${p.duration}m</span></div></td>`
@@ -878,7 +959,11 @@ function renderGrid() {
     }
   } else {
     for (let d = 0; d < cfg.days.length; d++) {
-      body += `<tr><th>${esc(cfg.days[d])}<span class="d">day ${d + 1}</span></th>`
+      const dayName = cfg.days[d]
+      const dayTiming = (doc.dayPeriods && doc.dayPeriods[dayName]) || null
+      const isCustomDay = dayTiming && dayTiming.isCustom
+      const daySub = isCustomDay ? `${dayTiming.startTime} – ${dayTiming.endTime} (Early Dismissal)` : `day ${d + 1}`
+      body += `<tr><th>${esc(dayName)}<span class="d" style="${isCustomDay ? 'color:var(--accent);font-weight:600' : ''}">${esc(daySub)}</span></th>`
       for (const p of periods) {
         if (p.kind === 'break') {
           body += `<td><div class="cell break">${esc(p.label)}</div></td>`
@@ -1336,6 +1421,50 @@ function handleFormInput(e) {
   if (el.dataset.override) {
     scheduleCheck()
   }
+  if (el.dataset.act === 'change-custom-day') {
+    state.activeCustomDay = el.value
+    renderWizard()
+    return
+  }
+  if (el.dataset.act === 'set-custom-day-duration') {
+    const day = state.activeCustomDay || 'Friday'
+    if (!state.config.dayOverrides) state.config.dayOverrides = {}
+    state.config.dayOverrides[day] = state.config.dayOverrides[day] || {}
+    state.config.dayOverrides[day].periodDuration = Number(el.value) || 30
+    const endEl = document.getElementById('custom-day-end-time')
+    if (endEl) {
+      const dcfg = state.config.dayOverrides[day]
+      endEl.value = calcEndTime(dcfg.startTime || state.config.startTime, dcfg.periodDuration, dcfg.breakDuration != null ? dcfg.breakDuration : 10)
+    }
+    scheduleCheck()
+    return
+  }
+  if (el.dataset.act === 'set-custom-day-start') {
+    const day = state.activeCustomDay || 'Friday'
+    if (!state.config.dayOverrides) state.config.dayOverrides = {}
+    state.config.dayOverrides[day] = state.config.dayOverrides[day] || {}
+    state.config.dayOverrides[day].startTime = el.value || '08:00'
+    const endEl = document.getElementById('custom-day-end-time')
+    if (endEl) {
+      const dcfg = state.config.dayOverrides[day]
+      endEl.value = calcEndTime(dcfg.startTime || state.config.startTime, dcfg.periodDuration != null ? dcfg.periodDuration : 30, dcfg.breakDuration != null ? dcfg.breakDuration : 10)
+    }
+    scheduleCheck()
+    return
+  }
+  if (el.dataset.act === 'set-custom-day-break') {
+    const day = state.activeCustomDay || 'Friday'
+    if (!state.config.dayOverrides) state.config.dayOverrides = {}
+    state.config.dayOverrides[day] = state.config.dayOverrides[day] || {}
+    state.config.dayOverrides[day].breakDuration = Number(el.value) || 0
+    const endEl = document.getElementById('custom-day-end-time')
+    if (endEl) {
+      const dcfg = state.config.dayOverrides[day]
+      endEl.value = calcEndTime(dcfg.startTime || state.config.startTime, dcfg.periodDuration != null ? dcfg.periodDuration : 30, dcfg.breakDuration != null ? dcfg.breakDuration : 10)
+    }
+    scheduleCheck()
+    return
+  }
 }
 
 document.addEventListener('input', handleFormInput)
@@ -1409,6 +1538,21 @@ document.addEventListener('click', async e => {
       await doGenerate()
       return
 
+    /* ---- return to existing table midway ---- */
+    case 'return-to-table':
+    case 'cancel-to-table': {
+      if (state.doc && state.doc.grids && Object.keys(state.doc.grids).length > 0) {
+        if (state.doc.config) {
+          state.config = JSON.parse(JSON.stringify(state.doc.config))
+        }
+        showScreen('table')
+        renderTable()
+      } else {
+        toast('No existing timetable to return to.', 'bad')
+      }
+      return
+    }
+
     /* ---- step: week ---- */
     case 'toggle-day': {
       const day = el.dataset.day
@@ -1419,6 +1563,43 @@ document.addEventListener('click', async e => {
     }
 
     /* ---- step: periods ---- */
+    case 'set-timing-mode': {
+      cfg.dayTimingMode = el.dataset.mode
+      if (cfg.dayTimingMode === 'custom') {
+        if (!cfg.dayOverrides) cfg.dayOverrides = {}
+        const targetDay = cfg.days.includes('Friday') ? 'Friday' : (cfg.days[0] || 'Friday')
+        state.activeCustomDay = targetDay
+        if (!cfg.dayOverrides[targetDay]) {
+          cfg.dayOverrides[targetDay] = {
+            periodDuration: 30,
+            startTime: cfg.startTime || '08:00',
+            breakDuration: 10
+          }
+        }
+      }
+      renderWizard()
+      scheduleCheck()
+      return
+    }
+
+    case 'apply-pakistan-friday': {
+      if (!cfg.days.includes('Friday')) {
+        cfg.days.push('Friday')
+      }
+      state.activeCustomDay = 'Friday'
+      cfg.dayTimingMode = 'custom'
+      if (!cfg.dayOverrides) cfg.dayOverrides = {}
+      cfg.dayOverrides['Friday'] = {
+        periodDuration: 30,
+        startTime: '08:00',
+        breakDuration: 15
+      }
+      toast('Applied Pakistan Friday preset (30 min periods, finishes ~12:15–12:30 PM)', 'good')
+      renderWizard()
+      scheduleCheck()
+      return
+    }
+
     case 'add-break':
       cfg.breaks.push({ id: uid('break'), afterPeriod: Math.max(1, cfg.periodCount), label: 'Break', duration: 15 })
       renderWizard(); scheduleCheck()
@@ -1764,6 +1945,21 @@ document.getElementById('btn-back-to-wizard').addEventListener('click', () => {
   renderWizard()
   runCheck()
 })
+
+function returnToExistingTable() {
+  if (state.doc && state.doc.grids && Object.keys(state.doc.grids).length > 0) {
+    if (state.doc.config) {
+      state.config = JSON.parse(JSON.stringify(state.doc.config))
+    }
+    showScreen('table')
+    renderTable()
+  } else {
+    toast('No existing timetable to return to.', 'bad')
+  }
+}
+
+document.getElementById('btn-return-table')?.addEventListener('click', returnToExistingTable)
+document.getElementById('btn-cancel-to-table')?.addEventListener('click', returnToExistingTable)
 
 document.getElementById('btn-regenerate').addEventListener('click', doGenerate)
 

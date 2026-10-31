@@ -64,6 +64,8 @@ function defaultConfig() {
       { afterPeriod: 4, label: 'Lunch', duration: 30 }
     ],
     periodOverrides: {},     // { '3': 50 } — per teaching-period duration in minutes
+    dayTimingMode: 'all',    // 'all' | 'custom'
+    dayOverrides: {},        // { 'Friday': { periodDuration: 30, startTime: '08:00', breakDuration: 10 } }
 
     // -- Step 3: classes (who is being taught) ----------------------------
     classes: [],             // [{ id, name, studentCount }]
@@ -243,6 +245,20 @@ function normaliseConfig(raw) {
     periodOverrides[String(idx)] = mins
   }
 
+  const dayTimingMode = input.dayTimingMode === 'custom' ? 'custom' : 'all'
+  const dayOverrides = {}
+  if (input.dayOverrides && typeof input.dayOverrides === 'object') {
+    for (const [dayName, dVal] of Object.entries(input.dayOverrides)) {
+      if (!ALL_DAYS.includes(dayName)) continue
+      if (!dVal || typeof dVal !== 'object') continue
+      dayOverrides[dayName] = {
+        periodDuration: Math.max(15, Math.min(180, Math.round(asNumber(dVal.periodDuration, 30)))),
+        startTime: /^\d{1,2}:\d{2}$/.test(String(dVal.startTime)) ? String(dVal.startTime) : '08:00',
+        breakDuration: Math.max(0, Math.min(120, Math.round(asNumber(dVal.breakDuration, 10))))
+      }
+    }
+  }
+
   const classes = asArray(input.classes)
     .map((c, i) => ({
       id: asTrimmedString(c && c.id) || `class_${i + 1}`,
@@ -308,6 +324,8 @@ function normaliseConfig(raw) {
     periodDuration: Math.max(0, Math.round(asNumber(input.periodDuration, base.periodDuration))),
     breaks,
     periodOverrides,
+    dayTimingMode,
+    dayOverrides,
     classes,
     subjects,
     teachers,
