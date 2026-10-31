@@ -41,7 +41,9 @@ function createApp(opts = {}) {
   const app = express()
   app.use(express.json())
 
-  app.use('/api/tt2', createTt2Router({ store, devAuth: true }))
+  let pool = null
+  try { pool = require('../../db') } catch (_) {}
+  app.use('/api/tt2', createTt2Router({ store, devAuth: true, pool }))
 
   // JSON error handler AFTER the routes (Express only reaches error middleware
   // defined later in the stack), then a plain 404 for anything else.

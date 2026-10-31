@@ -307,6 +307,10 @@ test.before(async () => {
 
 test.after(async () => {
   if (server) await new Promise(resolve => server.close(resolve))
+  try {
+    const pool = require('../../../db')
+    await pool.end()
+  } catch (_) {}
 })
 
 async function post(path, body) {

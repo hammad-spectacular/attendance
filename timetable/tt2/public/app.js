@@ -321,62 +321,54 @@ const stepRenderers = {
     const cfg = state.config
     const dupInfo = checkClassDuplicates(cfg.classes)
     return `
-    <div class="card" style="margin-bottom:14px;background:#f8faff;border:1px solid #dbeafe">
-      <h4 style="color:#1e40af">⚡ How many classes do you have?</h4>
-      <p class="muted" style="margin-bottom:10px">Quickly set up your classes by entering the count, or pick from existing school classes below.</p>
-      <div class="row tight" style="align-items:center;max-width:420px">
-        <label class="field" style="margin:0;flex:0 0 160px">
-          <span style="font-size:12px;font-weight:600">Total classes</span>
-          <input type="number" min="1" max="50" id="quick-class-count" value="${state.quickClassCount || 2}">
-        </label>
-        <button class="btn btn-sm btn-primary" data-act="quick-setup-classes" style="margin-top:16px">+ Create classes</button>
-      </div>
-    </div>
-
-    ${state.existingClasses && state.existingClasses.length ? `
     <div class="card" style="margin-bottom:14px">
       <h4>🏫 Choose from existing school classes</h4>
-      <p class="muted" style="margin-bottom:10px">Tick which classes you want to generate a timetable for:</p>
-      <div class="chip-set">
+      <p class="muted" style="margin-bottom:12px">
+        Select which classes to generate a timetable for. Only classes already existing in the school database can be selected.
+      </p>
+      ${state.existingClasses && state.existingClasses.length ? `
+      <div class="chip-set" style="margin-bottom:14px">
         ${state.existingClasses.map(ec => {
           const isSelected = cfg.classes.some(c =>
-            c.name.trim().toLowerCase() === ec.name.trim().toLowerCase() &&
-            (c.section || '').trim().toLowerCase() === (ec.section || '').trim().toLowerCase()
+            String(c.id) === String(ec.id) ||
+            String(c.id) === `class_${ec.id}` ||
+            (c.name.trim().toLowerCase() === ec.name.trim().toLowerCase() &&
+             (c.section || '').trim().toLowerCase() === (ec.section || '').trim().toLowerCase())
           )
           return `<label class="chip ${isSelected ? 'on' : ''}" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
-            <input type="checkbox" data-act="toggle-existing-class" data-name="${esc(ec.name)}" data-section="${esc(ec.section || '')}" ${isSelected ? 'checked' : ''} style="margin:0">
+            <input type="checkbox" data-act="toggle-existing-class" data-id="${esc(ec.id)}" data-name="${esc(ec.name)}" data-section="${esc(ec.section || '')}" ${isSelected ? 'checked' : ''} style="margin:0">
             <span>${esc(ec.name)}${ec.section ? ` (${esc(ec.section)})` : ''}</span>
           </label>`
         }).join('')}
-      </div>
-    </div>` : ''}
+      </div>` : `
+      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:12px;color:#991b1b;font-size:13px;margin-bottom:12px">
+        ⚠️ No classes found in the school system database. Please add your school classes in the Admin Classes section first.
+      </div>`}
+    </div>
 
     <div class="card">
-      <h4>Classes in this Timetable (${cfg.classes.length})</h4>
-      <p class="muted" style="margin-bottom:6px">Each class gets its own timetable.</p>
-      <p class="muted" style="margin-bottom:14px">Use the <b>Section</b> field for classes that share a name — e.g. "Grade 1" with sections "A", "B". <b>Duplicate sections for the same class are not allowed.</b></p>
+      <h4>Selected Classes for Timetable (${cfg.classes.length})</h4>
+      <p class="muted" style="margin-bottom:6px">Each selected class gets its own timetable.</p>
       ${dupInfo.duplicate ? `
         <div style="background:var(--bad-soft);border:1px solid var(--bad);border-radius:6px;padding:8px 12px;margin-bottom:12px;color:var(--bad);font-size:13px">
-          ⚠️ Duplicate class section: <b>"${esc(dupInfo.class.name)}" (Section "${esc(dupInfo.class.section || 'None')}")</b> already exists. Each section must be unique.
+          ⚠️ Duplicate class section: <b>"${esc(dupInfo.class.name)}" (Section "${esc(dupInfo.class.section || 'None')}")</b> already exists.
         </div>` : ''}
+      ${cfg.classes.length ? `
       <div class="row tight" style="margin-bottom:6px;padding:0 4px">
         <span style="flex:1 1 0;font-size:12px;font-weight:600;color:var(--ink-2)">Class name</span>
-        <span style="width:110px;font-size:12px;font-weight:600;color:var(--ink-2)">Section (A, B…)</span>
+        <span style="width:110px;font-size:12px;font-weight:600;color:var(--ink-2)">Section</span>
         <span style="width:100px;font-size:12px;font-weight:600;color:var(--ink-2)">Students</span>
         <span style="width:32px"></span>
       </div>
       ${cfg.classes.map(c => `
         <div class="item-row">
           <div class="grow row tight">
-            <input type="text" data-list="classes" data-id="${esc(c.id)}" data-field="name" value="${esc(c.name)}" placeholder="e.g. Grade 1">
-            <input type="text" data-list="classes" data-id="${esc(c.id)}" data-field="section" value="${esc(c.section || '')}" placeholder="A" style="max-width:110px" title="Section label">
+            <input type="text" value="${esc(c.name)}" disabled style="background:#f8fafc;cursor:not-allowed">
+            <input type="text" value="${esc(c.section || '—')}" disabled style="max-width:110px;background:#f8fafc;cursor:not-allowed">
             <input type="number" min="0" data-list="classes" data-id="${esc(c.id)}" data-field="studentCount" value="${c.studentCount}" placeholder="0" style="max-width:100px">
           </div>
-          <button class="btn btn-sm btn-danger" data-act="del-class" data-id="${esc(c.id)}">✕</button>
-        </div>`).join('') || '<p class="muted">No classes yet. Use the setup above or click + Add a class.</p>'}
-      <div class="add-row">
-        <button class="btn btn-sm" data-act="add-class">+ Add a class</button>
-      </div>
+          <button class="btn btn-sm btn-danger" data-act="del-class" data-id="${esc(c.id)}" title="Remove from timetable">✕</button>
+        </div>`).join('')}` : '<p class="muted">No classes selected yet. Tick classes from the list above.</p>'}
     </div>`
   },
 
@@ -517,10 +509,15 @@ const stepRenderers = {
 
     return `
     <div class="card">
-      <h4>Periods per week</h4>
-      <p class="muted" style="margin-bottom:12px">
-        How many periods of each subject each class gets in a week. Put <b>0</b> to leave it out.
-      </p>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div>
+          <h4 style="margin:0 0 4px 0">Periods per week</h4>
+          <p class="muted" style="margin:0">
+            How many periods of each subject each class gets in a week. Put <b>0</b> to leave it out.
+          </p>
+        </div>
+        <button class="btn btn-sm btn-accent" data-act="auto-fill-curriculum">⚡ Auto-fill balanced periods</button>
+      </div>
       <div class="matrix-wrap">
         <table class="matrix">
           <thead>
@@ -690,8 +687,23 @@ function renderTable() {
   const doc = state.doc
   const cfg = doc.config
   document.getElementById('table-title').textContent = doc.name
+  let activeLabel = ''
+  if (state.view === 'classes') {
+    if (state.activeClassId === '__all__') {
+      activeLabel = `All Classes (${cfg.classes.length})`
+    } else {
+      const activeId = (state.activeClassId && state.activeClassId !== '__all__') ? state.activeClassId : (cfg.classes[0] && cfg.classes[0].id)
+      const c = cfg.classes.find(cls => cls.id === activeId)
+      activeLabel = c ? `Class: ${c.name}${c.section ? ` (Section ${c.section})` : ''}` : 'Class'
+    }
+  } else {
+    const t = cfg.teachers.find(tch => tch.id === state.activeTeacherId) || cfg.teachers[0]
+    activeLabel = t ? `Teacher: ${t.name}` : 'Teacher'
+  }
+
+  document.getElementById('table-title').textContent = doc.name
   document.getElementById('table-subtitle').textContent =
-    `${cfg.schoolName || 'Untitled'}${cfg.branchName ? ' · ' + cfg.branchName : ''} — ${cfg.days.length} days × ${cfg.periodCount} periods`
+    `${cfg.schoolName || 'School'}${cfg.branchName ? ' · ' + cfg.branchName : ''} — ${activeLabel} — ${cfg.days.length} days × ${cfg.periodCount} periods`
 
   // entity picker
   const picker = document.getElementById('entity-picker')
@@ -774,8 +786,10 @@ function renderGrid() {
 
   const multiGrid = document.getElementById('multi-grid')
   const singleGrid = document.getElementById('grid')
+  const headerBanner = document.getElementById('grid-header-banner')
 
   if (state.view === 'classes' && state.activeClassId === '__all__') {
+    if (headerBanner) headerBanner.hidden = true
     if (multiGrid) {
       multiGrid.hidden = false
       multiGrid.innerHTML = cfg.classes.map(c => `
@@ -802,6 +816,41 @@ function renderGrid() {
   // Single class or teacher view
   if (multiGrid) multiGrid.hidden = true
   if (singleGrid) singleGrid.hidden = false
+
+  if (headerBanner) {
+    if (state.view === 'classes') {
+      const activeId = (state.activeClassId && state.activeClassId !== '__all__') ? state.activeClassId : (cfg.classes[0] && cfg.classes[0].id)
+      const cls = cfg.classes.find(c => c.id === activeId)
+      const className = cls ? `${cls.name}${cls.section ? ` (Section ${cls.section})` : ''}` : 'Class'
+      headerBanner.hidden = false
+      headerBanner.innerHTML = `
+        <div class="active-timetable-title">
+          <div class="att-main">
+            <span class="att-badge">🏫 Timetable for Class</span>
+            <h2 class="att-class-name">${esc(className)}</h2>
+          </div>
+          <div class="att-meta">
+            <span class="att-school">School: <strong>${esc(cfg.schoolName || doc.name)}</strong></span>
+            ${cls && cls.studentCount ? `<span class="badge">${cls.studentCount} students</span>` : ''}
+          </div>
+        </div>`
+    } else {
+      const activeTeacher = cfg.teachers.find(t => t.id === state.activeTeacherId) || cfg.teachers[0]
+      const teacherName = activeTeacher ? activeTeacher.name : 'Teacher'
+      headerBanner.hidden = false
+      headerBanner.innerHTML = `
+        <div class="active-timetable-title">
+          <div class="att-main">
+            <span class="att-badge">👨‍🏫 Timetable for Teacher</span>
+            <h2 class="att-class-name">${esc(teacherName)}</h2>
+          </div>
+          <div class="att-meta">
+            <span class="att-school">School: <strong>${esc(cfg.schoolName || doc.name)}</strong></span>
+            ${activeTeacher ? `<span class="badge">${activeTeacher.subjectIds.length} subjects</span>` : ''}
+          </div>
+        </div>`
+    }
+  }
 
   let head = '<thead><tr><th></th>' + periods.map(p => {
     const cls = p.kind === 'break' ? 'break-col' : ''
@@ -1391,36 +1440,24 @@ document.addEventListener('click', async e => {
       return
 
     /* ---- step: classes / subjects / rooms ---- */
-    case 'quick-setup-classes': {
-      const inputEl = document.getElementById('quick-class-count')
-      const count = Math.max(1, Math.min(30, Number(inputEl ? inputEl.value : 2) || 2))
-      state.quickClassCount = count
-      cfg.classes = []
-      for (let i = 1; i <= count; i++) {
-        cfg.classes.push({
-          id: uid('class'),
-          name: `Class ${i}`,
-          section: 'A',
-          studentCount: 30
-        })
-      }
-      toast(`Created ${count} classes. You can now adjust their names, sections, and student counts.`, 'good')
-      renderWizard(); scheduleCheck()
-      return
-    }
-
     case 'toggle-existing-class': {
+      const dbId = el.dataset.id ? String(el.dataset.id) : null
       const name = el.dataset.name
       const section = el.dataset.section || ''
       const isChecked = el.checked
+      const matchId = dbId ? `class_${dbId}` : null
+
       if (isChecked) {
         const exists = cfg.classes.some(c =>
-          c.name.trim().toLowerCase() === name.trim().toLowerCase() &&
-          (c.section || '').trim().toLowerCase() === section.trim().toLowerCase()
+          (matchId && c.id === matchId) ||
+          (dbId && String(c.id) === dbId) ||
+          (c.name.trim().toLowerCase() === name.trim().toLowerCase() &&
+           (c.section || '').trim().toLowerCase() === section.trim().toLowerCase())
         )
         if (!exists) {
+          const newId = matchId || uid('class')
           cfg.classes.push({
-            id: uid('class'),
+            id: newId,
             name,
             section,
             studentCount: 30
@@ -1429,8 +1466,10 @@ document.addEventListener('click', async e => {
         }
       } else {
         const idx = cfg.classes.findIndex(c =>
-          c.name.trim().toLowerCase() === name.trim().toLowerCase() &&
-          (c.section || '').trim().toLowerCase() === section.trim().toLowerCase()
+          (matchId && c.id === matchId) ||
+          (dbId && String(c.id) === dbId) ||
+          (c.name.trim().toLowerCase() === name.trim().toLowerCase() &&
+           (c.section || '').trim().toLowerCase() === section.trim().toLowerCase())
         )
         if (idx >= 0) {
           const removedId = cfg.classes[idx].id
@@ -1439,25 +1478,50 @@ document.addEventListener('click', async e => {
           toast(`Removed ${name}${section ? ` (${section})` : ''}`)
         }
       }
+      // Ensure any orphaned curriculum rows are pruned
+      const validClassIds = new Set(cfg.classes.map(c => c.id))
+      cfg.curriculum = cfg.curriculum.filter(r => validClassIds.has(r.classId))
       renderWizard(); scheduleCheck()
       return
     }
 
-    case 'add-class': {
-      let newName = `Class ${cfg.classes.length + 1}`
-      let newSec = 'A'
-      while (cfg.classes.some(c => c.name.toLowerCase() === newName.toLowerCase() && (c.section || '').toLowerCase() === newSec.toLowerCase())) {
-        newName = `Class ${cfg.classes.length + 2}`
-      }
-      cfg.classes.push({ id: uid('class'), name: newName, section: newSec, studentCount: 30 })
-      renderWizard(); scheduleCheck()
-      return
-    }
     case 'del-class':
       cfg.classes = cfg.classes.filter(c => c.id !== el.dataset.id)
       cfg.curriculum = cfg.curriculum.filter(r => r.classId !== el.dataset.id)
       renderWizard(); scheduleCheck()
       return
+
+    case 'auto-fill-curriculum': {
+      if (!cfg.classes.length || !cfg.subjects.length) {
+        toast('Select classes and subjects first', 'warn')
+        return
+      }
+      const totalSlots = cfg.days.length * cfg.periodCount
+      const subCount = cfg.subjects.length
+      const basePeriods = Math.floor(totalSlots / subCount)
+      const remainder = totalSlots % subCount
+
+      for (const cls of cfg.classes) {
+        cfg.subjects.forEach((s, idx) => {
+          const count = basePeriods + (idx < remainder ? 1 : 0)
+          let row = cfg.curriculum.find(r => r.classId === cls.id && r.subjectId === s.id)
+          if (row) {
+            row.periodsPerWeek = count
+          } else {
+            cfg.curriculum.push({
+              id: uid('req'),
+              classId: cls.id,
+              subjectId: s.id,
+              periodsPerWeek: count,
+              teacherIds: []
+            })
+          }
+        })
+      }
+      toast('Auto-filled balanced periods for all classes and subjects!', 'good')
+      renderWizard(); scheduleCheck()
+      return
+    }
     case 'add-subject':
       cfg.subjects.push({ id: uid('subject'), name: `Subject ${cfg.subjects.length + 1}`, difficult: 'medium', roomId: null })
       renderWizard(); scheduleCheck()

@@ -284,6 +284,9 @@ function normaliseConfig(raw) {
     }))
     .filter(t => t.name)
 
+  const validClassIds = new Set(classes.map(c => c.id))
+  const validSubjectIds = new Set(subjects.map(s => s.id))
+
   const curriculum = asArray(input.curriculum)
     .map((r, i) => ({
       id: asTrimmedString(r && r.id) || `req_${i + 1}`,
@@ -292,7 +295,7 @@ function normaliseConfig(raw) {
       periodsPerWeek: Math.max(0, Math.round(asNumber(r && r.periodsPerWeek, 0))),
       teacherIds: Array.from(new Set(asArray(r && r.teacherIds).map(String)))
     }))
-    .filter(r => r.classId && r.subjectId)
+    .filter(r => r.classId && r.subjectId && validClassIds.has(r.classId) && validSubjectIds.has(r.subjectId))
 
   const prefs = input.preferences && typeof input.preferences === 'object' ? input.preferences : {}
 

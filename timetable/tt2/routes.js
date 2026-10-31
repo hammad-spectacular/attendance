@@ -245,25 +245,42 @@ function createTt2Router(options = {}) {
   }
 
   router.get('/existing-classes', async (req, res) => {
+    if (Array.isArray(options.mockClasses)) {
+      return res.json({ ok: true, classes: options.mockClasses })
+    }
     try {
-      if (options.pool) {
+      let pool = options.pool
+      if (!pool) {
+        try { pool = require('../../db') } catch (_) {}
+      }
+      if (pool) {
         const tenantId = tenantOf(req, devAuth)
-        const q = await options.pool.query('SELECT id, name, section FROM classes WHERE tenant_id = $1 ORDER BY id', [tenantId])
-        if (q.rows && q.rows.length) {
+        let q = null
+        if (tenantId && tenantId !== 'dev') {
+          q = await pool.query(
+            'SELECT id, name, section FROM classes WHERE tenant_id = $1 ORDER BY name, section, id',
+            [tenantId]
+          )
+        } else {
+          // Dev / devAuth mode: look for classes for 'dev' or fetch existing school classes
+          q = await pool.query(
+            'SELECT id, name, section FROM classes WHERE tenant_id = $1 ORDER BY name, section, id',
+            ['dev']
+          )
+          if (!q.rows || !q.rows.length) {
+            q = await pool.query(
+              'SELECT id, name, section FROM classes ORDER BY name, section, id LIMIT 100'
+            )
+          }
+        }
+        if (q && q.rows && q.rows.length) {
           return res.json({ ok: true, classes: q.rows })
         }
       }
-    } catch (_) {}
-    const fallback = [
-      { id: 'c_g1_a', name: 'Grade 1', section: 'A' },
-      { id: 'c_g1_b', name: 'Grade 1', section: 'B' },
-      { id: 'c_g2_a', name: 'Grade 2', section: 'A' },
-      { id: 'c_g2_b', name: 'Grade 2', section: 'B' },
-      { id: 'c_g3_a', name: 'Grade 3', section: 'A' },
-      { id: 'c_g4_a', name: 'Grade 4', section: 'A' },
-      { id: 'c_g5_a', name: 'Grade 5', section: 'A' }
-    ]
-    res.json({ ok: true, classes: fallback })
+    } catch (err) {
+      console.warn('[tt2] /existing-classes query error:', err.message)
+    }
+    res.json({ ok: true, classes: [] })
   })
 
   // -- list / create -------------------------------------------------------
