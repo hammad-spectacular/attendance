@@ -2253,6 +2253,7 @@
     }
   </style>
     <link rel="stylesheet" href="ui-buttons.css">
+  <link rel="stylesheet" href="./shared-nav.css">
 </head>
 
 <body class="gates-pending">
@@ -2546,6 +2547,21 @@
                 <i class="fas fa-check"></i> Save Student
               </button>
               <button class="btn btn-ghost" onclick="toggleAddStudent()">Cancel</button>
+            </div>
+          </div>
+
+          <!-- Search & Filter Controls -->
+          <div class="search-filter-container" style="display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:240px; position:relative;">
+              <input type="text" id="studentSearchInput" class="form-input"
+                placeholder="🔍 Search by name or roll number..." oninput="filterStudents(); saveStudentViewDraft();">
+            </div>
+            <div style="width:200px; min-width:150px;">
+              <select id="studentClassFilter" class="form-input" onchange="filterStudents(); saveStudentViewDraft();"
+                aria-label="Filter students by class">
+                <option value="">All Classes</option>
+                <option value="unassigned">Unassigned</option>
+              </select>
             </div>
           </div>
 
@@ -5157,6 +5173,7 @@
     // Stored in sessionStorage (per-tab, cleared when the tab closes) because it
     // can hold personal details. No password or token is ever stored here.
     const STUDENT_FORM_DRAFT_KEY = 'draft:admin:studentForm';
+    const STUDENT_VIEW_DRAFT_KEY = 'draft:admin:studentView';
     const ADMIN_DRAFT_MAX_AGE = 12 * 60 * 60 * 1000; // 12 hours
 
     function saveStudentFormDraft() {
@@ -5189,6 +5206,26 @@
       set('studentEmail', d.email);
       set('studentClass', d.classId);
       return true;
+    }
+
+    function saveStudentViewDraft() {
+      if (!window.DraftStore) return;
+      const searchEl = document.getElementById('studentSearchInput');
+      const filterEl = document.getElementById('studentClassFilter');
+      DraftStore.save(STUDENT_VIEW_DRAFT_KEY, {
+        search: searchEl ? searchEl.value : '',
+        classFilter: filterEl ? filterEl.value : ''
+      }, false);
+    }
+
+    function applyStudentViewDraft() {
+      if (!window.DraftStore) return;
+      const d = DraftStore.load(STUDENT_VIEW_DRAFT_KEY, ADMIN_DRAFT_MAX_AGE, false);
+      if (!d) return;
+      const searchEl = document.getElementById('studentSearchInput');
+      const filterEl = document.getElementById('studentClassFilter');
+      if (searchEl && typeof d.search === 'string') searchEl.value = d.search;
+      if (filterEl && typeof d.classFilter === 'string') filterEl.value = d.classFilter;
     }
 
     function toggleAddStudent() {
@@ -6628,6 +6665,30 @@
 
     // One-off branch creation from inside the Add Coordinator form, so a school
     // without any branches can still create their first coordinator here.
+    async function deleteCoordinator(id) {
+      const confirmed = await showConfirmModal({
+        icon: '🗑️',
+        iconBg: 'rgba(239,68,68,0.12)',
+        title: 'Remove Coordinator',
+        message: 'Are you sure you want to remove this coordinator? Their account and all associated data will be permanently deleted.',
+        confirmText: 'Yes, Remove',
+        confirmClass: 'danger',
+        cancelText: 'Cancel'
+      });
+      if (!confirmed) return;
+      try {
+        const response = await apiFetch(`/api/coordinators/${id}`, { method: 'DELETE' });
+        if (!response.ok) throw new Error('Failed to delete coordinator');
+        window.appData.coordinators = window.appData.coordinators.filter(c => Number(c.id) !== Number(id));
+        renderCoordinators();
+        showToast('Coordinator removed', 'info');
+      } catch (err) {
+        showToast(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    // One-off branch creation from inside the Add Coordinator form, so a school
+    // without any branches can still create their first coordinator here.
     async function createInlineBranch() {
       const input = document.getElementById('inlineBranchName');
       const name = (input.value || '').trim();
@@ -7228,6 +7289,25 @@
 
     // applyFeatureVisibility removed: gating logic is now handled entirely by applyFeatureGates
     // which runs safely inside loadAdminBootstrap without deleting DOM elements.
+
+    function updatePhoneFieldStatus() {
+      let whatsappEnabled = false;
+      if (window.appData && window.appData.features && window.appData.features['whatsapp']) {
+        whatsappEnabled = true;
+      }
+
+      // Add Student form
+      const studentPhoneLabel = document.getElementById('studentPhoneLabel');
+      if (studentPhoneLabel) {
+        studentPhoneLabel.textContent = whatsappEnabled ? '(required for WhatsApp)' : '(optional)';
+      }
+
+      // Edit Student modal
+      const editStudentPhoneLabel = document.getElementById('editStudentPhoneLabel');
+      if (editStudentPhoneLabel) {
+        editStudentPhoneLabel.textContent = whatsappEnabled ? '(required for WhatsApp)' : '(optional)';
+      }
+    }
 
     function firstPermittedSection() {
       // Must skip feature-gated tabs: querySelector finds elements regardless of
@@ -8073,6 +8153,16 @@
     }
   </script>
 <script src="./idle-logout.js"></script>
+
+  <script src="./menu-config.js"></script>
+  <script src="./shared-nav.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      if (window.initSharedNav) {
+        window.initSharedNav('admin');
+      }
+    });
+  </script>
 </body>
 
 </html>

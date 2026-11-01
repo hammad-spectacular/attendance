@@ -1019,6 +1019,7 @@
       }
     }
   </style>
+  <link rel="stylesheet" href="./shared-nav.css">
 </head>
 <body>
   <!-- ======================== HEADER ======================== -->
@@ -2258,5 +2259,15 @@ function startKeepAlive() {
 }
   </script>
   <script src="./idle-logout.js"></script>
+
+  <script src="./menu-config.js"></script>
+  <script src="./shared-nav.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      if (window.initSharedNav) {
+        window.initSharedNav('coordinator');
+      }
+    });
+  </script>
 </body>
 </html>

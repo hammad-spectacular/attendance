@@ -959,6 +959,7 @@
     }
   </style>
     <link rel="stylesheet" href="ui-buttons.css">
+  <link rel="stylesheet" href="./shared-nav.css">
 </head>
 <body>
 
@@ -1019,6 +1020,9 @@
       </a>
       <a href="#tab-fees" class="tab-btn" data-section="tab-fees">
         <i class="fas fa-money-bill-wave"></i>Fees
+      </a>
+      <a href="/complaint.html" class="tab-btn" id="tab-complaint" data-section="tab-complaint">
+        <i class="fas fa-circle-exclamation"></i>Complaint
       </a>
     </div>
   </nav>
@@ -2177,5 +2181,16 @@ function setButtonLoading(btn, loading, loadingHtml) {
     });
   </script>
 <script src="./idle-logout.js"></script>
+  <script src="./shared-nav.js"></script>
+
+  <script src="./menu-config.js"></script>
+  <script src="./shared-nav.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      if (window.initSharedNav) {
+        window.initSharedNav('student');
+      }
+    });
+  </script>
 </body>
 </html>

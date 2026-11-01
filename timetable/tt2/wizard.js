@@ -29,24 +29,12 @@ const ALL_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satur
 
 const DIFFICULTIES = ['easy', 'medium', 'difficult']
 
-/** Maximum subjects one teacher may teach before we warn about overload. */
-const SOFT_SUBJECT_LIMIT_PER_TEACHER = 3
-
-/**
- * How many periods a week each difficulty level normally needs.
- *
- * These are STARTING POINTS, not rules — the suggestion engine uses them to
- * pre-fill the curriculum and the teacher then walks through the numbers and
- * adjusts whatever does not match their school.
- */
-const BASE_PERIODS_PER_WEEK = {
-  easy: 2,
-  medium: 3,
-  difficult: 4
-}
-
-/** Never suggest more than this many periods of one subject in a week. */
-const MAX_SUGGESTED_PERIODS = 5
+const {
+  DEFAULT_DAYS,
+  SOFT_SUBJECT_LIMIT_PER_TEACHER,
+  BASE_PERIODS_PER_WEEK,
+  MAX_SUGGESTED_PERIODS
+} = require('./config/defaults')
 
 /**
  * The closing time that older builds wrote into every config as a default.
@@ -63,7 +51,7 @@ function defaultConfig() {
     branchName: '',
 
     // -- Step 2: the shape of the week ------------------------------------
-    days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+    days: [...DEFAULT_DAYS],
     startTime: '08:00',
     // The school's daily END is DERIVED from startTime + periods × duration +
     // breaks. This field is only an OPTIONAL latest-dismissal limit. null = no
@@ -482,201 +470,254 @@ function normaliseConfig(raw) {
 /**
  * @returns {{errors: string[], warnings: string[], canGenerate: boolean}}
  */
-function validateConfig(raw) {
+function makeError(msg, step) {
+  const err = new String(msg)
+  err.message = msg
+  err.step = step
+  err.toJSON = function () {
+    return { message: String(this), step: this.step }
+  }
+  return err
+}
+
+/**
+ * Validate a single step's questions.
+ * @returns {{errors: any[], warnings: string[], canGenerate: boolean}}
+ */
+function validateStep(raw, stepId) {
   const config = normaliseConfig(raw)
   const errors = []
   const warnings = []
 
-  if (!config.schoolName) errors.push('School name is required.')
+  switch (stepId) {
+    case 'identity':
+      if (!config.schoolName) errors.push(makeError('School name is required.', 'identity'))
+      break
 
-  if (!config.days.length) errors.push('Select at least one working day.')
-  if (!config.periodCount) errors.push('Set how many teaching periods there are in a day.')
-  if (!config.periodDuration) errors.push('Set the class duration in minutes.')
-  else if (config.periodDuration < 15) errors.push('Class duration must be at least 15 minutes.')
-  else if (config.periodDuration > 180) errors.push('Class duration must be 180 minutes or less.')
+    case 'week':
+      if (!config.days.length) errors.push(makeError('Select at least one working day.', 'week'))
+      break
 
-  // -- Optional latest-dismissal limit ---------------------------------------
-  // The school's REAL end time is derived from the start time, the number and
-  // length of periods, and any breaks (see calculateEndTime). It is never a
-  // hardcoded value. `config.endTime`, when present, is only an OPTIONAL cap on
-  // how late the day may run. When it is null there is no cap.
-  const calculatedEndMinutes = calculateEndTime(config)
-  const limitMins = config.endTime === null ? null : parseClock(config.endTime)
+    case 'periods': {
+      if (!config.periodCount) errors.push(makeError('Set how many teaching periods there are in a day.', 'periods'))
+      if (!config.periodDuration) errors.push(makeError('Set the class duration in minutes.', 'periods'))
+      else if (config.periodDuration < 15) errors.push(makeError('Class duration must be at least 15 minutes.', 'periods'))
+      else if (config.periodDuration > 180) errors.push(makeError('Class duration must be 180 minutes or less.', 'periods'))
 
-  if (limitMins !== null && limitMins <= parseClock(config.startTime)) {
-    errors.push('The latest dismissal time must be after the school start time.')
-  }
+      const calculatedEndMinutes = calculateEndTime(config)
+      const limitMins = config.endTime === null ? null : parseClock(config.endTime)
 
-  for (const [key, mins] of Object.entries(config.periodOverrides)) {
-    if (mins < 15) errors.push(`Period ${key} duration must be at least 15 minutes.`)
-    if (mins > 180) errors.push(`Period ${key} duration must be 180 minutes or less.`)
-  }
-
-  for (const b of config.breaks) {
-    if (b.afterPeriod > config.periodCount) {
-      errors.push(`Break "${b.label}" is placed after period ${b.afterPeriod}, but there are only ${config.periodCount} periods.`)
-    }
-  }
-
-  // Only enforce the dismissal cap when the administrator actually set one.
-  if (limitMins !== null && calculatedEndMinutes > limitMins) {
-    errors.push(
-      `The latest dismissal time is ${formatClock(limitMins)} but ` +
-      `${config.periodCount} periods of ${config.periodDuration} minutes ` +
-      `plus breaks require until ${formatClock(calculatedEndMinutes)}. ` +
-      `Either reduce periods, shorten durations, or move the dismissal time later.`
-    )
-  }
-
-  // PHASE 1: Validate date overrides
-  for (const [dateStr, timing] of Object.entries(config.dateOverrides || {})) {
-    // Check if date is a configured school day
-    const date = new Date(dateStr)
-    const dayIndex = date.getDay() // 0 = Sunday, 1 = Monday, etc.
-    const dayName = ALL_DAYS[dayIndex === 0 ? 6 : dayIndex - 1] || 'Unknown'
-
-    if (!config.days.includes(dayName)) {
-      errors.push(
-        `Date override for ${dateStr} (${dayName}) is not a configured school day. ` +
-        `Current school days: ${config.days.join(', ')}.`
-      )
-    }
-
-    // Check if timing produces valid schedule within end time
-    const testConfig = {
-      ...config,
-      periodDuration: timing.periodDuration,
-      startTime: timing.startTime,
-      breaks: config.breaks.map(b => ({
-        ...b,
-        duration: timing.breakDuration !== undefined ? timing.breakDuration : b.duration
-      }))
-    }
-
-    // If an optional dismissal limit is set, ensure the override still fits.
-    // With no limit set there is nothing to violate, so no error is raised.
-    const calculatedEnd = calculateEndTime(testConfig)
-    if (limitMins !== null && calculatedEnd > limitMins) {
-      errors.push(
-        `Date override for ${dateStr} would end at ${formatClock(calculatedEnd)}, ` +
-        `which is past the latest dismissal time of ${formatClock(limitMins)}. ` +
-        `Adjust the timing or move the dismissal time later.`
-      )
-    }
-  }
-
-  if (!config.classes.length) errors.push('Add at least one class.')
-  else {
-    const seenClassKeys = new Set()
-    for (const cls of config.classes) {
-      const key = `${cls.name.toLowerCase().trim()}:::${(cls.section || '').toLowerCase().trim()}`
-      if (seenClassKeys.has(key)) {
-        errors.push(`Duplicate class: "${cls.name}"${cls.section ? ` (Section ${cls.section})` : ''} already exists. You cannot add the same section for the same class.`)
+      if (limitMins !== null && limitMins <= parseClock(config.startTime)) {
+        errors.push(makeError('The latest dismissal time must be after the school start time.', 'periods'))
       }
-      seenClassKeys.add(key)
-    }
-  }
-  if (!config.subjects.length) errors.push('Add at least one subject.')
-  if (!config.teachers.length) errors.push('Add at least one teacher.')
 
-  // -- Teacher sanity -------------------------------------------------------
-  for (const t of config.teachers) {
-    if (!t.subjectIds.length) {
-      errors.push(`Teacher "${t.name}" has no subject assigned.`)
-    }
-    if (t.subjectIds.length > SOFT_SUBJECT_LIMIT_PER_TEACHER) {
-      warnings.push(`Teacher "${t.name}" teaches ${t.subjectIds.length} subjects. Teachers usually handle 2–3.`)
-    }
-    if (t.maxPerDay !== null && t.maxPerDay > config.periodCount) {
-      warnings.push(`Teacher "${t.name}" can teach ${t.maxPerDay} periods a day, more than the ${config.periodCount} periods in the day.`)
-    }
-  }
+      for (const [key, mins] of Object.entries(config.periodOverrides)) {
+        if (mins < 15) errors.push(makeError(`Period ${key} duration must be at least 15 minutes.`, 'periods'))
+        if (mins > 180) errors.push(makeError(`Period ${key} duration must be 180 minutes or less.`, 'periods'))
+      }
 
-  // -- Every subject needs a qualified teacher ------------------------------
-  for (const s of config.subjects) {
-    const qualified = config.teachers.filter(t => t.subjectIds.includes(s.id))
-    if (!qualified.length) {
-      errors.push(`Subject "${s.name}" has no teacher. Assign it to at least one teacher.`)
-    }
-  }
+      for (const b of config.breaks) {
+        if (b.afterPeriod > config.periodCount) {
+          errors.push(makeError(`Break "${b.label}" is placed after period ${b.afterPeriod}, but there are only ${config.periodCount} periods.`, 'periods'))
+        }
+      }
 
-  // -- Curriculum ------------------------------------------------------------
-  if (!config.curriculum.length) {
-    errors.push('Set the curriculum: for each class, how many periods of each subject per week.')
-  }
+      if (limitMins !== null && calculatedEndMinutes > limitMins) {
+        errors.push(
+          makeError(
+            `The latest dismissal time is ${formatClock(limitMins)} but ` +
+            `${config.periodCount} periods of ${config.periodDuration} minutes ` +
+            `plus breaks require until ${formatClock(calculatedEndMinutes)}. ` +
+            `Either reduce periods, shorten durations, or move the dismissal time later.`,
+            'periods'
+          )
+        )
+      }
 
-  const classIds = new Set(config.classes.map(c => c.id))
-  const subjectIds = new Set(config.subjects.map(s => s.id))
-  const teacherIds = new Set(config.teachers.map(t => t.id))
+      for (const [dateStr, timing] of Object.entries(config.dateOverrides || {})) {
+        const date = new Date(dateStr)
+        const dayIndex = date.getDay()
+        const dayName = ALL_DAYS[dayIndex === 0 ? 6 : dayIndex - 1] || 'Unknown'
 
-  for (const r of config.curriculum) {
-    const cls = config.classes.find(c => c.id === r.classId)
-    const subj = config.subjects.find(s => s.id === r.subjectId)
-    const className = cls ? (cls.section ? `${cls.name} (${cls.section})` : cls.name) : 'Unknown Class'
-    const subjectName = subj ? subj.name : 'Unknown Subject'
+        if (!config.days.includes(dayName)) {
+          errors.push(
+            makeError(
+              `Date override for ${dateStr} (${dayName}) is not a configured school day. ` +
+              `Current school days: ${config.days.join(', ')}.`,
+              'periods'
+            )
+          )
+        }
 
-    if (!classIds.has(r.classId)) {
-      errors.push(`Curriculum row references an unknown class. Please assign a valid class.`)
-      continue
+        const testConfig = {
+          ...config,
+          periodDuration: timing.periodDuration,
+          startTime: timing.startTime,
+          breaks: config.breaks.map(b => ({
+            ...b,
+            duration: timing.breakDuration !== undefined ? timing.breakDuration : b.duration
+          }))
+        }
+
+        const calculatedEnd = calculateEndTime(testConfig)
+        if (limitMins !== null && calculatedEnd > limitMins) {
+          errors.push(
+            makeError(
+              `Date override for ${dateStr} would end at ${formatClock(calculatedEnd)}, ` +
+              `which is past the latest dismissal time of ${formatClock(limitMins)}. ` +
+              `Adjust the timing or move the dismissal time later.`,
+              'periods'
+            )
+          )
+        }
+      }
+      break
     }
-    if (!subjectIds.has(r.subjectId)) {
-      errors.push(`Curriculum row references an unknown subject. Please assign a valid subject.`)
-      continue
+
+    case 'classes': {
+      if (!config.classes.length) errors.push(makeError('Add at least one class.', 'classes'))
+      else {
+        const seenClassKeys = new Set()
+        for (const cls of config.classes) {
+          const key = `${cls.name.toLowerCase().trim()}:::${(cls.section || '').toLowerCase().trim()}`
+          if (seenClassKeys.has(key)) {
+            errors.push(makeError(`Duplicate class: "${cls.name}"${cls.section ? ` (Section ${cls.section})` : ''} already exists. You cannot add the same section for the same class.`, 'classes'))
+          }
+          seenClassKeys.add(key)
+        }
+      }
+      break
     }
-    if (r.periodsPerWeek <= 0) {
-      errors.push(`${className} – ${subjectName} has ${r.periodsPerWeek} periods per week. Set at least 1 period, or remove this requirement.`)
+
+    case 'subjects':
+      if (!config.subjects.length) errors.push(makeError('Add at least one subject.', 'subjects'))
+      break
+
+    case 'teachers': {
+      if (!config.teachers.length) errors.push(makeError('Add at least one teacher.', 'teachers'))
+      for (const t of config.teachers) {
+        if (!t.subjectIds.length) {
+          errors.push(makeError(`Teacher "${t.name}" has no subject assigned.`, 'teachers'))
+        }
+        if (t.subjectIds.length > SOFT_SUBJECT_LIMIT_PER_TEACHER) {
+          warnings.push(`Teacher "${t.name}" teaches ${t.subjectIds.length} subjects. Teachers usually handle 2–3.`)
+        }
+        if (t.maxPerDay !== null && t.maxPerDay > config.periodCount) {
+          warnings.push(`Teacher "${t.name}" can teach ${t.maxPerDay} periods a day, more than the ${config.periodCount} periods in the day.`)
+        }
+      }
+
+      for (const s of config.subjects) {
+        const qualified = config.teachers.filter(t => t.subjectIds.includes(s.id))
+        if (!qualified.length) {
+          errors.push(makeError(`Subject "${s.name}" has no teacher. Assign it to at least one teacher.`, 'teachers'))
+        }
+      }
+      break
     }
-    if (r.teacherIds.length) {
-      for (const id of r.teacherIds) {
-        if (!teacherIds.has(id)) {
-          errors.push(`Curriculum row references an unknown teacher. Please assign a valid teacher.`)
-        } else {
-          const teacher = config.teachers.find(t => t.id === id)
-          if (teacher && !teacher.subjectIds.includes(r.subjectId)) {
-            errors.push(`Teacher "${teacher.name}" is not qualified for "${subjectName}" but is assigned to it in the curriculum.`)
+
+    case 'rooms':
+      break
+
+    case 'curriculum': {
+      if (!config.curriculum.length) {
+        errors.push(makeError('Set the curriculum: for each class, how many periods of each subject per week.', 'curriculum'))
+      }
+
+      const classIds = new Set(config.classes.map(c => c.id))
+      const subjectIds = new Set(config.subjects.map(s => s.id))
+      const teacherIds = new Set(config.teachers.map(t => t.id))
+
+      for (const r of config.curriculum) {
+        const cls = config.classes.find(c => c.id === r.classId)
+        const subj = config.subjects.find(s => s.id === r.subjectId)
+        const className = cls ? (cls.section ? `${cls.name} (${cls.section})` : cls.name) : 'Unknown Class'
+        const subjectName = subj ? subj.name : 'Unknown Subject'
+
+        if (!classIds.has(r.classId)) {
+          errors.push(makeError('Curriculum row references an unknown class. Please assign a valid class.', 'curriculum'))
+          continue
+        }
+        if (!subjectIds.has(r.subjectId)) {
+          errors.push(makeError('Curriculum row references an unknown subject. Please assign a valid subject.', 'curriculum'))
+          continue
+        }
+        if (r.periodsPerWeek <= 0) {
+          errors.push(makeError(`${className} – ${subjectName} has ${r.periodsPerWeek} periods per week. Set at least 1 period, or remove this requirement.`, 'curriculum'))
+        }
+        if (r.teacherIds.length) {
+          for (const id of r.teacherIds) {
+            if (!teacherIds.has(id)) {
+              errors.push(makeError('Curriculum row references an unknown teacher. Please assign a valid teacher.', 'curriculum'))
+            } else {
+              const teacher = config.teachers.find(t => t.id === id)
+              if (teacher && !teacher.subjectIds.includes(r.subjectId)) {
+                errors.push(makeError(`Teacher "${teacher.name}" is not qualified for "${subjectName}" but is assigned to it in the curriculum.`, 'curriculum'))
+              }
+            }
           }
         }
       }
+
+      const teachingSlotsPerWeek = config.periodCount * config.days.length
+
+      for (const cls of config.classes) {
+        const total = config.curriculum
+          .filter(r => r.classId === cls.id)
+          .reduce((sum, r) => sum + r.periodsPerWeek, 0)
+        if (total > teachingSlotsPerWeek) {
+          errors.push(makeError(`Class "${cls.name}" needs ${total} periods a week but only ${teachingSlotsPerWeek} teaching slots exist.`, 'curriculum'))
+        }
+        if (total === 0) {
+          warnings.push(`Class "${cls.name}" has no subjects assigned yet.`)
+        }
+      }
+
+      for (const s of config.subjects) {
+        const total = config.curriculum
+          .filter(r => r.subjectId === s.id)
+          .reduce((sum, r) => sum + r.periodsPerWeek, 0)
+        if (total === 0) {
+          warnings.push(`Subject "${s.name}" is not taught to any class.`)
+        }
+      }
+
+      for (const t of config.teachers) {
+        const load = config.curriculum
+          .filter(r => r.subjectId && t.subjectIds.includes(r.subjectId))
+          .filter(r => !r.teacherIds.length || r.teacherIds.includes(t.id))
+          .reduce((sum, r) => sum + r.periodsPerWeek, 0)
+
+        if (t.maxPerWeek !== null && load > t.maxPerWeek) {
+          errors.push(makeError(`Teacher "${t.name}" would teach ${load} periods a week but is capped at ${t.maxPerWeek}. Raise the weekly limit in the Teachers step, or reduce the periods in the Curriculum step.`, 'curriculum'))
+        }
+        if (t.maxPerDay !== null && load > t.maxPerDay * config.days.length) {
+          errors.push(makeError(`Teacher "${t.name}" would teach ${load} periods a week but can only teach ${t.maxPerDay} a day. With ${config.days.length} working days that is ${t.maxPerDay * config.days.length} periods — raise the daily limit or reduce their load.`, 'curriculum'))
+        }
+      }
+      break
     }
+
+    case 'preferences':
+      break
   }
 
-  // -- Capacity checks -------------------------------------------------------
-  const teachingSlotsPerWeek = config.periodCount * config.days.length
+  return { errors, warnings, canGenerate: errors.length === 0 }
+}
 
-  for (const cls of config.classes) {
-    const total = config.curriculum
-      .filter(r => r.classId === cls.id)
-      .reduce((sum, r) => sum + r.periodsPerWeek, 0)
-    if (total > teachingSlotsPerWeek) {
-      errors.push(`Class "${cls.name}" needs ${total} periods a week but only ${teachingSlotsPerWeek} teaching slots exist.`)
-    }
-    if (total === 0) {
-      warnings.push(`Class "${cls.name}" has no subjects assigned yet.`)
-    }
-  }
+/**
+ * @returns {{errors: any[], warnings: string[], canGenerate: boolean}}
+ */
+function validateConfig(raw) {
+  const config = normaliseConfig(raw)
+  const stepIds = ['identity', 'week', 'periods', 'classes', 'subjects', 'teachers', 'rooms', 'curriculum', 'preferences']
+  const errors = []
+  const warnings = []
 
-  for (const s of config.subjects) {
-    const total = config.curriculum
-      .filter(r => r.subjectId === s.id)
-      .reduce((sum, r) => sum + r.periodsPerWeek, 0)
-    if (total === 0) {
-      warnings.push(`Subject "${s.name}" is not taught to any class.`)
-    }
-  }
-
-  // -- Teacher load ----------------------------------------------------------
-  for (const t of config.teachers) {
-    const load = config.curriculum
-      .filter(r => r.subjectId && t.subjectIds.includes(r.subjectId))
-      .filter(r => !r.teacherIds.length || r.teacherIds.includes(t.id))
-      .reduce((sum, r) => sum + r.periodsPerWeek, 0)
-
-    if (t.maxPerWeek !== null && load > t.maxPerWeek) {
-      errors.push(`Teacher "${t.name}" would teach ${load} periods a week but is capped at ${t.maxPerWeek}. Raise the weekly limit in the Teachers step, or reduce the periods in the Curriculum step.`)
-    }
-    if (t.maxPerDay !== null && load > t.maxPerDay * config.days.length) {
-      errors.push(`Teacher "${t.name}" would teach ${load} periods a week but can only teach ${t.maxPerDay} a day. With ${config.days.length} working days that is ${t.maxPerDay * config.days.length} periods — raise the daily limit or reduce their load.`)
-    }
+  for (const stepId of stepIds) {
+    const res = validateStep(config, stepId)
+    errors.push(...res.errors)
+    warnings.push(...res.warnings)
   }
 
   return { errors, warnings, canGenerate: errors.length === 0 }
@@ -690,6 +731,7 @@ module.exports = {
   defaultConfig,
   normaliseConfig,
   validateConfig,
+  validateStep,
   parseClock,
   formatClock,
   calculateEndTime

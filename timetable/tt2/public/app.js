@@ -22,9 +22,13 @@ const state = {
   busy: false,
   existingClasses: [],
   fetchedExistingClasses: false,
-  quickClassCount: 2,
+  existingTeachers: [],
+  fetchedExistingTeachers: false,
+  visitedSteps: new Set([0]),
+  generateClicked: false,
+  quickClassCount: (window.TT2_DEFAULTS && window.TT2_DEFAULTS.DEFAULT_QUICK_CLASS_COUNT) || 2,
   cornerErrorMinimized: false,
-  activeCustomDay: 'Friday'
+  activeCustomDay: (window.TT2_DEFAULTS && window.TT2_DEFAULTS.DEFAULT_CUSTOM_DAY) || 'Friday'
 }
 
 let checkTimer = null
@@ -64,6 +68,22 @@ async function fetchExistingClasses() {
   }
 }
 
+async function fetchExistingTeachers() {
+  if (state.fetchedExistingTeachers) return
+  state.fetchedExistingTeachers = true
+  try {
+    const res = await api('/existing-teachers')
+    if (res && Array.isArray(res.teachers)) {
+      state.existingTeachers = res.teachers
+      if (state.screen === 'wizard' && state.meta && state.meta.steps[state.step] && state.meta.steps[state.step].id === 'teachers') {
+        renderWizard()
+      }
+    }
+  } catch (_) {
+    state.existingTeachers = []
+  }
+}
+
 function checkClassDuplicates(classes) {
   const seen = new Set()
   for (const c of classes) {
@@ -74,30 +94,48 @@ function checkClassDuplicates(classes) {
   return { duplicate: false }
 }
 
+function stepIndex(stepId) {
+  if (!state.meta || !state.meta.steps) return 0
+  const idx = state.meta.steps.findIndex(s => s.id === stepId)
+  return idx >= 0 ? idx : 0
+}
+
+function stepTitle(stepId) {
+  if (!state.meta || !state.meta.steps) return stepId
+  const s = state.meta.steps.find(st => st.id === stepId)
+  return s ? s.title : stepId
+}
+
 function getStepErrors(stepId) {
   const errs = (state.readiness && state.readiness.errors) || []
-  switch (stepId) {
-    case 'identity':
-      return errs.filter(e => e.toLowerCase().includes('school name'))
-    case 'week':
-      return errs.filter(e => e.toLowerCase().includes('working day'))
-    case 'periods':
-      return errs.filter(e => e.toLowerCase().includes('period') || e.toLowerCase().includes('duration') || e.toLowerCase().includes('break'))
-    case 'classes':
-      return errs.filter(e => e.toLowerCase().includes('class'))
-    case 'subjects':
-      return errs.filter(e => e.toLowerCase().includes('subject'))
-    case 'teachers':
-      return errs.filter(e => e.toLowerCase().includes('teacher'))
-    case 'rooms':
-      return errs.filter(e => e.toLowerCase().includes('room'))
-    case 'curriculum':
-      return errs.filter(e => e.toLowerCase().includes('curriculum') || e.toLowerCase().includes('teaching slots'))
-    case 'preferences':
-      return errs.filter(e => e.toLowerCase().includes('preference'))
-    default:
-      return []
-  }
+  return errs.filter(e => {
+    if (typeof e === 'object' && e && e.step) {
+      return e.step === stepId
+    }
+    const msg = (typeof e === 'object' && e ? (e.message || '') : String(e || '')).toLowerCase()
+    switch (stepId) {
+      case 'identity':
+        return msg.includes('school name')
+      case 'week':
+        return msg.includes('working day')
+      case 'periods':
+        return msg.includes('period') || msg.includes('duration') || msg.includes('break') || msg.includes('dismissal')
+      case 'classes':
+        return msg.includes('class')
+      case 'subjects':
+        return msg.includes('subject') && !msg.includes('teacher') && !msg.includes('curriculum')
+      case 'teachers':
+        return msg.includes('teacher') && !msg.includes('curriculum')
+      case 'rooms':
+        return msg.includes('room')
+      case 'curriculum':
+        return msg.includes('curriculum') || msg.includes('teaching slots')
+      case 'preferences':
+        return msg.includes('preference')
+      default:
+        return false
+    }
+  })
 }
 
 function toast(message, kind = '') {
@@ -232,7 +270,12 @@ function renderReadiness() {
   } else {
     if (errors.length) {
       html += `<div class="r-line err"><span>✕</span><span>${errors.length} thing${errors.length > 1 ? 's' : ''} still to fix</span></div>`
-      html += `<ul>${errors.slice(0, 6).map(e => `<li>${esc(e)}</li>`).join('')}</ul>`
+      html += `<ul>${errors.slice(0, 6).map(e => {
+        const msg = esc(e.message || e)
+        const step = e.step
+        const jumpBtn = step ? ` <button class="btn btn-sm btn-ghost" data-act="goto-step" data-index="${stepIndex(step)}" style="margin-left:6px;padding:1px 6px;font-size:11px">Fix</button>` : ''
+        return `<li><span>${msg}</span>${jumpBtn}</li>`
+      }).join('')}</ul>`
       if (errors.length > 6) html += `<div class="r-line err"><span>…</span><span>and ${errors.length - 6} more</span></div>`
     }
     if (warnings.length) {
@@ -562,15 +605,7 @@ const stepRenderers = {
   },
 
   subjects: () => {
-    const classLabels = state.config.classes.map(c => c.section ? `${esc(c.name)} (${esc(c.section)})` : esc(c.name)).join(', ') || 'None selected'
     return `
-    <div class="card" style="margin-bottom:14px;background:#fefce8;border:1px solid #fef08a">
-      <h4 style="color:#854d0e">📚 Subjects for Selected Classes</h4>
-      <p style="font-size:13px;color:#713f12;margin-top:4px">
-        These subjects apply to your selected classes: <b>${classLabels}</b>.<br>
-        In the Curriculum step, you will specify the exact number of periods each class gets for each subject.
-      </p>
-    </div>
     <div class="card">
       <h4>Subjects</h4>
       <p class="muted" style="margin-bottom:14px">
@@ -593,14 +628,42 @@ const stepRenderers = {
       <div class="add-row">
         <button class="btn btn-sm" data-act="add-subject">+ Add a subject</button>
       </div>
+      <p class="muted" style="font-size:12.5px;margin-top:14px">
+        Curriculum can be added later in step 8. <a href="#" data-act="goto-step" data-index="7">Go to Curriculum</a>
+      </p>
     </div>`
   },
 
   teachers: () => {
+    fetchExistingTeachers()
     const cfg = state.config
     return `
+    <div class="card" style="margin-bottom:14px">
+      <h4>👩‍🏫 Choose from existing school teachers</h4>
+      <p class="muted" style="margin-bottom:12px">
+        Select teachers from your school system database to include in the timetable.
+      </p>
+      ${state.existingTeachers && state.existingTeachers.length ? `
+      <div class="chip-set" style="margin-bottom:14px">
+        ${state.existingTeachers.map(et => {
+          const isSelected = cfg.teachers.some(t =>
+            String(t.id) === String(et.id) ||
+            String(t.id) === `teacher_${et.id}` ||
+            t.name.trim().toLowerCase() === et.name.trim().toLowerCase()
+          )
+          return `<label class="chip ${isSelected ? 'on' : ''}" data-act="toggle-teacher-chip" data-id="${esc(et.id)}" data-name="${esc(et.name)}" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+            <input type="checkbox" ${isSelected ? 'checked' : ''} style="margin:0;pointer-events:none">
+            <span>${esc(et.name)}</span>
+          </label>`
+        }).join('')}
+      </div>` : state.fetchedExistingTeachers ? `
+      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:12px;color:#991b1b;font-size:13px;margin-bottom:12px">
+        ⚠️ No teachers found in the school system database. Please add your teachers in the Admin Teachers section first.
+      </div>` : '<p class="muted">Loading teachers...</p>'}
+    </div>
+
     <div class="card">
-      <h4>Teachers &amp; their subjects</h4>
+      <h4>Teachers &amp; their subjects (${cfg.teachers.length})</h4>
       <div class="hint">
         A teacher can teach <b>two or three subjects</b> — tick every subject they are responsible for.
         The generator will spread their workload across the week.
@@ -796,17 +859,19 @@ const stepRenderers = {
 function renderWizard() {
   const steps = state.meta.steps
   const step = steps[state.step]
+  if (state.visitedSteps) state.visitedSteps.add(state.step)
 
   document.getElementById('wizard-steps').innerHTML = steps.map((s, i) => {
     const stepErrs = getStepErrors(s.id)
     const hasErr = stepErrs.length > 0
+    const isVisited = state.generateClicked || (state.visitedSteps && state.visitedSteps.has(i))
     let cls = ''
     if (i === state.step) cls = 'active'
-    else if (i < state.step) cls = hasErr ? 'has-error' : 'done'
-    else if (hasErr) cls = 'has-error'
+    else if (i < state.step) cls = (hasErr && isVisited) ? 'has-error' : 'done'
+    else if (hasErr && isVisited) cls = 'has-error'
 
-    return `<li class="${cls}" data-act="goto-step" data-index="${i}" title="${hasErr ? stepErrs.join('; ') : ''}">
-      <span class="dot">${hasErr ? '!' : (i < state.step ? '✓' : i + 1)}</span>
+    return `<li class="${cls}" data-act="goto-step" data-index="${i}" title="${(hasErr && isVisited) ? stepErrs.map(e => e.message || e).join('; ') : ''}">
+      <span class="dot">${(hasErr && isVisited) ? '!' : (i < state.step ? '✓' : i + 1)}</span>
       <span>${esc(s.title)}</span>
     </li>`
   }).join('')
@@ -822,7 +887,7 @@ function renderWizard() {
       <div class="step-error-banner">
         <strong>⚠️ Please fix the following issue${currentStepErrs.length > 1 ? 's' : ''} in this step:</strong>
         <ul>
-          ${currentStepErrs.map(e => `<li>${esc(e)}</li>`).join('')}
+          ${currentStepErrs.map(e => `<li>${esc(e.message || e)}</li>`).join('')}
         </ul>
       </div>`
   }
@@ -1438,6 +1503,8 @@ async function ensureDoc() {
 
 async function doGenerate() {
   if (state.busy) return
+  state.generateClicked = true
+  renderWizard()
   state.busy = true
   updateGenerateButton()
   try {
@@ -1460,8 +1527,15 @@ async function doGenerate() {
     showScreen('table')
     renderTable()
   } catch (err) {
+    state.generateClicked = true
+    renderWizard()
     const errors = err.payload && err.payload.errors
-    toast(errors && errors.length ? errors.slice(0, 2).join(' · ') : err.message, 'bad')
+    if (errors && errors.length) {
+      const first = typeof errors[0] === 'object' && errors[0] ? (errors[0].message || JSON.stringify(errors[0])) : String(errors[0])
+      toast(first, 'bad')
+    } else {
+      toast(err.message, 'bad')
+    }
   } finally {
     state.busy = false
     updateGenerateButton()
@@ -1660,6 +1734,8 @@ document.addEventListener('click', async e => {
     case 'new':
       state.config = JSON.parse(JSON.stringify(state.meta.defaults))
       state.step = 0
+      state.visitedSteps = new Set([0])
+      state.generateClicked = false
       state.docId = null
       state.doc = null
       showScreen('wizard')
@@ -1694,7 +1770,8 @@ document.addEventListener('click', async e => {
         const curStep = state.meta.steps[state.step]
         const errs = getStepErrors(curStep.id)
         if (errs.length) {
-          toast(`Please resolve errors in "${curStep.title}" first: ${errs[0]}`, 'bad')
+          const msg = errs[0].message || errs[0]
+          toast(`Please resolve errors in "${curStep.title}" first: ${msg}`, 'bad')
           renderWizard()
           window.scrollTo({ top: 0, behavior: 'smooth' })
           return
@@ -1971,7 +2048,38 @@ document.addEventListener('click', async e => {
       renderWizard(); scheduleCheck()
       return
 
-    /* ---- step: classes / subjects / rooms ---- */
+    /* ---- step: classes / subjects / rooms / teachers ---- */
+    case 'toggle-teacher-chip': {
+      const dbId = el.dataset.id ? String(el.dataset.id) : null
+      const name = el.dataset.name
+      const matchId = dbId ? `teacher_${dbId}` : null
+
+      const idx = cfg.teachers.findIndex(t =>
+        (matchId && t.id === matchId) ||
+        (dbId && String(t.id) === dbId) ||
+        (t.name.trim().toLowerCase() === name.trim().toLowerCase())
+      )
+
+      if (idx >= 0) {
+        cfg.teachers.splice(idx, 1)
+        toast(`Removed teacher ${name}`)
+      } else {
+        const newId = matchId || uid('teacher')
+        cfg.teachers.push({
+          id: newId,
+          name,
+          subjectIds: [],
+          maxPerDay: null,
+          maxPerWeek: null,
+          unavailableSlots: []
+        })
+        toast(`Added teacher ${name}`, 'good')
+      }
+      renderWizard()
+      scheduleCheck()
+      return
+    }
+
     case 'toggle-class-chip':
     case 'toggle-existing-class': {
       const dbId = el.dataset.id ? String(el.dataset.id) : null
@@ -2480,6 +2588,8 @@ document.getElementById('view-switch').addEventListener('click', e => {
 document.getElementById('btn-new').addEventListener('click', () => {
   state.config = JSON.parse(JSON.stringify(state.meta.defaults))
   state.step = 0
+  state.visitedSteps = new Set([0])
+  state.generateClicked = false
   state.docId = null
   state.doc = null
   showScreen('wizard')
@@ -2495,7 +2605,8 @@ document.getElementById('btn-next').addEventListener('click', () => {
   const currentStep = state.meta.steps[state.step]
   const errs = getStepErrors(currentStep.id)
   if (errs.length) {
-    toast(`Please fix the errors in "${currentStep.title}" before proceeding: ${errs[0]}`, 'bad')
+    const msg = errs[0].message || errs[0]
+    toast(`Please fix the errors in "${currentStep.title}" before proceeding: ${msg}`, 'bad')
     renderWizard()
     window.scrollTo({ top: 0, behavior: 'smooth' })
     return

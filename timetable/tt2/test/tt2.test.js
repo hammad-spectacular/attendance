@@ -17,7 +17,7 @@ const assert = require('node:assert/strict')
 const express = require('express')
 const path = require('path')
 
-const { defaultConfig, normaliseConfig, validateConfig, STEPS, ALL_DAYS } = require('../wizard')
+const { defaultConfig, normaliseConfig, validateConfig, validateStep, STEPS, ALL_DAYS } = require('../wizard')
 const { createFileStore } = require('../store')
 const {
   buildPeriods,
@@ -1337,6 +1337,147 @@ test('api: batch apply timing supports durationType and expiresAt', async () => 
   assert.ok(res.body.timetable.config.dayOverrides.Monday.expiresAt)
   const expireDate = new Date(res.body.timetable.config.dayOverrides.Monday.expiresAt)
   assert.ok(expireDate.getTime() > Date.now())
+})
+
+test('B2: validation isolation - on Subjects step, no teacher or curriculum error is shown', () => {
+  const cfg = {
+    ...defaultConfig(),
+    schoolName: 'Test School',
+    days: ['Monday', 'Tuesday'],
+    periodCount: 4,
+    periodDuration: 40,
+    classes: [{ id: 'c1', name: 'Class 1' }],
+    subjects: [{ id: 's1', name: 'Math' }],
+    teachers: [],
+    curriculum: []
+  }
+
+  // Under B2: validateStep for 'subjects' must ONLY check subjects
+  const stepRes = validateStep(cfg, 'subjects')
+  assert.equal(stepRes.errors.length, 0, `Expected 0 errors on subjects step, but got: ${stepRes.errors.map(e => e.message || e).join('; ')}`)
+
+  // But at Generate step, validateConfig must report teacher and curriculum errors with step information
+  const genRes = validateConfig(cfg)
+  assert.equal(genRes.canGenerate, false)
+  const teacherErr = genRes.errors.find(e => /teacher/i.test(e.message || e))
+  const currErr = genRes.errors.find(e => /curriculum/i.test(e.message || e))
+  assert.ok(teacherErr, 'Must report teacher error at generate time')
+  assert.ok(currErr, 'Must report curriculum error at generate time')
+  assert.equal(teacherErr.step, 'teachers', 'Teacher error must name "teachers" step')
+  assert.equal(currErr.step, 'curriculum', 'Curriculum error must name "curriculum" step')
+})
+
+test('B9: teachers pick list loads from database', async () => {
+  const customStore = createFileStore({ persistPath: null })
+  const mockApp = express()
+  mockApp.use(express.json())
+  mockApp.use('/api/tt2', createTt2Router({
+    store: customStore,
+    devAuth: true,
+    mockTeachers: [{ id: 999, name: 'Test Teacher Z' }]
+  }))
+  const mockServer = mockApp.listen(0)
+  await new Promise(resolve => mockServer.once('listening', resolve))
+  const mockBase = `http://127.0.0.1:${mockServer.address().port}/api/tt2`
+
+  try {
+    const res = await fetch(`${mockBase}/existing-teachers`)
+    assert.equal(res.status, 200)
+    const data = await res.json()
+    assert.equal(data.ok, true)
+    assert.equal(data.teachers.length, 1)
+    assert.equal(data.teachers[0].name, 'Test Teacher Z')
+  } finally {
+    await new Promise(resolve => mockServer.close(resolve))
+  }
+})
+
+test('B9: "no teachers found" appears only when none exist, and only on the Teachers step', async () => {
+  const customStore = createFileStore({ persistPath: null })
+  const mockApp = express()
+  mockApp.use(express.json())
+  mockApp.use('/api/tt2', createTt2Router({
+    store: customStore,
+    devAuth: true,
+    mockTeachers: []
+  }))
+  const mockServer = mockApp.listen(0)
+  await new Promise(resolve => mockServer.once('listening', resolve))
+  const mockBase = `http://127.0.0.1:${mockServer.address().port}/api/tt2`
+
+  try {
+    const res = await fetch(`${mockBase}/existing-teachers`)
+    assert.equal(res.status, 200)
+    const data = await res.json()
+    assert.equal(data.ok, true)
+    assert.deepEqual(data.teachers, [])
+  } finally {
+    await new Promise(resolve => mockServer.close(resolve))
+  }
+
+  const cfgWithoutTeachers = {
+    ...defaultConfig(),
+    schoolName: 'Test School',
+    days: ['Monday'],
+    periodCount: 4,
+    periodDuration: 40,
+    classes: [{ id: 'c1', name: 'Class 1' }],
+    subjects: [{ id: 's1', name: 'Math' }],
+    teachers: []
+  }
+  const subjRes = validateStep(cfgWithoutTeachers, 'subjects')
+  assert.equal(subjRes.errors.length, 0, 'Subjects step must not show teacher errors')
+
+  const teachRes = validateStep(cfgWithoutTeachers, 'teachers')
+  assert.ok(teachRes.errors.length >= 1)
+  assert.ok(teachRes.errors.some(e => (e.message || e) === 'Add at least one teacher.'))
+  assert.ok(teachRes.errors.every(e => e.step === 'teachers'))
+})
+
+test('B9: existing-classes and existing-teachers filter by branch', async () => {
+  let queriedClassesBranch = null
+  let queriedTeachersBranch = null
+  const mockPool = {
+    query: async (sql, params) => {
+      if (sql.includes('FROM classes')) {
+        queriedClassesBranch = params ? params[1] : null
+        return { rows: [{ id: 1, name: 'Class 1', section: 'A' }] }
+      }
+      if (sql.includes('FROM teachers')) {
+        queriedTeachersBranch = params ? params[1] : null
+        return { rows: [{ id: 1, name: 'Teacher 1' }] }
+      }
+      return { rows: [] }
+    }
+  }
+
+  const customStore = createFileStore({ persistPath: null })
+  const mockApp = express()
+  mockApp.use(express.json())
+  mockApp.use('/api/tt2', (req, res, next) => {
+    req.user = { tenant_id: 'test_tenant', branch_id: 42 }
+    next()
+  }, createTt2Router({
+    store: customStore,
+    devAuth: false,
+    auth: [(req, res, next) => next()],
+    pool: mockPool
+  }))
+  const mockServer = mockApp.listen(0)
+  await new Promise(resolve => mockServer.once('listening', resolve))
+  const mockBase = `http://127.0.0.1:${mockServer.address().port}/api/tt2`
+
+  try {
+    const resClasses = await fetch(`${mockBase}/existing-classes?branch_id=42`)
+    assert.equal(resClasses.status, 200)
+    assert.equal(queriedClassesBranch, 42)
+
+    const resTeachers = await fetch(`${mockBase}/existing-teachers?branch_id=42`)
+    assert.equal(resTeachers.status, 200)
+    assert.equal(queriedTeachersBranch, 42)
+  } finally {
+    await new Promise(resolve => mockServer.close(resolve))
+  }
 })
 
 

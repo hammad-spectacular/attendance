@@ -1,0 +1,222 @@
+/* ==========================================================================
+   Shared Navigation Styles: Tab highlights, Underline slide, and Dropdowns
+   Light theme matching existing system. Respects prefers-reduced-motion.
+   ========================================================================== */
+
+.tab-nav {
+  position: relative;
+  z-index: 50;
+  user-select: none;
+}
+
+.tab-nav-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  overflow: visible !important;
+}
+
+/* Base Tab item */
+.tab-btn,
+.nav-tab-item > .tab-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0.55rem 0.95rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary, #475569);
+  text-decoration: none;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 150ms ease, color 150ms ease;
+  outline: none;
+}
+
+/* Sliding underline indicator */
+.tab-btn::after,
+.nav-tab-item > .tab-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background-color: var(--primary, #4f46e5);
+  transition: width 180ms ease, left 180ms ease;
+}
+
+/* Hover & Focus state: light grey highlight & sliding underline */
+.tab-btn:hover,
+.tab-btn:focus-visible,
+.nav-tab-item.open > .tab-btn,
+.nav-tab-item:hover > .tab-btn {
+  background-color: rgba(148, 163, 184, 0.16);
+  color: var(--text, #0f172a);
+}
+
+.tab-btn:hover::after,
+.tab-btn:focus-visible::after,
+.nav-tab-item.open > .tab-btn::after,
+.nav-tab-item:hover > .tab-btn::after {
+  width: 80%;
+  left: 10%;
+}
+
+/* Active tab state */
+.tab-btn.active,
+.nav-tab-item.active > .tab-btn {
+  color: var(--primary, #4f46e5);
+  font-weight: 600;
+  background-color: rgba(79, 70, 229, 0.08);
+}
+
+.tab-btn.active::after,
+.nav-tab-item.active > .tab-btn::after {
+  width: 100%;
+  left: 0;
+  height: 2.5px;
+}
+
+/* Tab item wrapper for dropdowns */
+.nav-tab-item {
+  position: relative;
+  display: inline-block;
+}
+
+/* Small arrow after label */
+.nav-arrow {
+  display: inline-block;
+  font-size: 0.7rem;
+  margin-left: 2px;
+  transition: transform 180ms ease;
+  opacity: 0.7;
+}
+
+.nav-tab-item.open .nav-arrow {
+  transform: rotate(180deg);
+}
+
+/* Dropdown Menu Container */
+.nav-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 0; /* No gap between tab and menu */
+  min-width: 220px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.06);
+  padding: 6px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px);
+  transition: opacity 180ms ease, transform 180ms ease, visibility 180ms;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+/* Show Dropdown on Open */
+.nav-tab-item.open .nav-dropdown {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* Dropdown Items */
+.nav-dropdown-item {
+  display: block;
+  padding: 8px 12px;
+  color: #1e293b;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  transition: background-color 150ms ease;
+}
+
+.nav-dropdown-item:hover,
+.nav-dropdown-item:focus-visible {
+  background-color: #f1f5f9;
+  outline: none;
+}
+
+.nav-dropdown-item.active {
+  font-weight: 700;
+  color: var(--primary, #4f46e5);
+  background-color: rgba(79, 70, 229, 0.06);
+}
+
+.nav-dropdown-title {
+  display: block;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.nav-dropdown-desc {
+  display: block;
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+/* Mobile responsive menu */
+@media (max-width: 768px) {
+  .nav-tab-item {
+    display: block;
+    width: 100%;
+  }
+
+  .nav-tab-item > .tab-btn {
+    width: 100%;
+    min-height: 44px; /* Minimum 44px tap target */
+    justify-content: space-between;
+  }
+
+  .nav-dropdown {
+    position: static;
+    transform: none !important;
+    box-shadow: none;
+    border: none;
+    border-left: 2px solid #e2e8f0;
+    border-radius: 0;
+    margin-left: 14px;
+    padding: 4px 0 6px 8px;
+    display: none;
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .nav-tab-item.open .nav-dropdown {
+    display: block;
+  }
+
+  .nav-dropdown-item {
+    min-height: 44px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .tab-btn,
+  .tab-btn::after,
+  .nav-tab-item > .tab-btn,
+  .nav-tab-item > .tab-btn::after,
+  .nav-arrow,
+  .nav-dropdown,
+  .nav-dropdown-item {
+    transition: none !important;
+    transform: none !important;
+    animation: none !important;
+  }
+}
+

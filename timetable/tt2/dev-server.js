@@ -57,6 +57,9 @@ function createApp(opts = {}) {
   })
 
   const uiDir = path.join(__dirname, 'public')
+  const configDir = path.join(__dirname, 'config')
+  app.use('/tt2/config', express.static(configDir))
+  app.use('/config', express.static(configDir))
   app.use('/tt2', express.static(uiDir))
   app.use('/', express.static(uiDir))
 

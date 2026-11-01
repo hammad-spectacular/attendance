@@ -1467,6 +1467,7 @@
   </style>
 
     <link rel="stylesheet" href="ui-buttons.css">
+  <link rel="stylesheet" href="./shared-nav.css">
 </head>
 
 
@@ -1622,6 +1623,9 @@
 
           <i class="fas fa-chart-bar"></i>Stats & Statistics
 
+        </a>
+        <a href="/complaint.html" class="tab-btn" id="tab-complaint" data-section="tab-complaint">
+          <i class="fas fa-circle-exclamation"></i>Complaint
         </a>
 
       </div>
@@ -5676,6 +5680,17 @@ function setButtonLoading(btn, loading, loadingHtml) {
   </style>
 
 <script src="./idle-logout.js"></script>
+  <script src="./shared-nav.js"></script>
+
+  <script src="./menu-config.js"></script>
+  <script src="./shared-nav.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      if (window.initSharedNav) {
+        window.initSharedNav('teacher');
+      }
+    });
+  </script>
 </body>
 
 </html>

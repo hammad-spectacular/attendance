@@ -261,22 +261,37 @@ function createTt2Router(options = {}) {
       }
       if (pool) {
         const tenantId = tenantOf(req, devAuth)
+        const branchId = req.query.branch_id ? Number(req.query.branch_id) : ((req.user && req.user.branch_id) ? Number(req.user.branch_id) : null)
         let q = null
         if (tenantId && tenantId !== 'dev') {
-          q = await pool.query(
-            'SELECT id, name, section FROM classes WHERE tenant_id = $1 ORDER BY name, section, id',
-            [tenantId]
-          )
+          if (branchId) {
+            q = await pool.query(
+              'SELECT id, name, section FROM classes WHERE tenant_id = $1 AND branch_id = $2 ORDER BY name, section, id',
+              [tenantId, branchId]
+            )
+          } else {
+            q = await pool.query(
+              'SELECT id, name, section FROM classes WHERE tenant_id = $1 ORDER BY name, section, id',
+              [tenantId]
+            )
+          }
         } else {
           // Dev / devAuth mode: look for classes for 'dev' or fetch existing school classes
-          q = await pool.query(
-            'SELECT id, name, section FROM classes WHERE tenant_id = $1 ORDER BY name, section, id',
-            ['dev']
-          )
-          if (!q.rows || !q.rows.length) {
+          if (branchId) {
             q = await pool.query(
-              'SELECT id, name, section FROM classes ORDER BY name, section, id LIMIT 100'
+              'SELECT id, name, section FROM classes WHERE branch_id = $1 ORDER BY name, section, id',
+              [branchId]
             )
+          } else {
+            q = await pool.query(
+              'SELECT id, name, section FROM classes WHERE tenant_id = $1 ORDER BY name, section, id',
+              ['dev']
+            )
+            if (!q.rows || !q.rows.length) {
+              q = await pool.query(
+                'SELECT id, name, section FROM classes ORDER BY name, section, id LIMIT 100'
+              )
+            }
           }
         }
         if (q && q.rows && q.rows.length) {
@@ -287,6 +302,53 @@ function createTt2Router(options = {}) {
       console.warn('[tt2] /existing-classes query error:', err.message)
     }
     res.json({ ok: true, classes: [] })
+  })
+
+  router.get('/existing-teachers', async (req, res) => {
+    if (Array.isArray(options.mockTeachers)) {
+      return res.json({ ok: true, teachers: options.mockTeachers })
+    }
+    try {
+      let pool = options.pool
+      if (!pool) {
+        try { pool = require('../../db') } catch (_) {}
+      }
+      if (pool) {
+        const tenantId = tenantOf(req, devAuth)
+        const branchId = req.query.branch_id ? Number(req.query.branch_id) : ((req.user && req.user.branch_id) ? Number(req.user.branch_id) : null)
+        let q = null
+        if (tenantId && tenantId !== 'dev') {
+          if (branchId) {
+            q = await pool.query(
+              'SELECT id, name FROM teachers WHERE tenant_id = $1 AND branch_id = $2 ORDER BY name',
+              [tenantId, branchId]
+            )
+          } else {
+            q = await pool.query(
+              'SELECT id, name FROM teachers WHERE tenant_id = $1 ORDER BY name',
+              [tenantId]
+            )
+          }
+        } else {
+          if (branchId) {
+            q = await pool.query(
+              'SELECT id, name FROM teachers WHERE branch_id = $1 ORDER BY name',
+              [branchId]
+            )
+          } else {
+            q = await pool.query(
+              'SELECT id, name FROM teachers ORDER BY name LIMIT 100'
+            )
+          }
+        }
+        if (q && q.rows && q.rows.length) {
+          return res.json({ ok: true, teachers: q.rows })
+        }
+      }
+    } catch (err) {
+      console.warn('[tt2] /existing-teachers query error:', err.message)
+    }
+    res.json({ ok: true, teachers: [] })
   })
 
   // -- list / create -------------------------------------------------------
