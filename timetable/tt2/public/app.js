@@ -160,8 +160,41 @@ function calcEndTimeHelper(startTime, periodDuration, breaks, periodCount, perio
     const endM = totalMins % 60
     return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`
   } catch (_) {
-    return '14:00'
+    // Defensive only: the body above is fully guarded. Never invent a
+    // hardcoded closing time — fall back to the start time instead.
+    return String(startTime || '08:00')
   }
+}
+
+/**
+ * Recompute the visible "School ends at (calculated)" field from the current
+ * standard timing config. The end time is always DERIVED from start time,
+ * period count, duration and breaks — never a stored/hardcoded value.
+ */
+function refreshStandardEndDisplay() {
+  const endEl = document.getElementById('standard-end-time')
+  if (!endEl) return
+  const cfg = state.config
+  endEl.value = calcEndTimeHelper(
+    cfg.startTime || '08:00',
+    cfg.periodDuration || 40,
+    cfg.breaks || [],
+    cfg.periodCount || 6,
+    cfg.periodOverrides || {}
+  )
+}
+
+/** Compute a custom weekday's end time using that day's overridden timing. */
+function calcCustomDayEnd(dcfg) {
+  const cfg = state.config
+  return calcEndTimeHelper(
+    (dcfg && dcfg.startTime) || cfg.startTime || '08:00',
+    (dcfg && dcfg.periodDuration != null) ? dcfg.periodDuration : (cfg.periodDuration || 40),
+    cfg.breaks || [],
+    cfg.periodCount || 6,
+    cfg.periodOverrides || {},
+    (dcfg && dcfg.breakDuration != null) ? dcfg.breakDuration : 10
+  )
 }
 
 function isDayActive(dVal, dateStr) {
@@ -297,6 +330,11 @@ const stepRenderers = {
           <span>School ends at (calculated)</span>
           <input type="time" id="standard-end-time" value="${standardEndTime}" disabled style="opacity:0.95;font-weight:700;color:#166534;background:#f0fdf4;cursor:not-allowed">
           <small>Recalculates from start time, ${cfg.periodCount} periods × ${cfg.periodDuration} min + breaks.</small>
+        </label>
+        <label class="field">
+          <span>Latest dismissal time (optional limit)</span>
+          <input type="time" data-bind="endTime" value="${esc(cfg.endTime || '')}">
+          <small>Leave empty to end whenever the last period finishes. Set only if the building must be vacated by a fixed time — the schedule is then checked against it.</small>
         </label>
       </div>
     </div>
@@ -1468,12 +1506,9 @@ function handleFormInput(e) {
   const el = e.target
   if (el.dataset.bind) {
     setPath(el.dataset.bind, readValue(el))
-    if (el.dataset.bind.startsWith('periodDuration') || el.dataset.bind.startsWith('periodCount') || el.dataset.bind.startsWith('startTime')) {
+    if (el.dataset.bind.startsWith('periodDuration') || el.dataset.bind.startsWith('periodCount') || el.dataset.bind.startsWith('startTime') || el.dataset.bind === 'endTime') {
       state.timingDirty = true
-      const endEl = document.getElementById('standard-end-time')
-      if (endEl) {
-        endEl.textContent = calcEndTimeHelper(state.config.startTime || '08:00', state.config.periodCount || 8, state.config.periodDuration || 40, state.config.breaks || [], state.config.periodOverrides || {})
-      }
+      refreshStandardEndDisplay()
     }
     scheduleCheck()
     return
@@ -1485,10 +1520,7 @@ function handleFormInput(e) {
       item[el.dataset.field] = readValue(el)
       if (el.dataset.list === 'breaks') {
         state.timingDirty = true
-        const endEl = document.getElementById('standard-end-time')
-        if (endEl) {
-          endEl.textContent = calcEndTimeHelper(state.config.startTime || '08:00', state.config.periodCount || 8, state.config.periodDuration || 40, state.config.breaks || [], state.config.periodOverrides || {})
-        }
+        refreshStandardEndDisplay()
       }
       if (el.dataset.list === 'classes' && (el.dataset.field === 'name' || el.dataset.field === 'section')) {
         const dupInfo = checkClassDuplicates(list)
@@ -1522,10 +1554,7 @@ function handleFormInput(e) {
   }
   if (el.dataset.override) {
     state.timingDirty = true
-    const endEl = document.getElementById('standard-end-time')
-    if (endEl) {
-      endEl.textContent = calcEndTimeHelper(state.config.startTime || '08:00', state.config.periodCount || 8, state.config.periodDuration || 40, state.config.breaks || [], state.config.periodOverrides || {})
-    }
+    refreshStandardEndDisplay()
     scheduleCheck()
   }
   if (el.dataset.act === 'change-custom-day') {
@@ -1541,7 +1570,7 @@ function handleFormInput(e) {
     const endEl = document.getElementById('custom-day-end-time')
     if (endEl) {
       const dcfg = state.config.dayOverrides[day]
-      endEl.value = calcEndTime(dcfg.startTime || state.config.startTime, dcfg.periodDuration, dcfg.breakDuration != null ? dcfg.breakDuration : 10)
+      endEl.value = calcCustomDayEnd(dcfg)
     }
     scheduleCheck()
     return
@@ -1554,7 +1583,7 @@ function handleFormInput(e) {
     const endEl = document.getElementById('custom-day-end-time')
     if (endEl) {
       const dcfg = state.config.dayOverrides[day]
-      endEl.value = calcEndTime(dcfg.startTime || state.config.startTime, dcfg.periodDuration != null ? dcfg.periodDuration : 30, dcfg.breakDuration != null ? dcfg.breakDuration : 10)
+      endEl.value = calcCustomDayEnd(dcfg)
     }
     scheduleCheck()
     return
@@ -1567,7 +1596,7 @@ function handleFormInput(e) {
     const endEl = document.getElementById('custom-day-end-time')
     if (endEl) {
       const dcfg = state.config.dayOverrides[day]
-      endEl.value = calcEndTime(dcfg.startTime || state.config.startTime, dcfg.periodDuration != null ? dcfg.periodDuration : 30, dcfg.breakDuration != null ? dcfg.breakDuration : 10)
+      endEl.value = calcCustomDayEnd(dcfg)
     }
     scheduleCheck()
     return
@@ -1832,9 +1861,13 @@ document.addEventListener('click', async e => {
 
       endInput.onchange = () => {
         try {
-          const [sh, sm] = (startInput.value || '08:00').split(':').map(Number)
-          const [eh, em] = (endInput.value || '14:00').split(':').map(Number)
+          // Only back-solve when the admin actually typed an end time; there is
+          // no hardcoded closing time to fall back to.
+          if (!endInput.value || !startInput.value) return
+          const [sh, sm] = startInput.value.split(':').map(Number)
+          const [eh, em] = endInput.value.split(':').map(Number)
           const totalAvail = (eh * 60 + em) - (sh * 60 + sm)
+          if (!Number.isFinite(totalAvail) || totalAvail <= 0) return
           const count = cfg.periodCount || 6
           const brk = Number(breakInput.value) || 10
           let totalBreak = 0

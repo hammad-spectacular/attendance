@@ -184,11 +184,11 @@ test('wizard: normaliseConfig drops junk and fills defaults', () => {
   assert.equal(config.periodCount, defaultConfig().periodCount)
 })
 
-test('wizard: endTime must be after startTime', () => {
+test('wizard: dismissal limit must be after startTime', () => {
   const config = sampleConfig({ startTime: '14:00', endTime: '08:00' })
   const result = validateConfig(config)
   assert.equal(result.canGenerate, false)
-  assert.ok(result.errors.some(e => /end time must be after the start time/i.test(e)))
+  assert.ok(result.errors.some(e => /dismissal time must be after the school start time/i.test(e)))
 })
 
 test('wizard: endTime must be in HH:MM format', () => {
@@ -209,6 +209,71 @@ test('wizard: calculateEndTime helper works correctly', () => {
   const config = sampleConfig({ startTime: '08:00', periodCount: 3, periodDuration: 40, breaks: [] })
   const endMinutes = calculateEndTime(config)
   assert.equal(endMinutes, 10 * 60) // 10:00 AM = 600 minutes
+})
+
+// ---------------------------------------------------------------------------
+// Regression: the "school ends at 2:00 PM … require until 7:20 PM" bug.
+//
+// The daily end time must be DERIVED from start time + periods x duration +
+// breaks, and validation must use that same derived value. A legacy hardcoded
+// '14:00' must never override the administrator's chosen start time.
+// ---------------------------------------------------------------------------
+
+test('wizard: no error when a 4:00 PM start runs past the legacy 2:00 PM default', () => {
+  // The exact reported case: start 04:00 PM, 5 teaching periods of 40 min.
+  // Derived end = 16:00 + 5*40 = 19:20 (7:20 PM). This must NOT be blocked by
+  // a stale 2:00 PM closing time.
+  const config = sampleConfig({ startTime: '16:00', periodCount: 5, periodDuration: 40, breaks: [] })
+  const result = validateConfig(config)
+  assert.equal(result.canGenerate, true, `expected no errors, got: ${result.errors.join(' | ')}`)
+  assert.ok(!result.errors.some(e => /2:00 PM/i.test(e)), 'must not reference a 2:00 PM closing time')
+})
+
+test('wizard: derived end time follows the chosen start time (8AM, 10AM, 4PM)', () => {
+  const { calculateEndTime } = require('../wizard')
+  const cases = [
+    ['08:00', 6, 40, [], 12 * 60],        // 8:00 AM + 6*40 = 12:00 PM
+    ['10:00', 6, 40, [], 14 * 60],        // 10:00 AM + 6*40 = 2:00 PM
+    ['16:00', 5, 40, [], 19 * 60 + 20]    // 4:00 PM + 5*40 = 7:20 PM
+  ]
+  for (const [startTime, periodCount, periodDuration, breaks, expectedMins] of cases) {
+    const config = sampleConfig({ startTime, periodCount, periodDuration, breaks })
+    assert.equal(calculateEndTime(config), expectedMins, `start ${startTime}`)
+    // And validation must agree with the derived end (no spurious window error).
+    const result = validateConfig(config)
+    assert.equal(result.canGenerate, true, `start ${startTime} -> ${result.errors.join(' | ')}`)
+  }
+})
+
+test('wizard: breaks and period overrides push the derived end later', () => {
+  const { calculateEndTime } = require('../wizard')
+  // 8:00 + 2*40 + 15-min break after P2 = 9:35
+  const config = sampleConfig({
+    startTime: '08:00', periodCount: 2, periodDuration: 40,
+    breaks: [{ afterPeriod: 2, label: 'Break', duration: 15 }]
+  })
+  assert.equal(calculateEndTime(config), 8 * 60 + 80 + 15)
+})
+
+test('wizard: legacy hardcoded 14:00 end time migrates to "no limit"', () => {
+  const config = normaliseConfig(sampleConfig({ endTime: '14:00' }))
+  assert.equal(config.endTime, null)
+  const result = validateConfig(sampleConfig({ startTime: '16:00', endTime: '14:00', periodCount: 5, periodDuration: 40, breaks: [] }))
+  assert.equal(result.canGenerate, true, `legacy 14:00 must not block: ${result.errors.join(' | ')}`)
+})
+
+test('wizard: a genuine explicit dismissal limit is still enforced', () => {
+  // Admin explicitly set a 10:00 limit; a day needing until noon must error.
+  const config = sampleConfig({ startTime: '08:00', endTime: '10:00', periodCount: 6, periodDuration: 40 })
+  const result = validateConfig(config)
+  assert.equal(result.canGenerate, false)
+  assert.ok(result.errors.some(e => /dismissal time/i.test(e)))
+})
+
+test('wizard: invalid or empty end time normalises to no limit (null)', () => {
+  assert.equal(normaliseConfig(sampleConfig({ endTime: 'invalid' })).endTime, null)
+  assert.equal(normaliseConfig(sampleConfig({ endTime: '' })).endTime, null)
+  assert.equal(normaliseConfig(sampleConfig({ endTime: null })).endTime, null)
 })
 
 test('wizard: date override with valid date and timing', () => {
@@ -244,7 +309,7 @@ test('wizard: date override for non-school day is an error', () => {
   assert.ok(result.errors.some(e => /not a configured school day/i.test(e)))
 })
 
-test('wizard: date override with invalid timing (exceeds end time)', () => {
+test('wizard: date override with invalid timing (exceeds dismissal limit)', () => {
   const config = sampleConfig({
     endTime: '10:00',
     dateOverrides: {
@@ -253,7 +318,7 @@ test('wizard: date override with invalid timing (exceeds end time)', () => {
   })
   const result = validateConfig(config)
   assert.equal(result.canGenerate, false)
-  assert.ok(result.errors.some(e => /past the school end time/i.test(e)))
+  assert.ok(result.errors.some(e => /past the latest dismissal time/i.test(e)))
 })
 
 test('wizard: date overrides are separate from recurring dayOverrides', () => {
@@ -968,12 +1033,14 @@ test('api: POST date override for non-school day', async () => {
 })
 
 test('api: POST date override with invalid timing', async () => {
-  const created = await post('/timetables', { config: sampleConfig() })
+  // Base day (6 x 40 min + breaks) ends 12:45 PM, which fits a 13:00 limit.
+  // A 200-min (clamped 180) override blows past it -> must be rejected.
+  const created = await post('/timetables', { config: sampleConfig({ startTime: '08:00', endTime: '13:00' }) })
   const id = created.body.timetable.id
 
   const res = await post(`/timetables/${id}/date-overrides`, {
     date: '2026-11-06',
-    timing: { periodDuration: 200 } // exceeds end time
+    timing: { periodDuration: 200 } // exceeds the 13:00 dismissal limit
   })
   assert.equal(res.status, 400)
   assert.ok(res.body.error.includes('Invalid timing'))

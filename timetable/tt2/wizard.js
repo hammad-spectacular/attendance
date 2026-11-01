@@ -48,6 +48,14 @@ const BASE_PERIODS_PER_WEEK = {
 /** Never suggest more than this many periods of one subject in a week. */
 const MAX_SUGGESTED_PERIODS = 5
 
+/**
+ * The closing time that older builds wrote into every config as a default.
+ * No administrator ever chose it — it was a hardcoded fallback. It must never
+ * override the admin's real timing, so when we see it we treat it as "no
+ * closing-time limit" (the day simply ends when the last period finishes).
+ */
+const LEGACY_DEFAULT_END_TIME = '14:00'
+
 function defaultConfig() {
   return {
     // -- Step 1: identity -------------------------------------------------
@@ -57,7 +65,13 @@ function defaultConfig() {
     // -- Step 2: the shape of the week ------------------------------------
     days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
     startTime: '08:00',
-    endTime: '14:00',        // PHASE 1: Explicit school end time
+    // The school's daily END is DERIVED from startTime + periods × duration +
+    // breaks. This field is only an OPTIONAL latest-dismissal limit. null = no
+    // limit (end time is whatever the calculation yields). It is intentionally
+    // NOT a hardcoded 14:00 — that stale default used to override the admin's
+    // chosen start time and produced the "ends at 2:00 PM … require until 7:20
+    // PM" contradiction.
+    endTime: null,
     periodCount: 6,          // TEACHING periods per day (breaks are extra columns)
     periodDuration: 40,      // minutes, default length of one class
     breaks: [
@@ -126,7 +140,7 @@ const STEPS = [
       { key: 'periodCount', question: 'Teaching periods per day', type: 'number', required: true },
       { key: 'periodDuration', question: 'Class duration (minutes)', type: 'number', required: true },
       { key: 'startTime', question: 'School start time', type: 'time', required: true },
-      { key: 'endTime', question: 'School end time', type: 'time', required: true },
+      { key: 'endTime', question: 'Latest dismissal time (optional limit — leave empty to auto-derive)', type: 'time', required: false },
       { key: 'breaks', question: 'Breaks & lunch', type: 'break-list', required: false },
       { key: 'periodOverrides', question: 'Per-period duration overrides', type: 'duration-list', required: false }
     ]
@@ -264,6 +278,30 @@ function calculateEndTime(config) {
  * Unknown keys are dropped; missing keys get defaults. This is deliberately
  * forgiving so a half-finished wizard can be saved and resumed.
  */
+/**
+ * Normalise the optional "latest dismissal time" limit.
+ *
+ * The school's real end time is derived from the start time, the number and
+ * length of periods, and any breaks. This field only exists to optionally cap
+ * how late the day may run (e.g. a building that must be vacated by a certain
+ * time). Because older builds hardcoded '14:00' here for every school, that
+ * specific value is treated as "unset" — otherwise it would silently override
+ * the administrator's chosen start time and produce the bogus
+ * "ends at 2:00 PM … require until 7:20 PM" error.
+ *
+ * @returns {string|null} 'HH:MM' when a genuine limit is set, else null (no limit)
+ */
+function normaliseEndTimeLimit(value) {
+  if (value === null || value === undefined) return null
+  const str = String(value).trim()
+  if (!/^\d{1,2}:\d{2}$/.test(str)) return null
+  const hours = Number(str.split(':')[0])
+  if (hours < 0 || hours > 23) return null
+  // Migrate the legacy hardcoded default to "no limit".
+  if (str === LEGACY_DEFAULT_END_TIME) return null
+  return str
+}
+
 function normaliseConfig(raw) {
   const base = defaultConfig()
   const input = raw && typeof raw === 'object' ? raw : {}
@@ -404,7 +442,12 @@ function normaliseConfig(raw) {
     branchName: asTrimmedString(input.branchName) || base.branchName,
     days: days.length ? days : base.days,
     startTime: /^\d{1,2}:\d{2}$/.test(String(input.startTime)) ? String(input.startTime) : base.startTime,
-    endTime: /^\d{1,2}:\d{2}$/.test(String(input.endTime)) ? String(input.endTime) : base.endTime,
+    // `endTime` is an OPTIONAL latest-dismissal limit, not the school's actual
+    // end (that is derived from start + periods + breaks). A missing, invalid or
+    // legacy-hardcoded '14:00' value means "no limit" (null) so it can never
+    // contradict the admin's chosen start time. A real, explicitly chosen end
+    // time is preserved.
+    endTime: normaliseEndTimeLimit(input.endTime),
     periodCount: Math.max(0, Math.round(asNumber(input.periodCount, base.periodCount))),
     periodDuration: Math.max(0, Math.round(asNumber(input.periodDuration, base.periodDuration))),
     breaks,
@@ -452,15 +495,16 @@ function validateConfig(raw) {
   else if (config.periodDuration < 15) errors.push('Class duration must be at least 15 minutes.')
   else if (config.periodDuration > 180) errors.push('Class duration must be 180 minutes or less.')
 
-  // PHASE 1: Validate endTime
-  if (!/^\d{1,2}:\d{2}$/.test(config.endTime)) {
-    errors.push('School end time must be in HH:MM format (e.g., 14:00).')
-  } else {
-    const startMins = parseClock(config.startTime)
-    const endMins = parseClock(config.endTime)
-    if (endMins <= startMins) {
-      errors.push('School end time must be after the start time.')
-    }
+  // -- Optional latest-dismissal limit ---------------------------------------
+  // The school's REAL end time is derived from the start time, the number and
+  // length of periods, and any breaks (see calculateEndTime). It is never a
+  // hardcoded value. `config.endTime`, when present, is only an OPTIONAL cap on
+  // how late the day may run. When it is null there is no cap.
+  const calculatedEndMinutes = calculateEndTime(config)
+  const limitMins = config.endTime === null ? null : parseClock(config.endTime)
+
+  if (limitMins !== null && limitMins <= parseClock(config.startTime)) {
+    errors.push('The latest dismissal time must be after the school start time.')
   }
 
   for (const [key, mins] of Object.entries(config.periodOverrides)) {
@@ -474,15 +518,13 @@ function validateConfig(raw) {
     }
   }
 
-  // PHASE 1: Validate that periods fit within start-end window
-  const calculatedEndMinutes = calculateEndTime(config)
-  const userEndMinutes = parseClock(config.endTime)
-  if (calculatedEndMinutes > userEndMinutes) {
+  // Only enforce the dismissal cap when the administrator actually set one.
+  if (limitMins !== null && calculatedEndMinutes > limitMins) {
     errors.push(
-      `School ends at ${formatClock(userEndMinutes)} but ` +
+      `The latest dismissal time is ${formatClock(limitMins)} but ` +
       `${config.periodCount} periods of ${config.periodDuration} minutes ` +
       `plus breaks require until ${formatClock(calculatedEndMinutes)}. ` +
-      `Either reduce periods, shorten durations, or extend the end time.`
+      `Either reduce periods, shorten durations, or move the dismissal time later.`
     )
   }
 
@@ -511,12 +553,14 @@ function validateConfig(raw) {
       }))
     }
 
+    // If an optional dismissal limit is set, ensure the override still fits.
+    // With no limit set there is nothing to violate, so no error is raised.
     const calculatedEnd = calculateEndTime(testConfig)
-    if (calculatedEnd > userEndMinutes) {
+    if (limitMins !== null && calculatedEnd > limitMins) {
       errors.push(
         `Date override for ${dateStr} would end at ${formatClock(calculatedEnd)}, ` +
-        `which is past the school end time of ${formatClock(userEndMinutes)}. ` +
-        `Adjust the timing or extend the school day.`
+        `which is past the latest dismissal time of ${formatClock(limitMins)}. ` +
+        `Adjust the timing or move the dismissal time later.`
       )
     }
   }
