@@ -700,10 +700,21 @@ function createTt2Router(options = {}) {
       }
 
       // Apply timing only to selected days
+      const rawDuration = timing.durationType || body.durationType
+      const durationType = ['week', 'month', 'indefinite'].includes(rawDuration) ? rawDuration : 'indefinite'
+      let expiresAt = timing.expiresAt || body.expiresAt || null
+      if (!expiresAt && durationType === 'week') {
+        expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      } else if (!expiresAt && durationType === 'month') {
+        expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      }
       updatedDayOverrides[day] = {
         periodDuration: timing.periodDuration !== undefined ? Number(timing.periodDuration) : config.periodDuration,
         startTime: timing.startTime || config.startTime,
-        breakDuration: timing.breakDuration !== undefined ? Number(timing.breakDuration) : null
+        breakDuration: timing.breakDuration !== undefined ? Number(timing.breakDuration) : null,
+        durationType,
+        expiresAt,
+        createdAt: new Date().toISOString()
       }
       updatedCount++
     }

@@ -30,8 +30,10 @@ const {
   formatClock,
   resolveTiming,
   buildPeriodsForDate,
-  validateLockedCells
+  validateLockedCells,
+  isDayOverrideActive
 } = require('../model')
+const { validateTimetable } = require('../../validator')
 const { createTt2Router } = require('../routes')
 
 // ---------------------------------------------------------------------------
@@ -1205,4 +1207,69 @@ test('api: /existing-classes returns class templates', async () => {
   assert.equal(data.ok, true)
   assert.ok(Array.isArray(data.classes) && data.classes.length > 0)
 })
+
+test('model: isDayOverrideActive correctly handles expiration and indefinite duration', () => {
+  const indefiniteOverride = { durationType: 'indefinite' }
+  assert.equal(isDayOverrideActive(indefiniteOverride), true)
+
+  const futureDate = new Date(Date.now() + 7 * 86400000).toISOString()
+  const activeWeekOverride = { durationType: 'week', expiresAt: futureDate }
+  assert.equal(isDayOverrideActive(activeWeekOverride), true)
+
+  const pastDate = new Date(Date.now() - 86400000).toISOString()
+  const expiredOverride = { durationType: 'week', expiresAt: pastDate }
+  assert.equal(isDayOverrideActive(expiredOverride), false)
+
+  // Empty or missing override
+  assert.equal(isDayOverrideActive(null), false)
+  assert.equal(isDayOverrideActive({}), true) // legacy override with no expiresAt defaults active
+})
+
+test('validator: formats human-readable validation errors without database IDs', () => {
+  const config = {
+    days: ['Monday'],
+    periods: [1, 2, 3, 4, 5, 6, 7],
+    classes: [{ id: 'class_19', name: 'Class 7', section: 'APS' }],
+    subjects: [{ id: 'subject_ic8s94', name: 'English' }],
+    teachers: [{ id: 'teacher_1', name: 'Mr. Smith' }],
+    requirements: [
+      { classId: 'class_19', subjectId: 'subject_ic8s94', periodsPerWeek: 6, teacherId: 'teacher_1' }
+    ]
+  }
+
+  // 7 periods scheduled when 6 are required
+  const entries = Array.from({ length: 7 }, (_, i) => ({
+    classId: 'class_19',
+    subjectId: 'subject_ic8s94',
+    teacherId: 'teacher_1',
+    day: 'Monday',
+    period: i + 1
+  }))
+
+  const result = validateTimetable(config, entries)
+  assert.equal(result.ok, false)
+  const extraLessonError = result.hard.find(iss => iss.code === 'H_EXTRA_LESSON')
+  assert.ok(extraLessonError, 'Expected H_EXTRA_LESSON issue')
+  assert.ok(extraLessonError.message.includes('Class 7 (APS) – English'), 'Message should include formatted class and subject name')
+  assert.ok(extraLessonError.message.includes('7 periods have been scheduled, but only 6 are required. Remove 1 period.'), 'Message should explain action')
+  assert.ok(!extraLessonError.message.includes('class_19'), 'Message must not contain technical class ID')
+  assert.ok(!extraLessonError.message.includes('subject_ic8s94'), 'Message must not contain technical subject ID')
+})
+
+test('api: batch apply timing supports durationType and expiresAt', async () => {
+  const created = await post('/timetables', { config: sampleConfig() })
+  const id = created.body.timetable.id
+  const res = await post(`/timetables/${id}/apply-batch-timing`, {
+    weekdays: ['Monday', 'Tuesday'],
+    timing: { startTime: '08:30', periodDuration: 35 },
+    durationType: 'week'
+  })
+  assert.equal(res.status, 200)
+  assert.equal(res.body.ok, true)
+  assert.equal(res.body.timetable.config.dayOverrides.Monday.durationType, 'week')
+  assert.ok(res.body.timetable.config.dayOverrides.Monday.expiresAt)
+  const expireDate = new Date(res.body.timetable.config.dayOverrides.Monday.expiresAt)
+  assert.ok(expireDate.getTime() > Date.now())
+})
+
 

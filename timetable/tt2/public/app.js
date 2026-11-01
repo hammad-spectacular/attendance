@@ -141,6 +141,36 @@ function readValue(el) {
   return el.value
 }
 
+function calcEndTimeHelper(startTime, periodDuration, breaks, periodCount, periodOverrides, overrideBreakDuration) {
+  try {
+    const [h, m] = (startTime || '08:00').split(':').map(Number)
+    let totalMins = (h || 8) * 60 + (m || 0)
+    const count = periodCount || 6
+    const brks = breaks || []
+    const pOverrides = periodOverrides || {}
+    for (let i = 1; i <= count; i++) {
+      const ov = pOverrides[String(i)]
+      totalMins += ov || periodDuration || 40
+      const brk = brks.find(b => b.afterPeriod === i)
+      if (brk) {
+        totalMins += (overrideBreakDuration !== undefined && overrideBreakDuration !== null) ? overrideBreakDuration : brk.duration
+      }
+    }
+    const endH = Math.floor(totalMins / 60) % 24
+    const endM = totalMins % 60
+    return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`
+  } catch (_) {
+    return '14:00'
+  }
+}
+
+function isDayActive(dVal, dateStr) {
+  if (!dVal) return false
+  if (!dVal.expiresAt) return true
+  const now = dateStr ? new Date(dateStr).getTime() : Date.now()
+  return new Date(dVal.expiresAt).getTime() > now
+}
+
 /* --------------------------------------------------------------- wizard -- */
 
 function scheduleCheck() {
@@ -208,116 +238,50 @@ const stepRenderers = {
       </label>
     </div>`,
 
-  week: () => `
+  week: () => {
+    const cfg = state.config
+    return `
     <div class="card">
       <h4>Working days</h4>
-      <p class="muted" style="margin-bottom:12px">Tap every day the school is open. The timetable is built for these days only.</p>
+      <p class="muted" style="margin-bottom:12px">Select every day the school is open. The timetable is built for these days only.</p>
       <div class="day-set">
-        ${(state.meta.allDays).map(d => `
-          <button class="chip ${state.config.days.includes(d) ? 'on' : ''}" data-act="toggle-day" data-day="${esc(d)}">
-            ${esc(d.slice(0, 3))}
-          </button>`).join('')}
+        ${(state.meta.allDays).map(d => {
+          const checked = cfg.days.includes(d)
+          return `
+          <label class="chip ${checked ? 'on' : ''}" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px" data-act="toggle-day-chip" data-day="${esc(d)}">
+            <input type="checkbox" ${checked ? 'checked' : ''} style="margin:0;pointer-events:none">
+            <span style="font-weight:500">${esc(d)}</span>
+          </label>`
+        }).join('')}
       </div>
     </div>
     <div class="card">
       <h4>Summary</h4>
-      <p class="muted">${state.config.days.length} working day${state.config.days.length === 1 ? '' : 's'}:
-        ${state.config.days.map(d => `<b>${esc(d.slice(0, 3))}</b>`).join(', ')}.</p>
-    </div>`,
+      <p class="muted">${cfg.days.length} working day${cfg.days.length === 1 ? '' : 's'}:
+        ${cfg.days.map(d => `<b>${esc(d)}</b>`).join(', ')}.</p>
+    </div>`
+  },
 
   periods: () => {
     const cfg = state.config
     if (!cfg.dayTimingMode) cfg.dayTimingMode = 'all'
     if (!cfg.dayOverrides) cfg.dayOverrides = {}
 
-    // Calculate school end time from startTime, periodCount, periodDuration and breaks
-    function calcEndTime(startTime, periodDuration, breakDuration) {
-      try {
-        const [h, m] = (startTime || '08:00').split(':').map(Number)
-        let totalMins = h * 60 + m
-        for (let i = 1; i <= cfg.periodCount; i++) {
-          const override = cfg.periodOverrides && cfg.periodOverrides[String(i)]
-          totalMins += override || periodDuration
-          const brk = cfg.breaks.find(b => b.afterPeriod === i)
-          if (brk) totalMins += (breakDuration !== undefined && breakDuration !== null ? breakDuration : brk.duration)
-        }
-        const endH = Math.floor(totalMins / 60) % 24
-        const endM = totalMins % 60
-        return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`
-      } catch (_) { return '—' }
-    }
-
-    const standardEndTime = calcEndTime(cfg.startTime, cfg.periodDuration)
-
-    // Current active custom day (defaults to Friday if in cfg.days, or first day)
-    const customDay = state.activeCustomDay || (cfg.days.includes('Friday') ? 'Friday' : (cfg.days[0] || 'Friday'))
-    state.activeCustomDay = customDay
-    const customDayCfg = cfg.dayOverrides[customDay] || {
-      periodDuration: 30,
-      startTime: cfg.startTime || '08:00',
-      breakDuration: 10
-    }
-    const customDayEndTime = calcEndTime(customDayCfg.startTime, customDayCfg.periodDuration, customDayCfg.breakDuration)
+    const standardEndTime = calcEndTimeHelper(cfg.startTime, cfg.periodDuration, cfg.breaks, cfg.periodCount, cfg.periodOverrides)
 
     return `
-    <div class="card" style="margin-bottom:14px">
-      <h4>📅 Period Timing Schedule Mode</h4>
-      <p class="muted" style="margin-bottom:12px">Choose whether period times apply identically to all days, or if specific days (like Friday in Pakistan) have a shorter schedule with early dismissal.</p>
-      <div class="segmented" style="max-width:440px">
-        <button class="${cfg.dayTimingMode !== 'custom' ? 'active' : ''}" data-act="set-timing-mode" data-mode="all">Apply for all days</button>
-        <button class="${cfg.dayTimingMode === 'custom' ? 'active' : ''}" data-act="set-timing-mode" data-mode="custom">Custom per day (e.g. Friday)</button>
-      </div>
-    </div>
-
-    ${cfg.dayTimingMode === 'custom' ? `
-    <div class="card" style="margin-bottom:14px;background:#f0fdf4;border:1px solid #bbf7d0">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
-        <h4 style="color:#166534;margin:0">🕌 Custom Day Schedule (e.g. Friday Early Dismissal)</h4>
-        <div class="row tight">
-          <button class="btn btn-sm btn-accent" data-act="apply-pakistan-friday">⚡ Apply Pakistan Friday Preset</button>
-          <button class="btn btn-sm" data-act="show-batch-apply-modal">📅 Batch Apply to Multiple Days</button>
-        </div>
-      </div>
-      <p style="font-size:13px;color:#15803d;margin-bottom:14px">
-        In Pakistan and other regions, Friday classes are shorter so students and staff finish early (typically by 12:30 PM for Jummah prayers). Configure shorter period durations below.
-      </p>
-      <div class="row" style="margin-bottom:10px">
-        <label class="field" style="flex:0 0 160px">
-          <span>Day to customize</span>
-          <select data-act="change-custom-day">
-            ${cfg.days.map(d => `<option value="${esc(d)}" ${d === customDay ? 'selected' : ''}>${esc(d)}</option>`).join('')}
-          </select>
-        </label>
-        <label class="field" style="flex:0 0 160px">
-          <span>${esc(customDay)} period duration (min)</span>
-          <input type="number" min="15" max="180" step="5" data-act="set-custom-day-duration" value="${customDayCfg.periodDuration}">
-          <small>Standard days: ${cfg.periodDuration} min</small>
-        </label>
-        <label class="field" style="flex:0 0 160px">
-          <span>${esc(customDay)} start time</span>
-          <input type="time" data-act="set-custom-day-start" value="${esc(customDayCfg.startTime)}">
-          <small>Starts at ${customDayCfg.startTime}</small>
-        </label>
-        <label class="field" style="flex:0 0 160px">
-          <span>${esc(customDay)} break length (min)</span>
-          <input type="number" min="0" max="120" step="5" data-act="set-custom-day-break" value="${customDayCfg.breakDuration}">
-          <small>Break length on ${esc(customDay)}</small>
-        </label>
-        <label class="field" style="flex:0 0 180px">
-          <span>${esc(customDay)} ends at (calculated)</span>
-          <input type="time" id="custom-day-end-time" value="${customDayEndTime}" disabled style="opacity:0.95;font-weight:700;color:#166534;background:#dcfce7;cursor:not-allowed">
-          <small>Calculated end time for ${esc(customDay)}</small>
-        </label>
-      </div>
-    </div>` : ''}
-
     <div class="card">
-      <h4>${cfg.dayTimingMode === 'custom' ? 'Standard Days Class Length' : 'Length of a class'}</h4>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <h4 style="margin:0">Length of a class &amp; school hours</h4>
+        <button class="btn btn-sm ${state.timingDirty ? 'btn-accent' : 'btn-primary'}" data-act="save-timing-changes">
+          💾 Save Changes${state.timingDirty ? ' *' : ''}
+        </button>
+      </div>
       <div class="row">
         <label class="field">
           <span>Class duration (minutes) *</span>
           <input type="number" min="15" max="180" step="5" data-bind="periodDuration" value="${cfg.periodDuration}">
-          <small>The usual length of one period. Every period starts with this value.</small>
+          <small>Standard length of one period across school days.</small>
         </label>
         <label class="field">
           <span>Teaching periods per day *</span>
@@ -331,14 +295,83 @@ const stepRenderers = {
         </label>
         <label class="field">
           <span>School ends at (calculated)</span>
-          <input type="time" value="${standardEndTime}" disabled style="opacity:0.6;cursor:not-allowed">
-          <small>Automatically calculated from start, ${cfg.periodCount} period${cfg.periodCount === 1 ? '' : 's'} × ${cfg.periodDuration} min + breaks.</small>
+          <input type="time" id="standard-end-time" value="${standardEndTime}" disabled style="opacity:0.95;font-weight:700;color:#166534;background:#f0fdf4;cursor:not-allowed">
+          <small>Recalculates from start time, ${cfg.periodCount} periods × ${cfg.periodDuration} min + breaks.</small>
         </label>
       </div>
     </div>
 
     <div class="card">
-      <h4>Breaks & lunch</h4>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+        <div>
+          <h4 style="margin:0 0 4px 0">📅 Weekday Schedules</h4>
+          <p class="muted" style="margin:0">
+            Configure custom schedules for specific days (e.g., Friday early dismissal).
+          </p>
+        </div>
+        <div class="row tight">
+          <button class="btn btn-sm btn-accent" data-act="apply-pakistan-friday">⚡ Apply Friday Preset</button>
+          <button class="btn btn-sm" data-act="show-batch-apply-modal">📅 Batch Apply to Multiple Days</button>
+          <button class="btn btn-sm ${state.timingDirty ? 'btn-accent' : 'btn-primary'}" data-act="save-timing-changes">
+            💾 Save Changes${state.timingDirty ? ' *' : ''}
+          </button>
+        </div>
+      </div>
+
+      <div class="weekday-list" style="display:flex;flex-direction:column;gap:8px">
+        ${cfg.days.map(day => {
+          const rawDayCfg = cfg.dayOverrides && cfg.dayOverrides[day]
+          const isCustom = cfg.dayTimingMode === 'custom' && Boolean(rawDayCfg)
+          const isActive = isCustom && isDayActive(rawDayCfg)
+          const dayCfg = (isCustom && isActive) ? rawDayCfg : {
+            periodDuration: cfg.periodDuration,
+            startTime: cfg.startTime,
+            breakDuration: 10
+          }
+          const dayEndTime = calcEndTimeHelper(dayCfg.startTime, dayCfg.periodDuration, cfg.breaks, cfg.periodCount, cfg.periodOverrides, dayCfg.breakDuration)
+          
+          let durationLabel = 'Indefinite'
+          if (rawDayCfg && rawDayCfg.durationType === 'week') durationLabel = 'One week'
+          else if (rawDayCfg && rawDayCfg.durationType === 'month') durationLabel = 'One month'
+          
+          return `
+            <div class="weekday-row ${isActive ? 'custom' : ''}">
+              <div class="grow">
+                <div class="weekday-name">
+                  <span>${esc(day)}</span>
+                  ${isActive ? `
+                    <span class="pill good">Custom</span>
+                    <small style="color:#15803d;font-weight:normal">
+                      Active: ${durationLabel}${rawDayCfg.expiresAt ? ` (until ${new Date(rawDayCfg.expiresAt).toLocaleDateString()})` : ''}
+                    </small>
+                  ` : isCustom && !isActive ? `
+                    <span class="pill warn">Expired (reverted to standard)</span>
+                  ` : `
+                    <span class="pill">Standard</span>
+                  `}
+                </div>
+                <div class="weekday-meta">
+                  ${dayCfg.periodDuration} min periods · Starts ${esc(dayCfg.startTime)} → Ends at ${dayEndTime}
+                </div>
+              </div>
+              <div class="row tight" style="align-items:center">
+                <button class="btn btn-sm" data-act="edit-weekday-day" data-day="${esc(day)}" title="Edit ${esc(day)} schedule">
+                  ✏️ Edit
+                </button>
+                ${isCustom ? `
+                  <button class="btn btn-sm btn-ghost" data-act="reset-weekday-day" data-day="${esc(day)}" title="Reset ${esc(day)} to standard">
+                    ✕ Reset
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+          `
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>Breaks &amp; lunch</h4>
       <p class="muted" style="margin-bottom:12px">Breaks sit between periods and take their own column. They are not teaching periods.</p>
       ${cfg.breaks.map((b, i) => `
         <div class="item-row">
@@ -457,8 +490,8 @@ const stepRenderers = {
             (c.name.trim().toLowerCase() === ec.name.trim().toLowerCase() &&
              (c.section || '').trim().toLowerCase() === (ec.section || '').trim().toLowerCase())
           )
-          return `<label class="chip ${isSelected ? 'on' : ''}" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
-            <input type="checkbox" data-act="toggle-existing-class" data-id="${esc(ec.id)}" data-name="${esc(ec.name)}" data-section="${esc(ec.section || '')}" ${isSelected ? 'checked' : ''} style="margin:0">
+          return `<label class="chip ${isSelected ? 'on' : ''}" data-act="toggle-class-chip" data-id="${esc(ec.id)}" data-name="${esc(ec.name)}" data-section="${esc(ec.section || '')}" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+            <input type="checkbox" class="class-checkbox" ${isSelected ? 'checked' : ''} style="margin:0;pointer-events:none">
             <span>${esc(ec.name)}${ec.section ? ` (${esc(ec.section)})` : ''}</span>
           </label>`
         }).join('')}
@@ -470,25 +503,21 @@ const stepRenderers = {
 
     <div class="card">
       <h4>Selected Classes for Timetable (${cfg.classes.length})</h4>
-      <p class="muted" style="margin-bottom:6px">Each selected class gets its own timetable.</p>
+      <p class="muted" style="margin-bottom:10px">Each selected class gets its own timetable.</p>
       ${dupInfo.duplicate ? `
         <div style="background:var(--bad-soft);border:1px solid var(--bad);border-radius:6px;padding:8px 12px;margin-bottom:12px;color:var(--bad);font-size:13px">
           ⚠️ Duplicate class section: <b>"${esc(dupInfo.class.name)}" (Section "${esc(dupInfo.class.section || 'None')}")</b> already exists.
         </div>` : ''}
       ${cfg.classes.length ? `
-      <div class="row tight" style="margin-bottom:6px;padding:0 4px">
-        <span style="flex:1 1 0;font-size:12px;font-weight:600;color:var(--ink-2)">Class name</span>
-        <span style="width:110px;font-size:12px;font-weight:600;color:var(--ink-2)">Section</span>
-        <span style="width:100px;font-size:12px;font-weight:600;color:var(--ink-2)">Students</span>
-        <span style="width:32px"></span>
+      <div class="classes-grid-header">
+        <span>Class name</span>
+        <span>Section</span>
+        <span></span>
       </div>
       ${cfg.classes.map(c => `
-        <div class="item-row">
-          <div class="grow row tight">
-            <input type="text" value="${esc(c.name)}" disabled style="background:#f8fafc;cursor:not-allowed">
-            <input type="text" value="${esc(c.section || '—')}" disabled style="max-width:110px;background:#f8fafc;cursor:not-allowed">
-            <input type="number" min="0" data-list="classes" data-id="${esc(c.id)}" data-field="studentCount" value="${c.studentCount}" placeholder="0" style="max-width:100px">
-          </div>
+        <div class="classes-grid-row">
+          <input type="text" value="${esc(c.name)}" disabled style="background:#f8fafc;cursor:not-allowed">
+          <input type="text" value="${esc(c.section || '—')}" disabled style="background:#f8fafc;cursor:not-allowed">
           <button class="btn btn-sm btn-danger" data-act="del-class" data-id="${esc(c.id)}" title="Remove from timetable">✕</button>
         </div>`).join('')}` : '<p class="muted">No classes selected yet. Tick classes from the list above.</p>'}
     </div>`
@@ -1120,6 +1149,7 @@ function renderCell(cell, day, period, editable, classId) {
   const second = cell.className ? cell.className : (teacher ? teacher.name : '')
   return `<td><div class="cell ${cell.manual ? 'manual' : ''} ${difficult ? 'diff' : ''} ${editable ? '' : 'readonly'}"
       data-class-id="${esc(classId || cell.classId || '')}" data-cell-day="${day}" data-cell-period="${period.index}"
+      data-subject-id="${esc(cell.subjectId)}" data-teacher-id="${esc(cell.teacherId || '')}"
       ${editable ? `data-act="edit-cell" data-class="${esc(classId || cell.classId || '')}" data-day="${day}" data-period="${period.index}"` : ''}>
     <div class="subj">${esc(subject ? subject.name : cell.subjectId)}</div>
     ${second ? `<div class="teach">${esc(second)}</div>` : ''}
@@ -1438,6 +1468,13 @@ function handleFormInput(e) {
   const el = e.target
   if (el.dataset.bind) {
     setPath(el.dataset.bind, readValue(el))
+    if (el.dataset.bind.startsWith('periodDuration') || el.dataset.bind.startsWith('periodCount') || el.dataset.bind.startsWith('startTime')) {
+      state.timingDirty = true
+      const endEl = document.getElementById('standard-end-time')
+      if (endEl) {
+        endEl.textContent = calcEndTimeHelper(state.config.startTime || '08:00', state.config.periodCount || 8, state.config.periodDuration || 40, state.config.breaks || [], state.config.periodOverrides || {})
+      }
+    }
     scheduleCheck()
     return
   }
@@ -1446,6 +1483,13 @@ function handleFormInput(e) {
     const item = list.find(x => x.id === el.dataset.id)
     if (item) {
       item[el.dataset.field] = readValue(el)
+      if (el.dataset.list === 'breaks') {
+        state.timingDirty = true
+        const endEl = document.getElementById('standard-end-time')
+        if (endEl) {
+          endEl.textContent = calcEndTimeHelper(state.config.startTime || '08:00', state.config.periodCount || 8, state.config.periodDuration || 40, state.config.breaks || [], state.config.periodOverrides || {})
+        }
+      }
       if (el.dataset.list === 'classes' && (el.dataset.field === 'name' || el.dataset.field === 'section')) {
         const dupInfo = checkClassDuplicates(list)
         if (dupInfo.duplicate) {
@@ -1477,6 +1521,11 @@ function handleFormInput(e) {
     return
   }
   if (el.dataset.override) {
+    state.timingDirty = true
+    const endEl = document.getElementById('standard-end-time')
+    if (endEl) {
+      endEl.textContent = calcEndTimeHelper(state.config.startTime || '08:00', state.config.periodCount || 8, state.config.periodDuration || 40, state.config.breaks || [], state.config.periodOverrides || {})
+    }
     scheduleCheck()
   }
   if (el.dataset.act === 'change-custom-day') {
@@ -1654,31 +1703,192 @@ document.addEventListener('click', async e => {
     }
 
     /* ---- step: week ---- */
+    case 'toggle-day-chip':
     case 'toggle-day': {
       const day = el.dataset.day
       const i = cfg.days.indexOf(day)
-      if (i >= 0) cfg.days.splice(i, 1); else cfg.days.push(day)
-      renderWizard(); scheduleCheck()
+      if (i >= 0) {
+        if (cfg.days.length <= 1) {
+          toast('The school must have at least one working day.', 'warn')
+          return
+        }
+        cfg.days.splice(i, 1)
+      } else {
+        cfg.days.push(day)
+      }
+      renderWizard()
+      scheduleCheck()
       return
     }
 
     /* ---- step: periods ---- */
+    case 'save-timing-changes': {
+      try {
+        state.busy = true
+        await ensureDoc()
+        state.timingDirty = false
+        toast('Schedule timing changes saved successfully.', 'good')
+        renderWizard()
+        scheduleCheck()
+      } catch (err) {
+        toast(err.message || 'Failed to save timing changes.', 'bad')
+      } finally {
+        state.busy = false
+      }
+      return
+    }
+
     case 'set-timing-mode': {
       cfg.dayTimingMode = el.dataset.mode
-      if (cfg.dayTimingMode === 'custom') {
-        if (!cfg.dayOverrides) cfg.dayOverrides = {}
-        const targetDay = cfg.days.includes('Friday') ? 'Friday' : (cfg.days[0] || 'Friday')
-        state.activeCustomDay = targetDay
-        if (!cfg.dayOverrides[targetDay]) {
-          cfg.dayOverrides[targetDay] = {
-            periodDuration: 30,
-            startTime: cfg.startTime || '08:00',
-            breakDuration: 10
-          }
-        }
-      }
+      state.timingDirty = true
       renderWizard()
       scheduleCheck()
+      return
+    }
+
+    case 'edit-weekday-day': {
+      const day = el.dataset.day
+      state.activeCustomDay = day
+      const rawDayCfg = cfg.dayOverrides && cfg.dayOverrides[day]
+      const dayCfg = rawDayCfg || {
+        periodDuration: cfg.periodDuration,
+        startTime: cfg.startTime,
+        breakDuration: 10,
+        durationType: 'indefinite'
+      }
+
+      function calcModalEnd(startTime, duration, breakDur) {
+        return calcEndTimeHelper(startTime, duration, cfg.breaks, cfg.periodCount, cfg.periodOverrides, breakDur)
+      }
+
+      const initialEnd = calcModalEnd(dayCfg.startTime, dayCfg.periodDuration, dayCfg.breakDuration)
+
+      const modal = document.createElement('div')
+      modal.className = 'modal-back'
+      modal.innerHTML = `
+        <div class="modal" style="max-width:500px;width:100%">
+          <h3>Edit ${esc(day)} Schedule</h3>
+          <p class="muted" style="margin-bottom:14px">Configure custom schedule timing for ${esc(day)}.</p>
+
+          <label class="field" style="margin-bottom:12px">
+            <span>School start time</span>
+            <input type="time" id="edit-day-start" value="${esc(dayCfg.startTime)}">
+          </label>
+          <label class="field" style="margin-bottom:12px">
+            <span>Period duration (minutes)</span>
+            <input type="number" id="edit-day-duration" min="15" max="180" step="5" value="${dayCfg.periodDuration}">
+          </label>
+          <label class="field" style="margin-bottom:12px">
+            <span>Break length (minutes)</span>
+            <input type="number" id="edit-day-break" min="0" max="120" step="5" value="${dayCfg.breakDuration !== undefined ? dayCfg.breakDuration : 10}">
+          </label>
+          <label class="field" style="margin-bottom:12px">
+            <span>Day ends at</span>
+            <input type="time" id="edit-day-end" value="${initialEnd}">
+            <small>Recalculates based on start time, duration and breaks.</small>
+          </label>
+          <label class="field" style="margin-bottom:16px">
+            <span>Schedule duration active</span>
+            <select id="edit-day-duration-type">
+              <option value="indefinite" ${(!dayCfg.durationType || dayCfg.durationType === 'indefinite') ? 'selected' : ''}>Indefinitely (until manually changed)</option>
+              <option value="week" ${dayCfg.durationType === 'week' ? 'selected' : ''}>One week</option>
+              <option value="month" ${dayCfg.durationType === 'month' ? 'selected' : ''}>One month</option>
+            </select>
+            <small id="edit-day-duration-hint" class="muted">Active permanently until changed.</small>
+          </label>
+
+          <div class="modal-foot">
+            <button class="btn" data-act="cancel-edit-day">Cancel</button>
+            <button class="btn btn-primary" data-act="save-edit-day">Save Schedule</button>
+          </div>
+        </div>
+      `
+      
+      document.body.appendChild(modal)
+      
+      const startInput = modal.querySelector('#edit-day-start')
+      const durInput = modal.querySelector('#edit-day-duration')
+      const breakInput = modal.querySelector('#edit-day-break')
+      const endInput = modal.querySelector('#edit-day-end')
+      const durTypeSelect = modal.querySelector('#edit-day-duration-type')
+      const durHint = modal.querySelector('#edit-day-duration-hint')
+
+      function updateModalEnd() {
+        endInput.value = calcModalEnd(startInput.value, Number(durInput.value) || 30, Number(breakInput.value) || 0)
+      }
+
+      function updateHint() {
+        const val = durTypeSelect.value
+        if (val === 'week') durHint.textContent = 'Active for 7 days. Afterward, the standard schedule automatically resumes.'
+        else if (val === 'month') durHint.textContent = 'Active for 30 days. Afterward, the standard schedule automatically resumes.'
+        else durHint.textContent = 'Active indefinitely until manually changed.'
+      }
+
+      startInput.oninput = updateModalEnd
+      durInput.oninput = updateModalEnd
+      breakInput.oninput = updateModalEnd
+      durTypeSelect.onchange = updateHint
+      updateHint()
+
+      endInput.onchange = () => {
+        try {
+          const [sh, sm] = (startInput.value || '08:00').split(':').map(Number)
+          const [eh, em] = (endInput.value || '14:00').split(':').map(Number)
+          const totalAvail = (eh * 60 + em) - (sh * 60 + sm)
+          const count = cfg.periodCount || 6
+          const brk = Number(breakInput.value) || 10
+          let totalBreak = 0
+          for (let i = 1; i <= count; i++) {
+            if (cfg.breaks.some(b => b.afterPeriod === i)) totalBreak += brk
+          }
+          const calculatedDur = Math.max(15, Math.floor((totalAvail - totalBreak) / count))
+          durInput.value = calculatedDur
+          updateModalEnd()
+        } catch (_) {}
+      }
+      
+      modal.querySelector('[data-act="cancel-edit-day"]').onclick = () => modal.remove()
+      
+      modal.querySelector('[data-act="save-edit-day"]').onclick = () => {
+        if (!cfg.dayOverrides) cfg.dayOverrides = {}
+        const durationType = durTypeSelect.value
+        let expiresAt = null
+        if (durationType === 'week') {
+          expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        } else if (durationType === 'month') {
+          expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        }
+
+        cfg.dayOverrides[day] = {
+          periodDuration: Number(durInput.value) || cfg.periodDuration,
+          startTime: startInput.value || cfg.startTime,
+          breakDuration: Number(breakInput.value) || 10,
+          durationType,
+          expiresAt,
+          createdAt: new Date().toISOString()
+        }
+        cfg.dayTimingMode = 'custom'
+        state.timingDirty = true
+        modal.remove()
+        toast(`Saved ${day} schedule (${durationType === 'indefinite' ? 'Indefinite' : durationType === 'week' ? '1 week' : '1 month'})`, 'good')
+        renderWizard()
+        scheduleCheck()
+      }
+      return
+    }
+
+    case 'reset-weekday-day': {
+      const day = el.dataset.day
+      if (cfg.dayOverrides && cfg.dayOverrides[day]) {
+        delete cfg.dayOverrides[day]
+        if (Object.keys(cfg.dayOverrides).length === 0) {
+          cfg.dayTimingMode = 'all'
+        }
+        state.timingDirty = true
+        toast(`Reset ${day} to standard schedule`, 'good')
+        renderWizard()
+        scheduleCheck()
+      }
       return
     }
 
@@ -1691,10 +1901,14 @@ document.addEventListener('click', async e => {
       if (!cfg.dayOverrides) cfg.dayOverrides = {}
       cfg.dayOverrides['Friday'] = {
         periodDuration: 30,
-        startTime: '08:00',
-        breakDuration: 15
+        startTime: cfg.startTime || '08:00',
+        breakDuration: 10,
+        durationType: 'indefinite',
+        expiresAt: null,
+        createdAt: new Date().toISOString()
       }
-      toast('Applied Pakistan Friday preset (30 min periods, finishes ~12:15–12:30 PM)', 'good')
+      state.timingDirty = true
+      toast('Applied Pakistan Friday preset (30 min periods, early finish)', 'good')
       renderWizard()
       scheduleCheck()
       return
@@ -1702,67 +1916,62 @@ document.addEventListener('click', async e => {
 
     case 'add-break':
       cfg.breaks.push({ id: uid('break'), afterPeriod: Math.max(1, cfg.periodCount), label: 'Break', duration: 15 })
+      state.timingDirty = true
       renderWizard(); scheduleCheck()
       return
     case 'del-break':
       cfg.breaks = cfg.breaks.filter(b => b.id !== el.dataset.id)
+      state.timingDirty = true
       renderWizard(); scheduleCheck()
       return
     case 'add-override': {
       const used = Object.keys(cfg.periodOverrides).map(Number)
       const next = Array.from({ length: cfg.periodCount }, (_, i) => i + 1).find(n => !used.includes(n)) || 1
       cfg.periodOverrides[String(next)] = cfg.periodDuration
+      state.timingDirty = true
       renderWizard(); scheduleCheck()
       return
     }
     case 'del-override':
       delete cfg.periodOverrides[el.dataset.key]
+      state.timingDirty = true
       renderWizard(); scheduleCheck()
       return
 
     /* ---- step: classes / subjects / rooms ---- */
+    case 'toggle-class-chip':
     case 'toggle-existing-class': {
       const dbId = el.dataset.id ? String(el.dataset.id) : null
       const name = el.dataset.name
       const section = el.dataset.section || ''
-      const isChecked = el.checked
       const matchId = dbId ? `class_${dbId}` : null
 
-      if (isChecked) {
-        const exists = cfg.classes.some(c =>
-          (matchId && c.id === matchId) ||
-          (dbId && String(c.id) === dbId) ||
-          (c.name.trim().toLowerCase() === name.trim().toLowerCase() &&
-           (c.section || '').trim().toLowerCase() === section.trim().toLowerCase())
-        )
-        if (!exists) {
-          const newId = matchId || uid('class')
-          cfg.classes.push({
-            id: newId,
-            name,
-            section,
-            studentCount: 30
-          })
-          toast(`Added ${name}${section ? ` (${section})` : ''}`, 'good')
-        }
+      const idx = cfg.classes.findIndex(c =>
+        (matchId && c.id === matchId) ||
+        (dbId && String(c.id) === dbId) ||
+        (c.name.trim().toLowerCase() === name.trim().toLowerCase() &&
+         (c.section || '').trim().toLowerCase() === section.trim().toLowerCase())
+      )
+
+      if (idx >= 0) {
+        const removedId = cfg.classes[idx].id
+        cfg.classes.splice(idx, 1)
+        cfg.curriculum = cfg.curriculum.filter(r => r.classId !== removedId)
+        toast(`Removed ${name}${section ? ` (${section})` : ''}`)
       } else {
-        const idx = cfg.classes.findIndex(c =>
-          (matchId && c.id === matchId) ||
-          (dbId && String(c.id) === dbId) ||
-          (c.name.trim().toLowerCase() === name.trim().toLowerCase() &&
-           (c.section || '').trim().toLowerCase() === section.trim().toLowerCase())
-        )
-        if (idx >= 0) {
-          const removedId = cfg.classes[idx].id
-          cfg.classes.splice(idx, 1)
-          cfg.curriculum = cfg.curriculum.filter(r => r.classId !== removedId)
-          toast(`Removed ${name}${section ? ` (${section})` : ''}`)
-        }
+        const newId = matchId || uid('class')
+        cfg.classes.push({
+          id: newId,
+          name,
+          section
+        })
+        toast(`Added ${name}${section ? ` (${section})` : ''}`, 'good')
       }
       // Ensure any orphaned curriculum rows are pruned
       const validClassIds = new Set(cfg.classes.map(c => c.id))
       cfg.curriculum = cfg.curriculum.filter(r => validClassIds.has(r.classId))
-      renderWizard(); scheduleCheck()
+      renderWizard()
+      scheduleCheck()
       return
     }
 
@@ -1914,82 +2123,140 @@ document.addEventListener('click', async e => {
     case 'show-batch-apply-modal': {
       const cfg = state.config
       const modal = document.createElement('div')
-      modal.className = 'modal-overlay'
+      modal.className = 'modal-back'
       modal.innerHTML = `
-        <div class="modal" style="max-width:600px">
+        <div class="modal" style="max-width:520px;width:100%">
           <h3>Apply Timing to Multiple Days</h3>
-          <p class="muted">Select the weekdays that should use this timing configuration. Unselected days will keep their current settings.</p>
-          
-          <div class="day-selector" style="margin-bottom:16px">
+          <p class="muted" style="margin-bottom:14px">Select the weekdays that should use this timing configuration. Unselected days keep their current settings.</p>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span style="font-size:13px;font-weight:600;color:var(--ink-2)">Select Weekdays:</span>
+            <div style="display:flex;gap:6px">
+              <button type="button" class="btn btn-sm btn-ghost" id="batch-select-all">Select all</button>
+              <button type="button" class="btn btn-sm btn-ghost" id="batch-clear-all">Clear</button>
+            </div>
+          </div>
+
+          <div class="day-selector" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;max-height:160px;overflow-y:auto;padding:2px">
             ${cfg.days.map(day => `
-              <label class="checkbox-row" style="display:flex;align-items:center;gap:8px;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:6px">
-                <input type="checkbox" value="${esc(day)}" checked style="margin:0">
+              <label class="checkbox-row" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px">
+                <input type="checkbox" class="batch-day-cb" value="${esc(day)}" checked style="margin:0">
                 <span style="flex:1;font-weight:500">${esc(day)}</span>
-                ${cfg.dayOverrides && cfg.dayOverrides[day] ? '<small class="warn" style="color:#dc2626">Currently custom</small>' : ''}
+                ${cfg.dayOverrides && cfg.dayOverrides[day] ? '<small class="warn" style="color:#d97706;font-size:11.5px">Custom</small>' : ''}
               </label>
             `).join('')}
           </div>
-          
-          <div class="timing-form" style="margin-bottom:16px">
-            <label class="field">
-              <span>Period duration (minutes)</span>
-              <input type="number" id="batch-period-duration" value="${cfg.periodDuration}" min="15" max="180">
-            </label>
-            <label class="field">
+          <div id="batch-count-display" style="font-size:12px;color:var(--muted);margin-bottom:14px">
+            ${cfg.days.length} day${cfg.days.length === 1 ? '' : 's'} selected
+          </div>
+
+          <div class="row" style="margin-bottom:12px">
+            <label class="field" style="margin:0">
               <span>Start time</span>
               <input type="time" id="batch-start-time" value="${cfg.startTime}">
             </label>
-            <label class="field">
-              <span>Break duration (minutes)</span>
+            <label class="field" style="margin:0">
+              <span>Period duration (min)</span>
+              <input type="number" id="batch-period-duration" value="${cfg.periodDuration}" min="15" max="180">
+            </label>
+            <label class="field" style="margin:0">
+              <span>Break duration (min)</span>
               <input type="number" id="batch-break-duration" value="10" min="0" max="120">
             </label>
           </div>
-          
-          <div class="modal-actions">
+
+          <div class="field" style="margin-bottom:16px">
+            <span>Schedule duration active</span>
+            <select id="batch-duration-type">
+              <option value="indefinite">Indefinitely (until manually changed)</option>
+              <option value="week">One week</option>
+              <option value="month">One month</option>
+            </select>
+          </div>
+
+          <div class="modal-foot">
             <button class="btn" data-act="cancel-batch-apply">Cancel</button>
-            <button class="btn btn-primary" data-act="confirm-batch-apply">Apply</button>
+            <button class="btn btn-primary" data-act="confirm-batch-apply">Apply to Selected Days</button>
           </div>
         </div>
       `
       
       document.body.appendChild(modal)
-      
+
+      const cbs = modal.querySelectorAll('.batch-day-cb')
+      const countDisplay = modal.querySelector('#batch-count-display')
+      const updateBatchCount = () => {
+        const count = modal.querySelectorAll('.batch-day-cb:checked').length
+        countDisplay.textContent = `${count} day${count === 1 ? '' : 's'} selected`
+      }
+
+      cbs.forEach(cb => cb.addEventListener('change', updateBatchCount))
+      modal.querySelector('#batch-select-all').onclick = () => {
+        cbs.forEach(cb => { cb.checked = true })
+        updateBatchCount()
+      }
+      modal.querySelector('#batch-clear-all').onclick = () => {
+        cbs.forEach(cb => { cb.checked = false })
+        updateBatchCount()
+      }
+
       modal.querySelector('[data-act="cancel-batch-apply"]').onclick = () => modal.remove()
       
       modal.querySelector('[data-act="confirm-batch-apply"]').onclick = async () => {
-        const checkboxes = modal.querySelectorAll('input[type="checkbox"]:checked')
-        const weekdays = Array.from(checkboxes).map(cb => cb.value)
-        
-        if (weekdays.length === 0) {
+        const selected = Array.from(modal.querySelectorAll('.batch-day-cb:checked')).map(cb => cb.value)
+        if (selected.length === 0) {
           toast('Please select at least one weekday', 'warn')
           return
         }
-        
+
+        const durationType = modal.querySelector('#batch-duration-type').value
+        let expiresAt = null
+        if (durationType === 'week') {
+          expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        } else if (durationType === 'month') {
+          expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        }
+
         const timing = {
           periodDuration: Number(modal.querySelector('#batch-period-duration').value),
           startTime: modal.querySelector('#batch-start-time').value,
-          breakDuration: Number(modal.querySelector('#batch-break-duration').value)
+          breakDuration: Number(modal.querySelector('#batch-break-duration').value),
+          durationType,
+          expiresAt
         }
         
-        try {
-          state.busy = true
-          const res = await api(`/timetables/${state.docId}/apply-batch-timing`, {
-            method: 'POST',
-            body: { weekdays, timing }
-          })
-          state.doc = res.timetable
-          state.config = state.doc.config
-          modal.remove()
-          toast(res.message, 'good')
-          if (res.skippedDays && res.skippedDays.length > 0) {
-            toast(`Skipped ${res.skippedDays.length} day(s): ${res.skippedDays.map(d => d.day).join(', ')}`, 'warn')
+        if (state.docId) {
+          try {
+            state.busy = true
+            const res = await api(`/timetables/${state.docId}/apply-batch-timing`, {
+              method: 'POST',
+              body: { weekdays: selected, timing }
+            })
+            state.doc = res.timetable
+            state.config = state.doc.config
+            modal.remove()
+            toast(res.message, 'good')
+            if (res.skippedDays && res.skippedDays.length > 0) {
+              toast(`Skipped ${res.skippedDays.length} day(s): ${res.skippedDays.map(d => d.day).join(', ')}`, 'warn')
+            }
+            renderWizard()
+            scheduleCheck()
+          } catch (err) {
+            toast(err.message || 'Failed to apply batch timing', 'bad')
+          } finally {
+            state.busy = false
           }
+        } else {
+          if (!cfg.dayOverrides) cfg.dayOverrides = {}
+          for (const day of selected) {
+            cfg.dayOverrides[day] = { ...timing, createdAt: new Date().toISOString() }
+          }
+          cfg.dayTimingMode = 'custom'
+          state.timingDirty = true
+          modal.remove()
+          toast(`Applied timing to ${selected.length} day(s)`, 'good')
           renderWizard()
           scheduleCheck()
-        } catch (err) {
-          toast(err.message || 'Failed to apply batch timing', 'bad')
-        } finally {
-          state.busy = false
         }
       }
       return
@@ -2030,6 +2297,40 @@ document.addEventListener('click', async e => {
       let targetClassId = detail.classId
       let day = detail.day
       let period = detail.period
+      let subjectId = detail.subjectId
+      let teacherId = detail.teacherId
+
+      // Workload cap or setting navigation
+      if (issue.code === 'H_WORKLOAD_WEEK' || issue.code === 'H_WORKLOAD_DAY') {
+        if (state.screen === 'wizard') {
+          const stepIdx = state.meta.steps.findIndex(s => s.id === 'teachers')
+          if (stepIdx >= 0) {
+            state.step = stepIdx
+            renderWizard()
+            toast('Navigated to Teachers settings to adjust workload caps.', 'warn')
+            return
+          }
+        } else {
+          if (state.view !== 'teachers') {
+            state.view = 'teachers'
+            document.querySelectorAll('#view-switch button').forEach(b => b.classList.toggle('active', b.dataset.view === 'teachers'))
+          }
+          if (teacherId) state.activeTeacherId = teacherId
+          renderTable()
+          toast(`Viewing schedule for teacher. Adjust workload limits in Setup if needed.`, 'warn')
+          return
+        }
+      }
+
+      if (issue.code === 'H_BAD_REQUIREMENT' && state.screen === 'wizard') {
+        const stepIdx = state.meta.steps.findIndex(s => s.id === 'curriculum')
+        if (stepIdx >= 0) {
+          state.step = stepIdx
+          renderWizard()
+          toast('Navigated to Curriculum to correct period count.', 'warn')
+          return
+        }
+      }
 
       if (state.view !== 'classes') {
         state.view = 'classes'
@@ -2042,22 +2343,21 @@ document.addEventListener('click', async e => {
         renderTable()
       }
 
-      let selector = ''
-      if (day !== undefined && period !== undefined) {
-        selector = `.cell[data-cell-day="${day}"][data-cell-period="${period}"]`
-        if (targetClassId) selector += `[data-class-id="${targetClassId}"]`
+      let cellEl = null
+      if (issue.code === 'H_EXTRA_LESSON' && subjectId) {
+        if (targetClassId) cellEl = document.querySelector(`.cell[data-class-id="${targetClassId}"][data-subject-id="${subjectId}"]`)
+        if (!cellEl) cellEl = document.querySelector(`.cell[data-subject-id="${subjectId}"]`)
+      } else if (issue.code === 'H_MISSING_LESSON') {
+        if (targetClassId) cellEl = document.querySelector(`.cell.empty[data-class-id="${targetClassId}"]`)
+        if (!cellEl) cellEl = document.querySelector(`.cell.empty`)
+      } else if (day !== undefined && period !== undefined) {
+        if (targetClassId) cellEl = document.querySelector(`.cell[data-cell-day="${day}"][data-cell-period="${period}"][data-class-id="${targetClassId}"]`)
+        if (!cellEl) cellEl = document.querySelector(`.cell[data-cell-day="${day}"][data-cell-period="${period}"]`)
+      } else if (subjectId) {
+        if (targetClassId) cellEl = document.querySelector(`.cell[data-class-id="${targetClassId}"][data-subject-id="${subjectId}"]`)
+        if (!cellEl) cellEl = document.querySelector(`.cell[data-subject-id="${subjectId}"]`)
       } else if (targetClassId) {
-        selector = `.cell.empty[data-class-id="${targetClassId}"]`
-      } else {
-        selector = `.cell.empty`
-      }
-
-      let cellEl = document.querySelector(selector)
-      if (!cellEl && targetClassId) {
-        cellEl = document.querySelector(`.cell[data-class-id="${targetClassId}"]`)
-      }
-      if (!cellEl && day !== undefined && period !== undefined) {
-        cellEl = document.querySelector(`.cell[data-cell-day="${day}"][data-cell-period="${period}"]`)
+        cellEl = document.querySelector(`.cell.empty[data-class-id="${targetClassId}"]`) || document.querySelector(`.cell[data-class-id="${targetClassId}"]`)
       }
 
       if (cellEl) {
@@ -2066,9 +2366,9 @@ document.addEventListener('click', async e => {
         void cellEl.offsetWidth
         cellEl.classList.add('cell-error-target')
         setTimeout(() => cellEl.classList.remove('cell-error-target'), 5000)
-        toast(`Jumped to error: ${issue.message.slice(0, 50)}...`, 'bad')
+        toast(`Target cell highlighted: ${issue.message.slice(0, 60)}...`, kind === 'hard' ? 'bad' : 'warn')
       } else {
-        toast(`Could not locate cell on screen: ${issue.message}`, 'bad')
+        toast(issue.message, kind === 'hard' ? 'bad' : 'warn')
       }
       return
     }

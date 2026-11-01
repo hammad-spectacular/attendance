@@ -378,7 +378,7 @@ table.grid tbody th .d { display: block; font-size: 11px; color: var(--muted); f
 
 /* --- modal -------------------------------------------------------------- */
 
-.modal-back {
+.modal-overlay, .modal-back {
   position: fixed; inset: 0; background: rgba(16, 18, 28, .5);
   display: grid; place-items: center; z-index: 90; padding: 20px;
   animation: fade .12s;
@@ -386,10 +386,66 @@ table.grid tbody th .d { display: block; font-size: 11px; color: var(--muted); f
 @keyframes fade { from { opacity: 0; } }
 .modal {
   background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-lg);
-  width: min(460px, 100%); max-height: 85vh; overflow-y: auto; padding: 22px;
+  width: min(520px, 100%); max-height: 85vh; overflow-y: auto; padding: 22px;
 }
 .modal h3 { margin-bottom: 6px; }
-.modal .modal-foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+.modal .modal-foot, .modal .modal-actions, .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+
+/* --- classes grid alignment --- */
+.classes-grid-header {
+  display: grid;
+  grid-template-columns: 1fr 140px 40px;
+  gap: 12px;
+  align-items: center;
+  padding: 0 14px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.classes-grid-row {
+  display: grid;
+  grid-template-columns: 1fr 140px 40px;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  margin-bottom: 8px;
+}
+
+/* --- weekday row styling --- */
+.weekday-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  margin-bottom: 8px;
+}
+.weekday-row.custom {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+.weekday-row .weekday-name {
+  font-weight: 600;
+  color: var(--ink);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.weekday-row .weekday-meta {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.weekday-row.custom .weekday-meta {
+  color: #15803d;
+}
 
 /* --- responsive --------------------------------------------------------- */
 

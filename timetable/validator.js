@@ -103,7 +103,10 @@ function buildIndex(input) {
   const classes = new Map()
   for (const c of (Array.isArray(src.classes) ? src.classes : [])) {
     if (c === undefined || c === null || c.id === undefined || c.id === null) continue
-    classes.set(String(c.id), { id: String(c.id), name: String(c.name || c.id) })
+    const baseName = String(c.name || 'Class')
+    const section = c.section ? String(c.section).trim() : ''
+    const fullName = section ? `${baseName} (${section})` : baseName
+    classes.set(String(c.id), { id: String(c.id), name: fullName, baseName, section })
   }
   if (classes.size === 0) errors.push({ code: 'CFG_NO_CLASSES', message: 'No classes are configured.' })
 
@@ -243,18 +246,23 @@ function validateTimetable(input, entries) {
     const tea = teachers.get(teacherId)
     const room = roomId ? rooms.get(roomId) : null
 
-    if (!cls) hardList.push(hard('H_UNKNOWN_CLASS', `Entry references unknown class "${classId}".`, { classId }))
-    if (!subj) hardList.push(hard('H_UNKNOWN_SUBJECT', `Entry references unknown subject "${subjectId}".`, { subjectId }))
-    if (!tea) hardList.push(hard('H_UNKNOWN_TEACHER', `Entry references unknown teacher "${teacherId}".`, { teacherId }))
-    if (roomId && !room) hardList.push(hard('H_UNKNOWN_ROOM', `Entry references unknown room "${roomId}".`, { roomId }))
+    const className = cls ? cls.name : 'Unknown Class'
+    const subjectName = subj ? subj.name : 'Unknown Subject'
+    const teacherName = tea ? tea.name : 'Unknown Teacher'
+    const roomName = room ? room.name : 'Unknown Room'
+
+    if (!cls) hardList.push(hard('H_UNKNOWN_CLASS', 'Entry references an unknown class. Please assign a valid class.', { classId, className }))
+    if (!subj) hardList.push(hard('H_UNKNOWN_SUBJECT', 'Entry references an unknown subject. Please assign a valid subject.', { subjectId, subjectName }))
+    if (!tea) hardList.push(hard('H_UNKNOWN_TEACHER', 'Entry references an unknown teacher. Please assign a valid teacher.', { teacherId, teacherName }))
+    if (roomId && !room) hardList.push(hard('H_UNKNOWN_ROOM', 'Entry references an unknown room. Please assign a valid room.', { roomId, roomName }))
 
     if (!Number.isInteger(day) || day < 0 || day >= days.length) {
-      hardList.push(hard('H_UNKNOWN_DAY', `Entry has a day outside the working week (${day}).`, { day }))
+      hardList.push(hard('H_UNKNOWN_DAY', `Entry has a day outside the working week (${day}). Move lesson to a configured school day.`, { day }))
     } else if (!Number.isInteger(period) || period < 0 || period >= periods.length) {
-      hardList.push(hard('H_UNKNOWN_PERIOD', `Entry has an unknown period (${period}).`, { period }))
+      hardList.push(hard('H_UNKNOWN_PERIOD', `Entry has an unconfigured period time. Move lesson to a valid period.`, { period }))
     } else if (!teachingSet.has(period)) {
       hardList.push(hard('H_NON_TEACHING_SLOT',
-        `Lesson scheduled in "${periods[period].label}" which is a ${periods[period].kind}, not a teaching period.`,
+        `Lesson scheduled in "${periods[period].label}" which is a ${periods[period].kind}, not a teaching period. Move lesson to a teaching period.`,
         { day: days[day], period: periods[period].label }))
     }
 
@@ -262,8 +270,8 @@ function validateTimetable(input, entries) {
     const cKey = classSlotKey(classId, day, period)
     if (classSlot.has(cKey)) {
       hardList.push(hard('H_CLASS_CLASH',
-        `Class ${cls ? cls.name : classId} has two lessons at once (${days[day] || day}, ${periods[period] ? periods[period].label : period}).`,
-        { classId, day, period }))
+        `${className} has two lessons scheduled at once (${days[day] || day}, ${periods[period] ? periods[period].label : period}). Move or remove one lesson.`,
+        { classId, day, period, className }))
     } else {
       classSlot.set(cKey, e)
     }
@@ -271,8 +279,8 @@ function validateTimetable(input, entries) {
     const tKey = `${teacherId}#${day}#${period}`
     if (teacherSlot.has(tKey)) {
       hardList.push(hard('H_TEACHER_CLASH',
-        `Teacher ${tea ? tea.name : teacherId} is scheduled for two classes at once (${days[day] || day}, ${periods[period] ? periods[period].label : period}).`,
-        { teacherId, day, period }))
+        `${teacherName} is scheduled for two classes at once (${days[day] || day}, ${periods[period] ? periods[period].label : period}). Move one lesson or assign another teacher.`,
+        { teacherId, day, period, teacherName }))
     } else {
       teacherSlot.set(tKey, e)
     }
@@ -281,8 +289,8 @@ function validateTimetable(input, entries) {
       const rKey = `${roomId}#${day}#${period}`
       if (roomSlot.has(rKey)) {
         hardList.push(hard('H_ROOM_CLASH',
-          `Room ${room ? room.name : roomId} is booked twice at once (${days[day] || day}, ${periods[period] ? periods[period].label : period}).`,
-          { roomId, day, period }))
+          `${roomName} is booked twice at once (${days[day] || day}, ${periods[period] ? periods[period].label : period}). Move one lesson to another room.`,
+          { roomId, day, period, roomName }))
       } else {
         roomSlot.set(rKey, e)
       }
@@ -292,31 +300,31 @@ function validateTimetable(input, entries) {
     const req = requirementByPair.get(`${classId}#${subjectId}`)
     if (!req) {
       hardList.push(hard('H_UNREQUIRED_SUBJECT',
-        `${subj ? subj.name : subjectId} is not a required subject for ${cls ? cls.name : classId}.`,
-        { classId, subjectId }))
+        `${subjectName} is not in the curriculum for ${className}. Remove this lesson or update the curriculum.`,
+        { classId, subjectId, className, subjectName }))
     } else {
       if (!tea.subjectIds.has(subjectId)) {
         hardList.push(hard('H_NOT_ELIGIBLE',
-          `Teacher ${tea ? tea.name : teacherId} is not qualified to teach ${subj ? subj.name : subjectId}.`,
-          { teacherId, subjectId }))
+          `${teacherName} is not qualified to teach ${subjectName}. Assign a qualified teacher.`,
+          { teacherId, subjectId, teacherName, subjectName }))
       }
       if (req.teacherIds && !req.teacherIds.has(teacherId)) {
         hardList.push(hard('H_NOT_ASSIGNED',
-          `Teacher ${tea ? tea.name : teacherId} is not assigned to ${subj ? subj.name : subjectId} for ${cls ? cls.name : classId}.`,
-          { teacherId, classId, subjectId }))
+          `${teacherName} is not assigned to ${subjectName} for ${className}. Update the teacher assignment in the Curriculum.`,
+          { teacherId, classId, subjectId, teacherName, className, subjectName }))
       }
     }
 
     // Availability
     if (tea && Number.isInteger(day) && Number.isInteger(period) && tea.unavailable.has(slotKey(day, period))) {
       hardList.push(hard('H_TEACHER_UNAVAILABLE',
-        `${tea.name} is marked unavailable at ${days[day] || day}, ${periods[period] ? periods[period].label : period}.`,
-        { teacherId, day, period }))
+        `${teacherName} is marked unavailable at ${days[day] || day}, ${periods[period] ? periods[period].label : period}. Move lesson to an available period.`,
+        { teacherId, day, period, teacherName }))
     }
     if (room && Number.isInteger(day) && Number.isInteger(period) && room.unavailable.has(slotKey(day, period))) {
       hardList.push(hard('H_ROOM_UNAVAILABLE',
-        `${room.name} is marked unavailable at ${days[day] || day}, ${periods[period] ? periods[period].label : period}.`,
-        { roomId, day, period }))
+        `${roomName} is marked unavailable at ${days[day] || day}, ${periods[period] ? periods[period].label : period}. Move lesson to an available period.`,
+        { roomId, day, period, roomName }))
     }
 
     // Counting for workload + requirements
@@ -339,16 +347,16 @@ function validateTimetable(input, entries) {
     const tea = teachers.get(teacherId)
     if (tea && tea.maxPerDay !== null && n > tea.maxPerDay) {
       hardList.push(hard('H_WORKLOAD_DAY',
-        `${tea.name} has ${n} periods on ${days[Number(dayStr)] || dayStr} but the daily limit is ${tea.maxPerDay}.`,
-        { teacherId, day: Number(dayStr), actual: n, limit: tea.maxPerDay }))
+        `${tea.name} has ${n} periods on ${days[Number(dayStr)] || dayStr}, but the daily limit is ${tea.maxPerDay}. Reduce by ${n - tea.maxPerDay} period${n - tea.maxPerDay === 1 ? '' : 's'} or raise daily limit.`,
+        { teacherId, day: Number(dayStr), actual: n, limit: tea.maxPerDay, teacherName: tea.name }))
     }
   }
   for (const [teacherId, n] of teacherWeekCount) {
     const tea = teachers.get(teacherId)
     if (tea && tea.maxPerWeek !== null && n > tea.maxPerWeek) {
       hardList.push(hard('H_WORKLOAD_WEEK',
-        `${tea.name} has ${n} periods this week but the weekly limit is ${tea.maxPerWeek}.`,
-        { teacherId, actual: n, limit: tea.maxPerWeek }))
+        `${tea.name} has ${n} periods this week, but the weekly limit is ${tea.maxPerWeek}. Reduce by ${n - tea.maxPerWeek} period${n - tea.maxPerWeek === 1 ? '' : 's'} or raise weekly limit.`,
+        { teacherId, actual: n, limit: tea.maxPerWeek, teacherName: tea.name }))
     }
   }
 
@@ -356,35 +364,47 @@ function validateTimetable(input, entries) {
   let required = 0
   for (const req of requirements) {
     const n = req.count
+    const cls = classes.get(req.classId)
+    const subj = subjects.get(req.subjectId)
+    const className = cls ? cls.name : 'Unknown Class'
+    const subjectName = subj ? subj.name : 'Unknown Subject'
+    
     if (!Number.isFinite(n) || n < 0) {
       hardList.push(hard('H_BAD_REQUIREMENT',
-        `Requirement for ${req.classId}/${req.subjectId} has an invalid period count.`,
-        { classId: req.classId, subjectId: req.subjectId }))
+        `Requirement for ${className} – ${subjectName} has an invalid period count. Set a valid number of periods in the Curriculum.`,
+        { classId: req.classId, subjectId: req.subjectId, className, subjectName }))
       continue
     }
     required += n
     const actual = counts.get(`${req.classId}#${req.subjectId}`) || 0
     if (actual < n) {
       hardList.push(hard('H_MISSING_LESSON',
-        `${actual} of ${n} required periods scheduled for ${req.classId}/${req.subjectId} (${n - actual} missing).`,
-        { classId: req.classId, subjectId: req.subjectId, required: n, scheduled: actual }))
+        `${className} – ${subjectName}: ${actual} of ${n} required periods have been scheduled. Add ${n - actual} more period${n - actual === 1 ? '' : 's'}.`,
+        { classId: req.classId, subjectId: req.subjectId, required: n, scheduled: actual, missing: n - actual, className, subjectName }))
     } else if (actual > n) {
       hardList.push(hard('H_EXTRA_LESSON',
-        `${actual} periods scheduled for ${req.classId}/${req.subjectId} but only ${n} are required.`,
-        { classId: req.classId, subjectId: req.subjectId, required: n, scheduled: actual }))
+        `${className} – ${subjectName}: ${actual} periods have been scheduled, but only ${n} are required. Remove ${actual - n} period${actual - n === 1 ? '' : 's'}.`,
+        { classId: req.classId, subjectId: req.subjectId, required: n, scheduled: actual, extra: actual - n, className, subjectName }))
     }
   }
 
   // --- Pass 4: locks must survive ----------------------------------------------
   for (const lock of locks) {
     if (lock.day < 0 || lock.period < 0) continue // already an input problem, reported by caller
+    const cls = classes.get(lock.classId)
+    const subj = subjects.get(lock.subjectId)
+    const tea = teachers.get(lock.teacherId)
+    const className = cls ? cls.name : 'Unknown Class'
+    const subjectName = subj ? subj.name : 'Unknown Subject'
+    const teacherName = tea ? tea.name : 'Unknown Teacher'
+    
     const found = list.some(e =>
       e && String(e.classId) === lock.classId && e.day === lock.day && e.period === lock.period &&
       String(e.subjectId) === lock.subjectId && String(e.teacherId) === lock.teacherId)
     if (!found) {
       hardList.push(hard('H_LOCK_MISSING',
-        `A locked lesson (${lock.classId}/${lock.subjectId} on ${days[lock.day]}, ${periods[lock.period].label}) was not kept.`,
-        { classId: lock.classId, subjectId: lock.subjectId, day: lock.day, period: lock.period }))
+        `A locked lesson (${className} – ${subjectName} on ${days[lock.day]}, ${periods[lock.period] ? periods[lock.period].label : lock.period}) was not kept. Reschedule this lesson.`,
+        { classId: lock.classId, subjectId: lock.subjectId, day: lock.day, period: lock.period, className, subjectName, teacherName }))
     }
   }
 
@@ -393,13 +413,17 @@ function validateTimetable(input, entries) {
   const maxPerDay = prefs.maxSameSubjectPerDay
   for (const [mapKey, n] of subjectDayCount) {
     if (n > maxPerDay) {
-      const [, , dayStr] = mapKey.split('#')
+      const [classId, subjectId, dayStr] = mapKey.split('#')
+      const cls = classes.get(classId)
+      const subj = subjects.get(subjectId)
+      const className = cls ? cls.name : 'Unknown Class'
+      const subjectName = subj ? subj.name : 'Unknown Subject'
       const penalty = (n - maxPerDay) * 10
       softScore += penalty
       softList.push({
         code: 'S_SAME_SUBJECT_DAY', penalty,
-        message: `${n} periods of one subject on ${days[Number(dayStr)] || dayStr} (preferred maximum ${maxPerDay}).`,
-        detail: { key: mapKey, count: n, limit: maxPerDay }
+        message: `${className} – ${subjectName}: ${n} periods on ${days[Number(dayStr)] || dayStr} (preferred maximum is ${maxPerDay}). Spread lessons across other days.`,
+        detail: { key: mapKey, count: n, limit: maxPerDay, classId, subjectId, day: Number(dayStr), className, subjectName }
       })
     }
   }
@@ -409,6 +433,8 @@ function validateTimetable(input, entries) {
       if (!e) continue
       const subj = subjects.get(String(e.subjectId))
       if (!subj || !subj.difficult) continue
+      const cls = classes.get(String(e.classId))
+      const className = cls ? cls.name : 'Unknown Class'
       // Only report once per pair: look at the next teaching period only.
       const nextTeach = nextTeachingPeriod(periods, e.period)
       if (nextTeach < 0) continue
@@ -419,8 +445,8 @@ function validateTimetable(input, entries) {
         softScore += 15
         softList.push({
           code: 'S_CONSECUTIVE_DIFFICULT', penalty: 15,
-          message: `Two demanding subjects back to back for ${e.classId} on ${days[e.day] || e.day}.`,
-          detail: { classId: e.classId, day: e.day, period: e.period }
+          message: `${className}: Two demanding subjects scheduled back to back on ${days[e.day] || e.day}. Separate them with another subject or break.`,
+          detail: { classId: e.classId, day: e.day, period: e.period, className }
         })
       }
     }
@@ -428,6 +454,8 @@ function validateTimetable(input, entries) {
 
   for (const [slotsKey, periodsForDay] of teacherDaySlots) {
     const [teacherId, dayStr] = slotsKey.split('#')
+    const tea = teachers.get(teacherId)
+    const teacherName = tea ? tea.name : 'Unknown Teacher'
     const sorted = [...periodsForDay].sort((a, b) => a - b)
     let blocks = 0
     let prev = null
@@ -440,8 +468,8 @@ function validateTimetable(input, entries) {
       softScore += penalty
       softList.push({
         code: 'S_TEACHER_FRAGMENTATION', penalty,
-        message: `${teachers.get(teacherId) ? teachers.get(teacherId).name : teacherId} is split across ${blocks} separate lessons on ${days[Number(dayStr)] || dayStr}.`,
-        detail: { teacherId, day: Number(dayStr), blocks }
+        message: `${teacherName} is split across ${blocks} separate lessons with gaps on ${days[Number(dayStr)] || dayStr}. Group lessons closer together.`,
+        detail: { teacherId, day: Number(dayStr), blocks, teacherName }
       })
     }
   }

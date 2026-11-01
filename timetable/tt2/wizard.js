@@ -297,10 +297,20 @@ function normaliseConfig(raw) {
     for (const [dayName, dVal] of Object.entries(input.dayOverrides)) {
       if (!ALL_DAYS.includes(dayName)) continue
       if (!dVal || typeof dVal !== 'object') continue
+      const durationType = ['week', 'month', 'indefinite'].includes(dVal.durationType) ? dVal.durationType : 'indefinite'
+      let expiresAt = dVal.expiresAt || null
+      if (!expiresAt && durationType === 'week') {
+        expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      } else if (!expiresAt && durationType === 'month') {
+        expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      }
       dayOverrides[dayName] = {
         periodDuration: Math.max(15, Math.min(180, Math.round(asNumber(dVal.periodDuration, 30)))),
         startTime: /^\d{1,2}:\d{2}$/.test(String(dVal.startTime)) ? String(dVal.startTime) : '08:00',
-        breakDuration: Math.max(0, Math.min(120, Math.round(asNumber(dVal.breakDuration, 10))))
+        breakDuration: Math.max(0, Math.min(120, Math.round(asNumber(dVal.breakDuration, 10)))),
+        durationType,
+        expiresAt,
+        createdAt: dVal.createdAt || new Date().toISOString()
       }
     }
   }
@@ -556,25 +566,30 @@ function validateConfig(raw) {
   const teacherIds = new Set(config.teachers.map(t => t.id))
 
   for (const r of config.curriculum) {
+    const cls = config.classes.find(c => c.id === r.classId)
+    const subj = config.subjects.find(s => s.id === r.subjectId)
+    const className = cls ? (cls.section ? `${cls.name} (${cls.section})` : cls.name) : 'Unknown Class'
+    const subjectName = subj ? subj.name : 'Unknown Subject'
+
     if (!classIds.has(r.classId)) {
-      errors.push(`Curriculum row references unknown class "${r.classId}".`)
+      errors.push(`Curriculum row references an unknown class. Please assign a valid class.`)
       continue
     }
     if (!subjectIds.has(r.subjectId)) {
-      errors.push(`Curriculum row references unknown subject "${r.subjectId}".`)
+      errors.push(`Curriculum row references an unknown subject. Please assign a valid subject.`)
       continue
     }
     if (r.periodsPerWeek <= 0) {
-      errors.push(`"${r.subjectId}" in "${r.classId}" has ${r.periodsPerWeek} periods per week. Use 0 to remove it.`)
+      errors.push(`${className} – ${subjectName} has ${r.periodsPerWeek} periods per week. Set at least 1 period, or remove this requirement.`)
     }
     if (r.teacherIds.length) {
       for (const id of r.teacherIds) {
         if (!teacherIds.has(id)) {
-          errors.push(`Curriculum row references unknown teacher "${id}".`)
+          errors.push(`Curriculum row references an unknown teacher. Please assign a valid teacher.`)
         } else {
           const teacher = config.teachers.find(t => t.id === id)
           if (teacher && !teacher.subjectIds.includes(r.subjectId)) {
-            errors.push(`Teacher "${teacher.name}" is not qualified for "${r.subjectId}" but is assigned to it.`)
+            errors.push(`Teacher "${teacher.name}" is not qualified for "${subjectName}" but is assigned to it in the curriculum.`)
           }
         }
       }

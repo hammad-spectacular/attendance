@@ -96,18 +96,26 @@ function formatClock(minutes) {
   return mins === 0 ? `${displayHour}:00 ${suffix}` : `${displayHour}:${String(mins).padStart(2, '0')} ${suffix}`
 }
 
+function isDayOverrideActive(dVal, checkDate) {
+  if (!dVal) return false
+  if (!dVal.expiresAt) return true
+  const refTime = checkDate ? new Date(checkDate).getTime() : Date.now()
+  return new Date(dVal.expiresAt).getTime() > refTime
+}
+
 /**
  * Build column and time list for a specific day.
  * If dayTimingMode is 'custom' and dayOverrides has settings for this day,
- * it uses that day's duration and break timing.
+ * it uses that day's duration and break timing (provided it hasn't expired).
  */
 function buildDayPeriods(rawConfig, dayName) {
   const config = normaliseConfig(rawConfig)
-  const isCustom = config.dayTimingMode === 'custom' &&
+  const candidate = config.dayTimingMode === 'custom' &&
     config.dayOverrides &&
     dayName &&
     config.dayOverrides[dayName]
-  const dVal = isCustom ? config.dayOverrides[dayName] : null
+  const isCustom = candidate && isDayOverrideActive(candidate)
+  const dVal = isCustom ? candidate : null
 
   const periodDuration = (dVal && dVal.periodDuration > 0) ? dVal.periodDuration : config.periodDuration
   const startTime = (dVal && dVal.startTime) ? dVal.startTime : config.startTime
@@ -228,9 +236,12 @@ function resolveTiming(rawConfig, dateString) {
   const dayName = allDaysIndex !== null ? ALL_DAYS[allDaysIndex] : null
 
   if (dayName && config.dayTimingMode === 'custom' && config.dayOverrides && config.dayOverrides[dayName]) {
-    return {
-      timing: config.dayOverrides[dayName],
-      source: 'recurring'
+    const override = config.dayOverrides[dayName]
+    if (isDayOverrideActive(override, dateString)) {
+      return {
+        timing: override,
+        source: 'recurring'
+      }
     }
   }
 
@@ -564,6 +575,7 @@ function collectLocks(grids) {
 }
 
 module.exports = {
+  isDayOverrideActive,
   buildPeriods,
   buildDayPeriods,
   buildTimeLabels,
