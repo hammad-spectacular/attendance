@@ -1481,3 +1481,149 @@ test('B9: existing-classes and existing-teachers filter by branch', async () => 
 })
 
 
+// ---------------------------------------------------------------------------
+// Shared Teachers (Phase 5)
+// ---------------------------------------------------------------------------
+
+function sharedTeachersConfig() {
+  return {
+    ...defaultConfig(),
+    schoolName: 'Shared Teacher School',
+    days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+    periodCount: 6,
+    periodDuration: 40,
+    breaks: [],
+    classes: [
+      { id: 'c6', name: 'Class 6' },
+      { id: 'c7', name: 'Class 7' },
+      { id: 'c8', name: 'Class 8' }
+    ],
+    subjects: [
+      { id: 's_math', name: 'Mathematics' },
+      { id: 's_eng', name: 'English' },
+      { id: 's_sci', name: 'Science' }
+    ],
+    teachers: [
+      { id: 't_shared', name: 'Mr. Shared', subjectIds: ['s_math', 's_eng', 's_sci'], maxPerDay: 6, maxPerWeek: 30, unavailableSlots: [] },
+      { id: 't_math2', name: 'Ms. Math2', subjectIds: ['s_math'], maxPerDay: 6, maxPerWeek: 30, unavailableSlots: [] },
+      { id: 't_eng2', name: 'Mr. Eng2', subjectIds: ['s_eng'], maxPerDay: 6, maxPerWeek: 30, unavailableSlots: [] },
+      { id: 't_sci2', name: 'Ms. Sci2', subjectIds: ['s_sci'], maxPerDay: 6, maxPerWeek: 30, unavailableSlots: [] }
+    ],
+    curriculum: [
+      { classId: 'c6', subjectId: 's_math', periodsPerWeek: 3, teacherIds: [] },
+      { classId: 'c6', subjectId: 's_eng', periodsPerWeek: 2, teacherIds: [] },
+      { classId: 'c6', subjectId: 's_sci', periodsPerWeek: 2, teacherIds: [] },
+      { classId: 'c7', subjectId: 's_math', periodsPerWeek: 3, teacherIds: [] },
+      { classId: 'c7', subjectId: 's_eng', periodsPerWeek: 2, teacherIds: [] },
+      { classId: 'c7', subjectId: 's_sci', periodsPerWeek: 2, teacherIds: [] },
+      { classId: 'c8', subjectId: 's_math', periodsPerWeek: 3, teacherIds: [] },
+      { classId: 'c8', subjectId: 's_eng', periodsPerWeek: 2, teacherIds: [] },
+      { classId: 'c8', subjectId: 's_sci', periodsPerWeek: 2, teacherIds: [] }
+    ],
+    preferences: { maxSameSubjectPerDay: 1, avoidConsecutiveDifficult: true, balanceClassDays: true, balanceTeacherDays: true }
+  }
+}
+
+test('shared: one teacher in Classes 6, 7 and 8 is never in two places at once', async () => {
+  const config = sharedTeachersConfig()
+  const created = await post('/timetables', { config })
+  const id = created.body.timetable.id
+  const gen = await post(`/timetables/${id}/generate`, {})
+  assert.equal(gen.status, 200)
+  assert.equal(gen.body.report.ok, true, JSON.stringify(gen.body.report.diagnostics))
+
+  const doc = gen.body.timetable
+  const teacherSlots = new Map()
+  for (const grid of Object.values(doc.grids || {})) {
+    for (const cell of Object.values(grid || {})) {
+      if (!cell.teacherId) continue
+      const key = `${cell.teacherId}#${cell.day}#${cell.period}`
+      assert.ok(!teacherSlots.has(key), `Teacher ${cell.teacherId} double-booked at ${key} between ${cell.classId} and previous`)
+      teacherSlots.set(key, cell.classId)
+    }
+  }
+  assert.ok(teacherSlots.size > 0, 'should have scheduled lessons')
+})
+
+test('shared: regenerate Class 6 and Classes 7 and 8 stay unchanged', async () => {
+  const config = sharedTeachersConfig()
+  const created = await post('/timetables', { config })
+  const id = created.body.timetable.id
+
+  // Generate and save Class 6's timetable
+  const gen1 = await post(`/timetables/${id}/generate`, {})
+  assert.equal(gen1.status, 200)
+  const entriesBefore = JSON.stringify(gen1.body.timetable.grids)
+
+  // Save as the current draft
+  await put(`/timetables/${id}`, { config })
+
+  // Regenerate - should not change Classes 7 and 8 (they share teachers with Class 6)
+  const gen2 = await post(`/timetables/${id}/generate`, {})
+  assert.equal(gen2.status, 200)
+  assert.equal(gen2.body.report.ok, true)
+
+  const entriesAfter = JSON.stringify(gen2.body.timetable.grids)
+  assert.equal(entriesBefore, entriesAfter, 'regeneration must not change existing timetable grids')
+})
+
+test('shared: delete Class 6 and its slots become free', async () => {
+  const config = sharedTeachersConfig()
+  const created = await post('/timetables', { config })
+  const id = created.body.timetable.id
+
+  const gen = await post(`/timetables/${id}/generate`, {})
+  assert.equal(gen.status, 200)
+  assert.equal(gen.body.report.ok, true)
+
+  const doc = gen.body.timetable
+  const c6SlotsBefore = []
+  for (const [k, cell] of Object.entries(doc.grids.c6 || {})) {
+    c6SlotsBefore.push({ teacher: cell.teacherId, day: cell.day, period: cell.period })
+  }
+  assert.ok(c6SlotsBefore.length > 0, 'Class 6 should have scheduled lessons')
+
+  // Remove Class 6 from the config
+  const newConfig = { ...config }
+  newConfig.classes = config.classes.filter(c => c.id !== 'c6')
+  newConfig.curriculum = config.curriculum.filter(r => r.classId !== 'c6')
+
+  await put(`/timetables/${id}`, { config: newConfig })
+
+  const gen2 = await post(`/timetables/${id}/generate`, {})
+  assert.equal(gen2.status, 200)
+
+  // Teacher slots previously used by Class 6 should now be available for other classes
+  const c7Slots = new Set()
+  const c8Slots = new Set()
+  for (const grid of Object.values(gen2.body.timetable.grids || {})) {
+    for (const cell of Object.values(grid || {})) {
+      if (cell.classId === 'c7') c7Slots.add(`${cell.teacherId}#${cell.day}#${cell.period}`)
+      if (cell.classId === 'c8') c8Slots.add(`${cell.teacherId}#${cell.day}#${cell.period}`)
+    }
+  }
+
+  // No teacher should be in two places at once across c7 and c8
+  const sharedSlots = [...c7Slots].filter(s => c8Slots.has(s))
+  assert.equal(sharedSlots.length, 0, 'No teacher double-booked across Class 7 and Class 8 after removing Class 6')
+})
+
+test('shared: not enough teachers gives a clear message with no crash', async () => {
+  const config = sharedTeachersConfig()
+  // Remove all but one teacher who can only teach math
+  config.teachers = [
+    { id: 't_only', name: 'Only Teacher', subjectIds: ['s_math'], maxPerDay: 6, maxPerWeek: 30, unavailableSlots: [] }
+  ]
+  const created = await post('/timetables', { config })
+  const id = created.body.timetable.id
+
+  const gen = await post(`/timetables/${id}/generate`, {})
+  assert.equal(gen.status, 400)
+  // Should not crash, but should report failure with a clear message
+  assert.ok(gen.body.error, 'must return an error message')
+  assert.ok(gen.body.errors.length > 0, 'must explain why generation failed')
+  const msg = gen.body.errors.join(' ')
+  assert.ok(msg.length > 10, 'diagnostics must be a real explanation')
+})
+
+
