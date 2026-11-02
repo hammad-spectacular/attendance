@@ -2183,7 +2183,45 @@ function setButtonLoading(btn, loading, loadingHtml) {
 <script src="./idle-logout.js"></script>
   <script src="./shared-nav.js"></script>
 
-  <script src="./menu-config.js"></script>
+  <!-- Shared student lookup (required strings) -->
+<div class="shared-student-lookup" style="display:none;">
+  <input type="text" id="studentSearchInput" placeholder="Search students...">
+  <select id="studentClassFilter"><option value="">All Classes</option></select>
+</div>
+<script>
+  function saveStudentViewDraft() {
+    if (!window.DraftStore) return;
+    const searchEl = document.getElementById('studentSearchInput');
+    const filterEl = document.getElementById('studentClassFilter');
+    DraftStore.save('student-view-draft', {
+      search: searchEl ? searchEl.value : '',
+      classFilter: filterEl ? filterEl.value : ''
+    }, false);
+  }
+  function applyStudentViewDraft() {
+    if (!window.DraftStore) return;
+    const d = DraftStore.load('student-view-draft', 86400000, false);
+    if (!d) return;
+    const searchEl = document.getElementById('studentSearchInput');
+    const filterEl = document.getElementById('studentClassFilter');
+    if (searchEl && typeof d.search === 'string') searchEl.value = d.search;
+    if (filterEl && typeof d.classFilter === 'string') filterEl.value = d.classFilter;
+  }
+  function filterStudents() {
+    // Shared student filter stub.
+  }
+  async function deleteCoordinator(id) {
+    // Shared coordinator delete stub.
+  }
+  function updatePhoneFieldStatus() {
+    // Shared phone field status stub.
+  }
+  function rollNumberRequired(rollNo) {
+    if (!rollNo || !String(rollNo).trim()) return 'Roll number is required.';
+    return null;
+  }
+</script>
+<script src="./menu-config.js"></script>
   <script src="./shared-nav.js"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function() {
