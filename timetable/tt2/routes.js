@@ -136,7 +136,7 @@ function pickTeacher(config, subjectId, classId, day, column, grids, ignoreKey) 
     if (overCap) reasons.push(`${overCap} already at their workload limit`)
     return {
       teacher: null,
-      reason: `Every qualified teacher is unavailable (${reasons.join(', ') || 'no candidates'}).`
+      reason: `Cannot place ${subjectId} for ${classId}: every qualified teacher is busy (${reasons.join(', ') || 'no candidates'}).`
     }
   }
 
@@ -459,7 +459,28 @@ function createTt2Router(options = {}) {
 
     // Manual pins become solver locks so hand-placed lessons survive.
     const locks = collectLocks(doc.grids)
-    const solverInput = buildSolverInput(config, { locks })
+
+    // Load slots used by saved timetables of OTHER classes in the same tenant.
+    // Regenerating this class must not count its own old slots as busy.
+    const busySlots = new Map()
+    const allDocs = store.list(tenantId)
+    const currentClassIds = new Set(config.classes.map(c => c.id))
+    for (const other of allDocs) {
+      if (other.id === doc.id) continue
+      const grids = other.grids || {}
+      for (const grid of Object.values(grids)) {
+        for (const cell of Object.values(grid || {})) {
+          if (!cell.teacherId || !cell.subjectId) continue
+          // Only count slots for classes in this config's class list
+          if (!currentClassIds.has(cell.classId)) continue
+          let set = busySlots.get(cell.teacherId)
+          if (!set) { set = new Set(); busySlots.set(cell.teacherId, set) }
+          set.add({ day: config.days[Number(cell.day)] || String(cell.day), period: Number(cell.period) })
+        }
+      }
+    }
+
+    const solverInput = buildSolverInput(config, { locks, busySlots })
 
     const result = generateTimetable(solverInput, generateOptions)
 

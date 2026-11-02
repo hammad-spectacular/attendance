@@ -403,6 +403,11 @@ function buildSolverInput(rawConfig, opts = {}) {
   const config = normaliseConfig(rawConfig)
   const { periods, teachingIndex } = buildPeriods(config)
 
+  // busySlots: Map<teacherId, Set<{day: string, period: number}>> from other
+  // classes' saved timetables in the same tenant/branch. These teachers are
+  // treated as busy in those slots so they are never double-booked across classes.
+  const busySlots = opts.busySlots || new Map()
+
   const solverInput = {
     days: config.days.slice(),
     periods: periods.map(p => ({ label: p.label, kind: p.kind })),
@@ -412,20 +417,30 @@ function buildSolverInput(rawConfig, opts = {}) {
       name: s.name,
       difficult: s.difficult === 'difficult'
     })),
-    teachers: config.teachers.map(t => ({
-      id: t.id,
-      name: t.name,
-      subjectIds: t.subjectIds.slice(),
-      maxPerDay: t.maxPerDay,
-      maxPerWeek: t.maxPerWeek,
-      // The solver wants a day/period pair; period is a COLUMN INDEX.
-      unavailableSlots: t.unavailableSlots
+    teachers: config.teachers.map(t => {
+      const busy = busySlots.get(t.id) || new Set()
+      const existing = new Set()
+      t.unavailableSlots
         .filter(s => teachingIndex[String(s.period)] !== undefined)
-        .map(s => ({
-          day: config.days[s.day] || s.day,
-          period: teachingIndex[String(s.period)]
-        }))
-    })),
+        .forEach(s => existing.add(s.day + '|' + s.period))
+      const merged = [...existing]
+      busy.forEach(s => {
+        const key = s.day + '|' + s.period
+        if (!existing.has(key)) merged.push(s.day + '|' + s.period)
+      })
+      return {
+        id: t.id,
+        name: t.name,
+        subjectIds: t.subjectIds.slice(),
+        maxPerDay: t.maxPerDay,
+        maxPerWeek: t.maxPerWeek,
+        // The solver wants a day/period pair; period is a COLUMN INDEX.
+        unavailableSlots: merged.map(key => {
+          const [day, period] = key.split('|')
+          return { day, period: Number(period) }
+        })
+      }
+    }),
     rooms: config.rooms.map(r => ({ id: r.id, name: r.name })),
     requirements: config.curriculum
       .filter(r => r.periodsPerWeek > 0)

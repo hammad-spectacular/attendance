@@ -1440,6 +1440,17 @@ function renderModalTeacher() {
   }
   const cfg = state.doc.config
   const teachers = cfg.teachers.filter(t => t.subjectIds.includes(m.subjectId))
+  const totalSlots = cfg.days.length * cfg.periodCount
+  const busyCounts = {}
+  for (const t of teachers) {
+    let n = 0
+    for (const [cid, grid] of Object.entries(state.doc.grids || {})) {
+      for (const [k, cell] of Object.entries(grid)) {
+        if (cell.teacherId === t.id) n += 1
+      }
+    }
+    busyCounts[t.id] = n
+  }
   const busy = teacherId => {
     for (const [cid, grid] of Object.entries(state.doc.grids || {})) {
       for (const [k, cell] of Object.entries(grid)) {
@@ -1449,6 +1460,10 @@ function renderModalTeacher() {
     }
     return false
   }
+  const unavailable = (teacherId) => {
+    const t = cfg.teachers.find(x => x.id === teacherId)
+    return t && t.unavailableSlots.some(s => s.day === m.day && s.period === m.column)
+  }
 
   area.innerHTML = `
     <div class="field" style="margin-bottom:12px">
@@ -1456,9 +1471,10 @@ function renderModalTeacher() {
       ${teachers.length ? `<select id="modal-teacher" style="max-width:100%">
         ${teachers.map(t => {
           const isBusy = busy(t.id)
-          const unavailable = t.unavailableSlots.some(s => s.day === m.day && s.period === m.column)
-          const disabled = isBusy || unavailable
-          const note = isBusy ? ' — busy' : (unavailable ? ' — unavailable' : '')
+          const unav = unavailable(t.id)
+          const disabled = isBusy || unav
+          const n = busyCounts[t.id] || 0
+          const note = disabled ? (isBusy ? ` — Busy ${n} of ${totalSlots} slots` : ` — Unavailable`) : ` — Free ${totalSlots - n} of ${totalSlots} slots`
           return `<option value="${esc(t.id)}" ${m.teacherId === t.id ? 'selected' : ''} ${disabled ? 'disabled' : ''}>${esc(t.name)}${note}</option>`
         }).join('')}
       </select>` : '<span class="muted">No teacher is qualified for this subject.</span>'}
