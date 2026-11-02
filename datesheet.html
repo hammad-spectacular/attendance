@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Date sheet maker</title>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./shared-nav.css">
+<style>
+:root{color-scheme:light;--bg:#f2f5f8;--card:#fff;--ink:#14213d;--mute:#5b6678;--line:#d5dce6;--acc:#0f766e;--accfg:#fff;--easy:#2f7d3b;--med:#a86400;--hard:#b42318;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Hanken Grotesk",system-ui,sans-serif}
+main{max-width:860px;margin:0 auto;padding:28px 16px 60px}
+h1{font-size:2rem;font-weight:800;margin:0 0 4px;letter-spacing:-.02em}
+.sub{color:var(--mute);margin:0 0 24px}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:16px}
+h2{font-size:1.05rem;margin:0 0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+label{display:block;font-size:.85rem;color:var(--mute);margin-bottom:4px}
+input,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.days{display:flex;flex-wrap:wrap;gap:8px 14px}
+.days label{display:flex;align-items:center;gap:6px;color:var(--ink);margin:0}
+.days input{width:auto}
+.row{display:grid;grid-template-columns:2fr 1.1fr 1.3fr auto;gap:8px;margin-bottom:8px;align-items:center}
+.row.head{font-size:.8rem;color:var(--mute);margin-bottom:4px}
+button{font:inherit;border-radius:6px;padding:9px 14px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+button.primary{background:var(--acc);color:var(--accfg);border-color:var(--acc);font-weight:600}
+button:disabled{opacity:.45;cursor:not-allowed}
+.x{padding:6px 10px}
+.note{color:var(--mute);font-size:.85rem;margin:8px 0 0}
+#msg{color:var(--hard);margin:8px 0;font-weight:600}
+.wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line)}
+th{font-size:.85rem;color:var(--mute);font-weight:600}
+.tag{font-weight:600}.Easy{color:var(--easy)}.Medium{color:var(--med)}.Hard{color:var(--hard)}
+.title{font-size:1.2rem;font-weight:800;margin:0 0 2px}
+.warn-box{margin:0 0 8px;padding:10px 14px;border-radius:6px;font-weight:600;font-size:.9rem}
+.warn-box.hard{color:var(--hard);background:#fff5f5;border:1px solid #fecaca}
+.warn-box.soft{color:var(--med);background:#fffbeb;border:1px solid #fde68a}
+.warn-box ul{margin:4px 0 0;padding-left:18px}
+.warn-box li{margin-bottom:2px}
+td input[type=date]{padding:5px 6px;min-width:140px}.bar{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+@media (max-width:620px){.row{grid-template-columns:1fr 1fr}.row.head{display:none}}
+@media print{td input{border:none;background:none;color:#000;padding:0}.warn-box{display:none}body{background:#fff;color:#000}.noprint{display:none}section{border:none;padding:0}.Easy,.Medium,.Hard{color:#000}}
+.card{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px}
+.ch{display:grid;grid-template-columns:auto 1.4fr 1.4fr;gap:8px;align-items:center;margin-bottom:8px}
+.ch input[type=checkbox],.sel input{width:auto}
+.sr{display:grid;grid-template-columns:1.6fr 1fr 1.2fr 1.2fr;gap:6px;margin-bottom:6px}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.tabs button[aria-pressed=true]{background:var(--acc);color:var(--accfg);border-color:var(--acc)}
+.badge{font-size:.8rem;color:var(--mute);margin-left:4px}
+#access-denied{display:none;padding:40px 20px;text-align:center;color:var(--hard);font-weight:600;font-size:1.1rem}
+@media (max-width:620px){.ch,.sr{grid-template-columns:1fr 1fr}}
+@media print{.noprint{display:none}}
+</style>
+</head>
+<body>
+<div id="navContainer"></div>
+<div id="access-denied">Access denied. Admins only.</div>
+<main id="main-content">
+<div class="noprint">
+<h1>Date sheet maker</h1>
+<p class="sub">Pick one, several or all classes. Each class keeps its own subjects.</p>
+<section><h2>1. Exam details</h2><div class="grid">
+<div><label for="title">Exam title</label><input id="title" value="Mid-term Examination"></div>
+<div><label for="start">First exam date</label><input id="start" type="date"></div>
+<div><label for="end">Last possible date</label><input id="end" type="date"></div></div></section>
+<section><h2>2. Which days are off?</h2><div class="days" id="off"></div>
+<p class="note">Add holidays as dates separated by commas (YYYY-MM-DD).</p>
+<input id="hol" placeholder="2026-12-25, 2026-12-26" style="margin-top:8px"></section>
+<section><h2>3. Papers per day and timing</h2><div class="grid">
+<div><label for="per">Papers per day (per class)</label><select id="per"><option>1</option><option>2</option><option>3</option></select></div>
+<div><label for="t1">First paper starts</label><input id="t1" type="time" value="09:00"></div>
+<div><label for="dur">Paper length (hours)</label><input id="dur" type="number" min="1" max="6" step="0.5" value="3"></div>
+<div><label for="lat">Latest finish time</label><input id="lat" type="time" value="17:00"></div>
+<div><label for="order">Paper order</label><select id="order"><option value="spread">Hard papers first, spread apart with gap days</option><option value="easy">Easy to hard</option><option value="hard">Hard to easy</option></select></div></div></section>
+<section><h2>4. Classes and subjects</h2>
+<label class="sel" style="display:flex;gap:6px;align-items:center;color:var(--ink)"><input type="checkbox" id="all"> Select all classes</label>
+<div id="classes" style="margin-top:10px"></div>
+<p class="note" id="classes-loading">Loading classes from database...</p>
+<p class="note">Tick the classes to include. Teachers and rooms are used to avoid clashes between classes.</p></section>
+<div id="msg" role="alert"></div>
+<button class="primary" id="go">Make date sheet</button>
+</div>
+<section id="out" hidden>
+<div class="tabs noprint" id="tabs"></div>
+<p class="title" id="otitle"></p><p class="sub" id="osub"></p>
+<div id="warn-hard" class="warn-box hard" hidden></div>
+<div id="warn-soft" class="warn-box soft" hidden></div>
+<p class="note noprint">Change any date to move a paper. The sheet re-checks itself.</p>
+<div class="wrap"><table><thead id="thead"></thead><tbody id="body"></tbody></table></div>
+<div class="bar noprint" id="bar"></div>
+</section>
+</main>
+<script id="engine">
+function norm(x){return (x||'').trim().toLowerCase()}
+function schedule(cfg){
+ var rows=[],errs=[],occ={},load={},per=cfg.per,st=[];
+ function clash(date,k,c,s){return (occ[date+'|'+k]||[]).some(function(e){return e.c!==c.name&&((norm(s.t)&&e.t===norm(s.t))||(norm(c.room)&&e.r===norm(c.room)))})}
+ function clean(c,d,s){for(var k=0;k<per;k++)if(d.used.indexOf(k)<0&&!clash(d.date,k,c,s))return k;return -1}
+ function any(d){for(var k=0;k<per;k++)if(d.used.indexOf(k)<0)return k;return -1}
+ function place(c,d,s){var k=clean(c,d,s);if(k<0)k=any(d);d.used.push(k);load[d.date]=(load[d.date]||0)+1;
+  rows.push({cls:c.name,date:d.date,k:k,n:s.n,l:s.l,t:s.t||'',r:c.room||'',f:!!s.f});
+  (occ[d.date+'|'+k]=occ[d.date+'|'+k]||[]).push({c:c.name,t:norm(s.t),r:norm(c.room)})}
+ function best(days,pred){var b=null,bd=-1;days.forEach(function(d){if(per-d.used.length-d.ph<=0||(pred&&!pred(d)))return;var m=99;
+  days.forEach(function(o){if(o.used.length+o.ph)m=Math.min(m,Math.abs(o.i-d.i))});if(m>bd||(m===bd&&(load[d.date]||0)<(load[b.date]||0))){bd=m;b=d}});return b}
+ var lv={Easy:1,Medium:2,Hard:3};
+ cfg.classes.forEach(function(c){
+  var days=cfg.avail.map(function(x,i){return{date:x,i:i,used:[],ph:0}}),ok=true;
+  var fx=c.subs.filter(function(s){return s.f}),fr=c.subs.filter(function(s){return !s.f});
+  fx.forEach(function(s){var d=days.filter(function(y){return y.date===s.f})[0];
+   if(!d){errs.push(c.name+': '+s.n+' has a fixed date that is a day off, a holiday or outside the range.');ok=false;return}
+   if(d.used.length>=per){errs.push(c.name+': too many fixed papers on '+s.f+'.');ok=false;return}place(c,d,s)});
+  var free=days.reduce(function(t,d){return t+per-d.used.length},0);
+  if(ok&&fr.length>free){errs.push(c.name+': '+fr.length+' papers need a place but only '+free+' slots are free.');ok=false}
+  st.push({c:c,days:days,fr:fr,ok:ok})});
+ st.forEach(function(x){if(!x.ok)return;var c=x.c,days=x.days,fr=x.fr;
+  if(cfg.order==='spread'){fr.sort(function(a,b){return lv[b.l]-lv[a.l]});
+   fr.forEach(function(s){var d=best(days,function(d){return clean(c,d,s)>=0})||best(days);place(c,d,s)})}
+  else{fr.sort(function(a,b){return cfg.order==='easy'?lv[a.l]-lv[b.l]:lv[b.l]-lv[a.l]});
+   var ch=[];fr.forEach(function(){var d=best(days);d.ph++;ch.push(d)});
+   ch.sort(function(a,b){return a.i-b.i});days.forEach(function(d){d.ph=0});
+   fr.forEach(function(s){var i=0;for(var j=0;j<ch.length;j++){if(clean(c,ch[j],s)>=0){i=j;break}}place(c,ch.splice(i,1)[0],s)});
+   function mv(r,d,k){var a=occ[r.date+'|'+r.k],i=a.findIndex(function(e){return e.c===c.name&&e.t===norm(r.t)});var e=a.splice(i,1)[0];(occ[d+'|'+k]=occ[d+'|'+k]||[]).push(e)}
+   var mine=rows.filter(function(r){return r.cls===c.name&&!r.f});
+   mine.forEach(function(r){if(!clash(r.date,r.k,c,r))return;
+    for(var j=0;j<mine.length;j++){var q=mine[j];if(q===r)continue;
+     if(!clash(q.date,q.k,c,r)&&!clash(r.date,r.k,c,q)){var a=[r.date,r.k],b=[q.date,q.k];mv(r,b[0],b[1]);mv(q,a[0],a[1]);r.date=b[0];r.k=b[1];q.date=a[0];q.k=a[1];break}}})}}});
+ return{rows:rows,errs:errs}}
+</script>
+<script>
+var DN=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+var $=function(i){return document.getElementById(i)};
+var off=$('off');
+DN.forEach(function(n,i){var l=document.createElement('label');l.innerHTML='<input type="checkbox" value="'+i+'"'+(i===0?' checked':'')+'>'+' '+n;off.appendChild(l)});
+var iso=function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+var pd=function(s){return new Date(s+'T00:00')};
+var fmt=function(d){return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})};
+function tm(h,m){var a=h>=12?'PM':'AM';h=h%12||12;return h+':'+String(m).padStart(2,'0')+' '+a}
+function hm(m){return tm(Math.floor(m/60),m%60)}
+function h(t,a,k){var e=document.createElement(t);for(var x in a)e.setAttribute(x,a[x]);(k||[]).forEach(function(c){e.append(c)});return e}
+function bind(e,o,k){e.value=o[k]||'';e.oninput=function(){o[k]=e.value};return e}
+function S(n,l,t){return{n:n,l:l,t:t,f:''}}
+var CL=[];
+(function initClasses(){
+ fetch('/api/datesheet/bootstrap',{credentials:'include'})
+  .then(function(r){return r.json()})
+  .then(function(data){
+   var loadEl=$('classes-loading');if(loadEl)loadEl.style.display='none';
+   if(!data.ok||!Array.isArray(data.classes))return;
+   CL=data.classes.map(function(c){
+    return{id:c.id,name:c.name,room:'',sel:true,
+     subs:(c.subjects||[]).map(function(s){return S(s.name,'Medium','')})}});
+   renderClasses();
+  })
+  .catch(function(err){
+   var loadEl=$('classes-loading');if(loadEl)loadEl.textContent='Failed to load classes.';
+   console.error('datesheet bootstrap error:',err);
+  });
+})();
+function getSubjects(c){return c.subs}
+function renderClasses(){
+ var box=$('classes');box.innerHTML='';
+ if(!CL.length){box.innerHTML='<p class="note">No classes found.</p>';return}
+ CL.forEach(function(c){var card=h('div',{class:'card'});
+  var cb=h('input',{type:'checkbox','aria-label':'Include class'});cb.checked=!!c.sel;cb.onchange=function(){c.sel=cb.checked};
+  var nameSpan=document.createElement('span');nameSpan.textContent=c.name;nameSpan.style.fontWeight='600';
+  card.append(h('div',{class:'ch'},[cb,nameSpan,bind(h('input',{placeholder:'Exam room','aria-label':'Exam room'}),c,'room')]));
+  c.subs.forEach(function(s){
+   var sl=h('select',{'aria-label':'Difficulty'},['Easy','Medium','Hard'].map(function(v){var o=h('option',{},[v]);if(v===s.l)o.selected=true;return o}));
+   var sel=bind(sl,s,'l');var ft=h('input',{type:'date','aria-label':'Fixed date'});
+   card.append(h('div',{class:'sr'},[bind(h('input',{placeholder:'Subject','aria-label':'Subject'}),s,'n'),sel,bind(ft,s,'f'),bind(h('input',{placeholder:'Teacher','aria-label':'Teacher'}),s,'t')]))});
+  box.append(card)})}
+$('all').onchange=function(){CL.forEach(function(c){c.sel=$('all').checked});renderClasses()};
+var St={},V='all',pub={},lastText='';
+function fail(t){$('msg').textContent=t;$('out').hidden=true}
+function cmp(a,b){return a.date<b.date?-1:a.date>b.date?1:a.k-b.k}
+function sig(rs){return JSON.stringify(rs.map(function(r){return[r.cls,r.date,r.k,r.n]}))}
+function check(rows){
+ var hard=[],soft=[],by={},tk={};
+ rows.forEach(function(r){
+  var en=St.h0*60+St.m0+Math.round(r.k*(St.dur+0.5)*60)+Math.round(St.dur*60);
+  if(en>St.latest)hard.push({c:[r.cls],m:r.cls+' '+r.n+' ends after '+hm(St.latest)+'. Change the date or shorten the paper.'});
+  if(St.avail.indexOf(r.date)<0)hard.push({c:[r.cls],m:r.cls+' '+r.n+' is on '+fmt(pd(r.date))+', a day off, holiday or outside the range.'});
+  (by[r.cls+'|'+r.date]=by[r.cls+'|'+r.date]||[]).push(r);
+  var key=r.date+'|'+r.k;(tk[key]=tk[key]||[]).push(r)});
+ Object.keys(by).forEach(function(k){var a=by[k],c=a[0].cls,d=a[0].date;
+  if(a.length>St.per)hard.push({c:[c],m:c+' has '+a.length+' papers on '+fmt(pd(d))+', above the limit of '+St.per+'. ('+a[0].n+')'});
+  if(a.filter(function(r){return r.l==='Hard'}).length>1)soft.push({c:[c],m:c+' has two Hard papers on '+fmt(pd(d))+'.'})});
+ rows.forEach(function(r){if(r.l!=='Hard')return;var i=St.avail.indexOf(r.date);
+  if(i>0&&by[r.cls+'|'+St.avail[i-1]])soft.push({c:[r.cls],m:r.cls+' '+r.n+' (Hard) on '+fmt(pd(r.date))+', no preparation day before it. Move it later.'})});
+ Object.keys(tk).forEach(function(k){var a=tk[k];if(a.length<2)return;
+  for(var i=0;i<a.length;i++)for(var j=i+1;j<a.length;j++){var x=a[i],y=a[j];if(x.cls===y.cls)continue;
+   if(norm(x.t)&&norm(x.t)===norm(y.t))hard.push({c:[x.cls,y.cls],m:'Clash: '+x.t+' teaches '+x.n+' for '+x.cls+' and '+y.n+' for '+y.cls+' at the same time on '+fmt(pd(x.date))+'.'});
+   if(norm(x.r)&&norm(x.r)===norm(y.r))hard.push({c:[x.cls,y.cls],m:'Clash: '+x.r+' hosts '+x.n+' for '+x.cls+' and '+y.n+' for '+y.cls+' at the same time on '+fmt(pd(x.date))+'.'});}});
+ return{hard:hard,soft:soft}}
+async function publish(scope,rs){
+ pub[scope]={at:new Date(),sig:sig(rs)};
+ var titleVal=$('title').value||'Date sheet';
+ try{
+  var resp=await fetch('/api/datesheet/publish',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
+   body:JSON.stringify({title:titleVal,scope:scope,class_name:scope,rows:rs})});
+  var data=await resp.json();
+  if(data.ok&&data.revision)pub[scope].revision=data.revision;
+ }catch(err){console.error('Publish API error:',err)}
+ document.dispatchEvent(new CustomEvent('datesheet:publish',{detail:{scope:scope,title:titleVal,rows:rs}}));
+ render()}
+function status(scope,rs){
+ var p=pub[scope];if(!p)return'Draft';
+ var base=p.sig===sig(rs)?'Published':'Edited since publishing';
+ if(p.revision)base+=' (rev '+p.revision+')';
+ else if(p.at)base+=' '+p.at.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+ return base}
+function render(){
+ var all=St.rows.sort(cmp),w=check(all),names=St.names;
+ var rows=V==='all'?all:all.filter(function(r){return r.cls===V});
+ var tabs=$('tabs');tabs.innerHTML='';
+ ['all'].concat(names).forEach(function(n){var rs=n==='all'?all:all.filter(function(r){return r.cls===n});
+  var b=h('button',{'aria-pressed':String(V===n)},[n==='all'?'Combined':n]);b.onclick=function(){V=n;render()};
+  tabs.append(b,h('span',{class:'badge'},[status(n,rs)]))});
+ var vHard=w.hard.filter(function(x){return V==='all'||x.c.indexOf(V)>=0}).map(function(x){return x.m}).filter(function(v,i,a){return a.indexOf(v)===i});
+ var vSoft=w.soft.filter(function(x){return V==='all'||x.c.indexOf(V)>=0}).map(function(x){return x.m}).filter(function(v,i,a){return a.indexOf(v)===i});
+ var wh=$('warn-hard'),ws=$('warn-soft');
+ if(vHard.length){wh.innerHTML='<strong>Problems to fix</strong><ul>'+vHard.map(function(m){return'<li>'+m+'</li>'}).join('')+'</ul>';wh.hidden=false}else{wh.hidden=true}
+ if(vSoft.length){ws.innerHTML='<strong>Soft problems</strong><ul>'+vSoft.map(function(m){return'<li>'+m+'</li>'}).join('')+'</ul>';ws.hidden=false}else{ws.hidden=true}
+ var hasHard=vHard.length>0;
+ var combined=V==='all';
+ $('thead').innerHTML='<tr><th>Date</th><th>Day</th>'+(combined?'<th>Class</th>':'')+'<th>Subject</th><th>Level</th><th>Time</th><th>Teacher</th></tr>';
+ $('body').innerHTML='';var txt=[];
+ rows.forEach(function(r){var tr=h('tr');var td=h('td'),inp=h('input',{type:'date','aria-label':'Date for '+r.cls+' '+r.n});inp.value=r.date;
+  inp.onchange=function(){if(!inp.value){inp.value=r.date;return}
+   var u=all.filter(function(o){return o!==r&&o.cls===r.cls&&o.date===inp.value}).map(function(o){return o.k}),k=0;
+   var occ=all.filter(function(o){return o!==r&&o.date===inp.value});
+   for(var q=0;q<=St.per;q++){if(u.indexOf(q)>=0)continue;var bad=occ.some(function(o){return o.k===q&&o.cls!==r.cls&&((norm(r.t)&&norm(o.t)===norm(r.t))||(norm(r.r)&&norm(o.r)===norm(r.r)))});if(!bad){k=q;break}k=k||q}
+   r.date=inp.value;r.k=u.indexOf(k)>=0?(u.length):k;render()};
+  td.append(inp);tr.append(td);
+  var st=St.h0*60+St.m0+Math.round(r.k*(St.dur+0.5)*60),time=hm(st)+' to '+hm(st+Math.round(St.dur*60)),day=DN[pd(r.date).getDay()];
+  var cells=[day].concat(combined?[r.cls]:[],[r.n,r.l,time,r.t]);
+  cells.forEach(function(v,i){var c=h('td',{},[v]);if(v===r.l&&i>0)c.className='tag '+v;tr.append(c)});
+  $('body').append(tr);txt.push(fmt(pd(r.date))+' ('+day+') | '+(combined?r.cls+' | ':'')+r.n+' | '+r.l+' | '+time+(r.t?' | '+r.t:''))});
+ $('otitle').textContent=($('title').value||'Date sheet')+(combined?'':' · '+V);
+ $('osub').textContent=rows.length?fmt(pd(rows[0].date))+' to '+fmt(pd(rows[rows.length-1].date)):'';
+ lastText=$('otitle').textContent+'\n'+txt.join('\n');
+ var bar=$('bar');bar.innerHTML='';
+ var pb=h('button',{class:'primary'},[combined?'Publish combined date sheet':'Publish '+V+' date sheet']);
+ if(hasHard)pb.disabled=true;
+ pb.onclick=function(){if(!hasHard)publish(V,rows)};
+ var pa=h('button',{},[' Publish every class separately']);
+ if(hasHard)pa.disabled=true;
+ pa.onclick=function(){if(!hasHard)names.forEach(function(n){publish(n,all.filter(function(r){return r.cls===n}))})};
+ var pr=h('button',{},['Print or save as PDF']);pr.onclick=function(){window.print()};
+ var cp=h('button',{},['Copy as text']);cp.onclick=function(){try{navigator.clipboard.writeText(lastText);cp.textContent='Copied'}catch(x){cp.textContent='Copy failed'}};
+ bar.append(pb,pa,pr,cp)}
+$('go').onclick=function(){
+ $('msg').textContent='';
+ var s=$('start').value,e=$('end').value;
+ if(!s||!e)return fail('Choose the first and last date.');
+ if(pd(e)<pd(s))return fail('The last date is before the first date. Swap them.');
+ var sel=CL.filter(function(c){return c.sel});
+ if(!sel.length)return fail('Tick at least one class.');
+ var nm=sel.map(function(c){return(c.name||'').trim()});
+ if(nm.some(function(n){return !n}))return fail('Give every selected class a name.');
+ if(nm.some(function(n,i){return nm.indexOf(n)!==i}))return fail('Two selected classes have the same name.');
+ var classes=sel.map(function(c){return{name:c.name.trim(),room:(c.room||'').trim(),subs:getSubjects(c).filter(function(x){return(x.n||'').trim()}).map(function(x){return{n:x.n.trim(),l:x.l,t:x.t,f:x.f}})}});
+ var empty=classes.filter(function(c){return!c.subs.length});
+ if(empty.length)return fail(empty[0].name+' has no subjects.');
+ var offd=[].slice.call(off.querySelectorAll('input:checked')).map(function(c){return+c.value});
+ var hol=$('hol').value.split(',').map(function(x){return x.trim()}).filter(Boolean);
+ var tt=$('t1').value.split(':'),la=$('lat').value.split(':');
+ var h0=+tt[0],m0=+tt[1],dur=+$('dur').value,latest=+la[0]*60+ +la[1];
+ if(!(dur>0))return fail('Paper length must be more than zero.');
+ if(h0*60+m0+dur*60>latest)return fail('One paper does not fit between the start time and the latest finish time.');
+ var avail=[];for(var d=pd(s);d<=pd(e);d.setDate(d.getDate()+1)){if(offd.indexOf(d.getDay())<0&&hol.indexOf(iso(d))<0)avail.push(iso(d))}
+ if(!avail.length)return fail('No exam days are left after removing days off and holidays.');
+ var per=+$('per').value,res=schedule({avail:avail,per:per,order:$('order').value,classes:classes});
+ if(res.errs.length)return fail(res.errs.join(' '));
+ St={rows:res.rows,avail:avail,per:per,h0:h0,m0:m0,dur:dur,latest:latest,names:nm};V='all';pub={};
+ render();$('out').hidden=false;$('out').scrollIntoView({behavior:'smooth'})};
+var today=new Date();$('start').value=iso(new Date(today.getFullYear(),today.getMonth(),today.getDate()+7));
+$('end').value=iso(new Date(today.getFullYear(),today.getMonth(),today.getDate()+21));
+</script>
+<script src="./api-config.js"></script>
+<script src="./menu-config.js"></script>
+<script src="./shared-nav.js"></script>
+<script>
+(function(){
+ fetch('/api/auth/me',{credentials:'include'})
+  .then(function(r){return r.json()})
+  .then(function(data){
+   if(!data||!data.role||(data.role!=='admin'&&data.role!=='super_admin')){
+    document.getElementById('main-content').style.display='none';
+    document.getElementById('access-denied').style.display='block';
+    return;
+   }
+   if(window.initSharedNav)window.initSharedNav('admin');
+  })
+  .catch(function(){
+   document.getElementById('main-content').style.display='none';
+   document.getElementById('access-denied').style.display='block';
+  });
+})();
+</script>
+</body>
+</html>
+

@@ -2961,6 +2961,89 @@
         </div>
       </div>
     </div>
+
+    <!-- ==================== COMPLAINTS TAB ==================== -->
+    <div id="tab-complaints" class="tab-content">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-icon red"><i class="fas fa-circle-exclamation"></i></div>
+            <div>
+              <div class="section-title">Complaints</div>
+              <div class="section-subtitle">Teacher and student complaints. Newest first.</div>
+            </div>
+          </div>
+        </div>
+        <div class="section-body">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+            <select id="complaintRoleFilter" class="form-input" style="min-width:170px;">
+              <option value="">All Roles</option>
+              <option value="teacher">Teacher Complaints</option>
+              <option value="student">Student Complaints</option>
+            </select>
+            <select id="complaintCategoryFilter" class="form-input" style="min-width:170px;">
+              <option value="">All Categories</option>
+              <option value="Academic">Academic</option>
+              <option value="Behaviour">Behaviour</option>
+              <option value="Facilities">Facilities</option>
+              <option value="Staff">Staff</option>
+              <option value="Safety">Safety</option>
+              <option value="Other">Other</option>
+            </select>
+            <select id="complaintStatusFilter" class="form-input" style="min-width:170px;">
+              <option value="">All Status</option>
+              <option value="new">New</option>
+              <option value="in_review">In review</option>
+              <option value="resolved">Resolved</option>
+            </select>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table" style="width:100%;border-collapse:collapse;">
+              <thead>
+                <tr>
+                  <th style="text-align:left;padding:8px;border-bottom:2px solid var(--border);">#</th>
+                  <th style="text-align:left;padding:8px;border-bottom:2px solid var(--border);">Role</th>
+                  <th style="text-align:left;padding:8px;border-bottom:2px solid var(--border);">Category</th>
+                  <th style="text-align:left;padding:8px;border-bottom:2px solid var(--border);">Subject</th>
+                  <th style="text-align:left;padding:8px;border-bottom:2px solid var(--border);">Sender</th>
+                  <th style="text-align:left;padding:8px;border-bottom:2px solid var(--border);">Date</th>
+                  <th style="text-align:left;padding:8px;border-bottom:2px solid var(--border);">Status</th>
+                  <th style="text-align:left;padding:8px;border-bottom:2px solid var(--border);">Action</th>
+                </tr>
+              </thead>
+              <tbody id="complaintsTableBody">
+                <!-- Rendered by JS -->
+              </tbody>
+            </table>
+          </div>
+          <div id="complaintDetailWrap" style="display:none;margin-top:20px;border:1px solid var(--border);border-radius:10px;padding:16px;background:var(--bg-card-hover);">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+              <div>
+                <div id="complaintDetailSubject" style="font-size:1.1rem;font-weight:700;color:var(--text);"></div>
+                <div id="complaintDetailMeta" style="font-size:0.82rem;color:var(--text-secondary);margin-top:4px;"></div>
+              </div>
+              <button class="btn btn-ghost btn-sm" onclick="closeComplaintDetail()"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="complaintDetailDescription" style="font-size:0.9rem;line-height:1.6;color:var(--text);margin-bottom:16px;"></div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <div class="form-group" style="flex:1;min-width:200px;margin-bottom:10px;">
+                <label class="form-label" for="complaintStatusSelect">Status</label>
+                <select class="form-input" id="complaintStatusSelect">
+                  <option value="new">New</option>
+                  <option value="in_review">In review</option>
+                  <option value="resolved">Resolved</option>
+                </select>
+              </div>
+              <div class="form-group" style="min-width:260px;margin-bottom:10px;">
+                <label class="form-label" for="complaintAdminNotes">Admin note (private)</label>
+                <textarea class="form-input" id="complaintAdminNotes" rows="3" placeholder="Private note for admins only..."></textarea>
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="saveComplaintUpdate()"><i class="fas fa-save"></i> Save changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="edit-modal" id="feePaymentModal" style="display:none; position:fixed; inset:0; z-index:100; align-items:center; justify-content:center; background:rgba(15,23,42,0.7);">
@@ -3713,6 +3796,7 @@
       else if (activeTabId === 'tab-announcements') renderAnnouncements();
       else if (activeTabId === 'tab-fees') renderFees();
       else if (activeTabId === 'tab-coordinators') loadCoordinators();
+      else if (activeTabId === 'tab-complaints') loadComplaints();
       updateSaveBar();
     }
 
@@ -8164,6 +8248,112 @@
       if (window.initSharedNav) {
         window.initSharedNav('admin');
       }
+    });
+  </script>
+
+  <script>
+    // ================= COMPLAINTS ADMIN PANEL =================
+    let allComplaints = [];
+    let currentComplaintId = null;
+
+    async function loadComplaints() {
+      try {
+        const res = await apiFetch('/api/complaints');
+        if (!res.ok) return;
+        const data = await res.json();
+        allComplaints = Array.isArray(data.complaints) ? data.complaints : [];
+        renderComplaints();
+      } catch (e) {
+        console.error('Complaints load error:', e);
+      }
+    }
+
+    function renderComplaints() {
+      const roleFilter = document.getElementById('complaintRoleFilter');
+      const catFilter = document.getElementById('complaintCategoryFilter');
+      const statusFilter = document.getElementById('complaintStatusFilter');
+      const body = document.getElementById('complaintsTableBody');
+      if (!body) return;
+
+      const roleVal = roleFilter ? roleFilter.value : '';
+      const catVal = catFilter ? catFilter.value : '';
+      const statusVal = statusFilter ? statusFilter.value : '';
+
+      const filtered = allComplaints.filter(c => {
+        if (roleVal && c.role !== roleVal) return false;
+        if (catVal && c.category !== catVal) return false;
+        if (statusVal && c.status !== statusVal) return false;
+        return true;
+      }).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+      body.innerHTML = '';
+      filtered.forEach((c, idx) => {
+        const tr = document.createElement('tr');
+        const sender = c.is_anonymous ? 'Anonymous' : (c.author_name || c.role + ' ' + c.user_id);
+        const date = c.created_at ? new Date(c.created_at).toLocaleDateString() : '';
+        const statusLabel = (c.status || 'new').replace(/_/g, ' ');
+        tr.innerHTML = `
+          <td style="padding:8px;border-bottom:1px solid var(--border);">${idx + 1}</td>
+          <td style="padding:8px;border-bottom:1px solid var(--border);">${c.role}</td>
+          <td style="padding:8px;border-bottom:1px solid var(--border);">${c.category}</td>
+          <td style="padding:8px;border-bottom:1px solid var(--border);">${c.subject}</td>
+          <td style="padding:8px;border-bottom:1px solid var(--border);">${sender}</td>
+          <td style="padding:8px;border-bottom:1px solid var(--border);">${date}</td>
+          <td style="padding:8px;border-bottom:1px solid var(--border);">${statusLabel}</td>
+          <td style="padding:8px;border-bottom:1px solid var(--border);">
+            <button class="btn btn-ghost btn-sm" onclick="openComplaintDetail(${c.id})">View</button>
+          </td>
+        `;
+        body.appendChild(tr);
+      });
+    }
+
+    function openComplaintDetail(id) {
+      const c = allComplaints.find(x => x.id === id);
+      if (!c) return;
+      currentComplaintId = id;
+      document.getElementById('complaintDetailSubject').textContent = c.subject;
+      const sender = c.is_anonymous ? 'Anonymous' : (c.author_name || c.role + ' ' + c.user_id);
+      const date = c.created_at ? new Date(c.created_at).toLocaleString() : '';
+      document.getElementById('complaintDetailMeta').textContent =
+        c.role + ' • ' + c.category + ' • ' + sender + ' • ' + date;
+      document.getElementById('complaintDetailDescription').textContent = c.description;
+      document.getElementById('complaintStatusSelect').value = c.status || 'new';
+      document.getElementById('complaintAdminNotes').value = c.admin_notes || '';
+      document.getElementById('complaintDetailWrap').style.display = 'block';
+    }
+
+    function closeComplaintDetail() {
+      document.getElementById('complaintDetailWrap').style.display = 'none';
+      currentComplaintId = null;
+    }
+
+    async function saveComplaintUpdate() {
+      if (!currentComplaintId) return;
+      const status = document.getElementById('complaintStatusSelect').value;
+      const notes = document.getElementById('complaintAdminNotes').value;
+      try {
+        const res = await apiFetch('/api/complaints/' + currentComplaintId, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status, admin_notes: notes })
+        });
+        if (res.ok) {
+          loadComplaints();
+          closeComplaintDetail();
+        }
+      } catch (e) {
+        console.error('Complaint update error:', e);
+      }
+    }
+
+    // Wire up filters
+    document.addEventListener('DOMContentLoaded', function() {
+      ['complaintRoleFilter', 'complaintCategoryFilter', 'complaintStatusFilter'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', renderComplaints);
+      });
+      loadComplaints();
     });
   </script>
 </body>

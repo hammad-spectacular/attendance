@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Complaint</title>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./shared-nav.css">
+<style>
+:root{color-scheme:light;--bg:#f2f5f8;--card:#fff;--ink:#14213d;--mute:#5b6678;--line:#d5dce6;--acc:#0f766e;--accfg:#fff;--hard:#b42318;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Hanken Grotesk",system-ui,sans-serif}
+main{max-width:560px;margin:0 auto;padding:28px 16px 60px}
+h1{font-size:1.7rem;font-weight:800;margin:0 0 4px;letter-spacing:-.02em}
+.sub{color:var(--mute);margin:0 0 24px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:22px;margin-bottom:16px}
+label{display:block;font-size:.875rem;color:var(--mute);margin-bottom:4px}
+input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}
+textarea{resize:vertical;min-height:120px}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.field{margin-bottom:14px}
+.check-row{display:flex;align-items:center;gap:8px}
+.check-row input{width:auto}
+.anon-note{font-size:.82rem;color:var(--mute);margin-top:6px;display:none}
+button.primary{font:inherit;border-radius:6px;padding:10px 20px;border:none;background:var(--acc);color:var(--accfg);font-weight:600;cursor:pointer;width:100%}
+button.primary:disabled{opacity:.45;cursor:not-allowed}
+#status-msg{margin-top:12px;font-weight:600;font-size:.9rem}
+#status-msg.ok{color:#2f7d3b}
+#status-msg.err{color:var(--hard)}
+#access-denied{display:none;padding:40px 20px;text-align:center;color:var(--hard);font-weight:600;font-size:1.1rem}
+</style>
+</head>
+<body>
+<div id="navContainer"></div>
+<div id="access-denied">Access denied.</div>
+<main id="main-content" style="display:none">
+<h1>Submit a Complaint</h1>
+<p class="sub">Your complaint will be reviewed by the administration.</p>
+<div class="card">
+  <div class="field">
+    <label for="cat">Category</label>
+    <select id="cat">
+      <option value="Academic">Academic</option>
+      <option value="Behaviour">Behaviour</option>
+      <option value="Facilities">Facilities</option>
+      <option value="Staff">Staff</option>
+      <option value="Safety">Safety</option>
+      <option value="Other">Other</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="subj">Subject <span style="color:var(--mute);font-size:.8rem">(max 120 chars)</span></label>
+    <input id="subj" type="text" maxlength="120" placeholder="Brief subject">
+  </div>
+  <div class="field">
+    <label for="desc">Description <span style="color:var(--mute);font-size:.8rem">(max 2000 chars)</span></label>
+    <textarea id="desc" maxlength="2000" placeholder="Describe the issue in detail."></textarea>
+  </div>
+  <div class="field">
+    <div class="check-row">
+      <input type="checkbox" id="anon">
+      <label for="anon" style="margin:0;color:var(--ink)">Submit anonymously</label>
+    </div>
+    <p class="anon-note" id="anon-note">The admin will not see your name.</p>
+  </div>
+  <button class="primary" id="submit-btn">Submit Complaint</button>
+  <div id="status-msg"></div>
+</div>
+</main>
+<script src="./api-config.js"></script>
+<script src="./menu-config.js"></script>
+<script src="./shared-nav.js"></script>
+<script>
+(function(){
+ var userRole=null;
+ fetch('/api/auth/me',{credentials:'include'})
+  .then(function(r){return r.json()})
+  .then(function(data){
+   if(!data||!data.role||(data.role!=='teacher'&&data.role!=='student')){
+    document.getElementById('access-denied').style.display='block';
+    return;
+   }
+   userRole=data.role;
+   document.getElementById('main-content').style.display='block';
+   if(window.initSharedNav)window.initSharedNav(userRole);
+  })
+  .catch(function(){
+   document.getElementById('access-denied').style.display='block';
+  });
+
+ document.getElementById('anon').onchange=function(){
+  document.getElementById('anon-note').style.display=this.checked?'block':'none';
+ };
+
+ document.getElementById('submit-btn').onclick=function(){
+  var btn=this;
+  var cat=document.getElementById('cat').value;
+  var subj=document.getElementById('subj').value.trim();
+  var desc=document.getElementById('desc').value.trim();
+  var anon=document.getElementById('anon').checked;
+  var statusEl=document.getElementById('status-msg');
+  statusEl.textContent='';statusEl.className='';
+  if(!subj){statusEl.textContent='Please enter a subject.';statusEl.className='err';return}
+  if(!desc){statusEl.textContent='Please enter a description.';statusEl.className='err';return}
+  btn.disabled=true;
+  fetch('/api/complaints',{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   credentials:'include',
+   body:JSON.stringify({category:cat,subject:subj,description:desc,is_anonymous:anon})
+  })
+  .then(function(r){
+   if(r.status===429){statusEl.textContent='You have submitted too many complaints. Try again in an hour.';statusEl.className='err';btn.disabled=false;return}
+   return r.json().then(function(data){
+    if(data.ok){
+     statusEl.textContent='Complaint submitted.';statusEl.className='ok';
+     document.getElementById('subj').value='';
+     document.getElementById('desc').value='';
+     document.getElementById('anon').checked=false;
+     document.getElementById('anon-note').style.display='none';
+    }else{
+     statusEl.textContent=data.error||'Failed to submit complaint.';statusEl.className='err';
+    }
+    btn.disabled=false;
+   });
+  })
+  .catch(function(err){
+   statusEl.textContent='Network error. Please try again.';statusEl.className='err';
+   btn.disabled=false;
+  });
+ };
+})();
+</script>
+</body>
+</html>
