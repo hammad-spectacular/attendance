@@ -36,9 +36,14 @@ let checkTimer = null
 /* ------------------------------------------------------------------ api -- */
 
 async function api(path, options = {}) {
+  const token = localStorage.getItem('auth_token')
   const res = await fetch(`/api/tt2${path}`, {
     method: options.method || 'GET',
-    headers: options.body ? { 'Content-Type': 'application/json' } : {},
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers || {})
+    },
     body: options.body ? JSON.stringify(options.body) : undefined
   })
   let data = null
@@ -50,6 +55,30 @@ async function api(path, options = {}) {
     throw err
   }
   return data
+}
+
+async function downloadCsv() {
+  const token = localStorage.getItem('auth_token')
+  const response = await fetch(`/api/tt2/timetables/${state.docId}/export.csv`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
+  })
+  if (!response.ok) {
+    let data = null
+    try { data = await response.json() } catch (_) {}
+    throw new Error((data && data.error) || `Request failed (${response.status})`)
+  }
+
+  const file = await response.blob()
+  const objectUrl = URL.createObjectURL(file)
+  const link = document.createElement('a')
+  const disposition = response.headers.get('content-disposition') || ''
+  const filename = disposition.match(/filename="([^"]+)"/i)
+  link.href = objectUrl
+  if (filename) link.download = filename[1]
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 0)
 }
 
 async function fetchExistingClasses() {
@@ -2587,7 +2616,7 @@ document.addEventListener('click', async e => {
       return
 
     case 'export':
-      window.location.href = `/api/tt2/timetables/${state.docId}/export.csv`
+      try { await downloadCsv() } catch (err) { toast(err.message, 'bad') }
       return
   }
 })
@@ -2667,8 +2696,8 @@ document.getElementById('btn-cancel-to-table')?.addEventListener('click', return
 
 document.getElementById('btn-regenerate').addEventListener('click', doGenerate)
 
-document.getElementById('btn-export').addEventListener('click', () => {
-  window.location.href = `/api/tt2/timetables/${state.docId}/export.csv`
+document.getElementById('btn-export').addEventListener('click', async () => {
+  try { await downloadCsv() } catch (err) { toast(err.message, 'bad') }
 })
 
 document.getElementById('btn-save-table').addEventListener('click', () => {

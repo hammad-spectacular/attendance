@@ -8,8 +8,28 @@ var MENU_CONFIG = {
     { id: 'tab-teachers', label: 'Teachers', icon: 'fa-chalkboard-user', href: '#tab-teachers', dataSection: 'tab-teachers', dataFeatureKey: 'teacher_management' },
     { id: 'tab-students', label: 'Students', icon: 'fa-user-graduate', href: '#tab-students', dataSection: 'tab-students', dataFeatureKey: 'student_management' },
     { id: 'tab-classes', label: 'Classes', icon: 'fa-book', href: '#tab-classes', dataSection: 'tab-classes' },
-    { id: 'tab-attendance', label: 'Attendance', icon: 'fa-clipboard-list', href: '#tab-attendance', dataSection: 'tab-attendance' },
-    { id: 'tab-stats', label: 'Stats', icon: 'fa-chart-bar', href: '#tab-stats', dataSection: 'tab-stats' },
+    {
+      id: 'tab-attendance-menu',
+      label: 'Attendance',
+      icon: 'fa-clipboard-list',
+      href: '#tab-attendance',
+      dataSection: 'tab-attendance',
+      activeSections: ['tab-attendance', 'tab-stats'],
+      dropdown: [
+        {
+          label: 'Attendance',
+          desc: 'Mark and view attendance.',
+          href: '#tab-attendance',
+          dataSection: 'tab-attendance'
+        },
+        {
+          label: 'Stats',
+          desc: 'See attendance numbers.',
+          href: '#tab-stats',
+          dataSection: 'tab-stats'
+        }
+      ]
+    },
     { id: 'tab-announcements', label: 'Announcements', icon: 'fa-bullhorn', href: '#tab-announcements', dataSection: 'tab-announcements' },
     { id: 'tab-fees', label: 'Fees', icon: 'fa-money-bill-wave', href: '#tab-fees', dataSection: 'tab-fees', dataFeatureKey: 'fees' },
     {

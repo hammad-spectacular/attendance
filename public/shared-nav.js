@@ -23,9 +23,13 @@
 
     items.forEach(item => {
       if (item.dropdown && item.dropdown.length > 0) {
+        const secAttr = item.dataSection ? `data-section="${item.dataSection}"` : '';
+        const activeSectionsAttr = Array.isArray(item.activeSections)
+          ? `data-active-sections="${item.activeSections.join(' ')}"`
+          : '';
         html += `
           <div class="nav-tab-item" id="${item.id}">
-            <button type="button" class="tab-btn" aria-haspopup="true" aria-expanded="false">
+            <button type="button" class="tab-btn" aria-haspopup="true" aria-expanded="false" ${secAttr} ${activeSectionsAttr}>
               ${item.icon ? `<i class="fas ${item.icon}"></i>` : ''}
               <span>${item.label}</span>
               <i class="fas fa-chevron-down nav-arrow" aria-hidden="true"></i>

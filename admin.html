@@ -7137,7 +7137,10 @@
       const newTab = document.querySelector(panelSelector);
       if (newTab) newTab.classList.add('active');
       
-      const newBtn = document.querySelector(`.tab-btn[data-section="${newTabId}"]`);
+      const newBtn = Array.from(document.querySelectorAll('.tab-btn[data-section]')).find(btn =>
+        btn.dataset.section === newTabId ||
+        (btn.dataset.activeSections || '').split(/\s+/).includes(newTabId)
+      );
       if (newBtn) newBtn.classList.add('active');
       updateMobileNavLabel();
 
@@ -7435,7 +7438,7 @@
         sectionTabBoundElements.add(tab);
         tab.addEventListener('click', event => {
           event.preventDefault();
-          setMobileNavOpen(false);
+          if (!tab.matches('.nav-tab-item > .tab-btn')) setMobileNavOpen(false);
           if (tab.dataset.role) {
             const roleFilter = document.getElementById('complaintRoleFilter');
             if (roleFilter) {
