@@ -96,7 +96,7 @@
       position: sticky;
       top: 0;
       z-index: 60;
-      overflow: visible;
+      overflow: hidden;
       box-shadow: 0 4px 20px rgba(79, 70, 229, 0.3);
     }
 
@@ -179,7 +179,7 @@
     }
 
     .header-menu-toggle {
-      display: flex;
+      display: none;
       align-items: center;
       justify-content: center;
       width: 40px;
@@ -1023,6 +1023,7 @@
       .header-icon-desktop { display: none; }
       .header-icon-mobile { display: inline-block; }
       .tab-nav { display: none; }
+      .header-menu-toggle { display: flex; }
 
       .header-menu-panel {
         max-height: calc(100vh - 90px);
