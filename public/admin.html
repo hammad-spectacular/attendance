@@ -110,7 +110,7 @@
       padding: 20px 24px;
       position: sticky;
       top: 0;
-      z-index: 30;
+      z-index: 60;
       overflow: hidden;
       box-shadow: 0 4px 20px rgba(79, 70, 229, 0.3);
       animation: headerSlideDown 0.5s ease-out;
@@ -356,7 +356,7 @@
       padding: 0.65rem 1.5rem;
       font-weight: 600;
       font-size: 0.9rem;
-      color: var(--text-muted);
+      color: var(--text-secondary);
       border-radius: 12px;
       border: 2px solid transparent;
       background: var(--bg-card);
@@ -1688,11 +1688,10 @@
     }
 
     /* Mobile hamburger section menu */
-    @media (max-width: 640px) {
+    @media (max-width: 768px) {
       .tab-nav {
-        position: sticky;
-        top: 72px;
-        z-index: 25;
+        position: relative;
+        top: auto;
         margin-top: 0;
         overflow: visible;
       }
@@ -1720,13 +1719,9 @@
         border-color: var(--primary);
       }
 
-      .tab-nav-toggle-icon {
-        color: var(--text-muted);
-        transition: transform 0.25s ease;
-      }
-
-      .tab-nav.open .tab-nav-toggle-icon {
-        transform: rotate(90deg);
+      .tab-nav-toggle[aria-expanded="true"] {
+        background-color: var(--bg-card-hover);
+        border-color: var(--primary);
       }
 
       .tab-nav-inner {
@@ -1738,6 +1733,10 @@
         max-height: calc(100vh - 130px);
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
+      }
+
+      .tab-nav:not(.open) .tab-nav-inner {
+        display: none;
       }
 
       .tab-nav.open .tab-nav-inner {
@@ -1753,6 +1752,17 @@
 
       .header {
         overflow: visible;
+      }
+
+      .tab-nav-toggle:focus-visible,
+      .header-menu-toggle:focus-visible,
+      .tab-nav .tab-btn:focus-visible {
+        outline: 3px solid var(--primary-light);
+        outline-offset: 2px;
+      }
+
+      .tab-nav .nav-dropdown-desc {
+        color: var(--text-secondary);
       }
 
       .header-menu-toggle {
@@ -7310,7 +7320,16 @@
       const nav = document.getElementById('tabNav');
       const toggle = document.getElementById('mobileNavToggle');
       if (nav) nav.classList.toggle('open', open);
-      if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (toggle) {
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        toggle.setAttribute('aria-label', open ? 'Close section menu' : 'Open section menu');
+        toggle.title = open ? 'Close section menu' : 'Open section menu';
+        const icon = toggle.querySelector('.tab-nav-toggle-icon');
+        if (icon) {
+          icon.classList.toggle('fa-bars', !open);
+          icon.classList.toggle('fa-xmark', open);
+        }
+      }
     }
 
     function setHeaderMenuOpen(open) {

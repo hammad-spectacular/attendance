@@ -1183,7 +1183,7 @@ function toggleHeaderMenu() {
   const toggle = document.getElementById('headerMenuToggle');
   if (!wrap || !toggle) return;
   const isOpen = wrap.classList.toggle('open');
-  toggle.setAttribute('aria-expanded', isOpen);
+  setHeaderMenuExpanded(toggle, isOpen);
 }
 
 function closeHeaderMenu() {
@@ -1191,7 +1191,18 @@ function closeHeaderMenu() {
   const toggle = document.getElementById('headerMenuToggle');
   if (!wrap || !toggle) return;
   wrap.classList.remove('open');
-  toggle.setAttribute('aria-expanded', 'false');
+  setHeaderMenuExpanded(toggle, false);
+}
+
+function setHeaderMenuExpanded(toggle, expanded) {
+  toggle.setAttribute('aria-expanded', String(expanded));
+  toggle.setAttribute('aria-label', expanded ? 'Close menu' : 'Open menu');
+  toggle.title = expanded ? 'Close menu' : 'Open menu';
+  const icon = toggle.querySelector('.header-icon-mobile');
+  if (icon) {
+    icon.classList.toggle('fa-bars', !expanded);
+    icon.classList.toggle('fa-xmark', expanded);
+  }
 }
 
 // Close header menu when clicking outside or pressing Escape
