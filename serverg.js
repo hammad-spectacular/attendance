@@ -10,6 +10,8 @@ const nodemailer = require('nodemailer')
 const rateLimit = require('express-rate-limit')
 require('dotenv').config()
 const { requireAuth, setPool, isCoordinator, branchFilter, requireWritableBranch } = require('./authMiddleware')
+const { createFileStore } = require('./timetable/tt2/store')
+const { createTt2Router } = require('./timetable/tt2/routes')
 
 const app = express()
 app.set('trust proxy', 1)
@@ -416,6 +418,12 @@ app.use(cookieParser())
     }
   }))
 
+const tt2Store = createFileStore({
+  persistPath: path.join(__dirname, 'timetable', 'tt2', 'dev-state.json')
+})
+app.use('/tt2/config', express.static(path.join(__dirname, 'timetable', 'tt2', 'config')))
+app.use('/tt2', express.static(path.join(__dirname, 'timetable', 'tt2', 'public')))
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'))
 })
@@ -431,6 +439,14 @@ app.get('/:page.html', (req, res, next) => {
     if (err) next();
   });
 })
+
+const tt2Auth = requireAuth(['admin', 'super_admin', 'coordinator'])
+app.use('/api/tt2/meta', tt2Auth)
+app.use('/api/tt2', createTt2Router({
+  store: tt2Store,
+  pool,
+  auth: tt2Auth
+}))
 
 // ============================================
 // CREATE TABLES ON STARTUP

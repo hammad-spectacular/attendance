@@ -1,9 +1,10 @@
 const { test, expect } = require('@playwright/test');
-const fs = require('fs');
-const http = require('http');
+const { spawn } = require('node:child_process');
+const net = require('node:net');
 const path = require('path');
 
-const publicRoot = path.resolve(__dirname, '..', 'public');
+test.describe.configure({ mode: 'serial' });
+
 const fixtures = {
   teachers: [{ id: 11, name: 'Teacher Fixture', phone: '03001234567', class_id: 21, login_id: 'T001' }],
   students: [{ id: 31, name: 'Student Fixture', phone: '03001234568', class_id: 21, roll_no: 'S001', login_id: 'S001' }],
@@ -21,39 +22,63 @@ const fixtures = {
 let server;
 let baseUrl;
 
-test.beforeAll(async () => {
-  server = http.createServer((request, response) => {
-    const url = new URL(request.url, 'http://localhost');
-    const relativePath = decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname);
-    const filePath = path.resolve(publicRoot, `.${relativePath}`);
-    if (!filePath.startsWith(`${publicRoot}${path.sep}`)) {
-      response.writeHead(403).end('Forbidden');
-      return;
-    }
-
-    fs.readFile(filePath, (error, content) => {
-      if (error) {
-        response.writeHead(404).end('Not found');
-        return;
-      }
-      const extension = path.extname(filePath);
-      const contentTypes = {
-        '.css': 'text/css',
-        '.html': 'text/html',
-        '.js': 'text/javascript',
-        '.json': 'application/json',
-        '.svg': 'image/svg+xml'
-      };
-      response.writeHead(200, { 'Content-Type': contentTypes[extension] || 'application/octet-stream' });
-      response.end(content);
-    });
+async function getFreePort() {
+  const probe = net.createServer();
+  await new Promise((resolve, reject) => {
+    probe.once('error', reject);
+    probe.listen(0, '127.0.0.1', resolve);
   });
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const { port } = probe.address();
+  await new Promise(resolve => probe.close(resolve));
+  return port;
+}
+
+test.beforeAll(async () => {
+  const projectRoot = path.resolve(__dirname, '..');
+  const serverPath = path.join(projectRoot, 'serverg.js');
+  const port = await getFreePort();
+  const bootstrap = `
+    const Module = require('node:module');
+    const serverPath = ${JSON.stringify(serverPath)};
+    const originalLoad = Module._load;
+    const pool = {
+      query: async () => ({ rows: [], rowCount: 0 }),
+      connect: async () => ({ query: async () => ({ rows: [], rowCount: 0 }), release() {} }),
+      end: async () => {}
+    };
+    Module._load = function(request, parent, isMain) {
+      if (request === './db' && parent && parent.filename === serverPath) return pool;
+      return originalLoad.call(this, request, parent, isMain);
+    };
+    require(serverPath);
+  `;
+  server = spawn(process.execPath, ['-e', bootstrap], {
+    cwd: projectRoot,
+    env: { ...process.env, PORT: String(port), JWT_SECRET: 'playwright-test-secret' },
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+
+  let serverOutput = '';
+  server.stdout.on('data', chunk => { serverOutput += chunk.toString(); });
+  server.stderr.on('data', chunk => { serverOutput += chunk.toString(); });
+  baseUrl = `http://127.0.0.1:${port}`;
+  const deadline = Date.now() + 15000;
+  while (Date.now() < deadline) {
+    if (server.exitCode !== null) throw new Error(`Test server exited during startup:\n${serverOutput}`);
+    try {
+      const response = await fetch(`${baseUrl}/tt2/`);
+      if (response.ok) return;
+    } catch (_) {}
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  throw new Error(`Test server did not start:\n${serverOutput}`);
 });
 
 test.afterAll(async () => {
-  if (server) await new Promise(resolve => server.close(resolve));
+  if (!server || server.exitCode !== null) return;
+  const exited = new Promise(resolve => server.once('exit', resolve));
+  server.kill();
+  await Promise.race([exited, new Promise(resolve => setTimeout(resolve, 2000))]);
 });
 
 async function openMockedAdmin(page, hash = '') {
@@ -81,7 +106,9 @@ async function openMockedAdmin(page, hash = '') {
       '/api/fees/payments': fixtures.fees,
       '/api/fees/structures': [],
       '/api/coordinators': fixtures.coordinators,
-      '/api/complaints': fixtures.complaints
+      '/api/complaints': fixtures.complaints,
+      '/api/tt2/meta': { ok: true, steps: [], defaults: {} },
+      '/api/tt2/timetables': []
     };
     await route.fulfill({
       status: 200,
@@ -126,7 +153,13 @@ test('each admin tab opens its panel and renders its fixture rows without consol
   ];
 
   for (const tab of tabs) {
-    await page.locator(`.tab-btn[data-section="${tab.id}"]`).first().click();
+    if (tab.id === 'tab-attendance' || tab.id === 'tab-stats') {
+      const attendanceMenu = page.locator('#tab-attendance-menu');
+      await attendanceMenu.hover();
+      await attendanceMenu.locator(`.nav-dropdown-item[data-section="${tab.id}"]`).click();
+    } else {
+      await page.locator(`.tab-btn[data-section="${tab.id}"]`).first().click();
+    }
     const panel = page.locator(`.tab-content[id="${tab.id}"]`);
     await expect(panel).toBeVisible();
     if (tab.emptyState) {
@@ -143,10 +176,29 @@ test('each admin tab opens its panel and renders its fixture rows without consol
   expect(consoleErrors).toEqual([]);
 });
 
-for (const tabId of ['tab-students', 'tab-fees']) {
+test('Attendance dropdown contains exactly Attendance and Stats with descriptions', async ({ page }) => {
+  await openMockedAdmin(page);
+  const attendanceMenu = page.locator('#tab-attendance-menu');
+  const items = attendanceMenu.locator('.nav-dropdown-item');
+  await expect(items).toHaveCount(2);
+  await expect(items.nth(0)).toContainText('Attendance');
+  await expect(items.nth(0)).toContainText('Mark and view attendance.');
+  await expect(items.nth(1)).toContainText('Stats');
+  await expect(items.nth(1)).toContainText('See attendance numbers.');
+  await expect(page.locator('#tabNavInner > .nav-tab-item > .tab-btn').filter({ hasText: 'Stats' })).toHaveCount(0);
+
+  await attendanceMenu.locator(':scope > .tab-btn').click();
+  await expect(page.locator('.tab-content[id="tab-attendance"]')).toBeVisible();
+  await expect(page.locator('#attendanceTableWrap tbody tr')).toHaveCount(1);
+});
+
+for (const tabId of ['tab-students', 'tab-fees', 'tab-stats']) {
   test(`direct hash #${tabId} opens the correct panel`, async ({ page }) => {
     await openMockedAdmin(page, `#${tabId}`);
     await expect(page.locator(`.tab-content[id="${tabId}"]`)).toBeVisible();
+    if (tabId === 'tab-stats') {
+      await expect(page.locator('#tab-attendance-menu > .tab-btn')).toHaveClass(/active/);
+    }
   });
 }
 
@@ -184,4 +236,66 @@ test('mobile menu opens and closes on successive taps after repeated setup', asy
   await toggle.click();
   await expect(nav).not.toHaveClass(/open/);
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('mobile Attendance dropdown keeps its submenu tappable', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await openMockedAdmin(page);
+  const nav = page.locator('#tabNav');
+  const toggle = page.locator('#mobileNavToggle');
+  const attendanceMenu = page.locator('#tab-attendance-menu');
+
+  await toggle.click();
+  await expect(nav).toHaveClass(/open/);
+  await attendanceMenu.locator(':scope > .tab-btn').click();
+  await expect(page.locator('.tab-content[id="tab-attendance"]')).toBeVisible();
+  await expect(nav).toHaveClass(/open/);
+  await expect(attendanceMenu.locator(':scope > .tab-btn')).toHaveAttribute('aria-expanded', 'true');
+
+  await attendanceMenu.locator('.nav-dropdown-item[data-section="tab-stats"]').click();
+  await expect(page.locator('.tab-content[id="tab-stats"]')).toBeVisible();
+  await expect(nav).not.toHaveClass(/open/);
+
+  await toggle.click();
+  await attendanceMenu.locator(':scope > .tab-btn').click();
+  await expect(attendanceMenu.locator(':scope > .tab-btn')).toHaveAttribute('aria-expanded', 'true');
+  await attendanceMenu.locator('.nav-dropdown-item[data-section="tab-attendance"]').click();
+  await expect(page.locator('.tab-content[id="tab-attendance"]')).toBeVisible();
+  await expect(nav).not.toHaveClass(/open/);
+});
+
+test('Generate Time Table opens the served TT2 page and loads its assets', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('auth_token', 'test-token'));
+  const consoleErrors = await openMockedAdmin(page);
+  const navigationResponse = page.waitForNavigation();
+  const scriptResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/tt2/app.js');
+  const configResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/tt2/config/defaults.js');
+  const styleResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/tt2/style.css');
+  const metaResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/api/tt2/meta');
+  const listResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/api/tt2/timetables');
+  const timetableRequests = [];
+  page.on('request', request => {
+    if (new URL(request.url()).pathname.startsWith('/api/tt2/')) timetableRequests.push(request);
+  });
+
+  const automatedMenu = page.locator('#tab-automated');
+  await automatedMenu.locator(':scope > .tab-btn').click();
+  await automatedMenu.getByRole('menuitem', { name: /Generate Time Table/ }).click();
+  const response = await navigationResponse;
+  expect(response.status()).toBe(200);
+  await expect(page).toHaveURL(`${baseUrl}/tt2/`);
+  await expect(page.locator('#screen-list')).toBeVisible();
+
+  expect((await scriptResponse).status()).toBe(200);
+  expect((await configResponse).status()).toBe(200);
+  expect((await styleResponse).status()).toBe(200);
+  expect((await metaResponse).status()).toBe(200);
+  expect((await listResponse).status()).toBe(200);
+  expect(timetableRequests.length).toBeGreaterThanOrEqual(2);
+  for (const request of timetableRequests) {
+    expect(request.headers().authorization).toBe('Bearer test-token');
+  }
+  await page.getByRole('link', { name: 'Back to Admin' }).first().click();
+  await expect(page).toHaveURL(`${baseUrl}/admin.html`);
+  expect(consoleErrors).toEqual([]);
 });
