@@ -95,7 +95,7 @@
       padding: 20px 24px;
       position: sticky;
       top: 0;
-      z-index: 30;
+      z-index: 60;
       overflow: visible;
       box-shadow: 0 4px 20px rgba(79, 70, 229, 0.3);
     }
@@ -1018,6 +1018,52 @@
         padding: 12px 16px;
       }
     }
+
+    @media (max-width: 768px) {
+      .header-icon-desktop { display: none; }
+      .header-icon-mobile { display: inline-block; }
+      .tab-nav { display: none; }
+
+      .header-menu-panel {
+        max-height: calc(100vh - 90px);
+        overflow-y: auto;
+      }
+
+      .header-menu-panel #tabNavInner {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        padding: 0 0 0.5rem;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .header-menu-panel #tabNavInner > .tab-btn {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        min-height: 48px;
+        padding: 0 0.9rem;
+        border: 0;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--text);
+        font: 600 0.9rem 'Inter', sans-serif;
+        text-decoration: none;
+      }
+
+      .header-menu-panel #tabNavInner > .tab-btn:hover {
+        background: var(--bg-card-hover);
+        color: var(--primary);
+      }
+
+      .header-menu-panel #tabNavInner > .tab-btn.active {
+        background: var(--gradient);
+        color: #fff;
+      }
+    }
   </style>
   <link rel="stylesheet" href="./shared-nav.css">
 </head>
@@ -1056,10 +1102,6 @@
 
   <!-- ======================== TAB NAVIGATION ======================== -->
   <nav class="tab-nav" id="tabNav">
-    <button id="mobileNavToggle" class="tab-nav-toggle" aria-expanded="false" aria-controls="tabNavInner" aria-label="Open section menu">
-      <span id="mobileNavToggleLabel">Take Attendance</span>
-      <i class="fas fa-bars tab-nav-toggle-icon"></i>
-    </button>
     <div class="tab-nav-inner" id="tabNavInner">
       <button id="navMark" class="active" onclick="switchSubTab('mark')"><i class="fas fa-clipboard-check"></i> Take attendance</button>
       <button id="navRecords" onclick="switchSubTab('records')"><i class="fas fa-clock-rotate-left"></i> Saved records</button>
@@ -1164,30 +1206,31 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') closeHeaderMenu();
 });
 
-// Mobile tab navigation toggle
-function setupMobileNavToggle() {
+function setupResponsiveNavigation() {
   const tabNav = document.getElementById('tabNav');
-  const mobileToggle = document.getElementById('mobileNavToggle');
-  if (!tabNav || !mobileToggle) return;
-  
-  mobileToggle.addEventListener('click', function(e) {
-    e.stopPropagation();
-    const isOpen = tabNav.classList.toggle('open');
-    this.setAttribute('aria-expanded', isOpen);
-  });
-  
-  // Close on outside click
-  document.addEventListener('click', function(e) {
-    if (tabNav && tabNav.classList.contains('open') && !tabNav.contains(e.target)) {
-      tabNav.classList.remove('open');
-      if (mobileToggle) mobileToggle.setAttribute('aria-expanded', 'false');
+  const tabNavInner = document.getElementById('tabNavInner');
+  const menuPanel = document.getElementById('headerMenuPanel');
+  if (!tabNav || !tabNavInner || !menuPanel) return;
+
+  const mobileBreakpoint = window.matchMedia('(max-width: 768px)');
+  const syncNavigationLocation = () => {
+    if (mobileBreakpoint.matches) {
+      if (tabNavInner.parentElement !== menuPanel) {
+        menuPanel.prepend(tabNavInner);
+      }
+    } else if (tabNavInner.parentElement !== tabNav) {
+      tabNav.appendChild(tabNavInner);
+      closeHeaderMenu();
     }
+  };
+
+  tabNavInner.addEventListener('click', event => {
+    const target = event.target instanceof Element ? event.target.closest('.tab-btn') : null;
+    if (target && mobileBreakpoint.matches) closeHeaderMenu();
   });
 
-  // Close on Escape, like every other hamburger menu in the app
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeMobileNav();
-  });
+  syncNavigationLocation();
+  mobileBreakpoint.addEventListener('change', syncNavigationLocation);
 }
 
 let isOpen = false;
@@ -1512,8 +1555,6 @@ async function load() {
     </div>
   `;
 
-  // Setup mobile nav toggle after DOM is ready
-  setupMobileNavToggle();
   closeMobileNav();
 
   if (myClasses.length > 0) {
@@ -1550,7 +1591,6 @@ function switchSubTab(which) {
   const navMark = document.getElementById('navMark');
   const navRecords = document.getElementById('navRecords');
   const navAnnouncements = document.getElementById('navAnnouncements');
-  const mobileNavToggleLabel = document.getElementById('mobileNavToggleLabel');
   if (!mark || !records || !announcements) return;
 
   currentSubTab = which;
@@ -1562,10 +1602,6 @@ function switchSubTab(which) {
   navMark.classList.toggle('active', which === 'mark');
   navRecords.classList.toggle('active', which === 'records');
   navAnnouncements.classList.toggle('active', which === 'announcements');
-
-  // Update mobile nav toggle label
-  const labels = { mark: 'Take attendance', records: 'Saved records', announcements: 'Announcements' };
-  if (mobileNavToggleLabel) mobileNavToggleLabel.textContent = labels[which] || 'Menu';
 
   // Close mobile nav on selection
   closeMobileNav();
@@ -1582,9 +1618,8 @@ function switchSubTab(which) {
 
 function closeMobileNav() {
   const tabNav = document.getElementById('tabNav');
-  const mobileToggle = document.getElementById('mobileNavToggle');
   if (tabNav) tabNav.classList.remove('open');
-  if (mobileToggle) mobileToggle.setAttribute('aria-expanded', 'false');
+  closeHeaderMenu();
 }
 
 // =============================================================
@@ -2267,6 +2302,7 @@ function startKeepAlive() {
       if (window.initSharedNav) {
         window.initSharedNav('coordinator');
       }
+      setupResponsiveNavigation();
     });
   </script>
 </body>
