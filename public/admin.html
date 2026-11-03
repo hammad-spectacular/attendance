@@ -3628,7 +3628,7 @@
 
     // Cache state
     let isDataLoaded = false;
-    let activeTabId = 'tab-teachers';
+    let activeTabId = null;
     
     // Dirty tracking
     const dirtyState = {
@@ -7096,6 +7096,7 @@
     // =============================================================
 
     async function switchTab(newTabId, clearSearch = true) {
+      const panelSelector = `.tab-content[id="${CSS.escape(newTabId)}"]`;
       // A section the Super Admin has switched off is not reachable, even by calling
       // switchTab directly or by hand-editing the #hash in the address bar.
       if (!isSectionPermitted(newTabId)) {
@@ -7103,7 +7104,7 @@
         if (fallback && fallback !== newTabId) return switchTab(fallback, clearSearch);
         return;
       }
-      if (activeTabId === newTabId) return;
+      if (activeTabId === newTabId && document.querySelector(panelSelector)?.classList.contains('active')) return;
 
       if (hasAnyDirtyChanges() && (activeTabId === 'tab-teachers' || activeTabId === 'tab-students')) {
         const activeTabDirty = dirtyState[activeTabId] && dirtyState[activeTabId].size > 0;
@@ -7133,7 +7134,7 @@
       if (typeof closeChangePasswordModal === 'function') closeChangePasswordModal();
 
       // Show new tab
-      const newTab = document.getElementById(newTabId);
+      const newTab = document.querySelector(panelSelector);
       if (newTab) newTab.classList.add('active');
       
       const newBtn = document.querySelector(`.tab-btn[data-section="${newTabId}"]`);
@@ -7413,11 +7414,15 @@
       return permitted ? permitted.dataset.section : null;
     }
 
+    const sectionTabBoundElements = new WeakSet();
+    let sectionTabGlobalHandlersBound = false;
+
     function setupSectionTabs() {
-      const tabs = Array.from(document.querySelectorAll('.tab-btn[data-section]'));
+      const tabs = Array.from(document.querySelectorAll('.tab-btn[data-section], .nav-dropdown-item[data-section]'));
 
       const mobileToggle = document.getElementById('mobileNavToggle');
-      if (mobileToggle) {
+      if (mobileToggle && !sectionTabBoundElements.has(mobileToggle)) {
+        sectionTabBoundElements.add(mobileToggle);
         mobileToggle.addEventListener('click', event => {
           event.preventDefault();
           const nav = document.getElementById('tabNav');
@@ -7426,28 +7431,40 @@
       }
 
       tabs.forEach(tab => {
+        if (sectionTabBoundElements.has(tab)) return;
+        sectionTabBoundElements.add(tab);
         tab.addEventListener('click', event => {
           event.preventDefault();
           setMobileNavOpen(false);
+          if (tab.dataset.role) {
+            const roleFilter = document.getElementById('complaintRoleFilter');
+            if (roleFilter) {
+              roleFilter.value = tab.dataset.role;
+              roleFilter.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+          }
           switchTab(tab.dataset.section);
         });
       });
 
-      document.addEventListener('click', event => {
-        const nav = document.getElementById('tabNav');
-        if (nav && nav.classList.contains('open') && !nav.contains(event.target)) {
-          setMobileNavOpen(false);
-        }
-      });
+      if (!sectionTabGlobalHandlersBound) {
+        document.addEventListener('click', event => {
+          const nav = document.getElementById('tabNav');
+          if (nav && nav.classList.contains('open') && !nav.contains(event.target)) {
+            setMobileNavOpen(false);
+          }
+        });
 
-      document.addEventListener('keydown', event => {
-        if (event.key === 'Escape') setMobileNavOpen(false);
-      });
+        document.addEventListener('keydown', event => {
+          if (event.key === 'Escape') setMobileNavOpen(false);
+        });
+        sectionTabGlobalHandlersBound = true;
+      }
       
       // Initial tab based on hash or the first section the Super Admin permits. A hash
       // pointing at a section that has been switched off is ignored rather than shown.
       const hash = window.location.hash.substring(1);
-      if (hash && document.getElementById(hash) && isSectionPermitted(hash)) {
+      if (hash && document.querySelector(`.tab-content[id="${CSS.escape(hash)}"]`) && isSectionPermitted(hash)) {
         switchTab(hash);
       } else {
         const fallback = firstPermittedSection();

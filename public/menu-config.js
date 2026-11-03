@@ -38,13 +38,15 @@ var MENU_CONFIG = {
           label: 'Teacher complaints',
           desc: 'Complaints submitted by teachers.',
           href: '#tab-complaints',
-          dataSection: 'tab-complaints'
+          dataSection: 'tab-complaints',
+          dataRole: 'teacher'
         },
         {
           label: 'Student complaints',
           desc: 'Complaints submitted by students.',
           href: '#tab-complaints',
-          dataSection: 'tab-complaints'
+          dataSection: 'tab-complaints',
+          dataRole: 'student'
         }
       ]
     },

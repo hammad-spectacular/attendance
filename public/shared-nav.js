@@ -33,8 +33,10 @@
             <div class="nav-dropdown" role="menu">
               ${item.dropdown.map(sub => {
                 const toastAttr = sub.toast ? `onclick="if(window.showToast){showToast('${sub.toast}','info');}else{alert('${sub.toast}');}return false;"` : '';
+                const secAttr = sub.dataSection ? `data-section="${sub.dataSection}"` : '';
+                const roleAttr = sub.dataRole ? `data-role="${sub.dataRole}"` : '';
                 return `
-                <a href="${sub.href}" class="nav-dropdown-item" role="menuitem" ${toastAttr}>
+                <a href="${sub.href}" class="nav-dropdown-item" role="menuitem" ${secAttr} ${roleAttr} ${toastAttr}>
                   <span class="nav-dropdown-title">${sub.label}</span>
                   ${sub.desc ? `<span class="nav-dropdown-desc">${sub.desc}</span>` : ''}
                 </a>
@@ -43,6 +45,7 @@
           </div>
         `;
       } else {
+        const idAttr = item.id && item.id !== item.dataSection ? `id="${item.id}"` : '';
         const secAttr = item.dataSection ? `data-section="${item.dataSection}"` : '';
         const featAttr = item.dataFeatureKey ? `data-feature-key="${item.dataFeatureKey}"` : '';
         const optStyle = item.optional ? 'style="display:none;"' : '';
@@ -51,14 +54,14 @@
 
         if (item.action && !item.href) {
           html += `
-            <button type="button" class="tab-btn ${clsActive}" id="${item.id}" ${actAttr} ${secAttr} ${featAttr} ${optStyle}>
+            <button type="button" class="tab-btn ${clsActive}" ${idAttr} ${actAttr} ${secAttr} ${featAttr} ${optStyle}>
               ${item.icon ? `<i class="fas ${item.icon}"></i>` : ''}
               <span>${item.label}</span>
             </button>
           `;
         } else {
           html += `
-            <a href="${item.href}" class="tab-btn ${clsActive}" id="${item.id}" ${actAttr} ${secAttr} ${featAttr} ${optStyle}>
+            <a href="${item.href}" class="tab-btn ${clsActive}" ${idAttr} ${actAttr} ${secAttr} ${featAttr} ${optStyle}>
               ${item.icon ? `<i class="fas ${item.icon}"></i>` : ''}
               <span>${item.label}</span>
             </a>
