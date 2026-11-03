@@ -435,6 +435,31 @@ app.get('/:page.html', (req, res, next) => {
 // ============================================
 // CREATE TABLES ON STARTUP
 // ============================================
+
+// Create teacher_attendance table for QR-based teacher check-in
+async function createTeacherAttendanceTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS teacher_attendance (
+      id SERIAL PRIMARY KEY,
+      teacher_id INTEGER NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+      tenant_id VARCHAR(10) NOT NULL REFERENCES organizations(school_code) ON DELETE CASCADE,
+      branch_id INTEGER REFERENCES branches(id) ON DELETE SET NULL,
+      date DATE NOT NULL,
+      check_in_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      location_lat NUMERIC(10, 6),
+      location_lng NUMERIC(10, 6),
+      qr_code_data TEXT,
+      created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(teacher_id, date)
+    );
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_teacher_attendance_teacher ON teacher_attendance(teacher_id);
+    CREATE INDEX IF NOT EXISTS idx_teacher_attendance_tenant ON teacher_attendance(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_teacher_attendance_date ON teacher_attendance(date);
+  `)
+}
+
 async function createTables() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS classes (
@@ -861,6 +886,49 @@ async function createTables() {
     CREATE UNIQUE INDEX IF NOT EXISTS teachers_one_class_per_tenant_idx
       ON teachers (class_id) WHERE class_id IS NOT NULL
   `)
+
+  // Migration 20261101_datesheets_and_complaints
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS datesheets (
+      id SERIAL PRIMARY KEY,
+      tenant_id VARCHAR(100) NOT NULL,
+      branch_id INTEGER,
+      title VARCHAR(255) NOT NULL,
+      scope VARCHAR(100) NOT NULL,
+      class_name VARCHAR(100),
+      revision INTEGER NOT NULL DEFAULT 1,
+      data JSONB NOT NULL,
+      published_by INTEGER,
+      published_at TIMESTAMPTZ DEFAULT NOW(),
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_datesheets_tenant ON datesheets(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_datesheets_scope ON datesheets(scope);
+
+    CREATE TABLE IF NOT EXISTS complaints (
+      id SERIAL PRIMARY KEY,
+      tenant_id VARCHAR(100) NOT NULL,
+      branch_id INTEGER,
+      role VARCHAR(50) NOT NULL,
+      user_id INTEGER,
+      author_name VARCHAR(150),
+      category VARCHAR(100) NOT NULL,
+      subject VARCHAR(200) NOT NULL,
+      description TEXT NOT NULL,
+      is_anonymous BOOLEAN DEFAULT false,
+      status VARCHAR(50) DEFAULT 'pending',
+      admin_notes TEXT DEFAULT '',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_complaints_tenant ON complaints(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_complaints_role ON complaints(role);
+    CREATE INDEX IF NOT EXISTS idx_complaints_status ON complaints(status);
+  `);
+
+  // Create teacher attendance table for QR-based check-in
+  await createTeacherAttendanceTable()
 
   console.log('Tables ready')
 }
@@ -3790,6 +3858,91 @@ app.post('/api/attendance/submit', requireAuth(['teacher', 'admin', 'coordinator
   }
 })
 
+// ============================================
+// TEACHER SELF-ATTENDANCE (QR CODE)
+// ============================================
+
+// POST /api/attendance/teacher/checkin
+// Teachers check in by scanning the school's QR code
+app.post('/api/attendance/teacher/checkin', requireAuth(['teacher']), async (req, res) => {
+  try {
+    const { qr_code_data, location_lat, location_lng } = req.body || {}
+    const { user_id, tenant_id, branch_id } = req.user
+
+    // Verify teacher exists and get their branch info
+    const teacherResult = await pool.query(
+      'SELECT id, name, branch_id FROM teachers WHERE id = $1 AND tenant_id = $2',
+      [user_id, tenant_id]
+    )
+
+    if (teacherResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Teacher not found' })
+    }
+
+    const teacher = teacherResult.rows[0]
+    const today = schoolToday()
+
+    // Check if already checked in today
+    const existingCheckIn = await pool.query(
+      'SELECT id, check_in_time FROM teacher_attendance WHERE teacher_id = $1 AND date = $2',
+      [user_id, today]
+    )
+
+    if (existingCheckIn.rows.length > 0) {
+      return res.status(400).json({
+        error: 'Already checked in today',
+        check_in_time: existingCheckIn.rows[0].check_in_time
+      })
+    }
+
+    // Insert teacher attendance record
+    const result = await pool.query(
+      `INSERT INTO teacher_attendance 
+       (teacher_id, tenant_id, branch_id, date, location_lat, location_lng, qr_code_data)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, check_in_time`,
+      [user_id, tenant_id, teacher.branch_id, today, location_lat, location_lng, qr_code_data]
+    )
+
+    res.json({
+      success: true,
+      message: 'Check-in successful',
+      attendance_id: result.rows[0].id,
+      check_in_time: result.rows[0].check_in_time,
+      date: today,
+      teacher_name: teacher.name
+    })
+  } catch (err) {
+    console.error('Error in teacher check-in:', err)
+    res.status(500).json({ error: 'Server error: ' + err.message })
+  }
+})
+
+// GET /api/attendance/teacher/me
+// Get current teacher's attendance history
+app.get('/api/attendance/teacher/me', requireAuth(['teacher']), async (req, res) => {
+  try {
+    const { user_id, tenant_id } = req.user
+
+    const result = await pool.query(
+      `SELECT ta.id, ta.date, ta.check_in_time, ta.location_lat, ta.location_lng, ta.qr_code_data,
+              t.name as teacher_name, b.name as branch_name
+       FROM teacher_attendance ta
+       JOIN teachers t ON ta.teacher_id = t.id
+       LEFT JOIN branches b ON ta.branch_id = b.id
+       WHERE ta.teacher_id = $1 AND ta.tenant_id = $2
+       ORDER BY ta.date DESC, ta.check_in_time DESC
+       LIMIT 30`,
+      [user_id, tenant_id]
+    )
+
+    res.json(result.rows)
+  } catch (err) {
+    console.error('Error fetching teacher attendance:', err)
+    res.status(500).json({ error: 'Server error: ' + err.message })
+  }
+})
+
 // HOMEWORK
 app.get('/api/homework', requireAuth(['admin', 'teacher', 'student', 'super_admin']), async (req, res) => {
   const { class_id, branch_id } = req.query
@@ -4368,21 +4521,6 @@ app.get('/api/fees/me', requireAuth(['student']), async (req, res) => {
 })
 
 
-// ============================================
-// JSON ERROR HANDLER — ensures API routes always
-// return JSON, never HTML (Express 5 default
-// error handler sends HTML in development mode)
-// ============================================
-app.use('/api', (err, req, res, next) => {
-  console.error('API error:', err)
-  if (res.headersSent) return next(err)
-  res.status(err.status || 500).json({ error: err.message || 'Internal server error' })
-})
-
-// Catch-all: return 404 JSON for any unmatched /api routes
-app.use('/api', (req, res) => {
-  res.status(404).json({ error: `Cannot ${req.method} ${req.originalUrl}` })
-})
 
 // ============================================
 // START SERVER
@@ -4428,3 +4566,367 @@ async function startServer() {
 }
 
 startServer()
+
+
+// ============================================
+// DATESHEET ROUTES
+// ============================================
+
+// GET /api/datesheet/bootstrap (Admin only)
+app.get('/api/datesheet/bootstrap', requireAuth(['admin', 'super_admin']), async (req, res) => {
+  try {
+    const tenantId = req.user.tenant_id;
+    const branchId = req.user.branch_id || (req.query.branch_id ? Number(req.query.branch_id) : null);
+
+    const clsQuery = branchId
+      ? await pool.query('SELECT id, name, section FROM classes WHERE tenant_id = $1 AND branch_id = $2 ORDER BY name, section, id', [tenantId, branchId])
+      : await pool.query('SELECT id, name, section FROM classes WHERE tenant_id = $1 ORDER BY name, section, id', [tenantId]);
+
+    const tchQuery = branchId
+      ? await pool.query('SELECT id, name, class_id FROM teachers WHERE tenant_id = $1 AND branch_id = $2 ORDER BY name', [tenantId, branchId])
+      : await pool.query('SELECT id, name, class_id FROM teachers WHERE tenant_id = $1 ORDER BY name', [tenantId]);
+
+    const hwQuery = await pool.query('SELECT DISTINCT class_id, subject FROM homework WHERE tenant_id = $1', [tenantId]);
+
+    const teachersByClass = {};
+    tchQuery.rows.forEach(t => {
+      if (t.class_id) {
+        teachersByClass[t.class_id] = t.name;
+      }
+    });
+
+    const subjectsByClass = {};
+    hwQuery.rows.forEach(h => {
+      if (h.class_id && h.subject) {
+        if (!subjectsByClass[h.class_id]) subjectsByClass[h.class_id] = new Set();
+        subjectsByClass[h.class_id].add(h.subject.trim());
+      }
+    });
+
+    const defaultSubs = ['Mathematics', 'English', 'Science', 'Social Studies'];
+
+    const classes = clsQuery.rows.map(c => {
+      const assignedTeacher = teachersByClass[c.id] || (tchQuery.rows[0] ? tchQuery.rows[0].name : '');
+      const hwSubs = subjectsByClass[c.id] ? Array.from(subjectsByClass[c.id]) : [];
+      const subList = hwSubs.length ? hwSubs : defaultSubs;
+
+      const subs = subList.map((s, idx) => {
+        let diff = 'Medium';
+        const lower = s.toLowerCase();
+        if (lower.includes('math') || lower.includes('phys') || lower.includes('chem')) diff = 'Hard';
+        else if (lower.includes('eng') || lower.includes('art') || lower.includes('urdu') || lower.includes('pe')) diff = 'Easy';
+        return { n: s, l: diff, t: assignedTeacher, f: '' };
+      });
+
+      const label = c.section ? `${c.name} (${c.section})` : c.name;
+      return {
+        id: c.id,
+        name: label,
+        room: `Room ${c.id || 101}`,
+        sel: true,
+        subs
+      };
+    });
+
+    res.json({ ok: true, classes, teachers: tchQuery.rows });
+  } catch (err) {
+    console.error('[datesheet bootstrap] error:', err);
+    res.status(500).json({ error: 'Failed to load date sheet data.' });
+  }
+});
+
+// POST /api/datesheet/publish (Admin only)
+app.post('/api/datesheet/publish', requireAuth(['admin', 'super_admin']), async (req, res) => {
+  try {
+    const tenantId = req.user.tenant_id;
+    const branchId = req.user.branch_id || null;
+    const { title, scope, rows, config } = req.body || {};
+
+    if (!title || !scope || !Array.isArray(rows)) {
+      return res.status(400).json({ error: 'Missing title, scope, or rows.' });
+    }
+
+    const revRes = await pool.query(
+      'SELECT COALESCE(MAX(revision), 0) + 1 AS next_rev FROM datesheets WHERE tenant_id = $1 AND scope = $2',
+      [tenantId, scope]
+    );
+    const revision = parseInt(revRes.rows[0].next_rev, 10);
+
+    const insertRes = await pool.query(
+      'INSERT INTO datesheets (tenant_id, branch_id, title, scope, class_name, revision, data, published_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [
+        tenantId,
+        branchId,
+        title.trim(),
+        scope,
+        scope === 'all' ? null : scope,
+        revision,
+        JSON.stringify({ rows, config: config || {} }),
+        req.user.id
+      ]
+    );
+
+    res.json({ ok: true, revision, datesheet: insertRes.rows[0] });
+  } catch (err) {
+    console.error('[datesheet publish] error:', err);
+    res.status(500).json({ error: 'Failed to publish date sheet.' });
+  }
+});
+
+// GET /api/datesheet/latest (Admin only)
+app.get('/api/datesheet/latest', requireAuth(['admin', 'super_admin']), async (req, res) => {
+  try {
+    const tenantId = req.user.tenant_id;
+    const result = await pool.query(
+      'SELECT id, title, scope, class_name, revision, data, published_at FROM datesheets WHERE tenant_id = $1 ORDER BY id DESC',
+      [tenantId]
+    );
+    res.json({ ok: true, datesheets: result.rows });
+  } catch (err) {
+    console.error('[datesheet latest] error:', err);
+    res.status(500).json({ error: 'Failed to fetch datesheets.' });
+  }
+});
+
+// GET /api/datesheet/my-datesheet (Student, Teacher, Admin)
+app.get('/api/datesheet/my-datesheet', requireAuth(['student', 'teacher', 'admin', 'super_admin']), async (req, res) => {
+  try {
+    const tenantId = req.user.tenant_id;
+    const role = req.user.role;
+
+    if (role === 'student') {
+      const studentRes = await pool.query(
+        'SELECT s.class_id, c.name, c.section FROM students s LEFT JOIN classes c ON s.class_id = c.id WHERE s.id = $1 AND s.tenant_id = $2',
+        [req.user.id, tenantId]
+      );
+      if (!studentRes.rows.length || !studentRes.rows[0].class_id) {
+        return res.json({ ok: true, datesheet: null, message: 'No class assigned.' });
+      }
+      const c = studentRes.rows[0];
+      const classLabel = c.section ? `${c.name} (${c.section})` : c.name;
+
+      const dsRes = await pool.query(
+        'SELECT * FROM datesheets WHERE tenant_id = $1 AND (scope = $2 OR scope = $3 OR scope = \'all\') ORDER BY revision DESC, id DESC LIMIT 1',
+        [tenantId, classLabel, c.name]
+      );
+      if (!dsRes.rows.length) {
+        return res.json({ ok: true, datesheet: null });
+      }
+      const ds = dsRes.rows[0];
+      const allRows = (ds.data && ds.data.rows) || [];
+      const classRows = allRows.filter(r => r.cls === classLabel || r.cls === c.name);
+      return res.json({
+        ok: true,
+        datesheet: {
+          title: ds.title,
+          revision: ds.revision,
+          published_at: ds.published_at,
+          className: classLabel,
+          rows: classRows
+        }
+      });
+    }
+
+    if (role === 'teacher') {
+      const teacherRes = await pool.query(
+        'SELECT t.name, t.class_id, c.name as class_name, c.section as class_section FROM teachers t LEFT JOIN classes c ON t.class_id = c.id WHERE t.id = $1 AND t.tenant_id = $2',
+        [req.user.id, tenantId]
+      );
+      const t = teacherRes.rows[0] || {};
+      const classLabel = t.class_name ? (t.class_section ? `${t.class_name} (${t.class_section})` : t.class_name) : null;
+
+      const dsRes = await pool.query(
+        'SELECT * FROM datesheets WHERE tenant_id = $1 ORDER BY revision DESC, id DESC LIMIT 5',
+        [tenantId]
+      );
+      if (!dsRes.rows.length) {
+        return res.json({ ok: true, datesheet: null });
+      }
+      const ds = dsRes.rows[0];
+      const allRows = (ds.data && ds.data.rows) || [];
+      const teacherRows = allRows.filter(r => (classLabel && (r.cls === classLabel || r.cls === t.class_name)) || (t.name && r.t && r.t.toLowerCase() === t.name.toLowerCase()));
+      return res.json({
+        ok: true,
+        datesheet: {
+          title: ds.title,
+          revision: ds.revision,
+          published_at: ds.published_at,
+          className: classLabel || 'All Classes',
+          rows: teacherRows
+        }
+      });
+    }
+
+    // Admin / Super Admin
+    const dsRes = await pool.query(
+      'SELECT * FROM datesheets WHERE tenant_id = $1 ORDER BY revision DESC, id DESC LIMIT 1',
+      [tenantId]
+    );
+    if (!dsRes.rows.length) return res.json({ ok: true, datesheet: null });
+    const ds = dsRes.rows[0];
+    res.json({
+      ok: true,
+      datesheet: {
+        title: ds.title,
+        revision: ds.revision,
+        published_at: ds.published_at,
+        scope: ds.scope,
+        rows: (ds.data && ds.data.rows) || []
+      }
+    });
+  } catch (err) {
+    console.error('[datesheet my-datesheet] error:', err);
+    res.status(500).json({ error: 'Failed to fetch your date sheet.' });
+  }
+});
+
+// ============================================
+// COMPLAINT ROUTES
+// ============================================
+
+// POST /api/complaints (Teacher or Student)
+app.post('/api/complaints', requireAuth(['teacher', 'student']), async (req, res) => {
+  try {
+    const tenantId = req.user.tenant_id;
+    const branchId = req.user.branch_id || null;
+    const role = req.user.role; // Role strictly from login, never from URL or body
+
+    if (role !== 'teacher' && role !== 'student') {
+      return res.status(403).json({ error: 'Only teachers and students can submit complaints.' });
+    }
+
+    // Rate limit: maximum 5 complaints per hour per user
+    const rateCheck = await pool.query(
+      "SELECT COUNT(*) AS cnt FROM complaints WHERE tenant_id = $1 AND user_id = $2 AND created_at > NOW() - INTERVAL '1 hour'",
+      [tenantId, req.user.id]
+    );
+    const count = parseInt(rateCheck.rows[0].cnt, 10);
+    if (count >= 5) {
+      return res.status(429).json({ error: 'Rate limit reached: maximum 5 complaints per hour.' });
+    }
+
+    const { category, subject, description, is_anonymous } = req.body || {};
+    if (!category || !subject || !description) {
+      return res.status(400).json({ error: 'Category, subject, and description are required.' });
+    }
+
+    const isAnon = Boolean(is_anonymous);
+    const userId = isAnon ? null : req.user.id;
+    const authorName = isAnon ? null : (req.user.name || `${role} ${req.user.id}`);
+
+    const result = await pool.query(
+      'INSERT INTO complaints (tenant_id, branch_id, role, user_id, author_name, category, subject, description, is_anonymous, status, admin_notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id, status, created_at',
+      [
+        tenantId,
+        branchId,
+        role,
+        userId,
+        authorName,
+        category.trim(),
+        subject.trim(),
+        description.trim(),
+        isAnon,
+        'pending',
+        ''
+      ]
+    );
+
+    res.json({ ok: true, message: 'Complaint submitted successfully.', complaint: result.rows[0] });
+  } catch (err) {
+    console.error('[complaints submit] error:', err);
+    res.status(500).json({ error: 'Failed to submit complaint.' });
+  }
+});
+
+// GET /api/complaints (Admin only)
+app.get('/api/complaints', requireAuth(['admin', 'super_admin']), async (req, res) => {
+  try {
+    const tenantId = req.user.tenant_id;
+    const { role, status, search } = req.query || {};
+
+    let query = 'SELECT id, tenant_id, branch_id, role, author_name, category, subject, description, is_anonymous, status, admin_notes, created_at, updated_at FROM complaints WHERE tenant_id = $1';
+    const params = [tenantId];
+
+    if (role) {
+      params.push(role);
+      query += ` AND role = $${params.length}`;
+    }
+    if (status && status !== 'all') {
+      params.push(status);
+      query += ` AND status = $${params.length}`;
+    }
+    if (search) {
+      params.push(`%${search.trim()}%`);
+      query += ` AND (subject ILIKE $${params.length} OR description ILIKE $${params.length} OR category ILIKE $${params.length})`;
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    const result = await pool.query(query, params);
+    res.json({ ok: true, complaints: result.rows });
+  } catch (err) {
+    console.error('[complaints get] error:', err);
+    res.status(500).json({ error: 'Failed to fetch complaints.' });
+  }
+});
+
+// PATCH /api/complaints/:id (Admin only)
+app.patch('/api/complaints/:id', requireAuth(['admin', 'super_admin']), async (req, res) => {
+  try {
+    const tenantId = req.user.tenant_id;
+    const id = parseInt(req.params.id, 10);
+    const { status, admin_notes } = req.body || {};
+
+    const updates = [];
+    const params = [id, tenantId];
+
+    if (status !== undefined) {
+      params.push(status);
+      updates.push(`status = $${params.length}`);
+    }
+    if (admin_notes !== undefined) {
+      params.push(admin_notes);
+      updates.push(`admin_notes = $${params.length}`);
+    }
+    params.push(new Date());
+    updates.push(`updated_at = $${params.length}`);
+
+    if (!updates.length) return res.json({ ok: true });
+
+    await pool.query(
+      `UPDATE complaints SET ${updates.join(', ')} WHERE id = $1 AND tenant_id = $2`,
+      params
+    );
+
+    res.json({ ok: true, message: 'Complaint updated.' });
+  } catch (err) {
+    console.error('[complaints patch] error:', err);
+    res.status(500).json({ error: 'Failed to update complaint.' });
+  }
+});
+
+
+
+
+// ============================================
+// API ERROR HANDLER + CATCH-ALL 404
+//
+// These MUST be registered after every route. Express matches middleware in
+// registration order, so a catch-all placed earlier answers /api/datesheet/*
+// and /api/complaints/* with 404 before their real handlers ever run.
+// ============================================
+// ============================================
+// JSON ERROR HANDLER — ensures API routes always
+// return JSON, never HTML (Express 5 default
+// error handler sends HTML in development mode)
+// ============================================
+app.use('/api', (err, req, res, next) => {
+  console.error('API error:', err)
+  if (res.headersSent) return next(err)
+  res.status(err.status || 500).json({ error: err.message || 'Internal server error' })
+})
+
+// Catch-all: return 404 JSON for any unmatched /api routes
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: `Cannot ${req.method} ${req.originalUrl}` })
+})

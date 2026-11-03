@@ -25,8 +25,7 @@ var MENU_CONFIG = {
         {
           label: 'Generate Date Sheet',
           desc: 'Makes the exam dates for your classes.',
-          href: '#',
-          toast: 'Generate Date Sheet will be available soon'
+          href: '/datesheet.html'
         }
       ]
     },
@@ -38,14 +37,14 @@ var MENU_CONFIG = {
         {
           label: 'Teacher complaints',
           desc: 'Complaints submitted by teachers.',
-          href: '#',
-          toast: 'Complaints will be available soon'
+          href: '#tab-complaints',
+          dataSection: 'tab-complaints'
         },
         {
           label: 'Student complaints',
           desc: 'Complaints submitted by students.',
-          href: '#',
-          toast: 'Complaints will be available soon'
+          href: '#tab-complaints',
+          dataSection: 'tab-complaints'
         }
       ]
     },
