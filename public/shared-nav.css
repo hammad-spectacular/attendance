@@ -16,8 +16,8 @@
   overflow: visible !important;
 }
 
-/* Base Tab item */
-.tab-btn,
+/* Base Tab item — scoped to new dropdown elements only.
+   admin.html's own .tab-btn styles are preserved and not overridden here. */
 .nav-tab-item > .tab-btn {
   position: relative;
   display: inline-flex;
@@ -37,8 +37,7 @@
   outline: none;
 }
 
-/* Sliding underline indicator */
-.tab-btn::after,
+/* Sliding underline indicator — new dropdown elements only */
 .nav-tab-item > .tab-btn::after {
   content: '';
   position: absolute;
@@ -50,32 +49,26 @@
   transition: width 180ms ease, left 180ms ease;
 }
 
-/* Hover & Focus state: light grey highlight & sliding underline */
-.tab-btn:hover,
-.tab-btn:focus-visible,
+/* Hover & Focus state — new dropdown elements only */
 .nav-tab-item.open > .tab-btn,
 .nav-tab-item:hover > .tab-btn {
   background-color: rgba(148, 163, 184, 0.16);
   color: var(--text, #0f172a);
 }
 
-.tab-btn:hover::after,
-.tab-btn:focus-visible::after,
 .nav-tab-item.open > .tab-btn::after,
 .nav-tab-item:hover > .tab-btn::after {
   width: 80%;
   left: 10%;
 }
 
-/* Active tab state */
-.tab-btn.active,
+/* Active tab state — new dropdown elements only */
 .nav-tab-item.active > .tab-btn {
   color: var(--primary, #4f46e5);
   font-weight: 600;
   background-color: rgba(79, 70, 229, 0.08);
 }
 
-.tab-btn.active::after,
 .nav-tab-item.active > .tab-btn::after {
   width: 100%;
   left: 0;
@@ -103,13 +96,13 @@
 
 /* Dropdown Menu Container */
 .nav-dropdown {
-  position: absolute;
-  top: 100%;
+  position: fixed;
+  top: 0;
   left: 0;
-  margin-top: 0; /* No gap between tab and menu */
+  margin-top: 0;
   min-width: 220px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
   border-radius: 8px;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.06);
   padding: 6px;
@@ -133,7 +126,7 @@
 .nav-dropdown-item {
   display: block;
   padding: 8px 12px;
-  color: #1e293b;
+  color: var(--text, #1e293b);
   text-decoration: none;
   border-radius: 6px;
   font-size: 0.85rem;
@@ -143,7 +136,7 @@
 
 .nav-dropdown-item:hover,
 .nav-dropdown-item:focus-visible {
-  background-color: #f1f5f9;
+  background-color: var(--bg-card-hover, #f1f5f9);
   outline: none;
 }
 
@@ -156,13 +149,13 @@
 .nav-dropdown-title {
   display: block;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--text, #0f172a);
 }
 
 .nav-dropdown-desc {
   display: block;
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
   margin-top: 2px;
 }
 

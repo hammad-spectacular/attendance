@@ -8248,6 +8248,12 @@
       if (window.initSharedNav) {
         window.initSharedNav('admin');
       }
+      // Re-attach tab click handlers after initSharedNav replaces the tab HTML.
+      // Without this, the dynamically rendered dropdown tabs have no click handlers
+      // and most tabs show empty content.
+      if (window.setupSectionTabs) {
+        window.setupSectionTabs();
+      }
     });
   </script>
 
