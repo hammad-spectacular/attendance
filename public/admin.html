@@ -6345,7 +6345,31 @@
         const data = await response.json();
         if (data.success) {
           currentQRToken = data.token;
-          await loadQRStatus();
+          
+          // Directly render QR code
+          const display = document.getElementById('qrCodeDisplay');
+          const status = document.getElementById('qrStatus');
+          const regenerateBtn = document.getElementById('regenerateQRBtn');
+          const downloadBtn = document.getElementById('downloadQRBtn');
+          const fullScreenBtn = document.getElementById('qrFullScreenBtn');
+          
+          display.innerHTML = `<div id="qrcode" style="width:200px; height:200px;"></div>`;
+          
+          // Wait for DOM to update then render QR
+          setTimeout(() => {
+            new QRCode(document.getElementById('qrcode'), {
+              text: currentQRToken,
+              width: 200,
+              height: 200
+            });
+          }, 100);
+          
+          status.textContent = `Active until ${new Date(data.expires_at).toLocaleString()}`;
+          regenerateBtn.style.display = 'inline-flex';
+          downloadBtn.style.display = 'inline-flex';
+          downloadBtn.disabled = false;
+          fullScreenBtn.style.display = 'inline-flex';
+          
           // Show success notification
           alert('New QR code generated successfully!');
         } else if (data.error) {
