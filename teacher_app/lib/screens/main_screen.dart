@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:qr_code_scanner/qr_code_scanner.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/api_service.dart';
@@ -23,7 +23,7 @@ class _MainScreenState extends State<MainScreen> {
   bool _cameraPermissionGranted = false;
   bool _locationPermissionGranted = false;
   bool _locationServiceEnabled = false;
-  bool _controllerStarted = false;
+  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
 
   @override
   void initState() {
@@ -348,26 +348,22 @@ class _MainScreenState extends State<MainScreen> {
                             ? SizedBox(
                                 width: double.infinity,
                                 height: double.infinity,
-                                child: MobileScanner(
+                                child: QRCodeScanner(
+                                  key: qrKey,
                                   onDetect: _onBarcodeDetected,
-                                  onScanError: (error, controller) {
+                                  onScanError: (error) {
                                     print('SCANNER ERROR: $error');
-                                    print('Error code: ${error.errorCode}');
-                                    print('Error details: ${error.errorDetails}');
                                     setState(() {
-                                      _errorMessage = 'Scanner Error: ${error.errorCode} - ${error.errorDetails?.message ?? error.toString()}';
+                                      _errorMessage = 'Scanner Error: $error';
                                       _updateDiagnosticInfo();
                                     });
                                   },
-                                  onDispose: () {
-                                    print('Scanner disposed');
-                                    _controllerStarted = false;
-                                    _updateDiagnosticInfo();
-                                  },
-                                  onControllerCreated: (controller) {
-                                    print('Scanner controller created');
-                                    _controllerStarted = true;
-                                    _updateDiagnosticInfo();
+                                  onPermissionSet: (ctrl, p) {
+                                    print('Permission set: $p');
+                                    setState(() {
+                                      _cameraPermissionGranted = p;
+                                      _updateDiagnosticInfo();
+                                    });
                                   },
                                 ),
                               )
