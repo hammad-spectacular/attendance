@@ -45,7 +45,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (result['success']) {
       final data = result['data'];
+      final role = data['role'] ?? '';
       final isFirstLogin = data['is_first_login'] ?? false;
+
+      // Allow both teachers and admins to login
+      if (role != 'teacher' && role != 'admin') {
+        setState(() {
+          _errorMessage = 'This app is for teachers and admins only';
+        });
+        return;
+      }
 
       if (isFirstLogin) {
         // Navigate to password change screen

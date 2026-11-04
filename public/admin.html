@@ -110,8 +110,8 @@
       padding: 20px 24px;
       position: sticky;
       top: 0;
-      z-index: 60;
-      overflow: hidden;
+      z-index: 1000;
+      overflow: visible;
       box-shadow: 0 4px 20px rgba(79, 70, 229, 0.3);
       animation: headerSlideDown 0.5s ease-out;
     }
@@ -186,6 +186,37 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      position: relative;
+      z-index: 1001;
+      flex-shrink: 0;
+    }
+
+    #headerStudentCount {
+      flex-shrink: 0;
+    }
+
+    /* User profile block in header (if user details are shown) */
+    .header-user-profile {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .header-user-name {
+      color: white;
+      font-weight: 700;
+      font-size: 0.9rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header-user-id {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 0.72rem;
+      white-space: nowrap;
     }
 
     /* ================================
@@ -297,6 +328,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      z-index: 1002;
     }
 
     .header-menu-toggle {
@@ -307,6 +339,8 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      position: relative;
+      z-index: 1003;
     }
 
     .header-menu-label {
@@ -326,6 +360,8 @@
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
       white-space: nowrap;
+      position: relative;
+      z-index: 50;
     }
 
     .tab-nav::-webkit-scrollbar {
@@ -534,6 +570,8 @@
       max-width: 960px;
       margin: 0 auto;
       padding: 28px 20px 60px;
+      position: relative;
+      z-index: 1;
     }
 
     .modal-actions .btn {
@@ -1346,9 +1384,63 @@
     /* ================================
        RESPONSIVE
        ================================ */
+    @media (max-width: 768px) {
+      .header {
+        padding: 16px 20px;
+      }
+
+      .header-inner {
+        gap: 10px;
+      }
+
+      .header-title strong {
+        font-size: 1.15rem;
+      }
+
+      .header-user-profile {
+        max-width: 140px;
+      }
+
+      .header-user-name {
+        font-size: 0.85rem;
+      }
+
+      .header-user-id {
+        font-size: 0.68rem;
+      }
+
+      #headerStudentCount {
+        font-size: 0.75rem;
+      }
+
+      .header-right {
+        gap: 8px;
+      }
+    }
+
     @media (max-width: 640px) {
       .header {
         padding: 16px;
+      }
+
+      .header-inner {
+        gap: 8px;
+      }
+
+      .header-title strong {
+        font-size: 1.1rem;
+      }
+
+      .header-user-profile {
+        display: none; /* Hide user profile on very small screens */
+      }
+
+      #headerStudentCount {
+        display: none; /* Hide student count on very small screens */
+      }
+
+      .header-right {
+        gap: 8px;
       }
 
       .header-title strong {
@@ -1694,6 +1786,7 @@
         top: auto;
         margin-top: 0;
         overflow: visible;
+        z-index: 50;
       }
 
       .tab-nav-toggle {
@@ -1752,6 +1845,7 @@
 
       .header {
         overflow: visible;
+        z-index: 1000;
       }
 
       .tab-nav-toggle:focus-visible,
@@ -1792,7 +1886,7 @@
         position: absolute;
         top: calc(100% + 10px);
         right: 0;
-        z-index: 100;
+        z-index: 10000;
         flex-direction: column;
         align-items: stretch;
         gap: 0.3rem;
@@ -2299,6 +2393,18 @@
         </select>
       </div>
       <div class="header-right">
+        <!-- Theme toggle button (separate from dropdown) -->
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+          <i class="fas fa-moon" id="themeIcon"></i>
+        </button>
+
+        <!-- Student count (if enabled) -->
+        <div id="headerStudentCount" style="display:none;align-items:center;gap:8px;font-size:0.8rem;color:rgba(255,255,255,0.85);">
+          <i class="fas fa-users"></i>
+          <span id="headerCapStudents">—</span>
+        </div>
+
+        <!-- User menu dropdown -->
         <div id="headerMenuWrap" class="header-menu-wrap">
           <button id="headerMenuToggle" class="header-menu-toggle" aria-expanded="false" aria-controls="headerMenuPanel" aria-label="Open menu" title="Menu">
             <i class="fas fa-ellipsis-vertical"></i>
@@ -2306,10 +2412,6 @@
           <div id="headerMenuPanel" class="header-menu-panel">
             <button class="btn" onclick="openChangePasswordModal(); closeHeaderMenu();" style="padding:8px 14px;font-size:0.75rem;background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.25);color:white;border-radius:10px;font-weight:600;cursor:pointer;transition:all 0.3s ease;font-family:'Inter',sans-serif;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'"><i class="fas fa-key"></i> Change Password</button>
             <button class="btn" onclick="handleLogout()" style="padding:8px 14px;font-size:0.75rem;background:rgba(239,68,68,0.2);border:2px solid rgba(239,68,68,0.3);color:white;border-radius:10px;font-weight:600;cursor:pointer;transition:all 0.3s ease;font-family:'Inter',sans-serif;" onmouseover="this.style.background='rgba(239,68,68,0.35)'" onmouseout="this.style.background='rgba(239,68,68,0.2)'"><i class="fas fa-sign-out-alt"></i> Logout</button>
-            <button class="theme-toggle" onclick="toggleTheme(); closeHeaderMenu();" title="Toggle theme" aria-label="Toggle theme">
-              <i class="fas fa-moon" id="themeIcon"></i>
-              <span class="header-menu-label">Toggle theme</span>
-            </button>
           </div>
         </div>
       </div>
@@ -2346,6 +2448,9 @@
       </a>
       <a href="#tab-announcements" class="tab-btn" data-section="tab-announcements">
         <i class="fas fa-bullhorn"></i>Announcements
+      </a>
+      <a href="#tab-qr-attendance" class="tab-btn" data-section="tab-qr-attendance" id="qrAttendanceTabBtn">
+        <i class="fas fa-qrcode"></i>QR Attendance
       </a>
       <a href="#tab-fees" class="tab-btn" data-section="tab-fees" data-feature-key="fees">
         <i class="fas fa-money-bill-wave"></i>Fees
@@ -2779,6 +2884,64 @@
           <!-- Saved Announcements List -->
           <div id="announcementsList">
             <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== QR ATTENDANCE TAB ==================== -->
+    <div id="tab-qr-attendance" class="tab-content">
+      <div class="section-card" id="qrAttendanceSection">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-icon green"><i class="fas fa-qrcode"></i></div>
+            <div>
+              <div class="section-title">QR Staff Attendance</div>
+              <div class="section-subtitle">Generate QR codes and view staff attendance</div>
+            </div>
+          </div>
+        </div>
+        <div class="section-body">
+          <!-- QR Code Generation -->
+          <div style="margin-bottom:24px; padding:20px; border:1px solid var(--border); border-radius:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+              <div>
+                <div style="font-size:1.1rem; font-weight:700; color:var(--text);">QR Code</div>
+                <div style="font-size:0.9rem; color:var(--text-muted);">Teachers scan to mark attendance</div>
+              </div>
+              <div style="display:flex; gap:10px;">
+                <button class="btn btn-primary" onclick="generateQRCode()" id="generateQRBtn">
+                  <i class="fas fa-plus"></i> Generate
+                </button>
+                <button class="btn btn-ghost" onclick="regenerateQRCode()" id="regenerateQRBtn" style="display:none;">
+                  <i class="fas fa-sync-alt"></i> Regenerate
+                </button>
+                <button class="btn btn-ghost" onclick="downloadQRCode()" id="downloadQRBtn" style="display:none;" disabled>
+                  <i class="fas fa-download"></i> Download
+                </button>
+                <button class="btn btn-ghost" onclick="showQRFullScreen()" id="qrFullScreenBtn" style="display:none;">
+                  <i class="fas fa-expand"></i> Full Screen
+                </button>
+              </div>
+            </div>
+            <div id="qrCodeDisplay" style="display:flex; justify-content:center; align-items:center; min-height:200px; background:var(--bg-alt); border-radius:8px; padding:20px;">
+              <div style="color:var(--text-muted);">No active QR code</div>
+            </div>
+            <div id="qrStatus" style="margin-top:12px; font-size:0.9rem; color:var(--text-muted);"></div>
+          </div>
+
+          <!-- Staff Attendance List -->
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+              <div style="font-size:1.1rem; font-weight:700; color:var(--text);">Staff Attendance</div>
+              <div style="display:flex; gap:10px;">
+                <input type="date" id="staffAttendanceDate" class="form-input" style="width:160px;" onchange="loadStaffAttendance()">
+                <input type="text" id="staffAttendanceSearch" class="form-input" style="width:200px;" placeholder="Search by name..." oninput="loadStaffAttendance()">
+              </div>
+            </div>
+            <div id="staffAttendanceList">
+              <!-- Rendered by JS -->
+            </div>
           </div>
         </div>
       </div>
@@ -3365,6 +3528,7 @@
 
 
   <!-- ======================== JAVASCRIPT ======================== -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="./api-config.js"></script>
   <script src="./auth-utils.js"></script>
   <script src="./draft-store.js"></script>
@@ -6166,6 +6330,171 @@
     }
 
     // =============================================================
+    // QR ATTENDANCE FUNCTIONS
+    // =============================================================
+    let currentQRToken = null;
+
+    async function loadQRStatus() {
+      try {
+        const response = await apiFetch('/api/attendance/qr/status');
+        const data = await response.json();
+        const display = document.getElementById('qrCodeDisplay');
+        const status = document.getElementById('qrStatus');
+        const regenerateBtn = document.getElementById('regenerateQRBtn');
+        const downloadBtn = document.getElementById('downloadQRBtn');
+        const fullScreenBtn = document.getElementById('qrFullScreenBtn');
+
+        if (data.active) {
+          currentQRToken = data.token;
+          display.innerHTML = `<div id="qrcode" style="width:200px; height:200px;"></div>`;
+          new QRCode(document.getElementById('qrcode'), {
+            text: currentQRToken,
+            width: 200,
+            height: 200
+          });
+          status.textContent = `Active until ${new Date(data.expires_at).toLocaleString()}`;
+          regenerateBtn.style.display = 'inline-flex';
+          downloadBtn.style.display = 'inline-flex';
+          downloadBtn.disabled = false;
+          fullScreenBtn.style.display = 'inline-flex';
+        } else {
+          currentQRToken = null;
+          display.innerHTML = '<div style="color:var(--text-muted);">No active QR code</div>';
+          status.textContent = '';
+          regenerateBtn.style.display = 'none';
+          downloadBtn.style.display = 'none';
+          fullScreenBtn.style.display = 'none';
+        }
+      } catch (err) {
+        console.error('Error loading QR status:', err);
+      }
+    }
+
+    async function generateQRCode() {
+      try {
+        const response = await apiFetch('/api/attendance/qr/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        if (data.success) {
+          currentQRToken = data.token;
+          await loadQRStatus();
+        }
+      } catch (err) {
+        console.error('Error generating QR code:', err);
+        alert('Failed to generate QR code');
+      }
+    }
+
+    async function regenerateQRCode() {
+      if (!confirm('Replace the current code? The old code will stop working.')) return;
+      await generateQRCode();
+    }
+
+    function downloadQRCode() {
+      if (!currentQRToken) return;
+      const qrCanvas = document.querySelector('#qrcode canvas');
+      if (!qrCanvas) return;
+
+      const link = document.createElement('a');
+      link.download = `qr-attendance-${new Date().toISOString().split('T')[0]}.png`;
+      link.href = qrCanvas.toDataURL('image/png');
+      link.click();
+    }
+
+    function showQRFullScreen() {
+      if (!currentQRToken) return;
+      const qrCanvas = document.querySelector('#qrcode canvas');
+      if (!qrCanvas) return;
+
+      const fullScreenDiv = document.createElement('div');
+      fullScreenDiv.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center;';
+      fullScreenDiv.innerHTML = `
+        <img src="${qrCanvas.toDataURL('image/png')}" style="width:400px; height:400px; margin-bottom:20px;">
+        <button onclick="this.parentElement.remove()" class="btn btn-primary">Close</button>
+      `;
+      document.body.appendChild(fullScreenDiv);
+    }
+
+    async function loadStaffAttendance() {
+      const date = document.getElementById('staffAttendanceDate').value || new Date().toISOString().split('T')[0];
+      const search = document.getElementById('staffAttendanceSearch').value.toLowerCase();
+      const container = document.getElementById('staffAttendanceList');
+
+      try {
+        const response = await apiFetch(`/api/attendance/staff?date=${encodeURIComponent(date)}`);
+        const data = await response.json();
+
+        const filtered = data.filter(item => {
+          return !search || item.person_name.toLowerCase().includes(search);
+        });
+
+        if (filtered.length === 0) {
+          container.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted);">No attendance records</div>';
+          return;
+        }
+
+        let html = `
+          <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Check In</th>
+                <th>Check Out</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>`;
+
+        filtered.forEach(item => {
+          const checkIn = item.check_in_time ? new Date(item.check_in_time).toLocaleTimeString() : '-';
+          const checkOut = item.check_out_time ? new Date(item.check_out_time).toLocaleTimeString() : (item.is_incomplete ? 'Incomplete' : '-');
+          const status = item.is_manual ? 'Manual' : 'QR';
+          html += `
+            <tr>
+              <td>${escapeHtml(item.person_name)}</td>
+              <td>${escapeHtml(item.person_role)}</td>
+              <td>${checkIn}</td>
+              <td>${checkOut}</td>
+              <td><span class="badge" style="background:${item.is_manual ? 'var(--badge-bg)' : 'var(--success-bg)'}; color:${item.is_manual ? 'var(--badge-text)' : 'var(--success-text)'};">${status}</span></td>
+              <td>
+                <button class="btn btn-sm btn-ghost" onclick="editStaffAttendance(${item.id})">Edit</button>
+              </td>
+            </tr>`;
+        });
+
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+      } catch (err) {
+        console.error('Error loading staff attendance:', err);
+        container.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted);">Failed to load attendance</div>';
+      }
+    }
+
+    function editStaffAttendance(attendanceId) {
+      const note = prompt('Enter a note for this change:');
+      if (!note) return;
+
+      const checkIn = prompt('Check-in time (HH:MM:SS) or leave blank:');
+      const checkOut = prompt('Check-out time (HH:MM:SS) or leave blank:');
+
+      apiFetch('/api/attendance/staff/manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          attendance_id: attendanceId,
+          check_in_time: checkIn || null,
+          check_out_time: checkOut || null,
+          note
+        })
+      }).then(() => loadStaffAttendance());
+    }
+
+    // =============================================================
     // SESSION CHECK + AUTH
     // =============================================================
     async function checkSession() {
@@ -7518,8 +7847,10 @@
           : '';
         const sEl = document.getElementById('capStudents');
         const tEl = document.getElementById('capTeachers');
+        const headerSEl = document.getElementById('headerCapStudents');
         if (students && sEl) sEl.textContent = students;
         if (teachers && tEl) tEl.textContent = teachers;
+        if (students && headerSEl) headerSEl.textContent = students;
         const sWrap = sEl ? sEl.parentElement : null;
         const tWrap = tEl ? tEl.parentElement : null;
         
@@ -7527,6 +7858,8 @@
         const tBlocked = !isSectionPermitted('tab-teachers');
 
         if (sWrap) sWrap.style.display = sBlocked ? 'none' : 'flex';
+        const headerSWrap = headerSEl ? headerSEl.parentElement : null;
+        if (headerSWrap) headerSWrap.style.display = sBlocked ? 'none' : 'flex';
         if (tWrap) tWrap.style.display = tBlocked ? 'none' : 'flex';
         if ((!sBlocked && students) || (!tBlocked && teachers)) strip.style.display = 'flex';
         else strip.style.display = 'none';
@@ -8286,6 +8619,13 @@
     document.addEventListener("DOMContentLoaded", function() {
       if (window.initSharedNav) {
         window.initSharedNav('admin');
+      }
+
+      // Load QR attendance status if on QR tab
+      if (document.getElementById('tab-qr-attendance')) {
+        loadQRStatus();
+        loadStaffAttendance();
+      }
       }
       // Re-attach tab click handlers after initSharedNav replaces the tab HTML.
       // Without this, the dynamically rendered dropdown tabs have no click handlers

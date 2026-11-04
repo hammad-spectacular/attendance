@@ -462,9 +462,13 @@ async function createTeacherAttendanceTable() {
       branch_id INTEGER REFERENCES branches(id) ON DELETE SET NULL,
       date DATE NOT NULL,
       check_in_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      check_out_time TIMESTAMPTZ,
       location_lat NUMERIC(10, 6),
       location_lng NUMERIC(10, 6),
       qr_code_data TEXT,
+      source VARCHAR(20) DEFAULT 'qr',
+      is_incomplete BOOLEAN DEFAULT false,
+      is_manual BOOLEAN DEFAULT false,
       created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(teacher_id, date)
     );
@@ -473,6 +477,57 @@ async function createTeacherAttendanceTable() {
     CREATE INDEX IF NOT EXISTS idx_teacher_attendance_teacher ON teacher_attendance(teacher_id);
     CREATE INDEX IF NOT EXISTS idx_teacher_attendance_tenant ON teacher_attendance(tenant_id);
     CREATE INDEX IF NOT EXISTS idx_teacher_attendance_date ON teacher_attendance(date);
+  `)
+
+  // Create QR attendance sessions table for code generation
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS qr_attendance_sessions (
+      id SERIAL PRIMARY KEY,
+      tenant_id VARCHAR(10) NOT NULL REFERENCES organizations(school_code) ON DELETE CASCADE,
+      branch_id INTEGER REFERENCES branches(id) ON DELETE SET NULL,
+      token VARCHAR(64) UNIQUE NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      is_active BOOLEAN DEFAULT true,
+      created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    );
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_qr_sessions_tenant ON qr_attendance_sessions(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_qr_sessions_token ON qr_attendance_sessions(token);
+    CREATE INDEX IF NOT EXISTS idx_qr_sessions_active ON qr_attendance_sessions(is_active) WHERE is_active = true;
+  `)
+
+  // Create QR requirement setting table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS qr_attendance_settings (
+      id SERIAL PRIMARY KEY,
+      tenant_id VARCHAR(10) UNIQUE NOT NULL REFERENCES organizations(school_code) ON DELETE CASCADE,
+      require_checkout BOOLEAN DEFAULT false,
+      updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    );
+  `)
+
+  // Create manual changes history table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS teacher_attendance_manual_changes (
+      id SERIAL PRIMARY KEY,
+      attendance_id INTEGER NOT NULL REFERENCES teacher_attendance(id) ON DELETE CASCADE,
+      changed_by INTEGER NOT NULL REFERENCES admins(id) ON DELETE SET NULL,
+      changed_by_role VARCHAR(20) NOT NULL,
+      old_check_in_time TIMESTAMPTZ,
+      new_check_in_time TIMESTAMPTZ,
+      old_check_out_time TIMESTAMPTZ,
+      new_check_out_time TIMESTAMPTZ,
+      old_status VARCHAR(20),
+      new_status VARCHAR(20),
+      note TEXT NOT NULL,
+      changed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    );
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_manual_changes_attendance ON teacher_attendance_manual_changes(attendance_id);
+    CREATE INDEX IF NOT EXISTS idx_manual_changes_by ON teacher_attendance_manual_changes(changed_by);
+    CREATE INDEX IF NOT EXISTS idx_manual_changes_date ON teacher_attendance_manual_changes(changed_at);
   `)
 }
 
@@ -3879,55 +3934,120 @@ app.post('/api/attendance/submit', requireAuth(['teacher', 'admin', 'coordinator
 // ============================================
 
 // POST /api/attendance/teacher/checkin
-// Teachers check in by scanning the school's QR code
-app.post('/api/attendance/teacher/checkin', requireAuth(['teacher']), async (req, res) => {
+// Teachers and admins check in by scanning the school's QR code
+app.post('/api/attendance/teacher/checkin', requireAuth(['teacher', 'admin']), async (req, res) => {
   try {
     const { qr_code_data, location_lat, location_lng } = req.body || {}
-    const { user_id, tenant_id, branch_id } = req.user
+    const { user_id, tenant_id, branch_id, role } = req.user
 
-    // Verify teacher exists and get their branch info
-    const teacherResult = await pool.query(
-      'SELECT id, name, branch_id FROM teachers WHERE id = $1 AND tenant_id = $2',
-      [user_id, tenant_id]
-    )
-
-    if (teacherResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Teacher not found' })
+    // Rate limiting
+    if (!checkScanRateLimit(user_id)) {
+      return res.status(429).json({ error: 'Too many attempts' })
     }
 
-    const teacher = teacherResult.rows[0]
+    // Verify QR code is valid and not expired
+    const qrResult = await pool.query(
+      `SELECT id, tenant_id, branch_id, expires_at, is_active 
+       FROM qr_attendance_sessions 
+       WHERE token = $1 AND is_active = true AND expires_at > NOW()`,
+      [qr_code_data]
+    )
+
+    if (qrResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Code expired' })
+    }
+
+    const qrSession = qrResult.rows[0]
+
+    // Verify QR belongs to the same tenant
+    if (qrSession.tenant_id !== tenant_id) {
+      return res.status(403).json({ error: 'Invalid code' })
+    }
+
+    // Get person info (teacher or admin)
+    let personResult
+    if (role === 'teacher') {
+      personResult = await pool.query(
+        'SELECT id, name, branch_id FROM teachers WHERE id = $1 AND tenant_id = $2',
+        [user_id, tenant_id]
+      )
+    } else {
+      personResult = await pool.query(
+        'SELECT id, name, branch_id FROM admins WHERE id = $1 AND tenant_id = $2',
+        [user_id, tenant_id]
+      )
+    }
+
+    if (personResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Invalid code' })
+    }
+
+    const person = personResult.rows[0]
     const today = schoolToday()
 
     // Check if already checked in today
     const existingCheckIn = await pool.query(
-      'SELECT id, check_in_time FROM teacher_attendance WHERE teacher_id = $1 AND date = $2',
+      'SELECT id, check_in_time, check_out_time FROM teacher_attendance WHERE teacher_id = $1 AND date = $2',
       [user_id, today]
     )
 
+    // Get QR requirement setting
+    const settingResult = await pool.query(
+      'SELECT require_checkout FROM qr_attendance_settings WHERE tenant_id = $1',
+      [tenant_id]
+    )
+    const requireCheckout = settingResult.rows.length > 0 ? settingResult.rows[0].require_checkout : false
+
     if (existingCheckIn.rows.length > 0) {
-      return res.status(400).json({
-        error: 'Already checked in today',
-        check_in_time: existingCheckIn.rows[0].check_in_time
+      const existing = existingCheckIn.rows[0]
+
+      if (!requireCheckout) {
+        return res.status(400).json({ error: 'Already marked today' })
+      }
+
+      if (existing.check_out_time) {
+        return res.status(400).json({ error: 'Already done today' })
+      }
+
+      // Check if too soon (within 5 minutes)
+      const checkInTime = new Date(existing.check_in_time)
+      const now = new Date()
+      const fiveMinutes = 5 * 60 * 1000
+      if (now - checkInTime < fiveMinutes) {
+        return res.status(400).json({ error: 'Too soon' })
+      }
+
+      // Check out
+      await pool.query(
+        'UPDATE teacher_attendance SET check_out_time = NOW(), is_incomplete = false WHERE id = $1',
+        [existing.id]
+      )
+
+      res.json({
+        success: true,
+        message: 'Check-out successful',
+        attendance_id: existing.id,
+        check_out_time: now.toISOString(),
+        date: today
+      })
+    } else {
+      // Check in
+      const result = await pool.query(
+        `INSERT INTO teacher_attendance 
+         (teacher_id, tenant_id, branch_id, date, location_lat, location_lng, qr_code_data, source)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'qr')
+         RETURNING id, check_in_time`,
+        [user_id, tenant_id, person.branch_id, today, locationLat, locationLng, qr_codeData]
+      )
+
+      res.json({
+        success: true,
+        message: 'Check-in successful',
+        attendance_id: result.rows[0].id,
+        check_in_time: result.rows[0].check_in_time,
+        date: today
       })
     }
-
-    // Insert teacher attendance record
-    const result = await pool.query(
-      `INSERT INTO teacher_attendance 
-       (teacher_id, tenant_id, branch_id, date, location_lat, location_lng, qr_code_data)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, check_in_time`,
-      [user_id, tenant_id, teacher.branch_id, today, location_lat, location_lng, qr_code_data]
-    )
-
-    res.json({
-      success: true,
-      message: 'Check-in successful',
-      attendance_id: result.rows[0].id,
-      check_in_time: result.rows[0].check_in_time,
-      date: today,
-      teacher_name: teacher.name
-    })
   } catch (err) {
     console.error('Error in teacher check-in:', err)
     res.status(500).json({ error: 'Server error: ' + err.message })
@@ -3936,25 +4056,354 @@ app.post('/api/attendance/teacher/checkin', requireAuth(['teacher']), async (req
 
 // GET /api/attendance/teacher/me
 // Get current teacher's attendance history
-app.get('/api/attendance/teacher/me', requireAuth(['teacher']), async (req, res) => {
+app.get('/api/attendance/teacher/me', requireAuth(['teacher', 'admin']), async (req, res) => {
   try {
-    const { user_id, tenant_id } = req.user
+    const { user_id, tenant_id, role } = req.user
 
-    const result = await pool.query(
-      `SELECT ta.id, ta.date, ta.check_in_time, ta.location_lat, ta.location_lng, ta.qr_code_data,
-              t.name as teacher_name, b.name as branch_name
-       FROM teacher_attendance ta
-       JOIN teachers t ON ta.teacher_id = t.id
-       LEFT JOIN branches b ON ta.branch_id = b.id
-       WHERE ta.teacher_id = $1 AND ta.tenant_id = $2
-       ORDER BY ta.date DESC, ta.check_in_time DESC
-       LIMIT 30`,
-      [user_id, tenant_id]
-    )
+    let result
+    if (role === 'teacher') {
+      result = await pool.query(
+        `SELECT ta.id, ta.date, ta.check_in_time, ta.check_out_time, ta.location_lat, ta.location_lng, ta.qr_code_data,
+                t.name as teacher_name, b.name as branch_name
+         FROM teacher_attendance ta
+         JOIN teachers t ON ta.teacher_id = t.id
+         LEFT JOIN branches b ON ta.branch_id = b.id
+         WHERE ta.teacher_id = $1 AND ta.tenant_id = $2
+         ORDER BY ta.date DESC, ta.check_in_time DESC
+         LIMIT 30`,
+        [user_id, tenant_id]
+      )
+    } else {
+      result = await pool.query(
+        `SELECT ta.id, ta.date, ta.check_in_time, ta.check_out_time, ta.location_lat, ta.location_lng, ta.qr_code_data,
+                a.name as teacher_name, b.name as branch_name
+         FROM teacher_attendance ta
+         JOIN admins a ON ta.teacher_id = a.id
+         LEFT JOIN branches b ON ta.branch_id = b.id
+         WHERE ta.teacher_id = $1 AND ta.tenant_id = $2
+         ORDER BY ta.date DESC, ta.check_in_time DESC
+         LIMIT 30`,
+        [user_id, tenant_id]
+      )
+    }
 
     res.json(result.rows)
   } catch (err) {
     console.error('Error fetching teacher attendance:', err)
+    res.status(500).json({ error: 'Server error: ' + err.message })
+  }
+})
+
+// ============================================
+// RATE LIMITING
+// ============================================
+
+const scanRateLimit = new Map()
+const SCAN_RATE_LIMIT_MS = 5000 // 5 seconds between scans
+
+function checkScanRateLimit(userId) {
+  const lastScan = scanRateLimit.get(userId)
+  const now = Date.now()
+  if (lastScan && now - lastScan < SCAN_RATE_LIMIT_MS) {
+    return false
+  }
+  scanRateLimit.set(userId, now)
+  return true
+}
+
+// ============================================
+// QR ATTENDANCE GENERATION (Admin/Super Admin)
+// ============================================
+
+// POST /api/attendance/qr/generate
+// Generate a new QR code for the school/branch
+app.post('/api/attendance/qr/generate', requireAuth(['admin', 'super_admin']), async (req, res) => {
+  try {
+    const { tenant_id, branch_id } = req.user
+
+    // Check if there's an active QR code
+    const existingResult = await pool.query(
+      `SELECT id FROM qr_attendance_sessions 
+       WHERE tenant_id = $1 AND (branch_id IS NULL OR branch_id = $2) AND is_active = true 
+       ORDER BY created_at DESC LIMIT 1`,
+      [tenant_id, branch_id]
+    )
+
+    if (existingResult.rows.length > 0) {
+      return res.status(400).json({ error: 'Active code exists' })
+    }
+
+    // Generate random token
+    const token = crypto.randomBytes(32).toString('hex')
+    const expiresAt = new Date()
+    expiresAt.setHours(23, 59, 59, 999) // End of today
+
+    // Deactivate all previous codes for this tenant/branch
+    await pool.query(
+      `UPDATE qr_attendance_sessions 
+       SET is_active = false 
+       WHERE tenant_id = $1 AND (branch_id IS NULL OR branch_id = $2)`,
+      [tenant_id, branch_id]
+    )
+
+    // Insert new session
+    await pool.query(
+      `INSERT INTO qr_attendance_sessions (tenant_id, branch_id, token, expires_at, is_active)
+       VALUES ($1, $2, $3, $4, true)`,
+      [tenant_id, branch_id, token, expiresAt]
+    )
+
+    res.json({
+      success: true,
+      token,
+      expires_at: expiresAt.toISOString()
+    })
+  } catch (err) {
+    console.error('Error generating QR code:', err)
+    res.status(500).json({ error: 'Server error: ' + err.message })
+  }
+})
+
+// GET /api/attendance/qr/status
+// Get current QR code status
+app.get('/api/attendance/qr/status', requireAuth(['admin', 'super_admin']), async (req, res) => {
+  try {
+    const { tenant_id, branch_id } = req.user
+
+    const result = await pool.query(
+      `SELECT id, expires_at, is_active, created_at 
+       FROM qr_attendance_sessions 
+       WHERE tenant_id = $1 AND (branch_id IS NULL OR branch_id = $2) 
+       ORDER BY created_at DESC LIMIT 1`,
+      [tenant_id, branch_id]
+    )
+
+    if (result.rows.length === 0) {
+      return res.json({ active: false })
+    }
+
+    const session = result.rows[0]
+    res.json({
+      active: session.is_active,
+      expires_at: session.expires_at,
+      created_at: session.created_at
+    })
+  } catch (err) {
+    console.error('Error fetching QR status:', err)
+    res.status(500).json({ error: 'Server error: ' + err.message })
+  }
+})
+
+// ============================================
+// STAFF ATTENDANCE VIEW (Admin)
+// ============================================
+
+// GET /api/attendance/staff
+// Get staff attendance (teachers and admins)
+app.get('/api/attendance/staff', requireAuth(['admin', 'super_admin']), async (req, res) => {
+  try {
+    const { tenant_id, branch_id, role } = req.user
+    const { date } = req.query
+
+    const effectiveBranchId = role === 'coordinator' ? branch_id : null
+
+    let query = `
+      SELECT ta.id, ta.teacher_id, ta.date, ta.check_in_time, ta.check_out_time, 
+             ta.source, ta.is_incomplete, ta.is_manual,
+             CASE 
+               WHEN ta.source = 'manual' THEN 'Manual'
+               ELSE 'QR'
+             END as source_label,
+             t.name as person_name, 
+             CASE 
+               WHEN t.role = 'admin' THEN 'Admin'
+               ELSE 'Teacher'
+             END as person_role,
+             b.name as branch_name
+      FROM teacher_attendance ta
+      LEFT JOIN LATERAL (
+        SELECT id, name, role, 'teacher' as source_type FROM teachers
+        UNION ALL
+        SELECT id, name, role, 'admin' as source_type FROM admins
+      ) t ON ta.teacher_id = t.id
+      LEFT JOIN branches b ON ta.branch_id = b.id
+      WHERE ta.tenant_id = $1
+    `
+    const params = [tenant_id]
+
+    if (date) {
+      query += ` AND ta.date = $2`
+      params.push(date)
+    }
+
+    if (effectiveBranchId) {
+      query += ` AND ta.branch_id = $${params.length + 1}`
+      params.push(effectiveBranchId)
+    }
+
+    query += ` ORDER BY ta.date DESC, ta.check_in_time DESC`
+
+    const result = await pool.query(query, params)
+    res.json(result.rows)
+  } catch (err) {
+    console.error('Error fetching staff attendance:', err)
+    res.status(500).json({ error: 'Server error: ' + err.message })
+  }
+})
+
+// ============================================
+// MANUAL ATTENDANCE EDIT (Admin)
+// ============================================
+
+// POST /api/attendance/staff/manual
+// Manually edit staff attendance
+app.post('/api/attendance/staff/manual', requireAuth(['admin', 'super_admin']), async (req, res) => {
+  try {
+    const { tenant_id, branch_id, user_id, role } = req.user
+    const { attendance_id, person_id, date, check_in_time, check_out_time, status, note } = req.body
+
+    // Prevent editing own attendance (admin editing themselves)
+    if (person_id == user_id && role === 'admin') {
+      return res.status(403).json({ error: 'Cannot edit own attendance' })
+    }
+
+    // For admin attendance, only super admin can edit
+    const personResult = await pool.query(
+      'SELECT role FROM admins WHERE id = $1 AND tenant_id = $2',
+      [person_id, tenant_id]
+    )
+    if (personResult.rows.length > 0 && personResult.rows[0].role === 'admin' && role !== 'super_admin') {
+      return res.status(403).json({ error: 'Only super admin can edit admin attendance' })
+    }
+
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+
+      // Get current values
+      const currentResult = await client.query(
+        'SELECT check_in_time, check_out_time FROM teacher_attendance WHERE id = $1',
+        [attendance_id]
+      )
+
+      if (currentResult.rows.length === 0) {
+        await client.query('ROLLBACK')
+        return res.status(404).json({ error: 'Attendance record not found' })
+      }
+
+      const current = currentResult.rows[0]
+
+      // Insert history record
+      await client.query(
+        `INSERT INTO teacher_attendance_manual_changes 
+         (attendance_id, changed_by, changed_by_role, old_check_in_time, new_check_in_time, 
+          old_check_out_time, new_check_out_time, old_status, new_status, note)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [attendance_id, user_id, role, current.check_in_time, check_in_time || current.check_in_time,
+         current.check_out_time, check_out_time || current.check_out_time, status, status, note]
+      )
+
+      // Update attendance record
+      const updateQuery = `
+        UPDATE teacher_attendance 
+        SET check_in_time = COALESCE($1, check_in_time),
+            check_out_time = $2,
+            is_incomplete = $3,
+            is_manual = true,
+            source = 'manual'
+        WHERE id = $4
+      `
+      const isIncomplete = check_out_time === null && check_in_time === null ? true : false
+      await client.query(updateQuery, [check_in_time, check_out_time, isIncomplete, attendance_id])
+
+      await client.query('COMMIT')
+
+      res.json({ success: true, message: 'Attendance updated' })
+    } catch (err) {
+      await client.query('ROLLBACK')
+      throw err
+    } finally {
+      client.release()
+    }
+  } catch (err) {
+    console.error('Error in manual attendance edit:', err)
+    res.status(500).json({ error: 'Server error: ' + err.message })
+  }
+})
+
+// ============================================
+// QR REQUIREMENT SETTING (Super Admin Only)
+// ============================================
+
+// GET /api/attendance/qr/setting
+// Get QR requirement setting for a school
+app.get('/api/attendance/qr/setting', requireAuth(['super_admin']), async (req, res) => {
+  try {
+    const { tenant_id } = req.query
+
+    const result = await pool.query(
+      'SELECT require_checkout FROM qr_attendance_settings WHERE tenant_id = $1',
+      [tenant_id]
+    )
+
+    if (result.rows.length === 0) {
+      return res.json({ require_checkout: false })
+    }
+
+    res.json({ require_checkout: result.rows[0].require_checkout })
+  } catch (err) {
+    console.error('Error fetching QR setting:', err)
+    res.status(500).json({ error: 'Server error: ' + err.message })
+  }
+})
+
+// POST /api/attendance/qr/setting
+// Update QR requirement setting
+app.post('/api/attendance/qr/setting', requireAuth(['super_admin']), async (req, res) => {
+  try {
+    const { tenant_id } = req.body
+
+    const result = await pool.query(
+      `INSERT INTO qr_attendance_settings (tenant_id, require_checkout, updated_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (tenant_id) DO UPDATE SET 
+         require_checkout = EXCLUDED.require_checkout, updated_at = NOW()`,
+      [tenant_id, req.body.require_checkout]
+    )
+
+    res.json({ success: true, require_checkout: req.body.require_checkout })
+  } catch (err) {
+    console.error('Error updating QR setting:', err)
+    res.status(500).json({ error: 'Server error: ' + err.message })
+  }
+})
+
+// GET /api/attendance/manual-changes
+// Get manual changes history (super admin view)
+app.get('/api/attendance/manual-changes', requireAuth(['super_admin']), async (req, res) => {
+  try {
+    const { tenant_id } = req.user
+
+    const result = await pool.query(
+      `SELECT mc.*, ta.date, 
+              CASE 
+                WHEN mc.changed_by_role = 'admin' THEN a.name
+                WHEN mc.changed_by_role = 'super_admin' THEN sa.name
+                ELSE 'Unknown'
+              END as changed_by_name
+       FROM teacher_attendance_manual_changes mc
+       JOIN teacher_attendance ta ON mc.attendance_id = ta.id
+       LEFT JOIN admins a ON mc.changed_by = a.id
+       LEFT JOIN admins sa ON mc.changed_by = sa.id
+       WHERE ta.tenant_id = $1
+       ORDER BY mc.changed_at DESC
+       LIMIT 100`,
+      [tenant_id]
+    )
+
+    res.json(result.rows)
+  } catch (err) {
+    console.error('Error fetching manual changes:', err)
     res.status(500).json({ error: 'Server error: ' + err.message })
   }
 })

@@ -95,7 +95,7 @@ class ApiService {
     }
   }
 
-  // Teacher check-in via QR code
+  // Teacher check-in via QR code (also supports admin)
   static Future<Map<String, dynamic>> teacherCheckIn({
     required String qrCodeData,
     double? locationLat,

@@ -2449,6 +2449,9 @@
       <a href="#tab-announcements" class="tab-btn" data-section="tab-announcements">
         <i class="fas fa-bullhorn"></i>Announcements
       </a>
+      <a href="#tab-qr-attendance" class="tab-btn" data-section="tab-qr-attendance" id="qrAttendanceTabBtn">
+        <i class="fas fa-qrcode"></i>QR Attendance
+      </a>
       <a href="#tab-fees" class="tab-btn" data-section="tab-fees" data-feature-key="fees">
         <i class="fas fa-money-bill-wave"></i>Fees
       </a>
@@ -2881,6 +2884,64 @@
           <!-- Saved Announcements List -->
           <div id="announcementsList">
             <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== QR ATTENDANCE TAB ==================== -->
+    <div id="tab-qr-attendance" class="tab-content">
+      <div class="section-card" id="qrAttendanceSection">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-icon green"><i class="fas fa-qrcode"></i></div>
+            <div>
+              <div class="section-title">QR Staff Attendance</div>
+              <div class="section-subtitle">Generate QR codes and view staff attendance</div>
+            </div>
+          </div>
+        </div>
+        <div class="section-body">
+          <!-- QR Code Generation -->
+          <div style="margin-bottom:24px; padding:20px; border:1px solid var(--border); border-radius:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+              <div>
+                <div style="font-size:1.1rem; font-weight:700; color:var(--text);">QR Code</div>
+                <div style="font-size:0.9rem; color:var(--text-muted);">Teachers scan to mark attendance</div>
+              </div>
+              <div style="display:flex; gap:10px;">
+                <button class="btn btn-primary" onclick="generateQRCode()" id="generateQRBtn">
+                  <i class="fas fa-plus"></i> Generate
+                </button>
+                <button class="btn btn-ghost" onclick="regenerateQRCode()" id="regenerateQRBtn" style="display:none;">
+                  <i class="fas fa-sync-alt"></i> Regenerate
+                </button>
+                <button class="btn btn-ghost" onclick="downloadQRCode()" id="downloadQRBtn" style="display:none;" disabled>
+                  <i class="fas fa-download"></i> Download
+                </button>
+                <button class="btn btn-ghost" onclick="showQRFullScreen()" id="qrFullScreenBtn" style="display:none;">
+                  <i class="fas fa-expand"></i> Full Screen
+                </button>
+              </div>
+            </div>
+            <div id="qrCodeDisplay" style="display:flex; justify-content:center; align-items:center; min-height:200px; background:var(--bg-alt); border-radius:8px; padding:20px;">
+              <div style="color:var(--text-muted);">No active QR code</div>
+            </div>
+            <div id="qrStatus" style="margin-top:12px; font-size:0.9rem; color:var(--text-muted);"></div>
+          </div>
+
+          <!-- Staff Attendance List -->
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+              <div style="font-size:1.1rem; font-weight:700; color:var(--text);">Staff Attendance</div>
+              <div style="display:flex; gap:10px;">
+                <input type="date" id="staffAttendanceDate" class="form-input" style="width:160px;" onchange="loadStaffAttendance()">
+                <input type="text" id="staffAttendanceSearch" class="form-input" style="width:200px;" placeholder="Search by name..." oninput="loadStaffAttendance()">
+              </div>
+            </div>
+            <div id="staffAttendanceList">
+              <!-- Rendered by JS -->
+            </div>
           </div>
         </div>
       </div>
@@ -3467,6 +3528,7 @@
 
 
   <!-- ======================== JAVASCRIPT ======================== -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="./api-config.js"></script>
   <script src="./auth-utils.js"></script>
   <script src="./draft-store.js"></script>
@@ -6268,6 +6330,171 @@
     }
 
     // =============================================================
+    // QR ATTENDANCE FUNCTIONS
+    // =============================================================
+    let currentQRToken = null;
+
+    async function loadQRStatus() {
+      try {
+        const response = await apiFetch('/api/attendance/qr/status');
+        const data = await response.json();
+        const display = document.getElementById('qrCodeDisplay');
+        const status = document.getElementById('qrStatus');
+        const regenerateBtn = document.getElementById('regenerateQRBtn');
+        const downloadBtn = document.getElementById('downloadQRBtn');
+        const fullScreenBtn = document.getElementById('qrFullScreenBtn');
+
+        if (data.active) {
+          currentQRToken = data.token;
+          display.innerHTML = `<div id="qrcode" style="width:200px; height:200px;"></div>`;
+          new QRCode(document.getElementById('qrcode'), {
+            text: currentQRToken,
+            width: 200,
+            height: 200
+          });
+          status.textContent = `Active until ${new Date(data.expires_at).toLocaleString()}`;
+          regenerateBtn.style.display = 'inline-flex';
+          downloadBtn.style.display = 'inline-flex';
+          downloadBtn.disabled = false;
+          fullScreenBtn.style.display = 'inline-flex';
+        } else {
+          currentQRToken = null;
+          display.innerHTML = '<div style="color:var(--text-muted);">No active QR code</div>';
+          status.textContent = '';
+          regenerateBtn.style.display = 'none';
+          downloadBtn.style.display = 'none';
+          fullScreenBtn.style.display = 'none';
+        }
+      } catch (err) {
+        console.error('Error loading QR status:', err);
+      }
+    }
+
+    async function generateQRCode() {
+      try {
+        const response = await apiFetch('/api/attendance/qr/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        if (data.success) {
+          currentQRToken = data.token;
+          await loadQRStatus();
+        }
+      } catch (err) {
+        console.error('Error generating QR code:', err);
+        alert('Failed to generate QR code');
+      }
+    }
+
+    async function regenerateQRCode() {
+      if (!confirm('Replace the current code? The old code will stop working.')) return;
+      await generateQRCode();
+    }
+
+    function downloadQRCode() {
+      if (!currentQRToken) return;
+      const qrCanvas = document.querySelector('#qrcode canvas');
+      if (!qrCanvas) return;
+
+      const link = document.createElement('a');
+      link.download = `qr-attendance-${new Date().toISOString().split('T')[0]}.png`;
+      link.href = qrCanvas.toDataURL('image/png');
+      link.click();
+    }
+
+    function showQRFullScreen() {
+      if (!currentQRToken) return;
+      const qrCanvas = document.querySelector('#qrcode canvas');
+      if (!qrCanvas) return;
+
+      const fullScreenDiv = document.createElement('div');
+      fullScreenDiv.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center;';
+      fullScreenDiv.innerHTML = `
+        <img src="${qrCanvas.toDataURL('image/png')}" style="width:400px; height:400px; margin-bottom:20px;">
+        <button onclick="this.parentElement.remove()" class="btn btn-primary">Close</button>
+      `;
+      document.body.appendChild(fullScreenDiv);
+    }
+
+    async function loadStaffAttendance() {
+      const date = document.getElementById('staffAttendanceDate').value || new Date().toISOString().split('T')[0];
+      const search = document.getElementById('staffAttendanceSearch').value.toLowerCase();
+      const container = document.getElementById('staffAttendanceList');
+
+      try {
+        const response = await apiFetch(`/api/attendance/staff?date=${encodeURIComponent(date)}`);
+        const data = await response.json();
+
+        const filtered = data.filter(item => {
+          return !search || item.person_name.toLowerCase().includes(search);
+        });
+
+        if (filtered.length === 0) {
+          container.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted);">No attendance records</div>';
+          return;
+        }
+
+        let html = `
+          <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Check In</th>
+                <th>Check Out</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>`;
+
+        filtered.forEach(item => {
+          const checkIn = item.check_in_time ? new Date(item.check_in_time).toLocaleTimeString() : '-';
+          const checkOut = item.check_out_time ? new Date(item.check_out_time).toLocaleTimeString() : (item.is_incomplete ? 'Incomplete' : '-');
+          const status = item.is_manual ? 'Manual' : 'QR';
+          html += `
+            <tr>
+              <td>${escapeHtml(item.person_name)}</td>
+              <td>${escapeHtml(item.person_role)}</td>
+              <td>${checkIn}</td>
+              <td>${checkOut}</td>
+              <td><span class="badge" style="background:${item.is_manual ? 'var(--badge-bg)' : 'var(--success-bg)'}; color:${item.is_manual ? 'var(--badge-text)' : 'var(--success-text)'};">${status}</span></td>
+              <td>
+                <button class="btn btn-sm btn-ghost" onclick="editStaffAttendance(${item.id})">Edit</button>
+              </td>
+            </tr>`;
+        });
+
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+      } catch (err) {
+        console.error('Error loading staff attendance:', err);
+        container.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted);">Failed to load attendance</div>';
+      }
+    }
+
+    function editStaffAttendance(attendanceId) {
+      const note = prompt('Enter a note for this change:');
+      if (!note) return;
+
+      const checkIn = prompt('Check-in time (HH:MM:SS) or leave blank:');
+      const checkOut = prompt('Check-out time (HH:MM:SS) or leave blank:');
+
+      apiFetch('/api/attendance/staff/manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          attendance_id: attendanceId,
+          check_in_time: checkIn || null,
+          check_out_time: checkOut || null,
+          note
+        })
+      }).then(() => loadStaffAttendance());
+    }
+
+    // =============================================================
     // SESSION CHECK + AUTH
     // =============================================================
     async function checkSession() {
@@ -8392,6 +8619,13 @@
     document.addEventListener("DOMContentLoaded", function() {
       if (window.initSharedNav) {
         window.initSharedNav('admin');
+      }
+
+      // Load QR attendance status if on QR tab
+      if (document.getElementById('tab-qr-attendance')) {
+        loadQRStatus();
+        loadStaffAttendance();
+      }
       }
       // Re-attach tab click handlers after initSharedNav replaces the tab HTML.
       // Without this, the dynamically rendered dropdown tabs have no click handlers
