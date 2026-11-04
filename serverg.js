@@ -4207,7 +4207,8 @@ app.get('/api/attendance/staff', requireAuth(['admin', 'super_admin']), async (r
 
     const effectiveBranchId = role === 'coordinator' ? branch_id : null
 
-    let query = `
+    // Get teacher attendance
+    const teacherQuery = `
       SELECT ta.id, ta.teacher_id, ta.date, ta.check_in_time, ta.check_out_time, 
              ta.source, ta.is_incomplete, ta.is_manual,
              CASE 
@@ -4215,36 +4216,52 @@ app.get('/api/attendance/staff', requireAuth(['admin', 'super_admin']), async (r
                ELSE 'QR'
              END as source_label,
              t.name as person_name, 
-             CASE 
-               WHEN t.role = 'admin' THEN 'Admin'
-               ELSE 'Teacher'
-             END as person_role,
+             'Teacher' as person_role,
              b.name as branch_name
       FROM teacher_attendance ta
-      LEFT JOIN LATERAL (
-        SELECT id, name, role, 'teacher' as source_type FROM teachers
-        UNION ALL
-        SELECT id, name, role, 'admin' as source_type FROM admins
-      ) t ON ta.teacher_id = t.id
+      JOIN teachers t ON ta.teacher_id = t.id
       LEFT JOIN branches b ON ta.branch_id = b.id
       WHERE ta.tenant_id = $1
+      ${date ? 'AND ta.date = $2' : ''}
+      ${effectiveBranchId ? 'AND ta.branch_id = $' + (date ? '3' : '2') : ''}
     `
+
+    // Get admin attendance
+    const adminQuery = `
+      SELECT ta.id, ta.teacher_id, ta.date, ta.check_in_time, ta.check_out_time, 
+             ta.source, ta.is_incomplete, ta.is_manual,
+             CASE 
+               WHEN ta.source = 'manual' THEN 'Manual'
+               ELSE 'QR'
+             END as source_label,
+             a.name as person_name, 
+             'Admin' as person_role,
+             b.name as branch_name
+      FROM teacher_attendance ta
+      JOIN admins a ON ta.teacher_id = a.id
+      LEFT JOIN branches b ON ta.branch_id = b.id
+      WHERE ta.tenant_id = $1
+      ${date ? 'AND ta.date = $2' : ''}
+      ${effectiveBranchId ? 'AND ta.branch_id = $' + (date ? '3' : '2') : ''}
+    `
+
     const params = [tenant_id]
+    if (date) params.push(date)
+    if (effectiveBranchId) params.push(effectiveBranchId)
 
-    if (date) {
-      query += ` AND ta.date = $2`
-      params.push(date)
-    }
+    const [teacherResult, adminResult] = await Promise.all([
+      pool.query(teacherQuery, params),
+      pool.query(adminQuery, params)
+    ])
 
-    if (effectiveBranchId) {
-      query += ` AND ta.branch_id = $${params.length + 1}`
-      params.push(effectiveBranchId)
-    }
+    const allRecords = [...teacherResult.rows, ...adminResult.rows]
+    allRecords.sort((a, b) => {
+      const dateCompare = new Date(b.date) - new Date(a.date)
+      if (dateCompare !== 0) return dateCompare
+      return new Date(b.check_in_time) - new Date(a.check_in_time)
+    })
 
-    query += ` ORDER BY ta.date DESC, ta.check_in_time DESC`
-
-    const result = await pool.query(query, params)
-    res.json(result.rows)
+    res.json(allRecords)
   } catch (err) {
     console.error('Error fetching staff attendance:', err)
     res.status(500).json({ error: 'Server error: ' + err.message })
