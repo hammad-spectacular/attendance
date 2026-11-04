@@ -39,6 +39,16 @@
                 const toastAttr = sub.toast ? `onclick="if(window.showToast){showToast('${sub.toast}','info');}else{alert('${sub.toast}');}return false;"` : '';
                 const secAttr = sub.dataSection ? `data-section="${sub.dataSection}"` : '';
                 const roleAttr = sub.dataRole ? `data-role="${sub.dataRole}"` : '';
+                const actionAttr = sub.action ? `onclick="${sub.action}"` : '';
+                
+                if (sub.action) {
+                  return `
+                  <button type="button" class="nav-dropdown-item" role="menuitem" ${secAttr} ${roleAttr} ${actionAttr} ${toastAttr}>
+                    <span class="nav-dropdown-title">${sub.label}</span>
+                    ${sub.desc ? `<span class="nav-dropdown-desc">${sub.desc}</span>` : ''}
+                  </button>
+                  `;
+                }
                 return `
                 <a href="${sub.href}" class="nav-dropdown-item" role="menuitem" ${secAttr} ${roleAttr} ${toastAttr}>
                   <span class="nav-dropdown-title">${sub.label}</span>
@@ -63,12 +73,20 @@
               <span>${item.label}</span>
             </button>
           `;
-        } else {
+        } else if (item.href) {
           html += `
             <a href="${item.href}" class="tab-btn ${clsActive}" ${idAttr} ${actAttr} ${secAttr} ${featAttr} ${optStyle}>
               ${item.icon ? `<i class="fas ${item.icon}"></i>` : ''}
               <span>${item.label}</span>
             </a>
+          `;
+        } else {
+          // For dropdown items with actions
+          html += `
+            <button type="button" class="tab-btn ${clsActive}" ${idAttr} ${actAttr} ${secAttr} ${featAttr} ${optStyle}>
+              ${item.icon ? `<i class="fas ${item.icon}"></i>` : ''}
+              <span>${item.label}</span>
+            </button>
           `;
         }
       }

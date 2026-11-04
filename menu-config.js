@@ -163,7 +163,24 @@ var MENU_CONFIG = {
   coordinator: [
     { id: 'navMark', label: 'Take attendance', icon: 'fa-clipboard-check', href: '#mark', action: "switchSubTab('mark')", active: true },
     { id: 'navRecords', label: 'Saved records', icon: 'fa-clock-rotate-left', href: '#records', action: "switchSubTab('records')" },
-    { id: 'navAnnouncements', label: 'Announcements', icon: 'fa-bullhorn', href: '#announcements', action: "switchSubTab('announcements')" }
+    { id: 'navAnnouncements', label: 'Announcements', icon: 'fa-bullhorn', href: '#announcements', action: "switchSubTab('announcements')" },
+    {
+      id: 'navProfile',
+      label: 'Profile',
+      icon: 'fa-user',
+      dropdown: [
+        {
+          label: 'Change Password',
+          desc: 'Update your password.',
+          action: "openPasswordModal()"
+        },
+        {
+          label: 'Logout',
+          desc: 'Sign out of your account.',
+          action: "signOut()"
+        }
+      ]
+    }
   ]
 };
 
