@@ -4121,18 +4121,6 @@ app.post('/api/attendance/qr/generate', requireAuth(['admin', 'super_admin']), a
   try {
     const { tenant_id, branch_id } = req.user
 
-    // Check if there's an active QR code
-    const existingResult = await pool.query(
-      `SELECT id FROM qr_attendance_sessions 
-       WHERE tenant_id = $1 AND (branch_id IS NULL OR branch_id = $2) AND is_active = true 
-       ORDER BY created_at DESC LIMIT 1`,
-      [tenant_id, branch_id]
-    )
-
-    if (existingResult.rows.length > 0) {
-      return res.status(400).json({ error: 'Active code exists' })
-    }
-
     // Generate random token
     const token = crypto.randomBytes(32).toString('hex')
     const expiresAt = new Date()

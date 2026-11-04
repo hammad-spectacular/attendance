@@ -2875,7 +2875,7 @@
                 <div style="font-size:1.1rem; font-weight:700; color:var(--text);">QR Code</div>
                 <div style="font-size:0.9rem; color:var(--text-muted);">Teachers scan to mark attendance</div>
               </div>
-              <div style="display:flex; gap:10px;">
+              <div style="display:flex; gap:10px; flex-wrap:wrap;">
                 <button class="btn btn-primary" onclick="generateQRCode()" id="generateQRBtn">
                   <i class="fas fa-plus"></i> Generate
                 </button>
@@ -2898,9 +2898,9 @@
 
           <!-- Staff Attendance List -->
           <div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
               <div style="font-size:1.1rem; font-weight:700; color:var(--text);">Staff Attendance</div>
-              <div style="display:flex; gap:10px;">
+              <div style="display:flex; gap:10px; flex-wrap:wrap;">
                 <input type="date" id="staffAttendanceDate" class="form-input" style="width:160px;" onchange="loadStaffAttendance()">
                 <input type="text" id="staffAttendanceSearch" class="form-input" style="width:200px;" placeholder="Search by name..." oninput="loadStaffAttendance()">
               </div>
@@ -6346,6 +6346,10 @@
         if (data.success) {
           currentQRToken = data.token;
           await loadQRStatus();
+          // Show success notification
+          alert('New QR code generated successfully!');
+        } else if (data.error) {
+          alert(data.error);
         }
       } catch (err) {
         console.error('Error generating QR code:', err);
@@ -6392,7 +6396,10 @@
         const response = await apiFetch(`/api/attendance/staff?date=${encodeURIComponent(date)}`);
         const data = await response.json();
 
-        const filtered = data.filter(item => {
+        // Handle case where API returns an object with a data property
+        const attendanceData = Array.isArray(data) ? data : (data.data || data.attendance || []);
+
+        const filtered = attendanceData.filter(item => {
           return !search || item.person_name.toLowerCase().includes(search);
         });
 
