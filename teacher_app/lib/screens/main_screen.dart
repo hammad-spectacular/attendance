@@ -18,7 +18,12 @@ class _MainScreenState extends State<MainScreen> {
   String? _scannedData;
   String? _errorMessage;
   String? _successMessage;
+  String? _diagnosticInfo;
   Position? _currentPosition;
+  bool _cameraPermissionGranted = false;
+  bool _locationPermissionGranted = false;
+  bool _locationServiceEnabled = false;
+  bool _controllerStarted = false;
 
   @override
   void initState() {
@@ -29,17 +34,21 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _requestPermissions() async {
     // Request camera permission
     final cameraStatus = await Permission.camera.request();
+    _cameraPermissionGranted = cameraStatus.isGranted;
     if (!cameraStatus.isGranted) {
       setState(() {
         _errorMessage = 'Camera permission is required for QR scanning';
+        _updateDiagnosticInfo();
       });
     }
 
     // Request location permission
     final locationStatus = await Permission.location.request();
+    _locationPermissionGranted = locationStatus.isGranted;
     if (!locationStatus.isGranted) {
       setState(() {
         _errorMessage = 'Location permission is required for attendance';
+        _updateDiagnosticInfo();
       });
     }
 
@@ -47,12 +56,24 @@ class _MainScreenState extends State<MainScreen> {
     _getCurrentLocation();
   }
 
+  void _updateDiagnosticInfo() {
+    setState(() {
+      _diagnosticInfo = 'Camera: ${_cameraPermissionGranted ? "Granted" : "Denied"}, '
+          'Location: ${_locationPermissionGranted ? "Granted" : "Denied"}, '
+          'Service: ${_locationServiceEnabled ? "On" : "Off"}, '
+          'Controller: ${_controllerStarted ? "Started" : "Not started"}';
+    });
+    print('DIAGNOSTIC: $_diagnosticInfo');
+  }
+
   Future<void> _getCurrentLocation() async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      _locationServiceEnabled = serviceEnabled;
       if (!serviceEnabled) {
         setState(() {
           _errorMessage = 'Location services are disabled';
+          _updateDiagnosticInfo();
         });
         return;
       }
@@ -63,6 +84,7 @@ class _MainScreenState extends State<MainScreen> {
         if (permission == LocationPermission.denied) {
           setState(() {
             _errorMessage = 'Location permissions are denied';
+            _updateDiagnosticInfo();
           });
           return;
         }
@@ -71,6 +93,7 @@ class _MainScreenState extends State<MainScreen> {
       if (permission == LocationPermission.deniedForever) {
         setState(() {
           _errorMessage = 'Location permissions are permanently denied';
+          _updateDiagnosticInfo();
         });
         return;
       }
@@ -81,9 +104,13 @@ class _MainScreenState extends State<MainScreen> {
 
       setState(() {
         _currentPosition = position;
+        _updateDiagnosticInfo();
       });
     } catch (e) {
       print('Error getting location: $e');
+      setState(() {
+        _diagnosticInfo = 'Location Error: $e';
+      });
     }
   }
 
@@ -253,16 +280,32 @@ class _MainScreenState extends State<MainScreen> {
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: Colors.red.shade200),
                       ),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.error, color: Colors.red),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _errorMessage!,
-                              style: const TextStyle(color: Colors.red),
-                            ),
+                          Row(
+                            children: [
+                              const Icon(Icons.error, color: Colors.red),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _errorMessage!,
+                                  style: const TextStyle(color: Colors.red),
+                                ),
+                              ),
+                            ],
                           ),
+                          if (_diagnosticInfo != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                _diagnosticInfo!,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -304,6 +347,25 @@ class _MainScreenState extends State<MainScreen> {
                         child: _isScanning
                             ? MobileScanner(
                                 onDetect: _onBarcodeDetected,
+                                onScanError: (error, controller) {
+                                  print('SCANNER ERROR: $error');
+                                  print('Error code: ${error.errorCode}');
+                                  print('Error details: ${error.errorDetails}');
+                                  setState(() {
+                                    _errorMessage = 'Scanner Error: ${error.errorCode} - ${error.errorDetails?.message ?? error.toString()}';
+                                    _updateDiagnosticInfo();
+                                  });
+                                },
+                                onDispose: () {
+                                  print('Scanner disposed');
+                                  _controllerStarted = false;
+                                  _updateDiagnosticInfo();
+                                },
+                                onControllerCreated: (controller) {
+                                  print('Scanner controller created');
+                                  _controllerStarted = true;
+                                  _updateDiagnosticInfo();
+                                },
                               )
                             : Center(
                                 child: Column(
