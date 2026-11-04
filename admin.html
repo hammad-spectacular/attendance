@@ -2420,7 +2420,6 @@
 
   <!-- ======================== CAPACITY ======================== -->
   <div class="capacity-strip" id="capacityStrip" style="display:none;border-bottom:1px solid var(--border);padding:8px 18px;font-size:0.82rem;color:var(--text-secondary);gap:24px;flex-wrap:wrap;align-items:center;background:var(--bg-card);">
-    <span style="display:flex;align-items:center;gap:8px;"><strong style="color:var(--text);">Students:</strong> <span id="capStudents">—</span></span>
     <span style="display:flex;align-items:center;gap:8px;"><strong style="color:var(--text);">Teachers:</strong> <span id="capTeachers">—</span></span>
   </div>
 
@@ -8593,7 +8592,7 @@
         loadQRStatus();
         loadStaffAttendance();
       }
-      }
+
       // Re-attach tab click handlers after initSharedNav replaces the tab HTML.
       // Without this, the dynamically rendered dropdown tabs have no click handlers
       // and most tabs show empty content.
