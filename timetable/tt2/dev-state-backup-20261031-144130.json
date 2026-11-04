@@ -1,0 +1,506 @@
+{
+  "documents": [
+    {
+      "id": "tt_mvtwjxc4_1tkf0",
+      "tenantId": "dev",
+      "name": "aps",
+      "config": {
+        "schoolName": "khtk",
+        "branchName": "",
+        "days": [
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday"
+        ],
+        "startTime": "16:00",
+        "periodCount": 5,
+        "periodDuration": 40,
+        "breaks": [],
+        "periodOverrides": {},
+        "classes": [
+          {
+            "id": "class_19",
+            "name": "7",
+            "section": "APS",
+            "studentCount": 30
+          }
+        ],
+        "subjects": [
+          {
+            "id": "subject_yv32ec",
+            "name": "english",
+            "difficult": "easy",
+            "roomId": null
+          },
+          {
+            "id": "subject_ic8s94",
+            "name": "maths",
+            "difficult": "difficult",
+            "roomId": null
+          },
+          {
+            "id": "subject_tx55h6",
+            "name": "geography",
+            "difficult": "medium",
+            "roomId": null
+          },
+          {
+            "id": "subject_5xp1mx",
+            "name": "urdu",
+            "difficult": "easy",
+            "roomId": null
+          },
+          {
+            "id": "subject_nctbil",
+            "name": "eng lit",
+            "difficult": "medium",
+            "roomId": null
+          },
+          {
+            "id": "subject_dg4md3",
+            "name": "history",
+            "difficult": "medium",
+            "roomId": null
+          },
+          {
+            "id": "subject_3yp9wy",
+            "name": "socail studies",
+            "difficult": "medium",
+            "roomId": null
+          }
+        ],
+        "teachers": [
+          {
+            "id": "teacher_8miyog",
+            "name": "hammad",
+            "subjectIds": [
+              "subject_yv32ec",
+              "subject_nctbil",
+              "subject_ic8s94",
+              "subject_tx55h6",
+              "subject_5xp1mx",
+              "subject_dg4md3",
+              "subject_3yp9wy"
+            ],
+            "maxPerDay": null,
+            "maxPerWeek": null,
+            "unavailableSlots": []
+          }
+        ],
+        "rooms": [],
+        "curriculum": [
+          {
+            "id": "req_k204az",
+            "classId": "class_19",
+            "subjectId": "subject_ic8s94",
+            "periodsPerWeek": 6,
+            "teacherIds": []
+          },
+          {
+            "id": "req_ug9q21",
+            "classId": "class_19",
+            "subjectId": "subject_yv32ec",
+            "periodsPerWeek": 4,
+            "teacherIds": []
+          },
+          {
+            "id": "req_vzbp0x",
+            "classId": "class_19",
+            "subjectId": "subject_tx55h6",
+            "periodsPerWeek": 4,
+            "teacherIds": []
+          },
+          {
+            "id": "req_29phq0",
+            "classId": "class_19",
+            "subjectId": "subject_5xp1mx",
+            "periodsPerWeek": 4,
+            "teacherIds": []
+          },
+          {
+            "id": "req_nyc2qi",
+            "classId": "class_19",
+            "subjectId": "subject_nctbil",
+            "periodsPerWeek": 4,
+            "teacherIds": []
+          },
+          {
+            "id": "req_wyqeji",
+            "classId": "class_19",
+            "subjectId": "subject_dg4md3",
+            "periodsPerWeek": 4,
+            "teacherIds": []
+          },
+          {
+            "id": "req_sz5vjs",
+            "classId": "class_19",
+            "subjectId": "subject_3yp9wy",
+            "periodsPerWeek": 4,
+            "teacherIds": []
+          }
+        ],
+        "preferences": {
+          "maxSameSubjectPerDay": 2,
+          "avoidConsecutiveDifficult": true,
+          "balanceClassDays": true,
+          "balanceTeacherDays": true
+        }
+      },
+      "grids": {
+        "class_19": {
+          "class_19|0|0": {
+            "classId": "class_19",
+            "day": 0,
+            "period": 0,
+            "teachingNumber": 1,
+            "subjectId": "subject_ic8s94",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|0|1": {
+            "classId": "class_19",
+            "day": 0,
+            "period": 1,
+            "teachingNumber": 2,
+            "subjectId": "subject_yv32ec",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|0|2": {
+            "classId": "class_19",
+            "day": 0,
+            "period": 2,
+            "teachingNumber": 3,
+            "subjectId": "subject_tx55h6",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|0|3": {
+            "classId": "class_19",
+            "day": 0,
+            "period": 3,
+            "teachingNumber": 4,
+            "subjectId": "subject_ic8s94",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": true,
+            "manual": true
+          },
+          "class_19|0|4": {
+            "classId": "class_19",
+            "day": 0,
+            "period": 4,
+            "teachingNumber": 5,
+            "subjectId": "subject_dg4md3",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|1|0": {
+            "classId": "class_19",
+            "day": 1,
+            "period": 0,
+            "teachingNumber": 1,
+            "subjectId": "subject_ic8s94",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|1|1": {
+            "classId": "class_19",
+            "day": 1,
+            "period": 1,
+            "teachingNumber": 2,
+            "subjectId": "subject_yv32ec",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|1|2": {
+            "classId": "class_19",
+            "day": 1,
+            "period": 2,
+            "teachingNumber": 3,
+            "subjectId": "subject_tx55h6",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|1|3": {
+            "classId": "class_19",
+            "day": 1,
+            "period": 3,
+            "teachingNumber": 4,
+            "subjectId": "subject_nctbil",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|1|4": {
+            "classId": "class_19",
+            "day": 1,
+            "period": 4,
+            "teachingNumber": 5,
+            "subjectId": "subject_dg4md3",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|2|0": {
+            "classId": "class_19",
+            "day": 2,
+            "period": 0,
+            "teachingNumber": 1,
+            "subjectId": "subject_ic8s94",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|2|1": {
+            "classId": "class_19",
+            "day": 2,
+            "period": 1,
+            "teachingNumber": 2,
+            "subjectId": "subject_yv32ec",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|2|2": {
+            "classId": "class_19",
+            "day": 2,
+            "period": 2,
+            "teachingNumber": 3,
+            "subjectId": "subject_5xp1mx",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|2|3": {
+            "classId": "class_19",
+            "day": 2,
+            "period": 3,
+            "teachingNumber": 4,
+            "subjectId": "subject_nctbil",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|2|4": {
+            "classId": "class_19",
+            "day": 2,
+            "period": 4,
+            "teachingNumber": 5,
+            "subjectId": "subject_3yp9wy",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|3|0": {
+            "classId": "class_19",
+            "day": 3,
+            "period": 0,
+            "teachingNumber": 1,
+            "subjectId": "subject_ic8s94",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|3|1": {
+            "classId": "class_19",
+            "day": 3,
+            "period": 1,
+            "teachingNumber": 2,
+            "subjectId": "subject_yv32ec",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|3|2": {
+            "classId": "class_19",
+            "day": 3,
+            "period": 2,
+            "teachingNumber": 3,
+            "subjectId": "subject_5xp1mx",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|3|3": {
+            "classId": "class_19",
+            "day": 3,
+            "period": 3,
+            "teachingNumber": 4,
+            "subjectId": "subject_nctbil",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|3|4": {
+            "classId": "class_19",
+            "day": 3,
+            "period": 4,
+            "teachingNumber": 5,
+            "subjectId": "subject_3yp9wy",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|4|0": {
+            "classId": "class_19",
+            "day": 4,
+            "period": 0,
+            "teachingNumber": 1,
+            "subjectId": "subject_ic8s94",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|4|1": {
+            "classId": "class_19",
+            "day": 4,
+            "period": 1,
+            "teachingNumber": 2,
+            "subjectId": "subject_tx55h6",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|4|2": {
+            "classId": "class_19",
+            "day": 4,
+            "period": 2,
+            "teachingNumber": 3,
+            "subjectId": "subject_5xp1mx",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|4|3": {
+            "classId": "class_19",
+            "day": 4,
+            "period": 3,
+            "teachingNumber": 4,
+            "subjectId": "subject_dg4md3",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|4|4": {
+            "classId": "class_19",
+            "day": 4,
+            "period": 4,
+            "teachingNumber": 5,
+            "subjectId": "subject_3yp9wy",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|5|0": {
+            "classId": "class_19",
+            "day": 5,
+            "period": 0,
+            "teachingNumber": 1,
+            "subjectId": "subject_ic8s94",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|5|1": {
+            "classId": "class_19",
+            "day": 5,
+            "period": 1,
+            "teachingNumber": 2,
+            "subjectId": "subject_tx55h6",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|5|2": {
+            "classId": "class_19",
+            "day": 5,
+            "period": 2,
+            "teachingNumber": 3,
+            "subjectId": "subject_5xp1mx",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|5|3": {
+            "classId": "class_19",
+            "day": 5,
+            "period": 3,
+            "teachingNumber": 4,
+            "subjectId": "subject_dg4md3",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          },
+          "class_19|5|4": {
+            "classId": "class_19",
+            "day": 5,
+            "period": 4,
+            "teachingNumber": 5,
+            "subjectId": "subject_3yp9wy",
+            "teacherId": "teacher_8miyog",
+            "roomId": null,
+            "locked": false,
+            "manual": false
+          }
+        }
+      },
+      "report": {
+        "ok": true,
+        "stats": {
+          "generationMs": 6,
+          "nodeCount": 30,
+          "requiredLessons": 30,
+          "scheduledLessons": 30,
+          "completenessPct": 100,
+          "aborted": null
+        },
+        "violations": [],
+        "softPenalties": [],
+        "diagnostics": [],
+        "score": 0
+      },
+      "generatedAt": "2026-10-31T09:12:07.890Z",
+      "createdAt": "2026-10-29T18:54:19.011Z",
+      "updatedAt": "2026-10-31T09:12:17.241Z"
+    }
+  ]
+}

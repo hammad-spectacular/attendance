@@ -110,8 +110,8 @@
       padding: 20px 24px;
       position: sticky;
       top: 0;
-      z-index: 60;
-      overflow: hidden;
+      z-index: 1000;
+      overflow: visible;
       box-shadow: 0 4px 20px rgba(79, 70, 229, 0.3);
       animation: headerSlideDown 0.5s ease-out;
     }
@@ -186,6 +186,37 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      position: relative;
+      z-index: 1001;
+      flex-shrink: 0;
+    }
+
+    #headerStudentCount {
+      flex-shrink: 0;
+    }
+
+    /* User profile block in header (if user details are shown) */
+    .header-user-profile {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .header-user-name {
+      color: white;
+      font-weight: 700;
+      font-size: 0.9rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header-user-id {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 0.72rem;
+      white-space: nowrap;
     }
 
     /* ================================
@@ -297,6 +328,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      z-index: 1002;
     }
 
     .header-menu-toggle {
@@ -307,6 +339,8 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      position: relative;
+      z-index: 1003;
     }
 
     .header-menu-label {
@@ -326,6 +360,8 @@
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
       white-space: nowrap;
+      position: relative;
+      z-index: 50;
     }
 
     .tab-nav::-webkit-scrollbar {
@@ -534,6 +570,8 @@
       max-width: 960px;
       margin: 0 auto;
       padding: 28px 20px 60px;
+      position: relative;
+      z-index: 1;
     }
 
     .modal-actions .btn {
@@ -1346,9 +1384,63 @@
     /* ================================
        RESPONSIVE
        ================================ */
+    @media (max-width: 768px) {
+      .header {
+        padding: 16px 20px;
+      }
+
+      .header-inner {
+        gap: 10px;
+      }
+
+      .header-title strong {
+        font-size: 1.15rem;
+      }
+
+      .header-user-profile {
+        max-width: 140px;
+      }
+
+      .header-user-name {
+        font-size: 0.85rem;
+      }
+
+      .header-user-id {
+        font-size: 0.68rem;
+      }
+
+      #headerStudentCount {
+        font-size: 0.75rem;
+      }
+
+      .header-right {
+        gap: 8px;
+      }
+    }
+
     @media (max-width: 640px) {
       .header {
         padding: 16px;
+      }
+
+      .header-inner {
+        gap: 8px;
+      }
+
+      .header-title strong {
+        font-size: 1.1rem;
+      }
+
+      .header-user-profile {
+        display: none; /* Hide user profile on very small screens */
+      }
+
+      #headerStudentCount {
+        display: none; /* Hide student count on very small screens */
+      }
+
+      .header-right {
+        gap: 8px;
       }
 
       .header-title strong {
@@ -1694,6 +1786,7 @@
         top: auto;
         margin-top: 0;
         overflow: visible;
+        z-index: 50;
       }
 
       .tab-nav-toggle {
@@ -1752,6 +1845,7 @@
 
       .header {
         overflow: visible;
+        z-index: 1000;
       }
 
       .tab-nav-toggle:focus-visible,
@@ -1792,7 +1886,7 @@
         position: absolute;
         top: calc(100% + 10px);
         right: 0;
-        z-index: 100;
+        z-index: 10000;
         flex-direction: column;
         align-items: stretch;
         gap: 0.3rem;
@@ -2299,6 +2393,18 @@
         </select>
       </div>
       <div class="header-right">
+        <!-- Theme toggle button (separate from dropdown) -->
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+          <i class="fas fa-moon" id="themeIcon"></i>
+        </button>
+
+        <!-- Student count (if enabled) -->
+        <div id="headerStudentCount" style="display:none;align-items:center;gap:8px;font-size:0.8rem;color:rgba(255,255,255,0.85);">
+          <i class="fas fa-users"></i>
+          <span id="headerCapStudents">—</span>
+        </div>
+
+        <!-- User menu dropdown -->
         <div id="headerMenuWrap" class="header-menu-wrap">
           <button id="headerMenuToggle" class="header-menu-toggle" aria-expanded="false" aria-controls="headerMenuPanel" aria-label="Open menu" title="Menu">
             <i class="fas fa-ellipsis-vertical"></i>
@@ -2306,10 +2412,6 @@
           <div id="headerMenuPanel" class="header-menu-panel">
             <button class="btn" onclick="openChangePasswordModal(); closeHeaderMenu();" style="padding:8px 14px;font-size:0.75rem;background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.25);color:white;border-radius:10px;font-weight:600;cursor:pointer;transition:all 0.3s ease;font-family:'Inter',sans-serif;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'"><i class="fas fa-key"></i> Change Password</button>
             <button class="btn" onclick="handleLogout()" style="padding:8px 14px;font-size:0.75rem;background:rgba(239,68,68,0.2);border:2px solid rgba(239,68,68,0.3);color:white;border-radius:10px;font-weight:600;cursor:pointer;transition:all 0.3s ease;font-family:'Inter',sans-serif;" onmouseover="this.style.background='rgba(239,68,68,0.35)'" onmouseout="this.style.background='rgba(239,68,68,0.2)'"><i class="fas fa-sign-out-alt"></i> Logout</button>
-            <button class="theme-toggle" onclick="toggleTheme(); closeHeaderMenu();" title="Toggle theme" aria-label="Toggle theme">
-              <i class="fas fa-moon" id="themeIcon"></i>
-              <span class="header-menu-label">Toggle theme</span>
-            </button>
           </div>
         </div>
       </div>
@@ -7518,8 +7620,10 @@
           : '';
         const sEl = document.getElementById('capStudents');
         const tEl = document.getElementById('capTeachers');
+        const headerSEl = document.getElementById('headerCapStudents');
         if (students && sEl) sEl.textContent = students;
         if (teachers && tEl) tEl.textContent = teachers;
+        if (students && headerSEl) headerSEl.textContent = students;
         const sWrap = sEl ? sEl.parentElement : null;
         const tWrap = tEl ? tEl.parentElement : null;
         
@@ -7527,6 +7631,8 @@
         const tBlocked = !isSectionPermitted('tab-teachers');
 
         if (sWrap) sWrap.style.display = sBlocked ? 'none' : 'flex';
+        const headerSWrap = headerSEl ? headerSEl.parentElement : null;
+        if (headerSWrap) headerSWrap.style.display = sBlocked ? 'none' : 'flex';
         if (tWrap) tWrap.style.display = tBlocked ? 'none' : 'flex';
         if ((!sBlocked && students) || (!tBlocked && teachers)) strip.style.display = 'flex';
         else strip.style.display = 'none';

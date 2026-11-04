@@ -1,0 +1,8 @@
+◇ injected env (8) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+Connection string exists: true
+Pool created: object
+Pool query: function
+◇ injected env (0) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+JWT_SECRET loaded: YES
+Tables ready
+Server running on port 3000
