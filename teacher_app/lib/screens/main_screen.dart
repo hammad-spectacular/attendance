@@ -345,27 +345,31 @@ class _MainScreenState extends State<MainScreen> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(16),
                         child: _isScanning
-                            ? MobileScanner(
-                                onDetect: _onBarcodeDetected,
-                                onScanError: (error, controller) {
-                                  print('SCANNER ERROR: $error');
-                                  print('Error code: ${error.errorCode}');
-                                  print('Error details: ${error.errorDetails}');
-                                  setState(() {
-                                    _errorMessage = 'Scanner Error: ${error.errorCode} - ${error.errorDetails?.message ?? error.toString()}';
+                            ? SizedBox(
+                                width: double.infinity,
+                                height: double.infinity,
+                                child: MobileScanner(
+                                  onDetect: _onBarcodeDetected,
+                                  onScanError: (error, controller) {
+                                    print('SCANNER ERROR: $error');
+                                    print('Error code: ${error.errorCode}');
+                                    print('Error details: ${error.errorDetails}');
+                                    setState(() {
+                                      _errorMessage = 'Scanner Error: ${error.errorCode} - ${error.errorDetails?.message ?? error.toString()}';
+                                      _updateDiagnosticInfo();
+                                    });
+                                  },
+                                  onDispose: () {
+                                    print('Scanner disposed');
+                                    _controllerStarted = false;
                                     _updateDiagnosticInfo();
-                                  });
-                                },
-                                onDispose: () {
-                                  print('Scanner disposed');
-                                  _controllerStarted = false;
-                                  _updateDiagnosticInfo();
-                                },
-                                onControllerCreated: (controller) {
-                                  print('Scanner controller created');
-                                  _controllerStarted = true;
-                                  _updateDiagnosticInfo();
-                                },
+                                  },
+                                  onControllerCreated: (controller) {
+                                    print('Scanner controller created');
+                                    _controllerStarted = true;
+                                    _updateDiagnosticInfo();
+                                  },
+                                ),
                               )
                             : Center(
                                 child: Column(
