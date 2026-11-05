@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/api_service.dart';
@@ -23,12 +23,19 @@ class _MainScreenState extends State<MainScreen> {
   bool _cameraPermissionGranted = false;
   bool _locationPermissionGranted = false;
   bool _locationServiceEnabled = false;
-  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
+  MobileScannerController? _controller;
 
   @override
   void initState() {
     super.initState();
+    _controller = MobileScannerController();
     _requestPermissions();
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
   }
 
   Future<void> _requestPermissions() async {
@@ -60,8 +67,7 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       _diagnosticInfo = 'Camera: ${_cameraPermissionGranted ? "Granted" : "Denied"}, '
           'Location: ${_locationPermissionGranted ? "Granted" : "Denied"}, '
-          'Service: ${_locationServiceEnabled ? "On" : "Off"}, '
-          'Controller: ${_controllerStarted ? "Started" : "Not started"}';
+          'Service: ${_locationServiceEnabled ? "On" : "Off"}';
     });
     print('DIAGNOSTIC: $_diagnosticInfo');
   }
@@ -348,22 +354,42 @@ class _MainScreenState extends State<MainScreen> {
                             ? SizedBox(
                                 width: double.infinity,
                                 height: double.infinity,
-                                child: QRCodeScanner(
-                                  key: qrKey,
+                                child: MobileScanner(
+                                  controller: _controller,
                                   onDetect: _onBarcodeDetected,
-                                  onScanError: (error) {
+                                  errorBuilder: (context, error, child) {
                                     print('SCANNER ERROR: $error');
+                                    print('Error code: ${error.errorCode}');
+                                    print('Error details: ${error.errorDetails}');
                                     setState(() {
-                                      _errorMessage = 'Scanner Error: $error';
+                                      _errorMessage = 'Scanner Error: ${error.errorCode} - ${error.errorDetails?.message ?? error.toString()}';
                                       _updateDiagnosticInfo();
                                     });
-                                  },
-                                  onPermissionSet: (ctrl, p) {
-                                    print('Permission set: $p');
-                                    setState(() {
-                                      _cameraPermissionGranted = p;
-                                      _updateDiagnosticInfo();
-                                    });
+                                    return Center(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(Icons.error, size: 64, color: Colors.red),
+                                          const SizedBox(height: 16),
+                                          Text(
+                                            _errorMessage ?? 'Scanner Error',
+                                            style: const TextStyle(color: Colors.white),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          if (_diagnosticInfo != null)
+                                            Padding(
+                                              padding: const EdgeInsets.only(top: 8),
+                                              child: Text(
+                                                _diagnosticInfo!,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    );
                                   },
                                 ),
                               )

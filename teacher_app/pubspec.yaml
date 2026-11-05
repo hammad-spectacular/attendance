@@ -41,8 +41,8 @@ dependencies:
   # Local storage for auth token
   shared_preferences: ^2.2.2
 
-  # QR code scanner (works on mobile and web)
-  qr_code_scanner: ^1.0.1
+  # QR code scanner
+  mobile_scanner: ^4.0.1
 
   # Location services
   geolocator: ^10.1.0
