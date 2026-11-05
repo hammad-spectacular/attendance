@@ -135,6 +135,18 @@ function generateTempPassword() {
   return password.join('')
 }
 
+// Haversine formula to calculate distance between two coordinates in meters
+function haversineDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371000 // Earth's radius in meters
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+           Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+           Math.sin(dLng / 2) * Math.sin(dLng / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
+
 /**
  * A school that has not been granted a portal must not be handed portal logins.
  * We still create the person and reserve their stable login_id, but leave
@@ -155,6 +167,41 @@ async function mintCredentialIfPortalEnabled(tenantId, role) {
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char])
+}
+
+// Human-readable error messages
+function handleApiError(err, req) {
+  const message = err.message || ''
+  const user = req.user || {}
+  
+  // Log detailed error for debugging
+  console.error(`API Error [${req.method} ${req.path}]:`, {
+    user_id: user.user_id,
+    tenant_id: user.tenant_id,
+    role: user.role,
+    error: message,
+    code: err.code
+  })
+  
+  // Map known errors to human-readable messages
+  if (message.includes('violates foreign key constraint') || message.includes('qr_attendance_sessions_tenant_id_fkey')) {
+    return { error: 'We could not find your school. Please log in again.', code: 'SCHOOL_NOT_FOUND' }
+  }
+  if (message.includes('invalid token') || message.includes('jwt') || message.includes('Unauthorized')) {
+    return { error: 'Your session ended. Please log in again.', code: 'SESSION_EXPIRED' }
+  }
+  if (message.includes('Code expired') || message.includes('already marked today')) {
+    return { error: message, code: 'ATTENDANCE_ERROR' }
+  }
+  if (message.includes('Location is required')) {
+    return { error: 'Location is required to mark attendance.', code: 'LOCATION_REQUIRED' }
+  }
+  if (message.includes('too far')) {
+    return { error: 'You are too far from school.', code: 'TOO_FAR' }
+  }
+  
+  // Generic message for unknown errors
+  return { error: 'Something went wrong. Please try again.', code: 'UNKNOWN_ERROR' }
 }
 
 function parsePositiveLimit(value, fallback) {
@@ -602,6 +649,9 @@ async function createTables() {
 
     ALTER TABLE organizations ADD COLUMN IF NOT EXISTS student_limit INTEGER NOT NULL DEFAULT ${DEFAULT_STUDENT_LIMIT};
     ALTER TABLE organizations ADD COLUMN IF NOT EXISTS teacher_limit INTEGER NOT NULL DEFAULT ${DEFAULT_TEACHER_LIMIT};
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS location_lat NUMERIC(10, 6);
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS location_lng NUMERIC(10, 6);
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS location_radius_meters INTEGER DEFAULT 50;
     -- teacher_limit stays a wall, so keep it at or above the current count to avoid
     -- locking a school out of its own existing data. student_limit is deliberately
     -- NOT raised to match: it is the advisory combined ceiling, and a school that
@@ -3940,6 +3990,36 @@ app.post('/api/attendance/teacher/checkin', requireAuth(['teacher', 'admin']), a
     const { qr_code_data, location_lat, location_lng } = req.body || {}
     const { user_id, tenant_id, branch_id, role } = req.user
 
+    // Validate location is provided
+    if (location_lat == null || location_lng == null) {
+      return res.status(400).json({ error: 'Location is required to mark attendance.', code: 'LOCATION_REQUIRED' })
+    }
+
+    // Get school location and radius
+    const schoolResult = await pool.query(
+      'SELECT location_lat, location_lng, location_radius_meters FROM organizations WHERE school_code = $1',
+      [tenant_id]
+    )
+    if (schoolResult.rows.length === 0) {
+      const error = handleApiError({ message: 'School not found' }, req)
+      return res.status(404).json(error)
+    }
+    const school = schoolResult.rows[0]
+
+    // If school has location set, validate distance
+    if (school.location_lat != null && school.location_lng != null) {
+      const distance = haversineDistance(
+        school.location_lat,
+        school.location_lng,
+        location_lat,
+        location_lng
+      )
+      const radius = school.location_radius_meters || 50 // Default 50m
+      if (distance > radius) {
+        return res.status(403).json({ error: 'You are too far from school.', code: 'TOO_FAR' })
+      }
+    }
+
     // Rate limiting
     if (!checkScanRateLimit(user_id)) {
       return res.status(429).json({ error: 'Too many attempts' })
@@ -4049,8 +4129,8 @@ app.post('/api/attendance/teacher/checkin', requireAuth(['teacher', 'admin']), a
       })
     }
   } catch (err) {
-    console.error('Error in teacher check-in:', err)
-    res.status(500).json({ error: 'Server error: ' + err.message })
+    const error = handleApiError(err, req)
+    res.status(500).json(error)
   }
 })
 
@@ -4121,6 +4201,13 @@ app.post('/api/attendance/qr/generate', requireAuth(['admin', 'super_admin']), a
   try {
     const { tenant_id, branch_id } = req.user
 
+    // Validate tenant exists before INSERT
+    const schoolResult = await pool.query('SELECT school_code FROM organizations WHERE school_code = $1', [tenant_id])
+    if (schoolResult.rows.length === 0) {
+      const error = handleApiError({ message: 'violates foreign key constraint qr_attendance_sessions_tenant_id_fkey' }, req)
+      return res.status(400).json(error)
+    }
+
     // Generate random token
     const token = crypto.randomBytes(32).toString('hex')
     const expiresAt = new Date()
@@ -4147,8 +4234,8 @@ app.post('/api/attendance/qr/generate', requireAuth(['admin', 'super_admin']), a
       expires_at: expiresAt.toISOString()
     })
   } catch (err) {
-    console.error('Error generating QR code:', err)
-    res.status(500).json({ error: 'Server error: ' + err.message })
+    const error = handleApiError(err, req)
+    res.status(500).json(error)
   }
 })
 

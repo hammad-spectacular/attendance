@@ -6325,8 +6325,11 @@
           fullScreenBtn.style.display = 'inline-flex';
         } else {
           currentQRToken = null;
-          display.innerHTML = '<div style="color:var(--text-muted);">No active QR code</div>';
-          status.textContent = '';
+          const isExpired = data.expires_at && new Date(data.expires_at) < new Date();
+          display.innerHTML = isExpired 
+            ? '<div style="color:var(--danger); font-weight:700;">Expired</div>' 
+            : '<div style="color:var(--text-muted);">No active QR code</div>';
+          status.textContent = isExpired ? '' : '';
           regenerateBtn.style.display = 'none';
           downloadBtn.style.display = 'none';
           fullScreenBtn.style.display = 'none';
@@ -6371,13 +6374,13 @@
           fullScreenBtn.style.display = 'inline-flex';
           
           // Show success notification
-          alert('New QR code generated successfully!');
+          showToast('New QR code generated successfully!', 'success');
         } else if (data.error) {
-          alert(data.error);
+          showToast(data.error, 'error');
         }
       } catch (err) {
         console.error('Error generating QR code:', err);
-        alert('Failed to generate QR code');
+        showToast('Failed to generate QR code', 'error');
       }
     }
 

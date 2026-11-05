@@ -118,10 +118,11 @@ class ApiService {
       if (response.statusCode == 200) {
         return {'success': true, 'data': data};
       } else {
-        return {'success': false, 'error': data['error'] ?? 'Check-in failed'};
+        final errorMessage = data['error'] ?? 'Check-in failed';
+        return {'success': false, 'error': errorMessage};
       }
     } catch (e) {
-      return {'success': false, 'error': 'Connection error: $e'};
+      return {'success': false, 'error': 'No connection. Check your internet and try again.'};
     }
   }
 
