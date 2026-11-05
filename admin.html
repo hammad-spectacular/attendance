@@ -5300,6 +5300,39 @@
       if (kind === 'students') filterStudents(); else filterTeachers();
     }
 
+    async function getTeacherCredentials() {
+      const teachersNeedingCredentials = window.appData.teachers.filter(t => !t.login_id && !t.password_hash);
+      if (teachersNeedingCredentials.length === 0) {
+        showToast('No teachers need credentials', 'warning');
+        return;
+      }
+
+      const confirmed = await showConfirmModal({
+        title: 'Generate credentials for teachers?',
+        message: `This will generate login credentials for ${teachersNeedingCredentials.length} teacher(s) without login access.`,
+        confirmText: 'Yes, Generate',
+        confirmClass: 'primary',
+        cancelText: 'Cancel'
+      });
+
+      if (!confirmed) return;
+
+      try {
+        const response = await apiFetch('/api/auth/issue-credentials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ audience: 'teacher' })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to generate credentials');
+
+        showToast(`✅ Credentials generated for ${data.generated || 0} teachers`, 'success');
+        await refreshDashboardAfterSave();
+      } catch (err) {
+        showToast('Failed to generate credentials: ' + err.message, 'error');
+      }
+    }
+
     function renderTeachers(teachersList) {
       const wrap = document.getElementById('teachersTableWrap');
       const teachers = teachersList || window.appData.teachers;
@@ -5317,16 +5350,25 @@
       const showTeacherId = _featureState && _featureState['teacher_portal'] === true;
       shownTeacherIds = teachers.map(t => t.id);
 
+      // Check if any teachers need credentials
+      const teachersNeedingCredentials = teachers.filter(t => !t.login_id && !t.password_hash);
+      const showGetCredentialsBtn = showTeacherId && teachersNeedingCredentials.length > 0;
+
       let html = `
-        <div class="bulk-bar" style="display:flex; align-items:center; gap:14px; margin-bottom:10px; flex-wrap:wrap;">
+        <div class="bulk-bar" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap;">
           <label style="display:flex; align-items:center; gap:6px; font-size:0.8rem; cursor:pointer; user-select:none;">
             <input type="checkbox" id="teachersSelectAll" ${selectedTeacherIds.size > 0 && shownTeacherIds.length > 0 && shownTeacherIds.every(id => selectedTeacherIds.has(id)) ? 'checked' : ''} onchange="toggleSelectAll('teachers', this.checked);">
             Select all shown
           </label>
-          <button type="button" class="btn-delete" style="padding:6px 14px; border-radius:8px;${selectedTeacherIds.size ? '' : 'display:none;'}" onclick="bulkDeleteSelected('teachers')">
-            <i class="fas fa-trash-alt"></i> Delete selected (<span>${selectedTeacherIds.size}</span>)
-          </button>
-          ${selectedTeacherIds.size ? `<span style="font-size:0.75rem;color:var(--text-muted);">${selectedTeacherIds.size} selected</span>` : ''}
+          <div style="display:flex; align-items:center; gap:10px;">
+            ${showGetCredentialsBtn ? `<button type="button" class="btn btn-primary" style="padding:6px 14px; border-radius:8px;" onclick="getTeacherCredentials()">
+              <i class="fas fa-key"></i> Get credentials
+            </button>` : ''}
+            ${selectedTeacherIds.size ? `<span style="font-size:0.75rem;color:var(--text-muted);">${selectedTeacherIds.size} selected</span>` : ''}
+            <button type="button" class="btn-delete" style="padding:6px 14px; border-radius:8px;${selectedTeacherIds.size ? '' : 'display:none;'}" onclick="bulkDeleteSelected('teachers')">
+              <i class="fas fa-trash-alt"></i> Delete selected (<span>${selectedTeacherIds.size}</span>)
+            </button>
+          </div>
         </div>
         <div style="overflow-x:auto;">
         <table class="data-table">

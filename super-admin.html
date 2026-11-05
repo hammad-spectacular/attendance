@@ -964,17 +964,11 @@ function renderTenantFeatures() {
         <div class="tenant-cred-title"><i class="fas fa-key"></i> Portal logins</div>
         <div class="tenant-cred-rows">`;
       for (const g of credRows) {
-        const ready = g.need > 0;
-        const why = g.need === 0 ? 'Everyone already has a login' : '';
         html += `<div class="tenant-cred-row">
           <div class="tenant-cred-text">
             <strong>${g.label}</strong>
             <span class="tenant-cred-count">${g.need > 0 ? g.need + ' of ' + g.total + ' need a login' : g.total + ' total, all covered'}</span>
           </div>
-          <button class="btn-sm ${ready ? 'primary' : ''}" ${ready ? '' : 'disabled title="' + escapeHtml(why) + '"'}
-                  onclick="issueCredentials('${escapeHtml(s.school_id)}','${g.audience}','${escapeHtml(s.school_name || s.school_id)}',${g.need})">
-            <i class="fas fa-file-arrow-down"></i> Get credentials
-          </button>
         </div>`;
       }
       html += `</div></div>`;

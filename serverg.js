@@ -2677,6 +2677,96 @@ app.post('/api/tenant-features/issue-credentials', requireAuth(['super_admin']),
   }
 })
 
+// Admin endpoint to issue credentials for their own school
+app.post('/api/auth/issue-credentials', requireAuth(['admin']), async (req, res) => {
+  try {
+    const { tenant_id } = req.user
+    const audience = String(req.body.audience || '').trim()
+    if (!audience) {
+      return res.status(400).json({ error: 'audience is required' })
+    }
+    const table = audience === 'student' ? 'students'
+      : audience === 'teacher' ? 'teachers'
+        : null
+    if (!table) return res.status(400).json({ error: 'audience must be student or teacher' })
+    const prefix = audience === 'student' ? 'S' : 'T'
+    const portalKey = audience === 'student' ? 'student_portal' : 'teacher_portal'
+    const label = audience === 'student' ? 'Student' : 'Teacher'
+
+    // Check if portal is enabled for this tenant
+    const portal = await pool.query(
+      `SELECT COALESCE(g.enabled, f.default_enabled) AS enabled
+       FROM tenant_features f
+       LEFT JOIN tenant_grants g ON g.feature_key = f.key AND g.school_id = $1
+       WHERE f.key = $2`,
+      [tenant_id, portalKey]
+    )
+    if (portal.rows.length === 0 || portal.rows[0].enabled !== true) {
+      return res.status(400).json({
+        error: `The ${label} Portal is not enabled for your school. Please contact your Super Admin.`
+      })
+    }
+
+    // Only rows that are genuinely missing something
+    const pending = await pool.query(
+      `SELECT id, name, login_id FROM ${table}
+       WHERE tenant_id = $1 AND (login_id IS NULL OR password_hash IS NULL)
+       ORDER BY id`,
+      [tenant_id]
+    )
+    if (pending.rows.length === 0) {
+      return res.json({ generated: 0, message: `Every ${label.toLowerCase()} already has portal credentials.` })
+    }
+
+    // Continue the school's existing numbering
+    const takenRows = await pool.query(`SELECT login_id FROM ${table} WHERE tenant_id = $1 AND login_id IS NOT NULL`, [tenant_id])
+    const taken = new Set(takenRows.rows.map(r => r.login_id))
+
+    const client = await pool.connect()
+    const issued = []
+    try {
+      await client.query('BEGIN')
+      for (const person of pending.rows) {
+        let loginId = person.login_id
+        if (!loginId) {
+          let candidate
+          // Find next free number
+          for (let n = 1; n <= 9999; n++) {
+            candidate = `${prefix}${String(n).padStart(3, '0')}`
+            if (!taken.has(candidate)) {
+              loginId = candidate
+              taken.add(candidate)
+              break
+            }
+          }
+        }
+        const tempPassword = generateTempPassword()
+        const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS)
+        await client.query(
+          `UPDATE ${table} SET login_id = $1, password_hash = $2, is_first_login = true
+           WHERE id = $3 AND tenant_id = $4`,
+          [loginId, passwordHash, person.id, tenant_id]
+        )
+        issued.push({ name: person.name, login_id: loginId, full_id: `${tenant_id}-${loginId}`, password: tempPassword })
+      }
+      await client.query('COMMIT')
+    } catch (err) {
+      await client.query('ROLLBACK')
+      throw err
+    } finally {
+      client.release()
+    }
+
+    res.json({ generated: issued.length, issued })
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'A login ID clashed with an existing one. Please try again.' })
+    }
+    console.error('Admin issue credentials error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // --- Coordinators ----------------------------------------------------------
 // A coordinator is a row in admins with role='coordinator', always tied to one
 // branch, and gated by two independent grants the school controls:
