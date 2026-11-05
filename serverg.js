@@ -135,6 +135,18 @@ function generateTempPassword() {
   return password.join('')
 }
 
+// Haversine formula to calculate distance between two coordinates in meters
+function haversineDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371000 // Earth's radius in meters
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+           Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+           Math.sin(dLng / 2) * Math.sin(dLng / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
+
 /**
  * A school that has not been granted a portal must not be handed portal logins.
  * We still create the person and reserve their stable login_id, but leave
@@ -602,6 +614,9 @@ async function createTables() {
 
     ALTER TABLE organizations ADD COLUMN IF NOT EXISTS student_limit INTEGER NOT NULL DEFAULT ${DEFAULT_STUDENT_LIMIT};
     ALTER TABLE organizations ADD COLUMN IF NOT EXISTS teacher_limit INTEGER NOT NULL DEFAULT ${DEFAULT_TEACHER_LIMIT};
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS location_lat NUMERIC(10, 6);
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS location_lng NUMERIC(10, 6);
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS location_radius_meters INTEGER DEFAULT 50;
     -- teacher_limit stays a wall, so keep it at or above the current count to avoid
     -- locking a school out of its own existing data. student_limit is deliberately
     -- NOT raised to match: it is the advisory combined ceiling, and a school that
@@ -4029,6 +4044,35 @@ app.post('/api/attendance/teacher/checkin', requireAuth(['teacher', 'admin']), a
   try {
     const { qr_code_data, location_lat, location_lng } = req.body || {}
     const { user_id, tenant_id, branch_id, role } = req.user
+
+    // Validate location is provided
+    if (location_lat == null || location_lng == null) {
+      return res.status(400).json({ error: 'Location is required for attendance' })
+    }
+
+    // Get school location and radius
+    const schoolResult = await pool.query(
+      'SELECT location_lat, location_lng, location_radius_meters FROM organizations WHERE school_code = $1',
+      [tenant_id]
+    )
+    if (schoolResult.rows.length === 0) {
+      return res.status(404).json({ error: 'School not found' })
+    }
+    const school = schoolResult.rows[0]
+
+    // If school has location set, validate distance
+    if (school.location_lat != null && school.location_lng != null) {
+      const distance = haversineDistance(
+        school.location_lat,
+        school.location_lng,
+        location_lat,
+        location_lng
+      )
+      const radius = school.location_radius_meters || 50 // Default 50m
+      if (distance > radius) {
+        return res.status(403).json({ error: 'You are too far from the school to mark attendance' })
+      }
+    }
 
     // Rate limiting
     if (!checkScanRateLimit(user_id)) {
