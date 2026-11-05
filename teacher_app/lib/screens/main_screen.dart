@@ -361,9 +361,13 @@ class _MainScreenState extends State<MainScreen> {
                                     print('SCANNER ERROR: $error');
                                     print('Error code: ${error.errorCode}');
                                     print('Error details: ${error.errorDetails}');
-                                    setState(() {
-                                      _errorMessage = 'Scanner Error: ${error.errorCode} - ${error.errorDetails?.message ?? error.toString()}';
-                                      _updateDiagnosticInfo();
+                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                      if (mounted) {
+                                        setState(() {
+                                          _errorMessage = 'Scanner Error: ${error.errorCode} - ${error.errorDetails?.message ?? error.toString()}';
+                                          _updateDiagnosticInfo();
+                                        });
+                                      }
                                     });
                                     return Center(
                                       child: Column(
@@ -372,7 +376,7 @@ class _MainScreenState extends State<MainScreen> {
                                           const Icon(Icons.error, size: 64, color: Colors.red),
                                           const SizedBox(height: 16),
                                           Text(
-                                            _errorMessage ?? 'Scanner Error',
+                                            'Scanner Error: ${error.errorCode} - ${error.errorDetails?.message ?? error.toString()}',
                                             style: const TextStyle(color: Colors.white),
                                             textAlign: TextAlign.center,
                                           ),
