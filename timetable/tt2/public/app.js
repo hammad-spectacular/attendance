@@ -485,31 +485,6 @@ const stepRenderers = {
     </div>
 
     <div class="card">
-      <h4>Breaks &amp; lunch</h4>
-      <p class="muted" style="margin-bottom:12px">Breaks sit between periods and take their own column. They are not teaching periods.</p>
-      ${cfg.breaks.map((b, i) => `
-        <div class="item-row">
-          <div class="grow">
-            <div class="row tight">
-              <input type="text" data-list="breaks" data-id="${esc(b.id)}" data-field="label" value="${esc(b.label)}" placeholder="Lunch">
-              <label class="field" style="margin:0">
-                <span>After period</span>
-                <input type="number" min="1" max="${cfg.periodCount}" data-list="breaks" data-id="${esc(b.id)}" data-field="afterPeriod" value="${b.afterPeriod}">
-              </label>
-              <label class="field" style="margin:0">
-                <span>Minutes</span>
-                <input type="number" min="0" max="120" data-list="breaks" data-id="${esc(b.id)}" data-field="duration" value="${b.duration}">
-              </label>
-            </div>
-          </div>
-          <button type="button" class="btn btn-sm btn-danger" data-act="del-break" data-id="${esc(b.id)}">✕</button>
-        </div>`).join('') || '<p class="muted">No breaks configured.</p>'}
-      <div class="add-row">
-        <button class="btn btn-sm" data-act="add-break">+ Add a break</button>
-      </div>
-    </div>
-
-    <div class="card">
       <h4>Different length for a specific period</h4>
       <p class="muted" style="margin-bottom:12px">Optional — for example a longer double period or a shorter assembly slot.</p>
       ${Object.keys(cfg.periodOverrides).length
@@ -1650,10 +1625,6 @@ function handleFormInput(e) {
     const item = list.find(x => x.id === el.dataset.id)
     if (item) {
       item[el.dataset.field] = readValue(el)
-      if (el.dataset.list === 'breaks') {
-        state.timingDirty = true
-        refreshStandardEndDisplay()
-      }
       if (el.dataset.list === 'classes' && (el.dataset.field === 'name' || el.dataset.field === 'section')) {
         const dupInfo = checkClassDuplicates(list)
         if (dupInfo.duplicate) {
@@ -2088,16 +2059,6 @@ document.addEventListener('click', async e => {
       return
     }
 
-    case 'add-break':
-      cfg.breaks.push({ id: uid('break'), afterPeriod: Math.max(1, cfg.periodCount), label: 'Break', duration: 0 })
-      state.timingDirty = true
-      renderWizard(); scheduleCheck()
-      return
-    case 'del-break':
-      cfg.breaks = cfg.breaks.filter(b => b.id !== el.dataset.id)
-      state.timingDirty = true
-      renderWizard(); scheduleCheck()
-      return
     case 'add-override': {
       const used = Object.keys(cfg.periodOverrides).map(Number)
       const next = Array.from({ length: cfg.periodCount }, (_, i) => i + 1).find(n => !used.includes(n)) || 1
