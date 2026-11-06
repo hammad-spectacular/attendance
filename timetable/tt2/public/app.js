@@ -2089,7 +2089,7 @@ document.addEventListener('click', async e => {
     }
 
     case 'add-break':
-      cfg.breaks.push({ id: uid('break'), afterPeriod: Math.max(1, cfg.periodCount), label: 'Break', duration: 15 })
+      cfg.breaks.push({ id: uid('break'), afterPeriod: Math.max(1, cfg.periodCount), label: 'Break', duration: 0 })
       state.timingDirty = true
       renderWizard(); scheduleCheck()
       return

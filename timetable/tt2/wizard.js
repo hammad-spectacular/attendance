@@ -300,7 +300,7 @@ function normaliseConfig(raw) {
       id: asTrimmedString(b && b.id) || `break_${i + 1}`,
       afterPeriod: Math.max(0, Math.round(asNumber(b && b.afterPeriod, 0))),
       label: asTrimmedString(b && b.label) || 'Break',
-      duration: Math.max(0, Math.round(asNumber(b && b.duration, 15)))
+      duration: Math.max(0, Math.round(asNumber(b && b.duration, 0)))
     }))
     .filter(b => b.afterPeriod > 0 && b.duration > 0)
 
