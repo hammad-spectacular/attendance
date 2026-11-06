@@ -46,6 +46,8 @@ function buildPeriods(rawConfig) {
   const breaksByAfter = new Map()
   for (const b of config.breaks) {
     if (b.afterPeriod < 1 || b.afterPeriod > config.periodCount) continue
+    // Skip breaks with zero duration
+    if (!b.duration || b.duration <= 0) continue
     if (!breaksByAfter.has(b.afterPeriod)) breaksByAfter.set(b.afterPeriod, [])
     breaksByAfter.get(b.afterPeriod).push(b)
   }
@@ -127,6 +129,8 @@ function buildDayPeriods(rawConfig, dayName) {
   const breaksByAfter = new Map()
   for (const b of config.breaks) {
     if (b.afterPeriod < 1 || b.afterPeriod > config.periodCount) continue
+    // Skip breaks with zero duration
+    if (!b.duration || b.duration <= 0) continue
     if (!breaksByAfter.has(b.afterPeriod)) breaksByAfter.set(b.afterPeriod, [])
     breaksByAfter.get(b.afterPeriod).push(b)
   }
@@ -278,6 +282,8 @@ function buildPeriodsForDate(rawConfig, dateString) {
   const breaksByAfter = new Map()
   for (const b of config.breaks) {
     if (b.afterPeriod < 1 || b.afterPeriod > config.periodCount) continue
+    // Skip breaks with zero duration
+    if (!b.duration || b.duration <= 0) continue
     if (!breaksByAfter.has(b.afterPeriod)) breaksByAfter.set(b.afterPeriod, [])
     breaksByAfter.get(b.afterPeriod).push(b)
   }

@@ -220,7 +220,11 @@ function calcEndTimeHelper(startTime, periodDuration, breaks, periodCount, perio
       totalMins += ov || periodDuration || 40
       const brk = brks.find(b => b.afterPeriod === i)
       if (brk) {
-        totalMins += (overrideBreakDuration !== undefined && overrideBreakDuration !== null) ? overrideBreakDuration : brk.duration
+        const breakDuration = (overrideBreakDuration !== undefined && overrideBreakDuration !== null) ? overrideBreakDuration : brk.duration
+        // Only add break duration if it's greater than 0
+        if (breakDuration > 0) {
+          totalMins += breakDuration
+        }
       }
     }
     const endH = Math.floor(totalMins / 60) % 24
