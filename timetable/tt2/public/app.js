@@ -1798,9 +1798,13 @@ document.addEventListener('click', async e => {
 
     case 'del-doc':
       if (!confirm('Delete this timetable? This cannot be undone.')) return
-      await api(`/timetables/${el.dataset.id}`, { method: 'DELETE' })
-      toast('Timetable deleted.')
-      renderList()
+      try {
+        await api(`/timetables/${el.dataset.id}`, { method: 'DELETE' })
+        toast('Timetable deleted.', 'good')
+        renderList()
+      } catch (err) {
+        toast(`Failed to delete: ${err.message || 'Unknown error'}`, 'bad')
+      }
       return
 
     /* ---- wizard navigation ---- */
