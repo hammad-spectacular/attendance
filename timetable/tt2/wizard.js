@@ -302,7 +302,7 @@ function normaliseConfig(raw) {
       label: asTrimmedString(b && b.label) || 'Break',
       duration: Math.max(0, Math.round(asNumber(b && b.duration, 15)))
     }))
-    .filter(b => b.afterPeriod > 0)
+    .filter(b => b.afterPeriod > 0 && b.duration > 0)
 
   const periodOverrides = {}
   const overrides = input.periodOverrides && typeof input.periodOverrides === 'object' ? input.periodOverrides : {}

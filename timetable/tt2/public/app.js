@@ -1596,6 +1596,15 @@ async function openDoc(id, mode) {
   state.doc = res.timetable
   state.docId = res.timetable.id
   state.config = res.timetable.config
+
+  // Ensure all breaks have unique IDs for proper deletion
+  if (state.config.breaks && Array.isArray(state.config.breaks)) {
+    state.config.breaks = state.config.breaks.map((b, i) => ({
+      ...b,
+      id: b.id || `break_${Date.now()}_${i}`
+    }))
+  }
+
   if (res.timetable.config.classes.length > 1) {
     state.activeClassId = '__all__'
   } else {
@@ -1782,6 +1791,8 @@ document.addEventListener('click', async e => {
     /* ---- list ---- */
     case 'new':
       state.config = JSON.parse(JSON.stringify(state.meta.defaults))
+      // Ensure breaks array is empty for new timetables
+      state.config.breaks = []
       state.step = 0
       state.visitedSteps = new Set([0])
       state.generateClicked = false
