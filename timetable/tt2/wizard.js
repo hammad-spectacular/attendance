@@ -387,7 +387,9 @@ function normaliseConfig(raw) {
       id: asTrimmedString(s && s.id) || `subject_${i + 1}`,
       name: asTrimmedString(s && s.name) || `Subject ${i + 1}`,
       difficult: DIFFICULTIES.includes(String(s && s.difficult)) ? String(s.difficult) : 'medium',
-      roomId: asTrimmedString(s && s.roomId) || null
+      roomId: asTrimmedString(s && s.roomId) || null,
+      minPerWeek: Math.max(0, Math.round(asNumber(s && s.minPerWeek, 0))),
+      maxPerWeek: Math.max(0, Math.round(asNumber(s && s.maxPerWeek, null))) || null
     }))
     .filter(s => s.name)
 

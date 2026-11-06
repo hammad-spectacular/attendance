@@ -7,6 +7,65 @@
 
 /* ---------------------------------------------------------------- state -- */
 
+const DIFFICULTY_WEIGHTS = { easy: 1, medium: 2, difficult: 3 }
+
+function allocateDifficultyBased(subjects, totalSlots) {
+  const allocations = []
+  const changes = []
+  let remainingSlots = totalSlots
+
+  for (const s of subjects) {
+    const weight = DIFFICULTY_WEIGHTS[s.difficult] || 2
+    const min = s.minPerWeek || 0
+    const max = s.maxPerWeek || totalSlots
+    allocations.push({
+      ...s,
+      weight,
+      min,
+      max,
+      allocated: min
+    })
+    remainingSlots -= min
+  }
+
+  const sumMins = allocations.reduce((sum, s) => sum + s.min, 0)
+  if (sumMins > totalSlots) {
+    return { allocations: [], changes: [], error: `Minimum (${sumMins}) exceeds slots (${totalSlots})` }
+  }
+
+  const unlocked = allocations.filter(s => !s.locked)
+  const totalWeight = unlocked.reduce((sum, s) => sum + s.weight, 0)
+
+  if (totalWeight > 0 && remainingSlots > 0) {
+    const shares = unlocked.map(s => ({
+      subject: s,
+      fairShare: (s.weight / totalWeight) * remainingSlots,
+      floor: Math.floor((s.weight / totalWeight) * remainingSlots)
+    }))
+
+    let distributed = 0
+    for (const share of shares) {
+      const increase = Math.min(share.floor, share.subject.max - share.subject.allocated)
+      share.subject.allocated += increase
+      distributed += increase
+    }
+
+    const remainder = remainingSlots - distributed
+    const withRemainder = shares.map(s => ({ ...s, remainder: s.fairShare - s.floor }))
+      .sort((a, b) => b.remainder - a.remainder)
+
+    for (let i = 0; i < remainder && i < withRemainder.length; i++) {
+      const s = withRemainder[i].subject
+      if (s.allocated < s.max) {
+        s.allocated += 1
+        changes.push({ subjectId: s.id, subjectName: s.name, type: 'allocation', from: s.allocated - 1, to: s.allocated })
+      }
+    }
+  }
+
+  return { allocations, changes, error: null }
+}
+
 const state = {
   screen: 'list',
   meta: null,
@@ -644,17 +703,30 @@ const stepRenderers = {
       <p class="muted" style="margin-bottom:14px">
         Mark a subject <b>difficult</b> (such as Mathematics or Physics) so two difficult subjects are never scheduled back to back. Sports, Music, and Labs can be marked Easy or Medium to space out tough subjects.
       </p>
+      <p class="muted" style="margin-bottom:14px">
+        <b>Difficulty-based allocation:</b> Difficult subjects automatically get more weekly periods than easy ones. Set min/max to control the range.
+      </p>
       ${state.config.subjects.map(s => `
         <div class="item-row">
-          <div class="grow row tight">
-            <input type="text" data-list="subjects" data-id="${esc(s.id)}" data-field="name" value="${esc(s.name)}" placeholder="Subject">
-            <select data-list="subjects" data-id="${esc(s.id)}" data-field="difficult" style="max-width:150px">
-              ${state.meta.difficulties.map(d => `<option value="${d}" ${s.difficult === d ? 'selected' : ''}>${d[0].toUpperCase() + d.slice(1)}</option>`).join('')}
-            </select>
-            <select data-list="subjects" data-id="${esc(s.id)}" data-field="roomId" style="max-width:170px">
-              <option value="">Any room</option>
-              ${state.config.rooms.map(r => `<option value="${esc(r.id)}" ${s.roomId === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}
-            </select>
+          <div class="grow">
+            <div class="row tight">
+              <input type="text" data-list="subjects" data-id="${esc(s.id)}" data-field="name" value="${esc(s.name)}" placeholder="Subject" style="max-width:200px">
+              <select data-list="subjects" data-id="${esc(s.id)}" data-field="difficult" style="max-width:120px">
+                ${state.meta.difficulties.map(d => `<option value="${d}" ${s.difficult === d ? 'selected' : ''}>${d[0].toUpperCase() + d.slice(1)}</option>`).join('')}
+              </select>
+              <label class="field" style="margin:0;flex:0 0 110px">
+                <span>Min/week</span>
+                <input type="number" min="0" max="20" data-list="subjects" data-id="${esc(s.id)}" data-field="minPerWeek" value="${s.minPerWeek || 0}" placeholder="0">
+              </label>
+              <label class="field" style="margin:0;flex:0 0 110px">
+                <span>Max/week</span>
+                <input type="number" min="0" max="20" data-empty-null="1" data-list="subjects" data-id="${esc(s.id)}" data-field="maxPerWeek" value="${s.maxPerWeek === null ? '' : s.maxPerWeek}" placeholder="No limit">
+              </label>
+              <select data-list="subjects" data-id="${esc(s.id)}" data-field="roomId" style="max-width:150px">
+                <option value="">Any room</option>
+                ${state.config.rooms.map(r => `<option value="${esc(r.id)}" ${s.roomId === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}
+              </select>
+            </div>
           </div>
           <button type="button" class="btn btn-sm btn-danger" data-act="del-subject" data-id="${esc(s.id)}">✕</button>
         </div>`).join('') || '<p class="muted">No subjects yet.</p>'}
@@ -2192,21 +2264,45 @@ document.addEventListener('click', async e => {
         return
       }
       const totalSlots = cfg.days.length * cfg.periodCount
-      const subCount = cfg.subjects.length
-      const basePeriods = Math.floor(totalSlots / subCount)
-      const remainder = totalSlots % subCount
+      
+      // Use difficulty-based allocation
+      const subjectsWithMin = cfg.subjects.map(s => ({
+        ...s,
+        minPerWeek: s.minPerWeek || 0,
+        maxPerWeek: s.maxPerWeek || totalSlots,
+        locked: false,
+        manualCount: null
+      }))
+      
+      // Simple client-side allocation (in production, this would call the API)
+      const allocations = allocateDifficultyBased(subjectsWithMin, totalSlots)
+      
+      if (allocations.error) {
+        toast(allocations.error, 'bad')
+        return
+      }
 
       for (const cls of cfg.classes) {
-        cfg.subjects.forEach((s, idx) => {
-          const count = basePeriods + (idx < remainder ? 1 : 0)
+        allocations.allocations.forEach(s => {
           let row = cfg.curriculum.find(r => r.classId === cls.id && r.subjectId === s.id)
           if (row) {
-            row.periodsPerWeek = count
+            row.periodsPerWeek = s.allocated
           } else {
             cfg.curriculum.push({
               id: uid('req'),
               classId: cls.id,
               subjectId: s.id,
+              periodsPerWeek: s.allocated,
+              teacherIds: []
+            })
+          }
+        })
+      }
+      
+      toast(`Auto-filled ${allocations.changes.length} adjustments based on difficulty`, 'good')
+      renderWizard(); scheduleCheck()
+      return
+    }
               periodsPerWeek: count,
               teacherIds: []
             })
