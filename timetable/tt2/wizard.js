@@ -62,10 +62,7 @@ function defaultConfig() {
     endTime: null,
     periodCount: 6,          // TEACHING periods per day (breaks are extra columns)
     periodDuration: 40,      // minutes, default length of one class
-    breaks: [
-      { afterPeriod: 2, label: 'Short Break', duration: 15 },
-      { afterPeriod: 4, label: 'Lunch', duration: 30 }
-    ],
+    breaks: [],              // Breaks are only added if admin explicitly configures them
     periodOverrides: {},     // { '3': 50 } — per teaching-period duration in minutes
     dayTimingMode: 'all',    // 'all' | 'custom'
     dayOverrides: {},        // { 'Friday': { periodDuration: 30, startTime: '08:00', breakDuration: 10 } }

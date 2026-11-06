@@ -24,13 +24,11 @@ function greenwood() {
     { label: 'P1', kind: 'teaching', start: '08:00', end: '08:40' },
     { label: 'P2', kind: 'teaching', start: '08:40', end: '09:20' },
     { label: 'P3', kind: 'teaching', start: '09:20', end: '10:00' },
-    { label: 'Break', kind: 'break', start: '10:00', end: '10:20' },
-    { label: 'P4', kind: 'teaching', start: '10:20', end: '11:00' },
-    { label: 'P5', kind: 'teaching', start: '11:00', end: '11:40' },
-    { label: 'P6', kind: 'teaching', start: '11:40', end: '12:20' },
-    { label: 'Lunch', kind: 'lunch', start: '12:20', end: '13:00' },
-    { label: 'P7', kind: 'teaching', start: '13:00', end: '13:40' },
-    { label: 'P8', kind: 'teaching', start: '13:40', end: '14:20' }
+    { label: 'P4', kind: 'teaching', start: '10:00', end: '10:40' },
+    { label: 'P5', kind: 'teaching', start: '10:40', end: '11:20' },
+    { label: 'P6', kind: 'teaching', start: '11:20', end: '12:00' },
+    { label: 'P7', kind: 'teaching', start: '12:00', end: '12:40' },
+    { label: 'P8', kind: 'teaching', start: '12:40', end: '13:20' }
   ]
 
   const classes = [
