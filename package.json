@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "scripts": {
     "start": "node serverg.js",
+    "dev": "nodemon serverg.js",
+    "dev:ui": "browser-sync start --proxy 'http://localhost:3000' --files 'public/**,timetable/tt2/public/**,admin.html,coordinator.html,student.html,super-admin.html,teacher.html' --port 3001 --no-notify",
     "test:unit": "node --test \"unit-tests/*.test.js\"",
     "dev:timetable": "node timetable/dev-server.js",
     "bench:timetable": "node unit-tests/benchmark.js",
@@ -23,6 +25,8 @@
   "devDependencies": {
     "@playwright/test": "^1.60.0",
     "@types/node": "^25.9.1",
+    "browser-sync": "^3.0.4",
+    "nodemon": "^3.1.14",
     "sharp": "^0.35.3"
   }
 }

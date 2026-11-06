@@ -1,0 +1,18 @@
+{
+  "watch": [
+    "serverg.js",
+    "timetable/**/*.js",
+    "authMiddleware.js",
+    "db.js"
+  ],
+  "ext": "js,json",
+  "ignore": [
+    "node_modules",
+    "build",
+    "test",
+    "timetable/tt2/dev-state.json"
+  ],
+  "env": {
+    "NODE_ENV": "development"
+  }
+}

@@ -502,7 +502,7 @@ const stepRenderers = {
               </label>
             </div>
           </div>
-          <button class="btn btn-sm btn-danger" data-act="del-break" data-id="${esc(b.id)}">✕</button>
+          <button type="button" class="btn btn-sm btn-danger" data-act="del-break" data-id="${esc(b.id)}">✕</button>
         </div>`).join('') || '<p class="muted">No breaks configured.</p>'}
       <div class="add-row">
         <button class="btn btn-sm" data-act="add-break">+ Add a break</button>
@@ -521,7 +521,7 @@ const stepRenderers = {
               <label class="field" style="margin:0"><span>Minutes</span>
                 <input type="number" min="15" max="180" data-override="duration" value="${v}"></label>
             </div>
-            <button class="btn btn-sm btn-danger" data-act="del-override" data-key="${esc(k)}">✕</button>
+            <button type="button" class="btn btn-sm btn-danger" data-act="del-override" data-key="${esc(k)}">✕</button>
           </div>`).join('')
         : '<p class="muted">Every period uses the same duration.</p>'}
       <div class="add-row">
@@ -632,7 +632,7 @@ const stepRenderers = {
         <div class="classes-grid-row">
           <input type="text" value="${esc(c.name)}" disabled style="background:#f8fafc;cursor:not-allowed">
           <input type="text" value="${esc(c.section || '—')}" disabled style="background:#f8fafc;cursor:not-allowed">
-          <button class="btn btn-sm btn-danger" data-act="del-class" data-id="${esc(c.id)}" title="Remove from timetable">✕</button>
+          <button type="button" class="btn btn-sm btn-danger" data-act="del-class" data-id="${esc(c.id)}" title="Remove from timetable">✕</button>
         </div>`).join('')}` : '<p class="muted">No classes selected yet. Tick classes from the list above.</p>'}
     </div>`
   },
@@ -656,7 +656,7 @@ const stepRenderers = {
               ${state.config.rooms.map(r => `<option value="${esc(r.id)}" ${s.roomId === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}
             </select>
           </div>
-          <button class="btn btn-sm btn-danger" data-act="del-subject" data-id="${esc(s.id)}">✕</button>
+          <button type="button" class="btn btn-sm btn-danger" data-act="del-subject" data-id="${esc(s.id)}">✕</button>
         </div>`).join('') || '<p class="muted">No subjects yet.</p>'}
       <div class="add-row">
         <button class="btn btn-sm" data-act="add-subject">+ Add a subject</button>
@@ -721,7 +721,7 @@ const stepRenderers = {
                 <span>Max periods per week</span>
                 <input type="number" min="0" max="60" data-empty-null="1" data-list="teachers" data-id="${esc(t.id)}" data-field="maxPerWeek" value="${t.maxPerWeek === null ? '' : t.maxPerWeek}" placeholder="No limit">
               </label>
-              <button class="btn btn-sm btn-danger" data-act="del-teacher" data-id="${esc(t.id)}">✕</button>
+              <button type="button" class="btn btn-sm btn-danger" data-act="del-teacher" data-id="${esc(t.id)}">✕</button>
             </div>
 
             <div class="sub">
@@ -775,7 +775,7 @@ const stepRenderers = {
       ${state.config.rooms.map(r => `
         <div class="item-row">
           <div class="grow"><input type="text" data-list="rooms" data-id="${esc(r.id)}" data-field="name" value="${esc(r.name)}" placeholder="Room name"></div>
-          <button class="btn btn-sm btn-danger" data-act="del-room" data-id="${esc(r.id)}">✕</button>
+          <button type="button" class="btn btn-sm btn-danger" data-act="del-room" data-id="${esc(r.id)}">✕</button>
         </div>`).join('') || '<p class="muted">No rooms — every class is assumed to meet anywhere.</p>'}
       <div class="add-row">
         <button class="btn btn-sm" data-act="add-room">+ Add a room</button>
@@ -969,7 +969,7 @@ async function renderList() {
       <div class="foot">
         <button class="btn btn-sm" data-act="open-doc" data-id="${esc(t.id)}" data-mode="edit">Setup</button>
         <button class="btn btn-sm btn-primary" data-act="open-doc" data-id="${esc(t.id)}" data-mode="view">Open</button>
-        <button class="btn btn-sm btn-danger" data-act="del-doc" data-id="${esc(t.id)}">✕</button>
+        <button type="button" class="btn btn-sm btn-danger" data-act="del-doc" data-id="${esc(t.id)}">✕</button>
       </div>
     </div>`).join('')
 }
