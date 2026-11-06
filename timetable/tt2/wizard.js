@@ -53,19 +53,20 @@ function defaultConfig() {
     // -- Step 2: the shape of the week ------------------------------------
     days: [...DEFAULT_DAYS],
     startTime: '08:00',
-    // The school's daily END is DERIVED from startTime + periods × duration.
+    // The school's daily END is DERIVED from startTime + periods × duration + breaks.
     // This field is only an OPTIONAL latest-dismissal limit. null = no
     // limit (end time is whatever the calculation yields). It is intentionally
     // NOT a hardcoded 14:00 — that stale default used to override the admin's
     // chosen start time and produced the "ends at 2:00 PM … require until 7:20
     // PM" contradiction.
     endTime: null,
-    periodCount: 6,          // TEACHING periods per day
+    periodCount: 6,          // TEACHING periods per day (breaks are extra columns)
     periodDuration: 40,      // minutes, default length of one class
+    breaks: [],              // No default breaks - user must add them manually
     periodOverrides: {},     // { '3': 50 } — per teaching-period duration in minutes
     dayTimingMode: 'all',    // 'all' | 'custom'
-    dayOverrides: {},        // { 'Friday': { periodDuration: 30, startTime: '08:00' } }
-    dateOverrides: {},       // PHASE 1: { '2026-11-15': { periodDuration, startTime } }
+    dayOverrides: {},        // { 'Friday': { periodDuration: 30, startTime: '08:00', breakDuration: 10 } }
+    dateOverrides: {},       // PHASE 1: { '2026-11-15': { periodDuration, startTime, breakDuration } }
 
     // -- Step 3: classes (who is being taught) ----------------------------
     classes: [],             // [{ id, name, studentCount }]
@@ -294,6 +295,15 @@ function normaliseConfig(raw) {
     .map(d => String(d))
     .filter(d => ALL_DAYS.includes(d))
 
+  const breaks = asArray(input.breaks)
+    .map((b, i) => ({
+      id: asTrimmedString(b && b.id) || `break_${i + 1}`,
+      afterPeriod: Math.max(0, Math.round(asNumber(b && b.afterPeriod, 0))),
+      label: asTrimmedString(b && b.label) || 'Break',
+      duration: Math.max(0, Math.round(asNumber(b && b.duration, 0)))
+    }))
+    .filter(b => b.afterPeriod > 0 && b.duration > 0)
+
   const periodOverrides = {}
   const overrides = input.periodOverrides && typeof input.periodOverrides === 'object' ? input.periodOverrides : {}
   for (const key of Object.keys(overrides)) {
@@ -320,6 +330,7 @@ function normaliseConfig(raw) {
       dayOverrides[dayName] = {
         periodDuration: Math.max(15, Math.min(180, Math.round(asNumber(dVal.periodDuration, 30)))),
         startTime: /^\d{1,2}:\d{2}$/.test(String(dVal.startTime)) ? String(dVal.startTime) : '08:00',
+        breakDuration: Math.max(0, Math.min(120, Math.round(asNumber(dVal.breakDuration, 10)))),
         durationType,
         expiresAt,
         createdAt: dVal.createdAt || new Date().toISOString()
@@ -349,7 +360,8 @@ function normaliseConfig(raw) {
 
       dateOverrides[dateStr] = {
         periodDuration: Math.max(15, Math.min(180, Math.round(asNumber(timing.periodDuration, 30)))),
-        startTime: /^\d{1,2}:\d{2}$/.test(String(timing.startTime)) ? String(timing.startTime) : '08:00'
+        startTime: /^\d{1,2}:\d{2}$/.test(String(timing.startTime)) ? String(timing.startTime) : '08:00',
+        breakDuration: Math.max(0, Math.min(120, Math.round(asNumber(timing.breakDuration, 10))))
       }
     }
   }
@@ -416,13 +428,14 @@ function normaliseConfig(raw) {
     days: days.length ? days : base.days,
     startTime: /^\d{1,2}:\d{2}$/.test(String(input.startTime)) ? String(input.startTime) : base.startTime,
     // `endTime` is an OPTIONAL latest-dismissal limit, not the school's actual
-    // end (that is derived from start + periods). A missing, invalid or
+    // end (that is derived from start + periods + breaks). A missing, invalid or
     // legacy-hardcoded '14:00' value means "no limit" (null) so it can never
     // contradict the admin's chosen start time. A real, explicitly chosen end
     // time is preserved.
     endTime: normaliseEndTimeLimit(input.endTime),
     periodCount: Math.max(0, Math.round(asNumber(input.periodCount, base.periodCount))),
     periodDuration: Math.max(0, Math.round(asNumber(input.periodDuration, base.periodDuration))),
+    breaks,
     periodOverrides,
     dayTimingMode,
     dayOverrides,
