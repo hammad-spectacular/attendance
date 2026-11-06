@@ -867,6 +867,14 @@ const stepRenderers = {
 
     const classLabel = c => c.section ? `${esc(c.name)} (${esc(c.section)})` : esc(c.name)
 
+    const totalSlots = cfg.days.length * cfg.periodCount
+    const currentTotal = cfg.subjects.reduce((sum, s) => {
+      return sum + cfg.classes.reduce((clsSum, c) => {
+        const r = rowFor(c.id, s.id)
+        return clsSum + (r ? r.periodsPerWeek : 0)
+      }, 0)
+    }, 0)
+
     return `
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
@@ -876,13 +884,19 @@ const stepRenderers = {
             How many periods of each subject each class gets in a week. Put <b>0</b> to leave it out.
           </p>
         </div>
-        <button class="btn btn-sm btn-accent" data-act="auto-fill-curriculum">⚡ Auto-fill balanced periods</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="pill ${currentTotal === totalSlots ? 'good' : 'warn'}">${currentTotal} / ${totalSlots} slots used</span>
+          <button class="btn btn-sm btn-accent" data-act="auto-fill-curriculum">⚡ Auto-fill by difficulty</button>
+        </div>
       </div>
       <div class="matrix-wrap">
         <table class="matrix">
           <thead>
             <tr>
               <th>Subject</th>
+              <th>Difficulty</th>
+              <th>Min</th>
+              <th>Max</th>
               ${cfg.classes.map(c => `<th>${classLabel(c)}</th>`).join('')}
               <th>Total</th>
             </tr>
@@ -895,6 +909,9 @@ const stepRenderers = {
               }, 0)
               return `<tr>
                 <th>${esc(s.name)}</th>
+                <td style="text-align:center;font-size:12px;color:${s.difficult === 'difficult' ? '#dc2626' : s.difficult === 'easy' ? '#16a34a' : '#ca8a04'}">${s.difficult[0].toUpperCase() + s.difficult.slice(1)}</td>
+                <td style="text-align:center">${s.minPerWeek || 0}</td>
+                <td style="text-align:center">${s.maxPerWeek || '∞'}</td>
                 ${cfg.classes.map(c => {
                   const r = rowFor(c.id, s.id)
                   return `<td class="num">
@@ -909,6 +926,9 @@ const stepRenderers = {
             }).join('')}
             <tr>
               <th>Total</th>
+              <th></th>
+              <th></th>
+              <th></th>
               ${cfg.classes.map(c => {
                 const total = cfg.subjects.reduce((sum, s) => {
                   const r = rowFor(c.id, s.id)
@@ -916,7 +936,7 @@ const stepRenderers = {
                 }, 0)
                 return `<td class="num"><b>${total}</b></td>`
               }).join('')}
-              <td></td>
+              <td class="num"><b>${currentTotal}</b></td>
             </tr>
           </tbody>
         </table>
