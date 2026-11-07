@@ -4343,6 +4343,15 @@ app.get('/api/attendance/staff', requireAuth(['admin', 'super_admin']), async (r
     const { tenant_id, branch_id, role } = req.user
     const { date } = req.query
 
+    // Check if QR attendance feature is enabled
+    const featureResult = await pool.query(
+      'SELECT enabled FROM tenant_grants WHERE school_id = $1 AND feature_key = $2',
+      [tenant_id, 'qr_attendance']
+    )
+    if (featureResult.rows.length === 0 || !featureResult.rows[0].enabled) {
+      return res.status(403).json({ error: 'This feature is not enabled for your academy. Please contact the administrator.' })
+    }
+
     const effectiveBranchId = role === 'coordinator' ? branch_id : null
 
     // Get teacher attendance
@@ -4416,6 +4425,15 @@ app.post('/api/attendance/staff/manual', requireAuth(['admin', 'super_admin']), 
   try {
     const { tenant_id, branch_id, user_id, role } = req.user
     const { attendance_id, person_id, date, check_in_time, check_out_time, status, note } = req.body
+
+    // Check if QR attendance feature is enabled
+    const featureResult = await pool.query(
+      'SELECT enabled FROM tenant_grants WHERE school_id = $1 AND feature_key = $2',
+      [tenant_id, 'qr_attendance']
+    )
+    if (featureResult.rows.length === 0 || !featureResult.rows[0].enabled) {
+      return res.status(403).json({ error: 'This feature is not enabled for your academy. Please contact the administrator.' })
+    }
 
     // Prevent editing own attendance (admin editing themselves)
     if (person_id == user_id && role === 'admin') {
@@ -4494,7 +4512,7 @@ app.post('/api/attendance/staff/manual', requireAuth(['admin', 'super_admin']), 
 // Get QR requirement setting for a school
 app.get('/api/attendance/qr/setting', requireAuth(['super_admin']), async (req, res) => {
   try {
-    const { tenant_id } = req.query
+    const { tenant_id } = req.user
 
     // Check if QR attendance feature is enabled
     const featureResult = await pool.query(
@@ -4525,7 +4543,7 @@ app.get('/api/attendance/qr/setting', requireAuth(['super_admin']), async (req, 
 // Update QR requirement setting
 app.post('/api/attendance/qr/setting', requireAuth(['super_admin']), async (req, res) => {
   try {
-    const { tenant_id } = req.body
+    const { tenant_id } = req.user
 
     // Check if QR attendance feature is enabled
     const featureResult = await pool.query(
@@ -4556,6 +4574,15 @@ app.post('/api/attendance/qr/setting', requireAuth(['super_admin']), async (req,
 app.get('/api/attendance/manual-changes', requireAuth(['super_admin']), async (req, res) => {
   try {
     const { tenant_id } = req.user
+
+    // Check if QR attendance feature is enabled
+    const featureResult = await pool.query(
+      'SELECT enabled FROM tenant_grants WHERE school_id = $1 AND feature_key = $2',
+      [tenant_id, 'qr_attendance']
+    )
+    if (featureResult.rows.length === 0 || !featureResult.rows[0].enabled) {
+      return res.status(403).json({ error: 'This feature is not enabled for your academy. Please contact the administrator.' })
+    }
 
     const result = await pool.query(
       `SELECT mc.*, ta.date, 

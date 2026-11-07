@@ -1,71 +1,55 @@
--- ============================================================================
--- MIGRATION: Feature defaults for existing academies
---
--- This migration preserves current feature settings for existing academies
--- while setting up the correct defaults for new academies.
---
--- BASIC features (enabled by default for all academies):
--- - attendance
--- - student_management
--- - teacher_management
--- - fees
--- - coordinator_management
--- - coordinator_portal
---
--- ADVANCED features (off by default, superadmin can enable per academy):
--- - student_portal
--- - teacher_portal
--- - whatsapp
--- - biometric
--- - qr_attendance
--- - timetable
--- ============================================================================
+-- Migration: Feature Defaults for Multi-Academy Support
+-- Purpose: Set default_enabled values for existing features and preserve current academy settings
+-- This migration does NOT execute against live database - review and approve first
+-- Run only after creating branch from production and testing
 
--- Ensure tenant_features has the new features
-INSERT INTO tenant_features (key, label, description, default_enabled, sort_order) VALUES
-  ('qr_attendance', 'QR Attendance', 'QR-based staff check-in and attendance tracking', false, 95),
-  ('timetable', 'Timetable', 'Automated timetable generator', false, 100)
-ON CONFLICT (key) DO NOTHING;
+-- Update feature catalogue defaults
+-- BASIC features (enabled by default for all academies, including new ones):
+UPDATE tenant_features
+SET default_enabled = true
+WHERE key IN (
+  'attendance',
+  'student_management',
+  'teacher_management',
+  'fees',
+  'coordinator_management',
+  'coordinator_portal'
+);
 
--- For existing academies:
--- If they already have an explicit tenant_grants row, keep it (preserve their choice)
--- If they don't have a row for a feature, set it based on current usage:
--- - If they have teacher_attendance records, enable qr_attendance
--- - If they have tt2_timetables records, enable timetable
--- - Otherwise, use the default_enabled from tenant_features
+-- ADVANCED features (OFF by default for all academies, including new ones):
+UPDATE tenant_features
+SET default_enabled = false
+WHERE key IN (
+  'student_portal',
+  'teacher_portal',
+  'whatsapp',
+  'biometric',
+  'qr_attendance',
+  'timetable'
+);
 
--- Enable qr_attendance for academies that have used it
-INSERT INTO tenant_grants (school_id, feature_key, enabled, updated_at)
-SELECT DISTINCT teacher_attendance.tenant_id, 'qr_attendance', true, NOW()
-FROM teacher_attendance
-LEFT JOIN tenant_grants tg ON tg.school_id = teacher_attendance.tenant_id AND tg.feature_key = 'qr_attendance'
-WHERE tg.enabled IS NULL
-ON CONFLICT (school_id, feature_key) DO NOTHING;
+-- Preserve existing academy settings by creating explicit grant rows
+-- For any academy that currently has a feature enabled (either by default or explicit grant),
+-- create an explicit tenant_grants row to preserve that behavior.
+-- This ensures existing academies are not broken by the default changes.
 
--- Enable timetable for academies that have used it
-INSERT INTO tenant_grants (school_id, feature_key, enabled, updated_at)
-SELECT DISTINCT tt2_timetables.tenant_id, 'timetable', true, NOW()
-FROM tt2_timetables
-LEFT JOIN tenant_grants tg ON tg.school_id = tt2_timetables.tenant_id AND tg.feature_key = 'timetable'
-WHERE tg.enabled IS NULL
-ON CONFLICT (school_id, feature_key) DO NOTHING;
-
--- Ensure all academies have rows for basic features (enabled=true)
-INSERT INTO tenant_grants (school_id, feature_key, enabled, updated_at)
-SELECT o.school_code, tf.key, tf.default_enabled, NOW()
+INSERT INTO tenant_grants (school_id, feature_key, enabled, updated_by, updated_at)
+SELECT DISTINCT
+  o.school_code,
+  tf.key,
+  COALESCE(tg.enabled, tf.default_enabled),
+  NULL,
+  NOW()
 FROM organizations o
 CROSS JOIN tenant_features tf
-WHERE tf.default_enabled = true
 LEFT JOIN tenant_grants tg ON tg.school_id = o.school_code AND tg.feature_key = tf.key
-WHERE tg.enabled IS NULL
-ON CONFLICT (school_id, feature_key) DO NOTHING;
+WHERE COALESCE(tg.enabled, tf.default_enabled) = true
+ON CONFLICT (school_id, feature_key) DO UPDATE SET
+  enabled = EXCLUDED.enabled,
+  updated_at = NOW();
 
--- Ensure all academies have rows for advanced features (use default_enabled=false)
-INSERT INTO tenant_grants (school_id, feature_key, enabled, updated_at)
-SELECT o.school_code, tf.key, tf.default_enabled, NOW()
-FROM organizations o
-CROSS JOIN tenant_features tf
-WHERE tf.default_enabled = false
-LEFT JOIN tenant_grants tg ON tg.school_id = o.school_code AND tg.feature_key = tf.key
-WHERE tg.enabled IS NULL
-ON CONFLICT (school_id, feature_key) DO NOTHING;
+-- Note: For academies that already have explicit grant rows, this preserves their enabled state.
+-- For academies with no explicit row, it uses the catalogue default (which we just updated above).
+-- New academies created after this migration will use the new defaults:
+--   - BASIC features: ON by default
+--   - ADVANCED features: OFF by default
