@@ -41,8 +41,15 @@ function requireAuth(allowedRoles = []) {
               [decoded.user_id]
             )
             if (result.rows.length > 0) {
-              const currentGen = result.rows[0].token_generation || 0
-              if (decoded.token_generation !== currentGen) {
+              const currentGen = result.rows[0].token_generation
+              // If DB value is NULL (first login), update it with JWT's token_generation
+              // This prevents first-time users from being kicked out
+              if (currentGen === null) {
+                await _pool.query(
+                  `UPDATE ${table} SET token_generation = $1 WHERE id = $2`,
+                  [decoded.token_generation, decoded.user_id]
+                )
+              } else if (decoded.token_generation !== currentGen) {
                 return res.status(401).json({ error: 'Session invalidated. Please log in again.' })
               }
             }
