@@ -487,8 +487,27 @@ app.get('/:page.html', (req, res, next) => {
 })
 
 const tt2Auth = requireAuth(['admin', 'super_admin', 'coordinator'])
+
+// Feature check middleware for tt2
+async function tt2FeatureCheck(req, res, next) {
+  try {
+    const tenantId = req.user.tenant_id
+    const featureResult = await pool.query(
+      'SELECT enabled FROM tenant_grants WHERE school_id = $1 AND feature_key = $2',
+      [tenantId, 'timetable']
+    )
+    if (featureResult.rows.length === 0 || !featureResult.rows[0].enabled) {
+      return res.status(403).json({ error: 'This feature is not enabled for your academy. Please contact the administrator.' })
+    }
+    next()
+  } catch (err) {
+    console.error('tt2 feature check error:', err)
+    next() // Allow access on error to avoid blocking
+  }
+}
+
 app.use('/api/tt2/meta', tt2Auth)
-app.use('/api/tt2', createTt2Router({
+app.use('/api/tt2', tt2FeatureCheck, createTt2Router({
   store: tt2Store,
   pool,
   auth: tt2Auth
@@ -814,16 +833,18 @@ async function createTables() {
   // the Super Admin can still switch it off per school in the features screen.
   await pool.query(`
     INSERT INTO tenant_features (key, label, description, default_enabled, sort_order) VALUES
-      ('attendance',          'Attendance',          'Daily attendance marking and records',            true,  10),
-      ('student_management',  'Student Management',  'Add, edit and remove students',                 true,  20),
-      ('student_portal',      'Student Portal',      'Student sign-in to see their own records',        false, 30),
-      ('teacher_management',  'Teacher Management',  'Add, edit and remove teachers',                 true,  40),
-      ('teacher_portal',      'Teacher Portal',      'Teacher sign-in and class tools',                false, 50),
-      ('fees',                'Fees',                'Fee structures, invoices and payments',         true,  60),
-      ('whatsapp',            'WhatsApp',            'WhatsApp notifications and messaging',            false, 70),
-      ('biometric',           'Biometric',           'Biometric attendance device integration',        false, 80),
-      ('coordinator_management','Coordinator Management','Add, edit and remove coordinators',              true,  85),
-      ('coordinator_portal',  'Coordinator Portal',  'Attendance-only coordinators for branch staff',  true,   90)
+      ('attendance',              'Attendance',              'Daily attendance marking and records',                    true,  10),
+      ('student_management',      'Student Management',      'Add, edit and remove students',                           true,  20),
+      ('student_portal',          'Student Portal',          'Student sign-in to see their own records',               false, 30),
+      ('teacher_management',      'Teacher Management',      'Add, edit and remove teachers',                           true,  40),
+      ('teacher_portal',          'Teacher Portal',          'Teacher sign-in and class tools',                         false, 50),
+      ('fees',                    'Fees',                    'Fee structures, invoices and payments',                true,  60),
+      ('whatsapp',                'WhatsApp',                'WhatsApp notifications and messaging',                  false, 70),
+      ('biometric',               'Biometric',               'Biometric attendance device integration',               false, 80),
+      ('coordinator_management',  'Coordinator Management',  'Add, edit and remove coordinators',                       true,  85),
+      ('coordinator_portal',      'Coordinator Portal',      'Attendance-only coordinators for branch staff',            true,   90),
+      ('qr_attendance',           'QR Attendance',            'QR-based staff check-in and attendance tracking',        false, 95),
+      ('timetable',               'Timetable',               'Automated timetable generator',                         false, 100)
     ON CONFLICT (key) DO NOTHING;
   `)
 
@@ -3989,6 +4010,15 @@ app.post('/api/attendance/teacher/checkin', requireAuth(['teacher', 'admin']), a
     const { qr_code_data, location_lat, location_lng } = req.body || {}
     const { user_id, tenant_id, branch_id, role } = req.user
 
+    // Check if QR attendance feature is enabled
+    const featureResult = await pool.query(
+      'SELECT enabled FROM tenant_grants WHERE school_id = $1 AND feature_key = $2',
+      [tenant_id, 'qr_attendance']
+    )
+    if (featureResult.rows.length === 0 || !featureResult.rows[0].enabled) {
+      return res.status(403).json({ error: 'This feature is not enabled for your academy. Please contact the administrator.' })
+    }
+
     // Validate location is provided
     if (location_lat == null || location_lng == null) {
       return res.status(400).json({ error: 'Location is required to mark attendance.', code: 'LOCATION_REQUIRED' })
@@ -4200,6 +4230,15 @@ app.post('/api/attendance/qr/generate', requireAuth(['admin', 'super_admin']), a
   try {
     const { tenant_id, branch_id } = req.user
 
+    // Check if QR attendance feature is enabled for this tenant
+    const featureResult = await pool.query(
+      'SELECT enabled FROM tenant_grants WHERE school_id = $1 AND feature_key = $2',
+      [tenant_id, 'qr_attendance']
+    )
+    if (featureResult.rows.length === 0 || !featureResult.rows[0].enabled) {
+      return res.status(403).json({ error: 'This feature is not enabled for your academy. Please contact the administrator.' })
+    }
+
     // Validate tenant exists before INSERT
     const schoolResult = await pool.query('SELECT school_code FROM organizations WHERE school_code = $1', [tenant_id])
     if (schoolResult.rows.length === 0) {
@@ -4243,6 +4282,15 @@ app.post('/api/attendance/qr/generate', requireAuth(['admin', 'super_admin']), a
 app.get('/api/attendance/qr/status', requireAuth(['admin', 'super_admin']), async (req, res) => {
   try {
     const { tenant_id, branch_id } = req.user
+
+    // Check if QR attendance feature is enabled
+    const featureResult = await pool.query(
+      'SELECT enabled FROM tenant_grants WHERE school_id = $1 AND feature_key = $2',
+      [tenant_id, 'qr_attendance']
+    )
+    if (featureResult.rows.length === 0 || !featureResult.rows[0].enabled) {
+      return res.status(403).json({ error: 'This feature is not enabled for your academy. Please contact the administrator.' })
+    }
 
     const result = await pool.query(
       `SELECT id, expires_at, is_active, created_at 
@@ -4432,6 +4480,15 @@ app.get('/api/attendance/qr/setting', requireAuth(['super_admin']), async (req, 
   try {
     const { tenant_id } = req.query
 
+    // Check if QR attendance feature is enabled
+    const featureResult = await pool.query(
+      'SELECT enabled FROM tenant_grants WHERE school_id = $1 AND feature_key = $2',
+      [tenant_id, 'qr_attendance']
+    )
+    if (featureResult.rows.length === 0 || !featureResult.rows[0].enabled) {
+      return res.status(403).json({ error: 'This feature is not enabled for your academy. Please contact the administrator.' })
+    }
+
     const result = await pool.query(
       'SELECT require_checkout FROM qr_attendance_settings WHERE tenant_id = $1',
       [tenant_id]
@@ -4453,6 +4510,15 @@ app.get('/api/attendance/qr/setting', requireAuth(['super_admin']), async (req, 
 app.post('/api/attendance/qr/setting', requireAuth(['super_admin']), async (req, res) => {
   try {
     const { tenant_id } = req.body
+
+    // Check if QR attendance feature is enabled
+    const featureResult = await pool.query(
+      'SELECT enabled FROM tenant_grants WHERE school_id = $1 AND feature_key = $2',
+      [tenant_id, 'qr_attendance']
+    )
+    if (featureResult.rows.length === 0 || !featureResult.rows[0].enabled) {
+      return res.status(403).json({ error: 'This feature is not enabled for your academy. Please contact the administrator.' })
+    }
 
     const result = await pool.query(
       `INSERT INTO qr_attendance_settings (tenant_id, require_checkout, updated_at)
