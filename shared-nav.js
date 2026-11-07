@@ -7,6 +7,25 @@
 (function () {
   'use strict';
 
+  // Load enabled features from API
+  async function loadEnabledFeatures() {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const res = await fetch('/api/features', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        window.enabledFeatures = new Set(data.features || []);
+      } else {
+        window.enabledFeatures = new Set();
+      }
+    } catch (err) {
+      console.error('Failed to load features:', err);
+      window.enabledFeatures = new Set();
+    }
+  }
+
   function initSharedNav(role) {
     const container = document.getElementById('tabNavInner');
     if (!container) return;
@@ -22,6 +41,11 @@
     let html = '';
 
     items.forEach(item => {
+      // Skip items with featureKey if feature is not enabled
+      if (item.dataFeatureKey && window.enabledFeatures && !window.enabledFeatures.has(item.dataFeatureKey)) {
+        return;
+      }
+
       if (item.dropdown && item.dropdown.length > 0) {
         const secAttr = item.dataSection ? `data-section="${item.dataSection}"` : '';
         const activeSectionsAttr = Array.isArray(item.activeSections)
@@ -36,6 +60,10 @@
             </button>
             <div class="nav-dropdown" role="menu">
               ${item.dropdown.map(sub => {
+                // Skip dropdown items with featureKey if feature is not enabled
+                if (sub.dataFeatureKey && window.enabledFeatures && !window.enabledFeatures.has(sub.dataFeatureKey)) {
+                  return '';
+                }
                 const toastAttr = sub.toast ? `onclick="if(window.showToast){showToast('${sub.toast}','info');}else{alert('${sub.toast}');}return false;"` : '';
                 const secAttr = sub.dataSection ? `data-section="${sub.dataSection}"` : '';
                 const roleAttr = sub.dataRole ? `data-role="${sub.dataRole}"` : '';
@@ -59,6 +87,10 @@
           </div>
         `;
       } else {
+        // Skip items with featureKey if feature is not enabled
+        if (item.dataFeatureKey && window.enabledFeatures && !window.enabledFeatures.has(item.dataFeatureKey)) {
+          return;
+        }
         const idAttr = item.id && item.id !== item.dataSection ? `id="${item.id}"` : '';
         const secAttr = item.dataSection ? `data-section="${item.dataSection}"` : '';
         const featAttr = item.dataFeatureKey ? `data-feature-key="${item.dataFeatureKey}"` : '';
@@ -95,6 +127,12 @@
     container.innerHTML = html;
     setupDropdownEvents(container);
   }
+
+  // Initialize navigation and load features
+  window.initSharedNav = async function(role) {
+    await loadEnabledFeatures();
+    initSharedNav(role);
+  };
 
   function setupDropdownEvents(container) {
     if (!container) return;

@@ -57,7 +57,8 @@ var MENU_CONFIG = {
           label: 'QR Attendance',
           desc: 'QR-based staff attendance.',
           href: '#tab-qr-attendance',
-          dataSection: 'tab-qr-attendance'
+          dataSection: 'tab-qr-attendance',
+          dataFeatureKey: 'qr_attendance'
         }
       ]
     },
@@ -70,7 +71,8 @@ var MENU_CONFIG = {
         {
           label: 'Generate Time Table',
           desc: 'Makes the weekly class timetable.',
-          href: '/tt2/'
+          href: '/tt2/',
+          dataFeatureKey: 'timetable'
         },
         {
           label: 'Generate Date Sheet',

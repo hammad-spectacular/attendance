@@ -506,6 +506,22 @@ async function tt2FeatureCheck(req, res, next) {
   }
 }
 
+// Get enabled features for the logged-in user's tenant
+app.get('/api/features', requireAuth(['admin', 'super_admin', 'coordinator', 'teacher', 'student']), async (req, res) => {
+  try {
+    const tenantId = req.user.tenant_id
+    const result = await pool.query(
+      'SELECT feature_key FROM tenant_grants WHERE school_id = $1 AND enabled = true',
+      [tenantId]
+    )
+    const features = result.rows.map(row => row.feature_key)
+    res.json({ features })
+  } catch (err) {
+    console.error('Error fetching features:', err)
+    res.status(500).json({ error: 'Could not load features. Please try again.' })
+  }
+})
+
 app.use('/api/tt2/meta', tt2Auth)
 app.use('/api/tt2', tt2FeatureCheck, createTt2Router({
   store: tt2Store,
