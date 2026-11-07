@@ -2323,16 +2323,6 @@ document.addEventListener('click', async e => {
       renderWizard(); scheduleCheck()
       return
     }
-              periodsPerWeek: count,
-              teacherIds: []
-            })
-          }
-        })
-      }
-      toast('Auto-filled balanced periods for all classes and subjects!', 'good')
-      renderWizard(); scheduleCheck()
-      return
-    }
     case 'add-subject':
       cfg.subjects.push({ id: uid('subject'), name: `Subject ${cfg.subjects.length + 1}`, difficult: 'medium', roomId: null })
       renderWizard(); scheduleCheck()
