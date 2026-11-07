@@ -171,6 +171,14 @@ const STEPS = [
     ]
   },
   {
+    id: 'review-allocation',
+    title: 'Review Allocation',
+    blurb: 'Review and adjust how many periods each subject gets. Difficult subjects should have more periods.',
+    fields: [
+      { key: 'allocationReview', question: 'Subject allocation review', type: 'allocation-review', required: true }
+    ]
+  },
+  {
     id: 'preferences',
     title: 'Preferences',
     blurb: 'How should the generator balance the week?',
@@ -389,6 +397,8 @@ function normaliseConfig(raw) {
       difficult: DIFFICULTIES.includes(String(s && s.difficult)) ? String(s.difficult) : 'medium',
       roomId: asTrimmedString(s && s.roomId) || null,
       minPerWeek: Math.max(0, Math.round(asNumber(s && s.minPerWeek, 0))),
+      maxPerWeek: Math.max(0, Math.round(asNumber(s && s.maxPerWeek, (input.days.length * input.periodCount)))),
+      locked: Boolean(s && s.locked),
       maxPerWeek: Math.max(0, Math.round(asNumber(s && s.maxPerWeek, null))) || null
     }))
     .filter(s => s.name)
@@ -617,6 +627,21 @@ function validateStep(raw, stepId) {
 
     case 'rooms':
       break
+
+    case 'review-allocation': {
+      const totalSlots = config.days.length * config.periodCount
+      const currentTotal = config.subjects.reduce((sum, s) => {
+        return sum + config.classes.reduce((clsSum, c) => {
+          const r = config.curriculum.find(row => row.classId === c.id && row.subjectId === s.id)
+          return clsSum + (r ? r.periodsPerWeek : 0)
+        }, 0)
+      }, 0)
+
+      if (currentTotal !== totalSlots) {
+        errors.push(makeError(`Total allocated periods (${currentTotal}) must match available slots (${totalSlots}). Adjust subject allocations or use auto-fill.`, 'review-allocation'))
+      }
+      break
+    }
 
     case 'curriculum': {
       if (!config.curriculum.length) {

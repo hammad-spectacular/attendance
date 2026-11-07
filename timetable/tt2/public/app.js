@@ -108,9 +108,13 @@ async function api(path, options = {}) {
   let data = null
   try { data = await res.json() } catch (_) { data = null }
   if (!res.ok) {
-    const err = new Error((data && data.error) || `Request failed (${res.status})`)
+    // Use plain-language error from server, or fallback to generic message
+    const message = (data && data.error) || 'Something went wrong. Please try again.'
+    const err = new Error(message)
     err.payload = data
     err.status = res.status
+    // Log technical details to console
+    console.error('[tt2 API error]', path, res.status, data)
     throw err
   }
   return data
@@ -944,6 +948,81 @@ const stepRenderers = {
     </div>`
   },
 
+  'review-allocation': () => {
+    const cfg = state.config
+    if (!cfg.classes.length || !cfg.subjects.length) {
+      return `<div class="card"><p class="muted">Add classes and subjects first.</p></div>`
+    }
+
+    const totalSlots = cfg.days.length * cfg.periodCount
+    const currentTotal = cfg.subjects.reduce((sum, s) => {
+      return sum + cfg.classes.reduce((clsSum, c) => {
+        const r = cfg.curriculum.find(row => row.classId === c.id && row.subjectId === s.id)
+        return clsSum + (r ? r.periodsPerWeek : 0)
+      }, 0)
+    }, 0)
+
+    return `
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div>
+          <h4 style="margin:0 0 4px 0">Review Subject Allocation</h4>
+          <p class="muted" style="margin:0">
+            Difficult subjects should have more periods. You can adjust manually or use auto-fill.
+          </p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="pill ${currentTotal === totalSlots ? 'good' : 'warn'}">${currentTotal} / ${totalSlots} slots used</span>
+          <button class="btn btn-sm btn-accent" data-act="auto-fill-allocation">⚡ Auto-fill by difficulty</button>
+        </div>
+      </div>
+      <div class="matrix-wrap">
+        <table class="matrix">
+          <thead>
+            <tr>
+              <th>Subject</th>
+              <th>Difficulty</th>
+              <th>Min</th>
+              <th>Max</th>
+              <th>Allocated</th>
+              <th>Locked</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${cfg.subjects.map(s => {
+              const allocated = cfg.classes.reduce((sum, c) => {
+                const r = cfg.curriculum.find(row => row.classId === c.id && row.subjectId === s.id)
+                return sum + (r ? r.periodsPerWeek : 0)
+              }, 0)
+              const locked = s.locked || false
+              return `<tr>
+                <th>${esc(s.name)}</th>
+                <td style="text-align:center;font-size:12px;color:${s.difficult === 'difficult' ? '#dc2626' : s.difficult === 'easy' ? '#16a34a' : '#ca8a04'}">${s.difficult[0].toUpperCase() + s.difficult.slice(1)}</td>
+                <td style="text-align:center">${s.minPerWeek || 0}</td>
+                <td style="text-align:center">${s.maxPerWeek || '∞'}</td>
+                <td class="num">
+                  <input type="number" min="0" max="20"
+                    data-subject-id="${esc(s.id)}"
+                    data-field="allocated"
+                    value="${allocated}">
+                </td>
+                <td style="text-align:center">
+                  <input type="checkbox" data-subject-id="${esc(s.id)}" data-field="locked" ${locked ? 'checked' : ''}>
+                </td>
+              </tr>`
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+      ${currentTotal !== totalSlots ? `
+        <div class="step-error-banner" style="margin-top:12px">
+          <strong>⚠️ Total must match available slots</strong>
+          <p style="margin:4px 0 0 0">Current: ${currentTotal}, Required: ${totalSlots}. Adjust allocated periods or use auto-fill.</p>
+        </div>
+      ` : ''}
+    </div>`
+  },
+
   preferences: () => {
     const p = state.config.preferences
     return `
@@ -1768,6 +1847,19 @@ function handleFormInput(e) {
     scheduleCheck()
     return
   }
+  if (el.dataset.subjectId && el.dataset.field) {
+    const subject = cfg.subjects.find(s => s.id === el.dataset.subjectId)
+    if (subject) {
+      if (el.dataset.field === 'allocated') {
+        subject.allocated = Number(el.value)
+      } else if (el.dataset.field === 'locked') {
+        subject.locked = el.checked
+      }
+      renderWizard()
+      scheduleCheck()
+    }
+    return
+  }
   if (el.dataset.pref) {
     const key = el.dataset.pref
     state.config.preferences[key] = (el.tagName === 'SELECT' && el.value === 'true') ? true
@@ -2323,6 +2415,64 @@ document.addEventListener('click', async e => {
       renderWizard(); scheduleCheck()
       return
     }
+
+    case 'auto-fill-allocation': {
+      if (!cfg.classes.length || !cfg.subjects.length) {
+        toast('Select classes and subjects first', 'warn')
+        return
+      }
+      const totalSlots = cfg.days.length * cfg.periodCount
+
+      const subjectsWithMin = cfg.subjects.map(s => ({
+        ...s,
+        minPerWeek: s.minPerWeek || 0,
+        maxPerWeek: s.maxPerWeek || totalSlots,
+        locked: s.locked || false,
+        manualCount: null
+      }))
+
+      const allocations = allocateDifficultyBased(subjectsWithMin, totalSlots)
+
+      if (allocations.error) {
+        toast(allocations.error, 'bad')
+        return
+      }
+
+      for (const cls of cfg.classes) {
+        allocations.allocations.forEach(s => {
+          cfg.curriculum = cfg.curriculum.filter(r => !(r.classId === cls.id && r.subjectId === s.id))
+          if (s.allocated > 0) {
+            cfg.curriculum.push({
+              id: uid('req'),
+              classId: cls.id,
+              subjectId: s.id,
+              periodsPerWeek: s.allocated,
+              teacherIds: []
+            })
+          }
+        })
+      }
+
+      toast('Auto-filled allocation by difficulty', 'good')
+      renderWizard()
+      scheduleCheck()
+      return
+    }
+
+    case 'update-subject-allocation': {
+      const subjectId = el.dataset.subjectId
+      const field = el.dataset.field
+      const value = field === 'locked' ? el.checked : Number(el.value)
+
+      const subject = cfg.subjects.find(s => s.id === subjectId)
+      if (subject) {
+        subject[field] = value
+        renderWizard()
+        scheduleCheck()
+      }
+      return
+    }
+
     case 'add-subject':
       cfg.subjects.push({ id: uid('subject'), name: `Subject ${cfg.subjects.length + 1}`, difficult: 'medium', roomId: null })
       renderWizard(); scheduleCheck()

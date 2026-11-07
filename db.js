@@ -8,7 +8,7 @@ console.log('Connection string exists:', !!connectionString)
 const pool = new Pool({
   connectionString: connectionString,
   ssl: {
-    rejectUnauthorized: false
+    rejectUnauthorized: true
   },
   // Keep connections warm so Neon's network path doesn't go cold between requests
   max: 10,

@@ -353,49 +353,75 @@ function createTt2Router(options = {}) {
 
   // -- list / create -------------------------------------------------------
 
-  router.get('/timetables', (req, res) => {
-    res.json({ ok: true, timetables: store.list(tenantOf(req, devAuth)) })
+  router.get('/timetables', async (req, res) => {
+    try {
+      const timetables = await store.list(tenantOf(req, devAuth))
+      res.json({ ok: true, timetables })
+    } catch (err) {
+      console.error('[tt2] /timetables error:', err)
+      res.status(500).json({ error: 'Could not load timetables. Please try again.' })
+    }
   })
 
-  router.post('/timetables', (req, res) => {
-    const body = req.body || {}
-    const config = normaliseConfig(body.config)
-    const doc = store.create({
-      tenantId: tenantOf(req, devAuth),
-      name: body.name,
-      config
-    })
-    res.status(201).json({ ok: true, timetable: describeDocument(doc) })
+  router.post('/timetables', async (req, res) => {
+    try {
+      const body = req.body || {}
+      const config = normaliseConfig(body.config)
+      const doc = await store.create({
+        tenantId: tenantOf(req, devAuth),
+        name: body.name,
+        config
+      })
+      res.status(201).json({ ok: true, timetable: describeDocument(doc) })
+    } catch (err) {
+      console.error('[tt2] POST /timetables error:', err)
+      res.status(500).json({ error: 'Could not create timetable. Please try again.' })
+    }
   })
 
   // -- read one ------------------------------------------------------------
 
-  router.get('/timetables/:id', (req, res) => {
-    const doc = store.get(tenantOf(req, devAuth), req.params.id)
-    if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
-    res.json({ ok: true, timetable: describeDocument(doc) })
+  router.get('/timetables/:id', async (req, res) => {
+    try {
+      const doc = await store.get(tenantOf(req, devAuth), req.params.id)
+      if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
+      res.json({ ok: true, timetable: describeDocument(doc) })
+    } catch (err) {
+      console.error('[tt2] GET /timetables/:id error:', err)
+      res.status(500).json({ error: 'Could not load timetable. Please try again.' })
+    }
   })
 
   // -- update config / name ------------------------------------------------
 
-  router.put('/timetables/:id', (req, res) => {
-    const tenantId = tenantOf(req, devAuth)
-    const doc = store.get(tenantId, req.params.id)
-    if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
+  router.put('/timetables/:id', async (req, res) => {
+    try {
+      const tenantId = tenantOf(req, devAuth)
+      const doc = await store.get(tenantId, req.params.id)
+      if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
 
-    const body = req.body || {}
-    const patch = {}
-    if (body.name !== undefined) patch.name = String(body.name)
-    if (body.config !== undefined) patch.config = normaliseConfig(body.config)
+      const body = req.body || {}
+      const patch = {}
+      if (body.name !== undefined) patch.name = String(body.name)
+      if (body.config !== undefined) patch.config = normaliseConfig(body.config)
 
-    const updated = store.update(tenantId, req.params.id, patch)
-    res.json({ ok: true, timetable: describeDocument(updated) })
+      const updated = await store.update(tenantId, req.params.id, patch)
+      res.json({ ok: true, timetable: describeDocument(updated) })
+    } catch (err) {
+      console.error('[tt2] PUT /timetables/:id error:', err)
+      res.status(500).json({ error: 'Could not save timetable. Please try again.' })
+    }
   })
 
-  router.delete('/timetables/:id', (req, res) => {
-    const removed = store.remove(tenantOf(req, devAuth), req.params.id)
-    if (!removed) return res.status(404).json({ error: 'Timetable not found.' })
-    res.json({ ok: true })
+  router.delete('/timetables/:id', async (req, res) => {
+    try {
+      const removed = await store.remove(tenantOf(req, devAuth), req.params.id)
+      if (!removed) return res.status(404).json({ error: 'Timetable not found.' })
+      res.json({ ok: true })
+    } catch (err) {
+      console.error('[tt2] DELETE /timetables/:id error:', err)
+      res.status(500).json({ error: 'Could not delete timetable. Please try again.' })
+    }
   })
 
   // -- live readiness check for the wizard ----------------------------------
@@ -416,76 +442,82 @@ function createTt2Router(options = {}) {
 
   // -- validation without generating ---------------------------------------
 
-  router.post('/timetables/:id/validate', (req, res) => {
-    const tenantId = tenantOf(req, devAuth)
-    const doc = store.get(tenantId, req.params.id)
-    if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
+  router.post('/timetables/:id/validate', async (req, res) => {
+    try {
+      const tenantId = tenantOf(req, devAuth)
+      const doc = await store.get(tenantId, req.params.id)
+      if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
 
-    const config = normaliseConfig(doc.config)
-    const check = validateConfig(config)
-    const described = describeDocument(doc)
-    res.json({
-      ok: true,
-      config: check,
-      validation: described.validation
-    })
+      const config = normaliseConfig(doc.config)
+      const check = validateConfig(config)
+      const described = describeDocument(doc)
+      res.json({
+        ok: true,
+        config: check,
+        validation: described.validation
+      })
+    } catch (err) {
+      console.error('[tt2] POST /timetables/:id/validate error:', err)
+      res.status(500).json({ error: 'Could not validate timetable. Please try again.' })
+    }
   })
 
   // -- generate ------------------------------------------------------------
 
-  router.post('/timetables/:id/generate', (req, res) => {
-    const tenantId = tenantOf(req, devAuth)
-    const doc = store.get(tenantId, req.params.id)
-    if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
+  router.post('/timetables/:id/generate', async (req, res) => {
+    try {
+      const tenantId = tenantOf(req, devAuth)
+      const doc = await store.get(tenantId, req.params.id)
+      if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
 
-    const config = normaliseConfig(doc.config)
-    const check = validateConfig(config)
-    if (!check.canGenerate) {
-      return res.status(400).json({
-        error: 'The timetable is not ready to generate yet.',
-        errors: check.errors,
-        warnings: check.warnings
-      })
-    }
+      const config = normaliseConfig(doc.config)
+      const check = validateConfig(config)
+      if (!check.canGenerate) {
+        return res.status(400).json({
+          error: 'The timetable is not ready to generate yet.',
+          errors: check.errors,
+          warnings: check.warnings
+        })
+      }
 
-    const body = req.body || {}
-    const requested = body.options || {}
-    const generateOptions = {
-      nodeBudget: Math.min(MAX_GENERATE_OPTIONS.nodeBudget,
-        Math.max(1, Number(requested.nodeBudget) || DEFAULT_GENERATE_OPTIONS.nodeBudget)),
-      timeBudgetMs: Math.min(MAX_GENERATE_OPTIONS.timeBudgetMs,
-        Math.max(50, Number(requested.timeBudgetMs) || DEFAULT_GENERATE_OPTIONS.timeBudgetMs))
-    }
+      const body = req.body || {}
+      const requested = body.options || {}
+      const generateOptions = {
+        nodeBudget: Math.min(MAX_GENERATE_OPTIONS.nodeBudget,
+          Math.max(1, Number(requested.nodeBudget) || DEFAULT_GENERATE_OPTIONS.nodeBudget)),
+        timeBudgetMs: Math.min(MAX_GENERATE_OPTIONS.timeBudgetMs,
+          Math.max(50, Number(requested.timeBudgetMs) || DEFAULT_GENERATE_OPTIONS.timeBudgetMs))
+      }
 
-    // Manual pins become solver locks so hand-placed lessons survive.
-    const locks = collectLocks(doc.grids)
+      // Manual pins become solver locks so hand-placed lessons survive.
+      const locks = collectLocks(doc.grids)
 
-    // Load slots used by saved timetables of OTHER classes in the same tenant.
-    // Regenerating this class must not count its own old slots as busy.
-    const busySlots = new Map()
-    const allDocs = store.list(tenantId)
-    const currentClassIds = new Set(config.classes.map(c => c.id))
-    for (const other of allDocs) {
-      if (other.id === doc.id) continue
-      const grids = other.grids || {}
-      for (const grid of Object.values(grids)) {
-        for (const cell of Object.values(grid || {})) {
-          if (!cell.teacherId || !cell.subjectId) continue
-          // Only count slots for classes in this config's class list
-          if (!currentClassIds.has(cell.classId)) continue
-          let set = busySlots.get(cell.teacherId)
-          if (!set) { set = new Set(); busySlots.set(cell.teacherId, set) }
-          set.add({ day: config.days[Number(cell.day)] || String(cell.day), period: Number(cell.period) })
+      // Load slots used by saved timetables of OTHER classes in the same tenant.
+      // Regenerating this class must not count its own old slots as busy.
+      const busySlots = new Map()
+      const allDocs = await store.list(tenantId)
+      const currentClassIds = new Set(config.classes.map(c => c.id))
+      for (const other of allDocs) {
+        if (other.id === doc.id) continue
+        const grids = other.grids || {}
+        for (const grid of Object.values(grids)) {
+          for (const cell of Object.values(grid || {})) {
+            if (!cell.teacherId || !cell.subjectId) continue
+            // Only count slots for classes in this config's class list
+            if (!currentClassIds.has(cell.classId)) continue
+            let set = busySlots.get(cell.teacherId)
+            if (!set) { set = new Set(); busySlots.set(cell.teacherId, set) }
+            set.add({ day: config.days[Number(cell.day)] || String(cell.day), period: Number(cell.period) })
+          }
         }
       }
-    }
 
-    const solverInput = buildSolverInput(config, { locks, busySlots })
+      const solverInput = buildSolverInput(config, { locks, busySlots })
 
-    const result = generateTimetable(solverInput, generateOptions)
+      const result = generateTimetable(solverInput, generateOptions)
 
-    // Manual cells are re-applied over the solver output (a solver lock may
-    // have moved a lesson elsewhere, the user's pin wins).
+      // Manual cells are re-applied over the solver output (a solver lock may
+      // have moved a lesson elsewhere, the user's pin wins).
     const manualCells = {}
     for (const grid of Object.values(doc.grids || {})) {
       for (const [key, cell] of Object.entries(grid || {})) {
@@ -503,33 +535,38 @@ function createTt2Router(options = {}) {
       score: result.score
     }
 
-    const updated = store.update(tenantId, req.params.id, {
+    const updated = await store.update(tenantId, req.params.id, {
       grids: merged,
       report,
       generatedAt: new Date().toISOString()
     })
 
     res.json({ ok: true, timetable: describeDocument(updated), report })
+    } catch (err) {
+      console.error('[tt2] POST /timetables/:id/generate error:', err)
+      res.status(500).json({ error: 'Could not generate timetable. Please try again.' })
+    }
   })
 
   // -- manual placement ----------------------------------------------------
 
-  router.post('/timetables/:id/place', (req, res) => {
-    const tenantId = tenantOf(req, devAuth)
-    const doc = store.get(tenantId, req.params.id)
-    if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
+  router.post('/timetables/:id/place', async (req, res) => {
+    try {
+      const tenantId = tenantOf(req, devAuth)
+      const doc = await store.get(tenantId, req.params.id)
+      if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
 
-    const body = req.body || {}
-    const config = normaliseConfig(doc.config)
-    const { periods } = buildPeriods(config)
+      const body = req.body || {}
+      const config = normaliseConfig(doc.config)
+      const { periods } = buildPeriods(config)
 
-    const classId = String(body.classId || '')
-    const subjectId = String(body.subjectId || '')
-    const day = Number(body.day)
-    const column = Number(body.period)
+      const classId = String(body.classId || '')
+      const subjectId = String(body.subjectId || '')
+      const day = Number(body.day)
+      const column = Number(body.period)
 
-    if (!config.classes.some(c => c.id === classId)) {
-      return res.status(400).json({ error: 'Unknown class.' })
+      if (!config.classes.some(c => c.id === classId)) {
+        return res.status(400).json({ error: 'Unknown class.' })
     }
     if (!config.subjects.some(s => s.id === subjectId)) {
       return res.status(400).json({ error: 'Unknown subject.' })
@@ -590,30 +627,39 @@ function createTt2Router(options = {}) {
     grid[key] = cell
     grids[classId] = grid
 
-    const updated = store.update(tenantId, req.params.id, { grids })
+    const updated = await store.update(tenantId, req.params.id, { grids })
     res.json({ ok: true, cell, timetable: describeDocument(updated) })
+    } catch (err) {
+      console.error('[tt2] POST /timetables/:id/place error:', err)
+      res.status(500).json({ error: 'Could not place lesson. Please try again.' })
+    }
   })
 
   // -- clear a cell --------------------------------------------------------
 
-  router.delete('/timetables/:id/cell', (req, res) => {
-    const tenantId = tenantOf(req, devAuth)
-    const doc = store.get(tenantId, req.params.id)
-    if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
+  router.delete('/timetables/:id/cell', async (req, res) => {
+    try {
+      const tenantId = tenantOf(req, devAuth)
+      const doc = await store.get(tenantId, req.params.id)
+      if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
 
-    const body = req.body || {}
-    const classId = String(body.classId || '')
-    const day = Number(body.day)
-    const column = Number(body.period)
-    const key = cellKey(classId, day, column)
+      const body = req.body || {}
+      const classId = String(body.classId || '')
+      const day = Number(body.day)
+      const column = Number(body.period)
+      const key = cellKey(classId, day, column)
 
-    const grids = { ...(doc.grids || {}) }
-    const grid = { ...(grids[classId] || {}) }
-    delete grid[key]
-    grids[classId] = grid
+      const grids = { ...(doc.grids || {}) }
+      const grid = { ...(grids[classId] || {}) }
+      delete grid[key]
+      grids[classId] = grid
 
-    const updated = store.update(tenantId, req.params.id, { grids })
-    res.json({ ok: true, timetable: describeDocument(updated) })
+      const updated = await store.update(tenantId, req.params.id, { grids })
+      res.json({ ok: true, timetable: describeDocument(updated) })
+    } catch (err) {
+      console.error('[tt2] DELETE /timetables/:id/cell error:', err)
+      res.status(500).json({ error: 'Could not clear lesson. Please try again.' })
+    }
   })
 
   // -- date overrides -------------------------------------------------------
@@ -622,34 +668,40 @@ function createTt2Router(options = {}) {
    * Retrieve all date-specific overrides for a timetable.
    * GET /timetables/:id/date-overrides
    */
-  router.get('/timetables/:id/date-overrides', (req, res) => {
-    const tenantId = tenantOf(req, devAuth)
-    const doc = store.get(tenantId, req.params.id)
-    if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
+  router.get('/timetables/:id/date-overrides', async (req, res) => {
+    try {
+      const tenantId = tenantOf(req, devAuth)
+      const doc = await store.get(tenantId, req.params.id)
+      if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
 
-    const config = normaliseConfig(doc.config)
-    res.json({
-      ok: true,
-      dateOverrides: config.dateOverrides || {}
-    })
+      const config = normaliseConfig(doc.config)
+      res.json({
+        ok: true,
+        dateOverrides: config.dateOverrides || {}
+      })
+    } catch (err) {
+      console.error('[tt2] GET /timetables/:id/date-overrides error:', err)
+      res.status(500).json({ error: 'Could not load date overrides. Please try again.' })
+    }
   })
 
   /**
    * Create or update a date-specific override.
    * POST /timetables/:id/date-overrides
    */
-  router.post('/timetables/:id/date-overrides', (req, res) => {
-    const tenantId = tenantOf(req, devAuth)
-    const doc = store.get(tenantId, req.params.id)
-    if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
+  router.post('/timetables/:id/date-overrides', async (req, res) => {
+    try {
+      const tenantId = tenantOf(req, devAuth)
+      const doc = await store.get(tenantId, req.params.id)
+      if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
 
-    const body = req.body || {}
-    const date = String(body.date || '').trim()
-    const timing = body.timing || {}
+      const body = req.body || {}
+      const date = String(body.date || '').trim()
+      const timing = body.timing || {}
 
-    // Validate date format (YYYY-MM-DD)
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return res.status(400).json({ error: 'Date must be in YYYY-MM-DD format.' })
+      // Validate date format (YYYY-MM-DD)
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.status(400).json({ error: 'Date must be in YYYY-MM-DD format.' })
     }
 
     // Validate date is a real calendar date
@@ -700,70 +752,80 @@ function createTt2Router(options = {}) {
       }
     }
 
-    const updated = store.update(tenantId, req.params.id, { config: updatedConfig })
+    const updated = await store.update(tenantId, req.params.id, { config: updatedConfig })
     res.json({
       ok: true,
       timetable: describeDocument(updated),
       dateOverrides: updatedConfig.dateOverrides
     })
+    } catch (err) {
+      console.error('[tt2] POST /timetables/:id/date-overrides error:', err)
+      res.status(500).json({ error: 'Could not save date override. Please try again.' })
+    }
   })
 
   /**
    * Delete a date-specific override.
    * DELETE /timetables/:id/date-overrides/:date
    */
-  router.delete('/timetables/:id/date-overrides/:date', (req, res) => {
-    const tenantId = tenantOf(req, devAuth)
-    const doc = store.get(tenantId, req.params.id)
-    if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
+  router.delete('/timetables/:id/date-overrides/:date', async (req, res) => {
+    try {
+      const tenantId = tenantOf(req, devAuth)
+      const doc = await store.get(tenantId, req.params.id)
+      if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
 
-    const date = String(req.params.date || '').trim()
+      const date = String(req.params.date || '').trim()
 
-    // Validate date format
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return res.status(400).json({ error: 'Date must be in YYYY-MM-DD format.' })
+      // Validate date format
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.status(400).json({ error: 'Date must be in YYYY-MM-DD format.' })
+      }
+
+      const config = normaliseConfig(doc.config)
+
+      // Check if override exists
+      if (!config.dateOverrides || !config.dateOverrides[date]) {
+        return res.status(404).json({ error: 'No override found for this date.' })
+      }
+
+      // Remove the override (does not affect dayOverrides)
+      const updatedConfig = {
+        ...config,
+        dateOverrides: { ...config.dateOverrides }
+      }
+      delete updatedConfig.dateOverrides[date]
+
+      const updated = await store.update(tenantId, req.params.id, { config: updatedConfig })
+      res.json({
+        ok: true,
+        timetable: describeDocument(updated),
+        dateOverrides: updatedConfig.dateOverrides
+      })
+    } catch (err) {
+      console.error('[tt2] DELETE /timetables/:id/date-overrides/:date error:', err)
+      res.status(500).json({ error: 'Could not remove date override. Please try again.' })
     }
-
-    const config = normaliseConfig(doc.config)
-
-    // Check if override exists
-    if (!config.dateOverrides || !config.dateOverrides[date]) {
-      return res.status(404).json({ error: 'No override found for this date.' })
-    }
-
-    // Remove the override (does not affect dayOverrides)
-    const updatedConfig = {
-      ...config,
-      dateOverrides: { ...config.dateOverrides }
-    }
-    delete updatedConfig.dateOverrides[date]
-
-    const updated = store.update(tenantId, req.params.id, { config: updatedConfig })
-    res.json({
-      ok: true,
-      timetable: describeDocument(updated),
-      dateOverrides: updatedConfig.dateOverrides
-    })
   })
 
   /**
    * Apply timing settings to multiple selected weekdays in one request.
    * POST /timetables/:id/apply-batch-timing
    */
-  router.post('/timetables/:id/apply-batch-timing', (req, res) => {
-    const tenantId = tenantOf(req, devAuth)
-    const doc = store.get(tenantId, req.params.id)
-    if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
+  router.post('/timetables/:id/apply-batch-timing', async (req, res) => {
+    try {
+      const tenantId = tenantOf(req, devAuth)
+      const doc = await store.get(tenantId, req.params.id)
+      if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
 
-    const body = req.body || {}
-    const weekdays = body.weekdays || []
-    const timing = body.timing || {}
+      const body = req.body || {}
+      const weekdays = body.weekdays || []
+      const timing = body.timing || {}
 
-    const config = normaliseConfig(doc.config)
+      const config = normaliseConfig(doc.config)
 
-    // Validate weekdays array
-    if (!Array.isArray(weekdays) || weekdays.length === 0) {
-      return res.status(400).json({ error: 'At least one weekday must be selected.' })
+      // Validate weekdays array
+      if (!Array.isArray(weekdays) || weekdays.length === 0) {
+        return res.status(400).json({ error: 'At least one weekday must be selected.' })
     }
 
     // Only update selected weekdays, preserve others
@@ -819,7 +881,7 @@ function createTt2Router(options = {}) {
       })
     }
 
-    const updated = store.update(tenantId, req.params.id, { config: newConfig })
+    const updated = await store.update(tenantId, req.params.id, { config: newConfig })
     res.json({
       ok: true,
       timetable: describeDocument(updated),
@@ -827,55 +889,64 @@ function createTt2Router(options = {}) {
       skippedDays,
       message: `Applied timing to ${updatedCount} day(s).`
     })
+    } catch (err) {
+      console.error('[tt2] POST /timetables/:id/apply-batch-timing error:', err)
+      res.status(500).json({ error: 'Could not apply batch timing. Please try again.' })
+    }
   })
 
   // -- CSV export ----------------------------------------------------------
 
-  router.get('/timetables/:id/export.csv', (req, res) => {
-    const tenantId = tenantOf(req, devAuth)
-    const doc = store.get(tenantId, req.params.id)
-    if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
+  router.get('/timetables/:id/export.csv', async (req, res) => {
+    try {
+      const tenantId = tenantOf(req, devAuth)
+      const doc = await store.get(tenantId, req.params.id)
+      if (!doc) return res.status(404).json({ error: 'Timetable not found.' })
 
-    const config = normaliseConfig(doc.config)
-    const { periods } = buildPeriods(config)
-    const grids = doc.grids || {}
+      const config = normaliseConfig(doc.config)
+      const { periods } = buildPeriods(config)
+      const grids = doc.grids || {}
 
-    const subjectName = id => {
-      const s = config.subjects.find(x => x.id === id)
-      return s ? s.name : (id || '')
+      const subjectName = id => {
+        const s = config.subjects.find(x => x.id === id)
+        return s ? s.name : (id || '')
+      }
+      const teacherName = id => {
+        const t = config.teachers.find(x => x.id === id)
+        return t ? t.name : ''
+      }
+
+      const escape = value => {
+        const s = String(value === null || value === undefined ? '' : value)
+        return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+      }
+
+      const lines = []
+      for (const cls of config.classes) {
+        const grid = grids[cls.id] || {}
+        lines.push([`${config.schoolName || 'Timetable'}${config.branchName ? ' - ' + config.branchName : ''} - ${cls.name}`].map(escape).join(','))
+        lines.push(['Day', ...periods.map(p => `${p.label} (${p.kind === 'break' ? 'break' : p.label})`)].map(escape).join(','))
+        config.days.forEach((dayName, dayIndex) => {
+          const row = [dayName]
+          for (const period of periods) {
+            if (period.kind !== 'teaching') { row.push('—'); continue }
+            const cell = grid[cellKey(cls.id, dayIndex, period.index)]
+            row.push(cell ? `${subjectName(cell.subjectId)}${cell.teacherId ? ' (' + teacherName(cell.teacherId) + ')' : ''}` : '')
+          }
+          lines.push(row.map(escape).join(','))
+        })
+        lines.push('')
+      }
+
+      const csv = lines.join('\r\n')
+      const filename = `${(doc.name || 'timetable').replace(/[^\w\-]+/g, '_')}.csv`
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+      res.send(csv)
+    } catch (err) {
+      console.error('[tt2] GET /timetables/:id/export.csv error:', err)
+      res.status(500).json({ error: 'Could not export timetable. Please try again.' })
     }
-    const teacherName = id => {
-      const t = config.teachers.find(x => x.id === id)
-      return t ? t.name : ''
-    }
-
-    const escape = value => {
-      const s = String(value === null || value === undefined ? '' : value)
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-    }
-
-    const lines = []
-    for (const cls of config.classes) {
-      const grid = grids[cls.id] || {}
-      lines.push([`${config.schoolName || 'Timetable'}${config.branchName ? ' - ' + config.branchName : ''} - ${cls.name}`].map(escape).join(','))
-      lines.push(['Day', ...periods.map(p => `${p.label} (${p.kind === 'break' ? 'break' : p.label})`)].map(escape).join(','))
-      config.days.forEach((dayName, dayIndex) => {
-        const row = [dayName]
-        for (const period of periods) {
-          if (period.kind !== 'teaching') { row.push('—'); continue }
-          const cell = grid[cellKey(cls.id, dayIndex, period.index)]
-          row.push(cell ? `${subjectName(cell.subjectId)}${cell.teacherId ? ' (' + teacherName(cell.teacherId) + ')' : ''}` : '')
-        }
-        lines.push(row.map(escape).join(','))
-      })
-      lines.push('')
-    }
-
-    const csv = lines.join('\r\n')
-    const filename = `${(doc.name || 'timetable').replace(/[^\w\-]+/g, '_')}.csv`
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
-    res.send(csv)
   })
 
   return router
