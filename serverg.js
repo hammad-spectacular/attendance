@@ -11,6 +11,7 @@ const rateLimit = require('express-rate-limit')
 require('dotenv').config()
 const { requireAuth, setPool, isCoordinator, branchFilter, requireWritableBranch } = require('./authMiddleware')
 const { createFileStore } = require('./timetable/tt2/store')
+const { createPgTt2Store } = require('./timetable/tt2/store.pg.tt2')
 const { createTt2Router } = require('./timetable/tt2/routes')
 
 const app = express()
@@ -465,9 +466,7 @@ app.use(cookieParser())
     }
   }))
 
-const tt2Store = createFileStore({
-  persistPath: path.join(__dirname, 'timetable', 'tt2', 'dev-state.json')
-})
+const tt2Store = createPgTt2Store(pool)
 app.use('/tt2/config', express.static(path.join(__dirname, 'timetable', 'tt2', 'config')))
 app.use('/tt2', express.static(path.join(__dirname, 'timetable', 'tt2', 'public')))
 
