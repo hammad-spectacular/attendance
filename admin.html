@@ -5592,8 +5592,26 @@
     }
 
     function filterStudents() {
-      // Display all students without filtering
-      renderStudentTable(window.appData.students);
+      const searchInput = document.getElementById('studentSearchInput');
+      const classFilter = document.getElementById('studentClassFilter');
+      const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+      const classId = classFilter ? classFilter.value : '';
+
+      const filtered = window.appData.students.filter(student => {
+        // Match search query (name or roll number)
+        const matchesSearch = !query ||
+          (student.name && student.name.toLowerCase().includes(query)) ||
+          (student.roll_no && student.roll_no.toLowerCase().includes(query));
+
+        // Match class filter
+        const matchesClass = !classId ||
+          (classId === 'unassigned' && !student.class_id) ||
+          (student.class_id === parseInt(classId, 10));
+
+        return matchesSearch && matchesClass;
+      });
+
+      renderStudentTable(filtered);
     }
 
     // Classes have no per-class cap: a school may put any number of students in a
