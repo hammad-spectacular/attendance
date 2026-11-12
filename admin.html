@@ -2638,10 +2638,10 @@
           <div class="search-filter-container" style="display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
             <div style="flex:1; min-width:240px; position:relative;">
               <input type="text" id="studentSearchInput" class="form-input"
-                placeholder="🔍 Search by name or roll number..." oninput="filterStudents(); saveStudentViewDraft();">
+                placeholder="🔍 Search by name or roll number..." oninput="filterStudents()">
             </div>
             <div style="width:200px; min-width:150px;">
-              <select id="studentClassFilter" class="form-input" onchange="filterStudents(); saveStudentViewDraft();"
+              <select id="studentClassFilter" class="form-input" onchange="filterStudents()"
                 aria-label="Filter students by class">
                 <option value="">All Classes</option>
                 <option value="unassigned">Unassigned</option>
