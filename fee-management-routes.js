@@ -23,6 +23,17 @@ function createFeeManagementRouter({ pool, requireAuth }) {
 
   const num = (v) => Number(v) || 0
   const today = () => new Date().toISOString().slice(0, 10)
+  // pg returns DATE columns as local-midnight Date objects; String() on those
+  // yields "Wed Jan 01 ..." garbage. Format from local parts instead so the
+  // calendar day survives regardless of server timezone.
+  function isoDate(v) {
+    if (v == null) return null
+    if (v instanceof Date) {
+      const p = (n) => String(n).padStart(2, '0')
+      return `${v.getFullYear()}-${p(v.getMonth() + 1)}-${p(v.getDate())}`
+    }
+    return String(v).slice(0, 10)
+  }
 
   function sendError(res, err) {
     if (err && err.code === 'OVERPAY') return res.status(400).json({ error: err.message, overpay: true })
@@ -107,8 +118,8 @@ function createFeeManagementRouter({ pool, requireAuth }) {
       amount: num(r.amount).toFixed(2),
       frequency: r.frequency,
       billingMode: r.billing_mode,
-      effectiveFrom: r.effective_from ? String(r.effective_from).slice(0, 10) : null,
-      effectiveTo: r.effective_to ? String(r.effective_to).slice(0, 10) : null,
+      effectiveFrom: r.effective_from ? isoDate(r.effective_from) : null,
+      effectiveTo: r.effective_to ? isoDate(r.effective_to) : null,
       dueDay: r.due_day,
       discountPercent: r.discount_percent == null ? null : num(r.discount_percent),
       discountAmount: r.discount_amount == null ? null : num(r.discount_amount).toFixed(2),
@@ -143,10 +154,10 @@ function createFeeManagementRouter({ pool, requireAuth }) {
       finalAmount: finalAmt.toFixed(2),
       paidAmount: paid.toFixed(2),
       remaining: remaining.toFixed(2),
-      billingPeriodStart: r.billing_period_start ? String(r.billing_period_start).slice(0, 10) : null,
-      billingPeriodEnd: r.billing_period_end ? String(r.billing_period_end).slice(0, 10) : null,
+      billingPeriodStart: r.billing_period_start ? isoDate(r.billing_period_start) : null,
+      billingPeriodEnd: r.billing_period_end ? isoDate(r.billing_period_end) : null,
       periodLabel: r.period_label,
-      dueDate: r.due_date ? String(r.due_date).slice(0, 10) : null,
+      dueDate: r.due_date ? isoDate(r.due_date) : null,
       status: r.status,
       payStatus: FM.effectiveStatus({ ...r, paid: paid.toFixed(2), remaining: remaining.toFixed(2) }, today()),
       source: r.source,
@@ -333,32 +344,37 @@ function createFeeManagementRouter({ pool, requireAuth }) {
       if (!existing.rows.length) return res.status(404).json({ error: 'Fee not found.' })
       const v = validateItem({ ...itemOut(existing.rows[0]), ...req.body })
       if (typeof v === 'string') return res.status(400).json({ error: v })
+      // Recompute discount/final in JS so the obligation update only ever
+      // sees plain typed numerics (the old CASE-over-params form left NULL
+      // parameters Postgres could not type).
+      const amountC = D.amountToCents(D.normalizeAmount(v.amount, { allowZero: true })) || 0n
+      let discountC = 0n
+      if (v.exempt) discountC = amountC
+      else if (v.discountAmount != null) {
+        const c = D.amountToCents(D.normalizeAmount(v.discountAmount, { allowZero: true }))
+        discountC = c == null ? 0n : (c > amountC ? amountC : c)
+      } else if (v.discountPercent != null && Number(v.discountPercent) > 0) {
+        discountC = (amountC * BigInt(Math.round(Number(v.discountPercent) * 100))) / 10000n
+      }
+      let finalC = amountC - discountC
+      if (finalC < 0n) finalC = 0n
+      const becomesExempt = v.exempt || finalC === 0n
+
       const row = await withTransaction(async (client) => {
         // Future unpaid obligations of this item pick up the new rate; paid
         // and historical rows are never rewritten.
         await client.query(
           `UPDATE student_fee_obligations o
               SET original_amount = $3,
-                  discount_amount = CASE
-                    WHEN $6 THEN o.original_amount
-                    WHEN $7 IS NOT NULL THEN LEAST($3::numeric, $7::numeric)
-                    WHEN $8 IS NOT NULL THEN ROUND($3::numeric * $8::numeric / 100, 2)
-                    ELSE 0 END,
-                  final_amount = GREATEST(0, $3::numeric - CASE
-                    WHEN $6 THEN $3::numeric
-                    WHEN $7 IS NOT NULL THEN LEAST($3::numeric, $7::numeric)
-                    WHEN $8 IS NOT NULL THEN ROUND($3::numeric * $8::numeric / 100, 2)
-                    ELSE 0 END),
-                  status = CASE WHEN $6 OR ($3::numeric - CASE
-                    WHEN $7 IS NOT NULL THEN LEAST($3::numeric, $7::numeric)
-                    WHEN $8 IS NOT NULL THEN ROUND($3::numeric * $8::numeric / 100, 2)
-                    ELSE 0 END) <= 0 THEN 'exempt' ELSE o.status END,
+                  discount_amount = $4,
+                  final_amount = $5,
+                  status = CASE WHEN $6 THEN 'exempt' ELSE o.status END,
                   updated_at = NOW()
             WHERE o.tenant_id = $1 AND o.fee_item_id = $2
               AND o.status IN ('unpaid', 'overdue')
               AND o.billing_period_start >= CURRENT_DATE`,
-          [tenantId, id, v.amount, v.exempt ? 1 : 0, null,
-           v.exempt, v.discountAmount, v.discountPercent]
+          [tenantId, id, D.centsToAmount(amountC), D.centsToAmount(discountC),
+           D.centsToAmount(finalC), becomesExempt]
         )
         const r = await client.query(
           `UPDATE fee_items SET level=$2, class_id=$3, student_id=$4, name=$5, category=$6,
@@ -673,7 +689,7 @@ function createFeeManagementRouter({ pool, requireAuth }) {
               studentName: r.student_name, studentRoll: r.student_roll,
               admissionNumber: r.admission_number,
               className: [r.class_name, r.class_section].filter(Boolean).join(' ') || null,
-              amount: 0, paymentDate: r.payment_date ? String(r.payment_date).slice(0, 10) : null,
+              amount: 0, paymentDate: r.payment_date ? isoDate(r.payment_date) : null,
               paymentMethod: r.payment_method, receivedBy: r.received_by_name || r.received_by_name,
               receivedByName: r.received_by_name, status: r.status,
               reversedAt: r.reversed_at, reversedBy: r.reversed_by,
@@ -684,7 +700,7 @@ function createFeeManagementRouter({ pool, requireAuth }) {
           rec.amount += num(r.amount)
           rec.allocations.push({
             obligationId: r.obligation_id, feeName: r.fee_name, category: r.category,
-            periodLabel: r.period_label, billingPeriodStart: r.billing_period_start ? String(r.billing_period_start).slice(0, 10) : null,
+            periodLabel: r.period_label, billingPeriodStart: r.billing_period_start ? isoDate(r.billing_period_start) : null,
             amount: num(r.amount).toFixed(2), paymentId: r.id,
           })
           rec.paymentIds.push(r.id)
@@ -797,7 +813,7 @@ function createFeeManagementRouter({ pool, requireAuth }) {
           payments: pays.rows.map(p => ({
             id: p.id, receiptNo: p.receipt_no, obligationId: p.obligation_id,
             feeName: p.fee_name, periodLabel: p.period_label, amount: num(p.amount).toFixed(2),
-            paymentDate: p.payment_date ? String(p.payment_date).slice(0, 10) : null,
+            paymentDate: p.payment_date ? isoDate(p.payment_date) : null,
             paymentMethod: p.payment_method, receivedByName: p.received_by_name,
             status: p.status, reversedAt: p.reversed_at, createdAt: p.created_at,
           })),

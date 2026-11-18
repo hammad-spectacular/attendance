@@ -89,7 +89,12 @@ test('Collect Fee grid renders students from obligations API', async ({ page }) 
           { id: 32, name: 'Second Student', rollNo: 'S002', admissionNumber: 'S002', classId: 21, className: 'Grade One', branchId: null, branchName: null, admissionDate: '2025-01-01', frozen: false }
         ],
         classes: [{ id: 21, name: 'Grade', section: 'One', label: 'Grade One' }],
-        items: [], categories: ['tuition', 'admission', 'other'], frequencies: ['monthly']
+        items: [
+          { id: 1, level: 'school', classId: null, studentId: null, className: null, studentName: null, studentRoll: null, name: 'Tuition Fee', category: 'tuition', amount: '1000.00', frequency: 'monthly', billingMode: 'full', effectiveFrom: '2025-01-01', effectiveTo: null, dueDay: 10, discountPercent: null, discountAmount: null, exempt: false, isActive: true, notes: null, createdAt: '2025-01-01' },
+          { id: 2, level: 'class', classId: 21, studentId: null, className: 'Grade One', studentName: null, studentRoll: null, name: 'Transport Fee', category: 'transport', amount: '500.00', frequency: 'monthly', billingMode: 'full', effectiveFrom: '2025-01-01', effectiveTo: null, dueDay: 10, discountPercent: null, discountAmount: null, exempt: false, isActive: true, notes: null, createdAt: '2025-01-01' },
+          { id: 3, level: 'student', classId: null, studentId: 32, className: null, studentName: 'Second Student', studentRoll: 'S002', name: 'Sibling Discount', category: 'other', amount: '100.00', frequency: 'one_time', billingMode: 'full', effectiveFrom: '2025-01-01', effectiveTo: null, dueDay: 10, discountPercent: 10, discountAmount: null, exempt: false, isActive: false, notes: null, createdAt: '2025-01-01' }
+        ],
+        categories: ['tuition', 'admission', 'transport', 'other'], frequencies: ['one_time', 'monthly']
       },
       '/api/fee-management/obligations': OBLIGATIONS,
       '/api/fee-management/summary': { assigned: '3600.00', collected: '200.00', outstanding: '1600.00', overdue: '0.00', studentsWithDues: 2 },
@@ -122,9 +127,32 @@ test('Collect Fee grid renders students from obligations API', async ({ page }) 
   await expect(page.locator('#feePendingTableWrap tbody tr')).toHaveCount(2, { timeout: 10000 });
   await expect(page.locator('#feePendingTableWrap')).toContainText('Tuition Fee');
 
-  // Config tab renders (empty state, no crash).
+  // Config tab renders all three fee items.
   await page.locator('#feeSubTabBtn-config').click();
   await expect(page.locator('#feeSubTab-config')).toBeVisible();
+  const cfgWrap = page.locator('#feeConfigTableWrap');
+  await expect(cfgWrap.locator('tbody tr')).toHaveCount(3, { timeout: 10000 });
+  await expect(cfgWrap).toContainText('Tuition Fee');
+  await expect(cfgWrap).toContainText('Sibling Discount');
+
+  // Scope filter: class-wise shows only the class item.
+  await page.locator('.fee-cfg-level[data-level="class"]').click();
+  await expect(cfgWrap.locator('tbody tr')).toHaveCount(1);
+  await expect(cfgWrap).toContainText('Transport Fee');
+  await page.locator('.fee-cfg-level[data-level="all"]').click();
+  await expect(cfgWrap.locator('tbody tr')).toHaveCount(3);
+
+  // Status filter: inactive only shows the deactivated item.
+  await page.locator('#feeCfgStatusFilter').selectOption('inactive');
+  await expect(cfgWrap.locator('tbody tr')).toHaveCount(1);
+  await expect(cfgWrap).toContainText('Sibling Discount');
+  await page.locator('#feeCfgStatusFilter').selectOption('');
+
+  // Search matches fee name.
+  await page.locator('#feeCfgSearch').fill('transport');
+  await expect(cfgWrap.locator('tbody tr')).toHaveCount(1);
+  await page.locator('#feeCfgSearch').fill('');
+  await expect(cfgWrap.locator('tbody tr')).toHaveCount(3);
 
   const fatal = consoleErrors.filter(e => !/favicon|net::|Failed to load resource/.test(e));
   expect(fatal).toEqual([]);
