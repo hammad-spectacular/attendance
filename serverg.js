@@ -15,6 +15,8 @@ const { createPgTt2Store } = require('./timetable/tt2/store.pg.tt2')
 const { createTt2Router } = require('./timetable/tt2/routes')
 const { createFinanceRouter } = require('./finance-routes')
 const { createFeeRouter } = require('./fee-routes')
+const { createFeeManagementRouter } = require('./fee-management-routes')
+const FM = require('./fee-management')
 
 const app = express()
 app.set('trust proxy', 1)
@@ -547,6 +549,7 @@ app.use('/api/tt2', tt2FeatureCheck, createTt2Router({
 }))
 app.use('/api/finance', createFinanceRouter({ pool, requireAuth }))
 app.use('/api/fees', createFeeRouter({ pool, requireAuth }))
+app.use('/api/fee-management', createFeeManagementRouter({ pool, requireAuth }))
 
 // ============================================
 // CREATE TABLES ON STARTUP
@@ -1004,6 +1007,113 @@ async function createTables() {
 
     ALTER TABLE fee_receipts ADD COLUMN IF NOT EXISTS payment_method VARCHAR(40);
     ALTER TABLE fee_receipts ADD COLUMN IF NOT EXISTS payment_date DATE;
+  `)
+
+  // --- Configurable student fee management: fee items, obligations, payments ---
+  // Mirrors migrations/005_student_fee_management.sql (kept additive; the
+  // canonical DDL lives in the migration file).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS fee_items (
+      id BIGSERIAL PRIMARY KEY,
+      tenant_id VARCHAR(10) NOT NULL REFERENCES organizations(school_code) ON DELETE RESTRICT,
+      branch_id INTEGER REFERENCES branches(id) ON DELETE RESTRICT,
+      level VARCHAR(10) NOT NULL CHECK (level IN ('school', 'class', 'student')),
+      class_id INTEGER REFERENCES classes(id) ON DELETE RESTRICT,
+      student_id INTEGER REFERENCES students(id) ON DELETE RESTRICT,
+      name VARCHAR(150) NOT NULL,
+      category VARCHAR(60) NOT NULL DEFAULT 'other',
+      amount NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (amount >= 0),
+      frequency VARCHAR(16) NOT NULL DEFAULT 'monthly'
+        CHECK (frequency IN ('one_time', 'monthly', 'quarterly', 'annually', 'per_term')),
+      billing_mode VARCHAR(10) NOT NULL DEFAULT 'full'
+        CHECK (billing_mode IN ('full', 'prorated')),
+      effective_from DATE NOT NULL,
+      effective_to DATE,
+      due_day SMALLINT NOT NULL DEFAULT 10 CHECK (due_day BETWEEN 1 AND 31),
+      discount_percent NUMERIC(5,2) CHECK (discount_percent IS NULL OR (discount_percent >= 0 AND discount_percent <= 100)),
+      discount_amount NUMERIC(12,2) CHECK (discount_amount IS NULL OR discount_amount >= 0),
+      exempt BOOLEAN NOT NULL DEFAULT false,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      notes TEXT,
+      created_by INTEGER,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CHECK (level <> 'class'   OR class_id   IS NOT NULL),
+      CHECK (level <> 'student' OR student_id IS NOT NULL),
+      CHECK (effective_to IS NULL OR effective_to >= effective_from),
+      UNIQUE (id, tenant_id)
+    );
+    CREATE INDEX IF NOT EXISTS fee_items_tenant_level_idx ON fee_items(tenant_id, level, is_active);
+    CREATE INDEX IF NOT EXISTS fee_items_tenant_class_idx ON fee_items(tenant_id, class_id);
+    CREATE INDEX IF NOT EXISTS fee_items_tenant_student_idx ON fee_items(tenant_id, student_id);
+
+    CREATE TABLE IF NOT EXISTS student_fee_obligations (
+      id BIGSERIAL PRIMARY KEY,
+      tenant_id VARCHAR(10) NOT NULL REFERENCES organizations(school_code) ON DELETE RESTRICT,
+      student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      class_id INTEGER REFERENCES classes(id) ON DELETE RESTRICT,
+      branch_id INTEGER REFERENCES branches(id) ON DELETE RESTRICT,
+      fee_item_id BIGINT,
+      fee_name VARCHAR(150) NOT NULL,
+      category VARCHAR(60) NOT NULL DEFAULT 'other',
+      frequency VARCHAR(16) NOT NULL,
+      applied_level VARCHAR(10) NOT NULL,
+      original_amount NUMERIC(12,2) NOT NULL CHECK (original_amount >= 0),
+      discount_amount NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (discount_amount >= 0),
+      final_amount NUMERIC(12,2) NOT NULL CHECK (final_amount >= 0),
+      billing_period_start DATE,
+      billing_period_end DATE,
+      period_label VARCHAR(40),
+      due_date DATE,
+      status VARCHAR(16) NOT NULL DEFAULT 'unpaid'
+        CHECK (status IN ('unpaid', 'partially_paid', 'paid', 'overdue', 'exempt', 'waived', 'cancelled')),
+      source VARCHAR(20) NOT NULL DEFAULT 'manual'
+        CHECK (source IN ('registration', 'reconciliation', 'manual', 'class_change', 'backfill')),
+      idempotency_key VARCHAR(160) NOT NULL,
+      notes TEXT,
+      created_by INTEGER,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (fee_item_id, tenant_id) REFERENCES fee_items(id, tenant_id) ON DELETE SET NULL,
+      UNIQUE (id, tenant_id),
+      UNIQUE (tenant_id, idempotency_key)
+    );
+    CREATE INDEX IF NOT EXISTS student_fee_obligations_student_idx
+      ON student_fee_obligations(tenant_id, student_id, status);
+    CREATE INDEX IF NOT EXISTS student_fee_obligations_class_idx
+      ON student_fee_obligations(tenant_id, class_id, status);
+    CREATE INDEX IF NOT EXISTS student_fee_obligations_due_idx
+      ON student_fee_obligations(tenant_id, due_date);
+    CREATE INDEX IF NOT EXISTS student_fee_obligations_period_idx
+      ON student_fee_obligations(tenant_id, billing_period_start);
+
+    CREATE TABLE IF NOT EXISTS student_fee_payments (
+      id BIGSERIAL PRIMARY KEY,
+      tenant_id VARCHAR(10) NOT NULL REFERENCES organizations(school_code) ON DELETE RESTRICT,
+      receipt_no VARCHAR(40) NOT NULL,
+      batch_id VARCHAR(40) NOT NULL,
+      student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      obligation_id BIGINT NOT NULL,
+      amount NUMERIC(12,2) NOT NULL CHECK (amount > 0),
+      payment_date DATE NOT NULL,
+      payment_method VARCHAR(40) NOT NULL DEFAULT 'cash',
+      received_by INTEGER,
+      received_by_name VARCHAR(150),
+      notes TEXT,
+      status VARCHAR(16) NOT NULL DEFAULT 'completed' CHECK (status IN ('completed', 'reversed')),
+      reversed_at TIMESTAMPTZ,
+      reversed_by VARCHAR(150),
+      idempotency_key VARCHAR(160),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (obligation_id, tenant_id) REFERENCES student_fee_obligations(id, tenant_id) ON DELETE RESTRICT,
+      UNIQUE (tenant_id, idempotency_key)
+    );
+    CREATE INDEX IF NOT EXISTS student_fee_payments_obligation_idx
+      ON student_fee_payments(tenant_id, obligation_id, status);
+    CREATE INDEX IF NOT EXISTS student_fee_payments_student_idx
+      ON student_fee_payments(tenant_id, student_id, payment_date DESC);
+    CREATE INDEX IF NOT EXISTS student_fee_payments_receipt_idx
+      ON student_fee_payments(tenant_id, receipt_no);
   `)
 
   // Fix existing admin login_id values that were stored as the full concatenated ID
@@ -1877,6 +1987,7 @@ app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) =>
     if (tempPassword !== null) {
       body.temp_password = tempPassword
     }
+    await assignFeesForStudent(tenant_id, result.rows[0].id, 'registration')
     res.json(body)
   } catch (err) {
     console.error('Create student error:', err)
@@ -1987,6 +2098,7 @@ app.post('/api/auth/bulk-create-students', requireAuth(['admin', 'super_admin'])
     for (const acct of createdAccounts) {
       acct.id = idByLoginId.get(acct.db_login_id) ?? null;
       delete acct.db_login_id;
+      if (acct.id != null) await assignFeesForStudent(tenant_id, acct.id, 'registration')
     }
 
     const bulkStudentBody = { success: true, accounts: createdAccounts, credentials_issued: batchTempPassword !== null };
@@ -3671,6 +3783,66 @@ app.get('/api/students/:id', requireAuth(['admin', 'teacher', 'super_admin']), a
   res.json(result.rows[0])
 })
 
+// Generates fee obligations for a student after registration or a class
+// change. Non-fatal by design: a missing/broken fee config must never fail
+// student registration — the reconciliation endpoint can backfill later.
+async function assignFeesForStudent(tenantId, studentId, source = 'registration') {
+  try {
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      const itemsRes = await client.query('SELECT * FROM fee_items WHERE tenant_id = $1 AND is_active = true', [tenantId])
+      const stuRes = await client.query(
+        `SELECT id, class_id, branch_id, is_frozen, created_at::date AS admission_date
+           FROM students WHERE id = $1 AND tenant_id = $2`,
+        [studentId, tenantId]
+      )
+      const student = stuRes.rows[0]
+      if (student && itemsRes.rows.length) {
+        await FM.generateForStudent(client, tenantId, student, itemsRes.rows, { source, monthsAhead: 12 })
+      }
+      await client.query('COMMIT')
+    } catch (e) {
+      try { await client.query('ROLLBACK') } catch (_) { /* ignore */ }
+      throw e
+    } finally {
+      client.release()
+    }
+  } catch (err) {
+    console.error('Student fee assignment failed (non-fatal):', err.message)
+  }
+}
+
+// On a class change: cancel unpaid class-level obligations from today forward
+// and regenerate so future periods bill at the new class rates. Historical
+// obligations and payments are untouched.
+async function handleStudentClassChangeFee(tenantId, studentId) {
+  try {
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      const itemsRes = await client.query('SELECT * FROM fee_items WHERE tenant_id = $1 AND is_active = true', [tenantId])
+      const stuRes = await client.query(
+        `SELECT id, class_id, branch_id, is_frozen, created_at::date AS admission_date
+           FROM students WHERE id = $1 AND tenant_id = $2`,
+        [studentId, tenantId]
+      )
+      const student = stuRes.rows[0]
+      if (student && itemsRes.rows.length) {
+        await FM.handleClassChange(client, tenantId, student, itemsRes.rows, { source: 'class_change', monthsAhead: 12 })
+      }
+      await client.query('COMMIT')
+    } catch (e) {
+      try { await client.query('ROLLBACK') } catch (_) { /* ignore */ }
+      throw e
+    } finally {
+      client.release()
+    }
+  } catch (err) {
+    console.error('Class-change fee handling failed (non-fatal):', err.message)
+  }
+}
+
 app.post('/api/students', requireAuth(['admin', 'super_admin']), async (req, res) => {
   try {
     const { name, roll_no, phone, class_id } = req.body
@@ -3689,6 +3861,7 @@ app.post('/api/students', requireAuth(['admin', 'super_admin']), async (req, res
       'INSERT INTO students (name, roll_no, phone, class_id, tenant_id, branch_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
       [String(name).trim(), roll_no, phone, class_id, tenant_id, branchPick.branch ? branchPick.branch.id : null]
     )
+    await assignFeesForStudent(tenant_id, result.rows[0].id, 'registration')
     res.json({ ...result.rows[0], capacity_notice: await capacityNotice(pool, tenant_id, 'student') })
   } catch (err) {
     if (err.code === '23505' && String(err.constraint || '').includes('roll')) {
@@ -3735,6 +3908,9 @@ app.put('/api/students/:id', requireAuth(['admin', 'super_admin']), async (req, 
     const dupErr = await findStudentDuplicate(pool, tenant_id, { roll_no, name }, id)
     if (dupErr) return res.status(400).json({ error: dupErr })
 
+    const prevClass = await pool.query('SELECT class_id FROM students WHERE id = $1 AND tenant_id = $2', [id, tenant_id])
+    const oldClassId = prevClass.rows[0] ? prevClass.rows[0].class_id : undefined
+
     const result = await pool.query(
       `UPDATE students SET name=$1, roll_no=$2, phone=$3, class_id=$4, email=$5::text,
      is_frozen=$8,
@@ -3745,6 +3921,10 @@ app.put('/api/students/:id', requireAuth(['admin', 'super_admin']), async (req, 
       params
     )
     if (result.rows[0]?.email && !result.rows[0].email_verified_at) issueEmailVerification(result.rows[0]).catch(err => console.error('Verification email send failed:', err.message))
+    // Class change -> future obligations re-rate; other edits never duplicate charges.
+    if (result.rows[0] && String(oldClassId) !== String(result.rows[0].class_id)) {
+      await handleStudentClassChangeFee(tenant_id, id)
+    }
     res.json(result.rows[0])
   } catch (err) {
     if (err.code === '23505' && String(err.constraint || '').includes('roll')) {

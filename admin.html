@@ -191,10 +191,6 @@
       flex-shrink: 0;
     }
 
-    #headerStudentCount {
-      flex-shrink: 0;
-    }
-
     /* User profile block in header (if user details are shown) */
     .header-user-profile {
       display: flex;
@@ -725,6 +721,53 @@
       font-size: 0.72rem;
       color: var(--text-muted);
       font-weight: 400;
+    }
+
+    /* "Coming soon" marker for a module that exists but is not rolled out yet. */
+    .soon-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      padding: 5px 10px;
+      border-radius: 20px;
+      background: var(--warning-bg);
+      color: var(--warning);
+      border: 1px solid var(--warning);
+      white-space: nowrap;
+    }
+
+    .soon-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 16px;
+      margin-bottom: 18px;
+      border: 1px dashed var(--warning);
+      border-radius: 10px;
+      background: var(--warning-bg);
+      color: var(--text);
+    }
+
+    .soon-banner > i {
+      font-size: 1.05rem;
+      color: var(--warning);
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
+
+    .soon-banner strong {
+      display: block;
+      font-size: 0.88rem;
+      margin-bottom: 3px;
+    }
+
+    .soon-banner span {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
     }
 
     .section-body {
@@ -1409,10 +1452,6 @@
         font-size: 0.68rem;
       }
 
-      #headerStudentCount {
-        font-size: 0.75rem;
-      }
-
       .header-right {
         gap: 8px;
       }
@@ -1433,10 +1472,6 @@
 
       .header-user-profile {
         display: none; /* Hide user profile on very small screens */
-      }
-
-      #headerStudentCount {
-        display: none; /* Hide student count on very small screens */
       }
 
       .header-right {
@@ -2398,12 +2433,6 @@
           <i class="fas fa-moon" id="themeIcon"></i>
         </button>
 
-        <!-- Student count (if enabled) -->
-        <div id="headerStudentCount" style="display:none;align-items:center;gap:8px;font-size:0.8rem;color:rgba(255,255,255,0.85);">
-          <i class="fas fa-users"></i>
-          <span id="headerCapStudents">—</span>
-        </div>
-
         <!-- User menu dropdown -->
         <div id="headerMenuWrap" class="header-menu-wrap">
           <button id="headerMenuToggle" class="header-menu-toggle" aria-expanded="false" aria-controls="headerMenuPanel" aria-label="Open menu" title="Menu">
@@ -2419,8 +2448,13 @@
   </div>
 
   <!-- ======================== CAPACITY ======================== -->
+  <!-- Every headcount lives in one strip: students, teachers and coordinators side by
+       side, so the numbers are read in one place instead of being split between the
+       header and the panel below it. -->
   <div class="capacity-strip" id="capacityStrip" style="display:none;border-bottom:1px solid var(--border);padding:8px 18px;font-size:0.82rem;color:var(--text-secondary);gap:24px;flex-wrap:wrap;align-items:center;background:var(--bg-card);">
-    <span style="display:flex;align-items:center;gap:8px;"><strong style="color:var(--text);">Teachers:</strong> <span id="capTeachers">—</span></span>
+    <span id="capStudentsWrap" style="display:flex;align-items:center;gap:8px;"><strong style="color:var(--text);">Students:</strong> <span id="capStudents">—</span></span>
+    <span id="capTeachersWrap" style="display:flex;align-items:center;gap:8px;"><strong style="color:var(--text);">Teachers:</strong> <span id="capTeachers">—</span></span>
+    <span id="capCoordinatorsWrap" style="display:flex;align-items:center;gap:8px;"><strong style="color:var(--text);">Coordinators:</strong> <span id="capCoordinators">—</span></span>
   </div>
 
   <!-- ======================== TAB NAVIGATION ======================== -->
@@ -2866,8 +2900,20 @@
               <div class="section-subtitle">Generate QR codes and view staff attendance</div>
             </div>
           </div>
+          <div class="section-header-right">
+            <span class="soon-badge" id="qrSoonBadge" style="display:none;"><i class="fas fa-clock"></i> Coming Soon</span>
+          </div>
         </div>
         <div class="section-body">
+          <!-- Shown while the QR attendance module is not switched on for this school. -->
+          <div id="qrComingSoonBanner" class="soon-banner" style="display:none;">
+            <i class="fas fa-hourglass-half"></i>
+            <div>
+              <strong>QR Attendance will be available soon.</strong>
+              <span>Staff check-in by QR is being rolled out. Teachers will be able to scan the school&rsquo;s QR code to mark their own attendance as soon as this feature goes live.</span>
+            </div>
+          </div>
+
           <!-- QR Code Generation -->
           <div style="margin-bottom:24px; padding:20px; border:1px solid var(--border); border-radius:8px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
@@ -2926,7 +2972,13 @@
         <button class="btn btn-ghost fee-subtab-btn" id="feeSubTabBtn-history" onclick="switchFeeSubTab('history')">
           <i class="fa-solid fa-list"></i> Payment History
         </button>
+        <button class="btn btn-ghost fee-subtab-btn" id="feeSubTabBtn-config" onclick="switchFeeSubTab('config')">
+          <i class="fa-solid fa-sliders"></i> Fee Configuration
+        </button>
         <span style="flex:1"></span>
+        <button class="btn btn-primary btn-sm" id="feeAddNewBtn" onclick="openFeeItemModal()">
+          <i class="fa-solid fa-plus"></i> Add New Fee
+        </button>
         <button class="btn btn-secondary btn-sm" onclick="openFeeStructureModal()" title="Monthly, admission, transport and discount rates that drive voucher amounts">
           <i class="fa-solid fa-sliders"></i> Fee Rates
         </button>
@@ -3065,6 +3117,52 @@
           </div>
           <div class="section-body">
             <div id="paymentHistoryTableWrap"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Fee Configuration Sub-Tab -->
+      <div id="feeSubTab-config" class="fee-subtab-content" style="display:none;">
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-header-left">
+              <div class="section-icon purple"><i class="fa-solid fa-sliders"></i></div>
+              <div>
+                <div class="section-title">Fee Configuration</div>
+                <div class="section-subtitle">School-wide, class-wise and student-wise fee rules that generate student obligations</div>
+              </div>
+            </div>
+          </div>
+          <div class="section-body">
+            <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; align-items:center;">
+              <button class="btn btn-secondary btn-sm fee-cfg-level active" data-level="all" onclick="setFeeCfgLevel('all')">All</button>
+              <button class="btn btn-secondary btn-sm fee-cfg-level" data-level="school" onclick="setFeeCfgLevel('school')">School-wise</button>
+              <button class="btn btn-secondary btn-sm fee-cfg-level" data-level="class" onclick="setFeeCfgLevel('class')">Class-wise</button>
+              <button class="btn btn-secondary btn-sm fee-cfg-level" data-level="student" onclick="setFeeCfgLevel('student')">Student-wise</button>
+              <span style="flex:1"></span>
+              <button class="btn btn-secondary btn-sm" onclick="runFeeReconcile()" title="Backfill obligations for existing students"><i class="fa-solid fa-rotate"></i> Reconcile Students</button>
+            </div>
+            <div class="fees-filter-row" style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
+              <div class="form-group" style="flex:0 1 170px; min-width:150px; margin-bottom:0;">
+                <label class="form-label" for="feeCfgClassFilter">Class</label>
+                <select id="feeCfgClassFilter" class="form-input" onchange="renderFeeConfig()"><option value="">All Classes</option></select>
+              </div>
+              <div class="form-group" style="flex:0 1 170px; min-width:150px; margin-bottom:0;">
+                <label class="form-label" for="feeCfgStudentFilter">Student</label>
+                <select id="feeCfgStudentFilter" class="form-input" onchange="renderFeeConfig()"><option value="">All Students</option></select>
+              </div>
+              <div class="form-group" style="flex:0 1 130px; min-width:110px; margin-bottom:0;">
+                <label class="form-label" for="feeCfgStatusFilter">Status</label>
+                <select id="feeCfgStatusFilter" class="form-input" onchange="renderFeeConfig()">
+                  <option value="">Active &amp; Inactive</option><option value="active">Active only</option><option value="inactive">Inactive only</option>
+                </select>
+              </div>
+              <div class="form-group" style="flex:1 1 200px; min-width:180px; margin-bottom:0;">
+                <label class="form-label" for="feeCfgSearch">Search</label>
+                <input type="text" id="feeCfgSearch" class="form-input" placeholder="Search fee name or category..." oninput="renderFeeConfig()">
+              </div>
+            </div>
+            <div id="feeConfigTableWrap"></div>
           </div>
         </div>
       </div>
@@ -6594,7 +6692,49 @@
     // =============================================================
     let currentQRToken = null;
 
+    // QR attendance is a module the Super Admin switches on per school. While it is
+    // off for this school the tab still exists - the admin has to be able to see that
+    // the module is on its way - but nothing is generated and no attendance is read.
+    function isQrAttendanceEnabled() {
+      const features = (window.appData && window.appData.features) || null;
+      if (!features || !window.appData.bootstrapLoaded || Object.keys(features).length === 0) return false;
+      return features['qr_attendance'] === true;
+    }
+
+    // Paints the "coming soon" state and returns whether the module is usable.
+    function renderQrAvailability() {
+      const enabled = isQrAttendanceEnabled();
+      const badge = document.getElementById('qrSoonBadge');
+      const banner = document.getElementById('qrComingSoonBanner');
+      const genBtn = document.getElementById('generateQRBtn');
+      const regenerateBtn = document.getElementById('regenerateQRBtn');
+      const downloadBtn = document.getElementById('downloadQRBtn');
+      const fullScreenBtn = document.getElementById('qrFullScreenBtn');
+      const display = document.getElementById('qrCodeDisplay');
+      const status = document.getElementById('qrStatus');
+
+      if (badge) badge.style.display = enabled ? 'none' : 'inline-flex';
+      if (banner) banner.style.display = enabled ? 'none' : 'flex';
+      if (genBtn) {
+        genBtn.disabled = !enabled;
+        genBtn.title = enabled ? '' : 'QR Attendance will be available soon';
+      }
+      if (regenerateBtn) regenerateBtn.style.display = 'none';
+      if (downloadBtn) { downloadBtn.style.display = 'none'; downloadBtn.disabled = true; }
+      if (fullScreenBtn) fullScreenBtn.style.display = 'none';
+
+      if (!enabled) {
+        currentQRToken = null;
+        if (display) {
+          display.innerHTML = '<div style="color:var(--text-muted);text-align:center;"><i class="fas fa-qrcode" style="font-size:2rem;opacity:0.35;display:block;margin-bottom:10px;"></i>QR Attendance will be available soon</div>';
+        }
+        if (status) status.textContent = '';
+      }
+      return enabled;
+    }
+
     async function loadQRStatus() {
+      if (!renderQrAvailability()) return;
       try {
         const response = await apiFetch('/api/attendance/qr/status');
         const data = await response.json();
@@ -6634,6 +6774,10 @@
     }
 
     async function generateQRCode() {
+      if (!renderQrAvailability()) {
+        showToast('QR Attendance will be available soon', 'info');
+        return;
+      }
       try {
         const response = await apiFetch('/api/attendance/qr/generate', {
           method: 'POST',
@@ -6709,6 +6853,13 @@
     }
 
     async function loadStaffAttendance() {
+      if (!renderQrAvailability()) {
+        const listBox = document.getElementById('staffAttendanceList');
+        if (listBox) {
+          listBox.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted);">QR Attendance will be available soon</div>';
+        }
+        return;
+      }
       const date = document.getElementById('staffAttendanceDate').value || new Date().toISOString().split('T')[0];
       const search = document.getElementById('staffAttendanceSearch').value.toLowerCase();
       const container = document.getElementById('staffAttendanceList');
@@ -6841,6 +6992,7 @@
         document.body.classList.remove('gates-pending');
         setupSectionTabs();
         loadCapacity();
+        renderQrAvailability();
 
         // Render branch selector (shows if branches > 0, else Branches tab is shown instead)
         renderBranchSelector();
@@ -6879,6 +7031,7 @@
         document.body.classList.remove('gates-pending');
         setupSectionTabs();
         loadCapacity();
+        renderQrAvailability();
         renderBranchSelector();
         reloadAllData(true);
       }
@@ -7797,6 +7950,13 @@
         renderAttendanceTabLive();
       }
 
+      // The QR tab shows the live session and today's staff check-ins, and repaints
+      // the "coming soon" notice if the Super Admin has switched the module off.
+      if (newTabId === 'tab-qr-attendance') {
+        loadQRStatus();
+        loadStaffAttendance();
+      }
+
       // Students tab needs to populate class filter and filter after switch
       if (newTabId === 'tab-students') {
         populateStudentClassFilter();
@@ -8142,30 +8302,47 @@
       // by the Super Admin) shows no count and no label - nobody should be reminded of
       // a tool they are not allowed to use.
       apiFetch('/api/auth/capacity').then(r => r.json().catch(() => ({}))).then(data => {
-        const students = Number(data.student_limit) > 0 && data.student_count !== undefined && data.student_count !== null
-          ? `${Number(data.student_count)} / ${Number(data.student_limit)}`
+        // A school with no limit set still wants to see how many people it has, so the
+        // plain headcount is shown. With a limit the count reads "used / allowed".
+        const students = data.student_count !== undefined && data.student_count !== null
+          ? (Number(data.student_limit) > 0
+            ? `${Number(data.student_count)} / ${Number(data.student_limit)}`
+            : `${Number(data.student_count)}`)
           : '';
-        const teachers = Number(data.teacher_limit) > 0 && data.teacher_count !== undefined && data.teacher_count !== null
-          ? `${Number(data.teacher_count)} / ${Number(data.teacher_limit)}`
+        const teachers = data.teacher_count !== undefined && data.teacher_count !== null
+          ? (Number(data.teacher_limit) > 0
+            ? `${Number(data.teacher_count)} / ${Number(data.teacher_limit)}`
+            : `${Number(data.teacher_count)}`)
           : '';
         const sEl = document.getElementById('capStudents');
         const tEl = document.getElementById('capTeachers');
-        const headerSEl = document.getElementById('headerCapStudents');
         if (students && sEl) sEl.textContent = students;
         if (teachers && tEl) tEl.textContent = teachers;
-        if (students && headerSEl) headerSEl.textContent = students;
-        const sWrap = sEl ? sEl.parentElement : null;
-        const tWrap = tEl ? tEl.parentElement : null;
+        const sWrap = document.getElementById('capStudentsWrap');
+        const tWrap = document.getElementById('capTeachersWrap');
         
         const sBlocked = !isSectionPermitted('tab-students');
         const tBlocked = !isSectionPermitted('tab-teachers');
 
-        if (sWrap) sWrap.style.display = sBlocked ? 'none' : 'flex';
-        const headerSWrap = headerSEl ? headerSEl.parentElement : null;
-        if (headerSWrap) headerSWrap.style.display = sBlocked ? 'none' : 'flex';
-        if (tWrap) tWrap.style.display = tBlocked ? 'none' : 'flex';
-        if ((!sBlocked && students) || (!tBlocked && teachers)) strip.style.display = 'flex';
-        else strip.style.display = 'none';
+        if (sWrap) sWrap.style.display = (sBlocked || !students) ? 'none' : 'flex';
+        if (tWrap) tWrap.style.display = (tBlocked || !teachers) ? 'none' : 'flex';
+
+        // Coordinators are not part of the capacity limits, so their headcount comes
+        // from the coordinators list and sits in the same strip as the other two.
+        apiFetch('/api/coordinators').then(r => r.json().catch(() => [])).then(list => {
+          const rows = Array.isArray(list) ? list : (list && Array.isArray(list.coordinators) ? list.coordinators : []);
+          const cEl = document.getElementById('capCoordinators');
+          const cWrap = document.getElementById('capCoordinatorsWrap');
+          const cBlocked = !isSectionPermitted('tab-coordinators');
+          if (cEl) cEl.textContent = String(rows.length);
+          if (cWrap) cWrap.style.display = (cBlocked || rows.length === 0) ? 'none' : 'flex';
+          if ((!sBlocked && students) || (!tBlocked && teachers) || (!cBlocked && rows.length)) strip.style.display = 'flex';
+          else strip.style.display = 'none';
+        }).catch(() => {
+          const cWrap = document.getElementById('capCoordinatorsWrap');
+          if (cWrap) cWrap.style.display = 'none';
+          strip.style.display = ((!sBlocked && students) || (!tBlocked && teachers)) ? 'flex' : 'none';
+        });
       }).catch(() => {});
     }
 
@@ -9043,6 +9220,672 @@
       });
       loadComplaints();
     });
+  </script>
+
+  <!-- ==================== FEE MANAGEMENT (obligations engine) ====================
+       Replaces the voucher-ledger fee center: Collect Fee, Pending Fees and
+       Payment History now read student_fee_obligations / student_fee_payments
+       via /api/fee-management, and the Fee Configuration tab manages
+       fee_items. Function declarations here intentionally override the older
+       voucher-based implementations above (same global names, later wins). -->
+  <script>
+    window.feeMgmt = {
+      loaded: false, loading: false,
+      students: [], classes: [], items: [], obligations: [], summary: null,
+      payments: [], cfgLevel: 'all', editingItemId: null
+    };
+
+    const FMG = () => window.feeMgmt;
+    const fmoney = (v) => formatFeeCurrency(Number(v) || 0);
+    const FREQ_LABEL = { one_time: 'One-time', monthly: 'Monthly', quarterly: 'Quarterly', annually: 'Annually', per_term: 'Per term' };
+    const CAT_LABEL = { tuition: 'Tuition', admission: 'Admission', transport: 'Transport', exam: 'Exam', activity: 'Activity', hostel: 'Hostel', fine: 'Fine', other: 'Other' };
+    const LEVEL_LABEL = { school: 'School-wide', class: 'Class-wise', student: 'Student-wise' };
+
+    function feeClsLabel(c) { return c ? (c.label || [c.name, c.section].filter(Boolean).join(' ')) : '—'; }
+    function feeStudentById(id) { return FMG().students.find(s => String(s.id) === String(id)); }
+    function feeItemById(id) { return FMG().items.find(i => String(i.id) === String(id)); }
+
+    async function loadFeeCenter(force) {
+      const fm = FMG();
+      if (fm.loading) return fm.loaded;
+      if (fm.loaded && !force) return true;
+      fm.loading = true;
+      try {
+        const [bootRes, obsRes, sumRes] = await Promise.all([
+          apiFetch('/api/fee-management/bootstrap'),
+          apiFetch('/api/fee-management/obligations'),
+          apiFetch('/api/fee-management/summary')
+        ]);
+        if (!bootRes.ok) throw new Error(`Fee service returned ${bootRes.status}`);
+        const boot = await bootRes.json();
+        fm.students = boot.students || [];
+        fm.classes = boot.classes || [];
+        fm.items = boot.items || [];
+        fm.categories = boot.categories || [];
+        fm.frequencies = boot.frequencies || [];
+        fm.obligations = obsRes.ok ? await obsRes.json() : [];
+        fm.summary = sumRes.ok ? await sumRes.json() : null;
+        fm.loaded = true;
+        fm.paymentsLoaded = false;
+        populateFeeClassFilters();
+        populateFeeConfigFilters();
+        if (typeof activeTabId !== 'undefined' && activeTabId === 'tab-fees') renderActiveFeeSubTab();
+      } catch (err) {
+        console.error('Failed to load fee management:', err);
+        showToast('Failed to load fee data: ' + err.message, 'error');
+      } finally { fm.loading = false; }
+      return fm.loaded;
+    }
+
+    function populateFeeClassFilters() {
+      ['feeCollectClassFilter', 'feePendingClassFilter', 'feeCfgClassFilter'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        const keep = sel.value;
+        sel.innerHTML = '<option value="">All Classes</option>' +
+          FMG().classes.map(c => `<option value="${c.id}">${escapeHtml(feeClsLabel(c))}</option>`).join('');
+        if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
+      });
+      const stSel = document.getElementById('feeCfgStudentFilter');
+      if (stSel) {
+        const keep = stSel.value;
+        stSel.innerHTML = '<option value="">All Students</option>' +
+          FMG().students.map(s => `<option value="${s.id}">${escapeHtml(s.name)}${s.rollNo ? ' (' + escapeHtml(s.rollNo) + ')' : ''}</option>`).join('');
+        if (keep && [...stSel.options].some(o => o.value === keep)) stSel.value = keep;
+      }
+      injectPendingCategoryFilter();
+      injectCollectCategoryFilter();
+    }
+
+    function injectPendingCategoryFilter() {
+      const row = document.querySelector('#feeSubTab-pending .fees-filter-row');
+      if (!row || document.getElementById('feePendingCategoryFilter')) return;
+      const grp = document.createElement('div');
+      grp.className = 'form-group'; grp.style.cssText = 'flex:0 1 150px;min-width:130px;margin-bottom:0;';
+      grp.innerHTML = `<label class="form-label" for="feePendingCategoryFilter">Category</label>
+        <select id="feePendingCategoryFilter" class="form-input" onchange="renderFeePending()">
+          <option value="">All Categories</option>
+          ${FMG().categories.map(c => `<option value="${c}">${CAT_LABEL[c] || c}</option>`).join('')}
+        </select>`;
+      row.appendChild(grp);
+    }
+    function injectCollectCategoryFilter() {
+      const row = document.querySelector('#feeSubTab-collect .fees-filter-row');
+      if (!row || document.getElementById('feeCollectCategoryFilter')) return;
+      const grp = document.createElement('div');
+      grp.className = 'form-group'; grp.style.cssText = 'flex:0 1 150px;min-width:130px;margin-bottom:0;';
+      grp.innerHTML = `<label class="form-label" for="feeCollectCategoryFilter">Category</label>
+        <select id="feeCollectCategoryFilter" class="form-input" onchange="renderFeeCollect()">
+          <option value="">All Categories</option>
+          ${FMG().categories.map(c => `<option value="${c}">${CAT_LABEL[c] || c}</option>`).join('')}
+        </select>`;
+      row.appendChild(grp);
+    }
+    function populateFeeConfigFilters() { populateFeeClassFilters(); }
+    function populateFeePendingFilters() {}
+
+    function switchFeeSubTab(subTabName) {
+      ['collect', 'pending', 'history', 'config'].forEach(t => {
+        const btn = document.getElementById(`feeSubTabBtn-${t}`);
+        const content = document.getElementById(`feeSubTab-${t}`);
+        if (btn) btn.classList.toggle('active', t === subTabName);
+        if (content) content.style.display = (t === subTabName) ? 'block' : 'none';
+      });
+      FMG().activeSubTab = subTabName;
+      renderActiveFeeSubTab();
+    }
+
+    function renderActiveFeeSubTab() {
+      const tab = FMG().activeSubTab || 'collect';
+      if (tab === 'collect') renderFeeCollect();
+      else if (tab === 'pending') renderFeePending();
+      else if (tab === 'history') loadFeeReceipts();
+      else if (tab === 'config') renderFeeConfig();
+    }
+
+    // ---------------- Collect Fee ----------------
+
+    function feeCollectRows() {
+      const byStudent = new Map();
+      for (const o of FMG().obligations) {
+        if (['cancelled', 'waived', 'exempt', 'paid'].includes(o.status)) continue;
+        if (numSafe(o.remaining) <= 0) continue;
+        if (!byStudent.has(String(o.studentId))) byStudent.set(String(o.studentId), []);
+        byStudent.get(String(o.studentId)).push(o);
+      }
+      const rows = [];
+      for (const [sid, obs] of byStudent) {
+        const student = feeStudentById(sid);
+        if (!student || student.frozen) continue;
+        obs.sort((a, b) => String(a.dueDate || '9999').localeCompare(String(b.dueDate || '9999')));
+        const total = obs.reduce((a, o) => a + numSafe(o.remaining), 0);
+        const status = obs.some(o => o.payStatus === 'overdue') ? 'Overdue'
+          : obs.some(o => o.payStatus === 'partially_paid') ? 'Partially Paid' : 'Unpaid';
+        rows.push({ student, obligations: obs, total, status });
+      }
+      return rows;
+    }
+    function numSafe(v) { return Number(v) || 0; }
+
+    function renderFeeCollect() {
+      const wrap = document.getElementById('feeCollectTableWrap');
+      if (!wrap || !FMG().loaded) return;
+      const classFilter = document.getElementById('feeCollectClassFilter')?.value || '';
+      const catFilter = document.getElementById('feeCollectCategoryFilter')?.value || '';
+      const query = (document.getElementById('feeCollectSearch')?.value || '').toLowerCase().trim();
+      let rows = feeCollectRows();
+      if (classFilter) rows = rows.filter(r => String(r.student.classId) === String(classFilter));
+      if (catFilter) rows = rows.filter(r => r.obligations.some(o => o.category === catFilter));
+      if (query) rows = rows.filter(r =>
+        String(r.student.name || '').toLowerCase().includes(query) ||
+        String(r.student.rollNo || '').toLowerCase().includes(query) ||
+        String(r.student.admissionNumber || '').toLowerCase().includes(query) ||
+        String(r.student.id).includes(query));
+      rows.sort((a, b) => String(a.student.name).localeCompare(String(b.student.name)));
+
+      const s = FMG().summary || {};
+      const cards = document.getElementById('feesSummaryCards');
+      if (cards) {
+        const card = (l, v, sub, c) => `<div class="section-card" style="padding:14px;border:1px solid var(--border);box-shadow:none;"><div style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:6px;">${l}</div><div style="font-size:1.25rem;font-weight:800;color:${c || 'var(--text)'};">${v}</div><div style="font-size:0.72rem;color:var(--text-secondary);">${sub}</div></div>`;
+        cards.innerHTML =
+          card('Students with dues', String(s.studentsWithDues ?? rows.length), 'Outstanding fee payers') +
+          card('Total Outstanding', fmoney(s.outstanding ?? rows.reduce((a, r) => a + r.total, 0)), 'Billed and still owed') +
+          card('Collected', fmoney(s.collected), 'Against these dues') +
+          card('Overdue', fmoney(s.overdue), 'Past due date', numSafe(s.overdue) > 0 ? 'var(--danger,#dc2626)' : 'var(--text)') +
+          card('Collection Rate', (numSafe(s.assigned) > 0 ? Math.round(numSafe(s.collected) / numSafe(s.assigned) * 100) : 0) + '%', 'Of assigned fees');
+      }
+      updateFeeBulkBar();
+
+      if (!rows.length) {
+        wrap.innerHTML = `<div class="empty-state"><div class="icon">💳</div><div class="msg">Nobody owes fees right now</div><div class="sub">Students appear here once fee obligations exist — register students or run Reconcile in Fee Configuration.</div></div>`;
+        return;
+      }
+      wrap.innerHTML = `<div style="overflow-x:auto;"><table class="data-table"><thead><tr>
+        <th style="width:36px;"><input type="checkbox" id="feeSelectAll" onchange="toggleAllFeeChecks(this)" title="Select all"></th>
+        <th style="text-align:left;">Admission No</th><th style="text-align:left;">Student</th><th style="text-align:left;">Class</th>
+        <th style="text-align:center;">Fees due</th><th style="text-align:right;">Outstanding</th>
+        <th style="text-align:center;">Status</th><th style="text-align:right;">Pay now (Rs.)</th>
+        <th style="text-align:center;">Details</th></tr></thead><tbody>
+        ${rows.map(r => {
+          const s2 = r.student;
+          const adm = escapeHtml(s2.admissionNumber || s2.rollNo || '—');
+          const badge = r.status === 'Unpaid' ? '#ef4444' : r.status === 'Partially Paid' ? '#f59e0b' : '#f59e0b';
+          return `<tr>
+            <td><input type="checkbox" class="fee-row-check" data-student="${s2.id}" onchange="updateFeeBulkBar()"></td>
+            <td style="text-align:left;">${adm}</td>
+            <td style="text-align:left;font-weight:600;cursor:pointer;color:var(--primary-light);" onclick="showStudentFeeBreakdown(${s2.id})">${escapeHtml(s2.name || 'Student')}</td>
+            <td style="text-align:left;">${escapeHtml(s2.className || 'Unassigned')}</td>
+            <td style="text-align:center;">${r.obligations.length}</td>
+            <td style="text-align:right;font-weight:700;">${fmoney(r.total)}</td>
+            <td style="text-align:center;"><span class="badge" style="background:rgba(148,163,184,0.15);color:${badge};">${r.status}</span></td>
+            <td style="text-align:right;"><input type="number" class="form-input fee-pay-input" data-student="${s2.id}" min="0" step="any" value="${r.total.toFixed(2)}" style="width:110px;text-align:right;padding:6px 8px;" oninput="updateFeeBulkBar()"></td>
+            <td style="text-align:center;"><button type="button" class="btn btn-secondary btn-sm" onclick="showStudentFeeBreakdown(${s2.id})" title="Fee breakdown"><i class="fas fa-list"></i></button></td>
+          </tr>`;
+        }).join('')}</tbody></table></div>`;
+    }
+
+    function toggleAllFeeChecks(master) {
+      document.querySelectorAll('.fee-row-check:not(:disabled)').forEach(cb => { cb.checked = master.checked; });
+      updateFeeBulkBar();
+    }
+
+    function feeSelectedPayments() {
+      const out = [];
+      document.querySelectorAll('.fee-row-check:checked').forEach(cb => {
+        const sid = cb.dataset.student;
+        const student = feeStudentById(sid);
+        if (!student) return;
+        const input = document.querySelector(`.fee-pay-input[data-student="${sid}"]`);
+        const amount = Math.max(0, parseFloat(input?.value) || 0);
+        if (amount > 0) out.push({ studentId: sid, studentName: student.name, amount });
+      });
+      return out;
+    }
+
+    function updateFeeBulkBar() {
+      const bar = document.getElementById('feeBulkBar');
+      const countEl = document.getElementById('feeBulkCount');
+      const payments = feeSelectedPayments();
+      if (countEl) countEl.textContent = `${payments.length} student${payments.length === 1 ? '' : 's'} selected`;
+      if (bar) bar.style.display = payments.length ? 'flex' : 'none';
+      const dateInput = document.getElementById('feeBulkDate');
+      if (dateInput && !dateInput.value) {
+        const d = new Date();
+        dateInput.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      }
+    }
+
+    async function submitBulkFeePayment() {
+      const payments = feeSelectedPayments();
+      if (!payments.length) { showToast('Select at least one student with an amount above zero', 'warning'); return; }
+      const btn = document.getElementById('feeBulkSubmit');
+      const method = document.getElementById('feeBulkMethod')?.value || 'cash';
+      const paymentDate = document.getElementById('feeBulkDate')?.value || '';
+      const total = payments.reduce((a, p) => a + p.amount, 0);
+      if (!confirm(`Record ${payments.length} payment${payments.length === 1 ? '' : 's'} totalling ${fmoney(total)}?`)) return;
+      btn.disabled = true;
+      const original = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Recording...';
+      try {
+        const res = await apiFetch('/api/fee-management/payments/bulk', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paymentMethod: method, paymentDate, items: payments.map(p => ({ studentId: p.studentId, amount: p.amount })) })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `Server returned ${res.status}`);
+        const ok = (data.results || []).filter(r => r.ok);
+        const failed = (data.results || []).filter(r => !r.ok);
+        window._lastFeeReceipts = ok.map(r => ({ receiptNo: r.receiptNo, studentName: feeStudentById(r.studentId)?.name, amount: payments.find(p => String(p.studentId) === String(r.studentId))?.amount }));
+        const resDiv = document.getElementById('feeBulkResults');
+        if (resDiv) resDiv.innerHTML =
+          (ok.length ? `<div class="section-card" style="padding:14px;"><div style="font-weight:700;margin-bottom:8px;color:var(--success);">${ok.length} receipt(s) issued</div>` +
+            ok.map(r => `<div style="display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+              <span style="font-weight:700;">${escapeHtml(r.receiptNo)}</span>
+              <span>${escapeHtml(feeStudentById(r.studentId)?.name || '')}</span>
+              <span style="margin-left:auto;">${fmoney(r.allocations ? r.allocations.reduce((a,x)=>a+numSafe(x.amount),0) : 0)}</span>
+              <button class="btn btn-secondary btn-sm" onclick="printMgmtReceipt('${escapeHtml(r.receiptNo)}')"><i class="fas fa-print"></i></button></div>`).join('') + `</div>` : '') +
+          (failed.length ? `<div style="margin-top:10px;color:var(--danger);font-size:0.85rem;">${failed.map(f => `${escapeHtml(feeStudentById(f.studentId)?.name || f.studentId)}: ${escapeHtml(f.error)}`).join('<br>')}</div>` : '');
+        showToast(`${ok.length} payment(s) recorded${failed.length ? `, ${failed.length} failed` : ''}`, ok.length ? 'success' : 'error');
+        await loadFeeCenter(true);
+        renderFeeCollect();
+      } catch (err) {
+        showToast('Payment failed: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false; btn.innerHTML = original;
+      }
+    }
+
+    function paySingleStudent(studentId) {
+      const cb = document.querySelector(`.fee-row-check[data-student="${studentId}"]`);
+      if (cb) { cb.checked = true; updateFeeBulkBar(); }
+      document.getElementById('feeBulkBar')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // ---------------- Pending Fees ----------------
+
+    function renderFeePending() {
+      const wrap = document.getElementById('feePendingTableWrap');
+      if (!wrap || !FMG().loaded) return;
+      const classFilter = document.getElementById('feePendingClassFilter')?.value || '';
+      const catFilter = document.getElementById('feePendingCategoryFilter')?.value || '';
+      const statusFilter = document.getElementById('feePendingStatusFilter')?.value || '';
+      const query = (document.getElementById('feePendingSearch')?.value || '').toLowerCase().trim();
+      let rows = FMG().obligations.filter(o => !['cancelled', 'waived'].includes(o.status));
+      if (classFilter) rows = rows.filter(o => String(o.classId) === String(classFilter));
+      if (catFilter) rows = rows.filter(o => o.category === catFilter);
+      if (statusFilter) rows = rows.filter(o => o.payStatus === statusFilter.toLowerCase().replace(/ /g, '_') || o.status === statusFilter);
+      if (query) rows = rows.filter(o =>
+        String(o.studentName || '').toLowerCase().includes(query) ||
+        String(o.studentRoll || o.admissionNumber || '').toLowerCase().includes(query) ||
+        String(o.feeName || '').toLowerCase().includes(query));
+      rows.sort((a, b) => String(a.dueDate || '9999').localeCompare(String(b.dueDate || '9999')) || String(a.studentName).localeCompare(String(b.studentName)));
+
+      if (!rows.length) {
+        wrap.innerHTML = `<div class="empty-state"><div class="icon">✅</div><div class="msg">No matching fee obligations</div><div class="sub">Every obligation is paid or none exist for these filters.</div></div>`;
+        return;
+      }
+      const stColor = { unpaid: '#ef4444', partially_paid: '#f59e0b', paid: '#22c55e', overdue: '#dc2626', exempt: '#94a3b8' };
+      const stLabel = { unpaid: 'Unpaid', partially_paid: 'Partially Paid', paid: 'Paid', overdue: 'Overdue', exempt: 'Exempt' };
+      wrap.innerHTML = `<div style="overflow-x:auto;"><table class="data-table"><thead><tr>
+        <th style="text-align:left;">Student</th><th style="text-align:left;">Student ID</th><th style="text-align:left;">Class</th>
+        <th style="text-align:left;">Fee</th><th style="text-align:left;">Category</th><th style="text-align:center;">Period</th>
+        <th style="text-align:right;">Original</th><th style="text-align:right;">Discount</th>
+        <th style="text-align:right;">Paid</th><th style="text-align:right;">Remaining</th>
+        <th style="text-align:center;">Due</th><th style="text-align:center;">Status</th><th style="text-align:center;"></th></tr></thead><tbody>
+        ${rows.map(o => `<tr>
+          <td style="text-align:left;font-weight:600;cursor:pointer;color:var(--primary-light);" onclick="showStudentFeeBreakdown(${o.studentId})">${escapeHtml(o.studentName || '—')}</td>
+          <td style="text-align:left;">${escapeHtml(o.studentRoll || o.admissionNumber || '—')}</td>
+          <td style="text-align:left;">${escapeHtml(o.className || 'Unassigned')}</td>
+          <td style="text-align:left;">${escapeHtml(o.feeName)}</td>
+          <td style="text-align:left;">${CAT_LABEL[o.category] || escapeHtml(o.category)}</td>
+          <td style="text-align:center;">${escapeHtml(o.periodLabel || '—')}</td>
+          <td style="text-align:right;">${fmoney(o.originalAmount)}</td>
+          <td style="text-align:right;">${fmoney(o.discountAmount)}</td>
+          <td style="text-align:right;">${fmoney(o.paidAmount)}</td>
+          <td style="text-align:right;font-weight:700;color:${numSafe(o.remaining) > 0 ? 'var(--danger,#dc2626)' : 'var(--success)'};">${fmoney(o.remaining)}</td>
+          <td style="text-align:center;">${escapeHtml(o.dueDate || '—')}</td>
+          <td style="text-align:center;"><span class="badge" style="background:rgba(148,163,184,0.15);color:${stColor[o.payStatus] || '#94a3b8'};">${stLabel[o.payStatus] || o.status}</span></td>
+          <td style="text-align:center;">${numSafe(o.remaining) > 0 ? `<button class="btn btn-primary btn-sm" onclick="collectStudentFromPending(${o.studentId})"><i class="fas fa-money-bill-wave"></i></button>` : ''}</td>
+        </tr>`).join('')}</tbody></table></div>`;
+    }
+
+    function collectStudentFromPending(studentId) {
+      switchFeeSubTab('collect');
+      const student = feeStudentById(studentId);
+      const classSel = document.getElementById('feeCollectClassFilter');
+      const search = document.getElementById('feeCollectSearch');
+      if (classSel && student) classSel.value = String(student.classId ?? '');
+      if (search && student) search.value = student.name || '';
+      renderFeeCollect();
+      const cb = document.querySelector(`.fee-row-check[data-student="${studentId}"]`);
+      if (cb) { cb.checked = true; cb.scrollIntoView({ block: 'center', behavior: 'smooth' }); updateFeeBulkBar(); }
+    }
+
+    // ---------------- Payment History ----------------
+
+    async function loadFeeReceipts() {
+      const wrap = document.getElementById('paymentHistoryTableWrap');
+      if (!wrap) return;
+      wrap.innerHTML = '<div class="empty-state"><div class="loader-spinner" style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px;"></div><div style="font-size:0.85rem;color:var(--text-secondary);">Loading receipts...</div></div>';
+      try {
+        const res = await apiFetch('/api/fee-management/payments');
+        if (!res.ok) throw new Error(`Server returned ${res.status}`);
+        FMG().payments = await res.json();
+        FMG().paymentsLoaded = true;
+        renderFeeReceipts();
+      } catch (err) {
+        wrap.innerHTML = `<div class="empty-state"><div class="msg" style="color:var(--danger);">Failed to load payments</div><div class="sub">${escapeHtml(err.message)}</div></div>`;
+      }
+    }
+
+    function renderFeeReceipts() {
+      const wrap = document.getElementById('paymentHistoryTableWrap');
+      if (!wrap) return;
+      const receipts = FMG().payments || [];
+      if (!receipts.length) {
+        wrap.innerHTML = `<div class="empty-state"><div class="icon">🧾</div><div class="msg">No payments yet</div><div class="sub">Payments recorded through Collect Fee appear here with their receipts.</div></div>`;
+        return;
+      }
+      wrap.innerHTML = `<div style="overflow-x:auto;"><table class="data-table"><thead><tr>
+        <th style="text-align:left;">Receipt #</th><th style="text-align:left;">Student</th><th style="text-align:left;">Class</th>
+        <th style="text-align:center;">Fees</th><th style="text-align:right;">Amount</th>
+        <th style="text-align:center;">Method</th><th style="text-align:center;">Date</th>
+        <th style="text-align:left;">Received By</th><th style="text-align:center;">Status</th><th style="text-align:center;"></th></tr></thead><tbody>
+        ${receipts.map(r => `<tr style="${r.status === 'reversed' ? 'opacity:0.55;' : ''}">
+          <td style="text-align:left;font-weight:700;">${escapeHtml(r.receiptNo)}</td>
+          <td style="text-align:left;">${escapeHtml(r.studentName || '—')}</td>
+          <td style="text-align:left;">${escapeHtml(r.className || '—')}</td>
+          <td style="text-align:center;" title="${escapeHtml((r.allocations || []).map(a => `${a.feeName} — ${a.periodLabel || ''}`).join('\n'))}">${(r.allocations || []).length} item${(r.allocations || []).length === 1 ? '' : 's'}</td>
+          <td style="text-align:right;font-weight:700;">${fmoney(r.amount)}</td>
+          <td style="text-align:center;">${escapeHtml((r.paymentMethod || 'cash').replace(/_/g, ' '))}</td>
+          <td style="text-align:center;">${escapeHtml(r.paymentDate || '—')}</td>
+          <td style="text-align:left;">${escapeHtml(r.receivedByName || '—')}</td>
+          <td style="text-align:center;">${r.status === 'reversed' ? '<span class="badge" style="background:rgba(239,68,68,0.15);color:#ef4444;">Reversed</span>' : '<span class="badge" style="background:rgba(34,197,94,0.15);color:#22c55e;">Completed</span>'}</td>
+          <td style="text-align:center; white-space:nowrap;">
+            <button class="btn btn-secondary btn-sm" onclick="printMgmtReceipt('${escapeHtml(r.receiptNo)}')" title="Print receipt"><i class="fas fa-print"></i></button>
+            ${r.status !== 'reversed' ? `<button class="btn btn-secondary btn-sm" onclick="reverseMgmtReceipt('${escapeHtml(r.receiptNo)}', ${r.paymentIds[0]})" title="Reverse receipt"><i class="fas fa-rotate-left"></i></button>` : ''}
+          </td></tr>`).join('')}</tbody></table></div>`;
+    }
+
+    async function reverseMgmtReceipt(receiptNo, paymentId) {
+      if (!confirm(`Reverse receipt ${receiptNo}? The money will be removed from the students' balances (the record is kept, not deleted).`)) return;
+      try {
+        const res = await apiFetch(`/api/fee-management/payments/${paymentId}/reverse`, { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `Server returned ${res.status}`);
+        showToast(`Receipt ${receiptNo} reversed`, 'success');
+        await loadFeeCenter(true); loadFeeReceipts();
+      } catch (err) { showToast('Reversal failed: ' + err.message, 'error'); }
+    }
+
+    async function printMgmtReceipt(receiptNo) {
+      try {
+        const res = await apiFetch(`/api/fee-management/payments?receiptNo=${encodeURIComponent(receiptNo)}`);
+        if (!res.ok) throw new Error(`Server returned ${res.status}`);
+        const receipts = await res.json();
+        const r = receipts[0];
+        if (!r) { showToast('Receipt not found', 'error'); return; }
+        const w = window.open('', '_blank', 'width=420,height=640');
+        if (!w) { showToast('Pop-up blocked — allow pop-ups to print', 'warning'); return; }
+        const lines = (r.allocations || []).map(a =>
+          `<tr><td>${escapeHtml(a.feeName)}<br><small style="color:#555;">${escapeHtml(a.periodLabel || '')}</small></td><td style="text-align:right">${fmoney(a.amount)}</td></tr>`).join('');
+        w.document.write(`<!DOCTYPE html><html><head><title>Receipt ${escapeHtml(r.receiptNo)}</title><style>
+          body{font-family:Arial,sans-serif;color:#111;margin:24px;font-size:13px}h1{font-size:17px;margin:0 0 2px;text-align:center}
+          .sub{text-align:center;color:#555;font-size:11px;margin-bottom:14px}table{width:100%;border-collapse:collapse;margin:10px 0}
+          td{padding:5px 4px;border-bottom:1px dashed #ccc;vertical-align:top}.tot td{border-bottom:none;border-top:2px solid #111;font-weight:bold;font-size:14px}
+          .meta td{border:none;padding:3px 4px}.foot{text-align:center;color:#555;font-size:11px;margin-top:18px}
+          @media print{body{margin:12mm}}</style></head><body>
+          <h1>The Eye</h1><div class="sub">FEE RECEIPT${r.status === 'reversed' ? ' — REVERSED' : ''}</div>
+          <table class="meta"><tr><td>Receipt No</td><td style="text-align:right;font-weight:bold">${escapeHtml(r.receiptNo)}</td></tr>
+          <tr><td>Date</td><td style="text-align:right">${escapeHtml(r.paymentDate || '')}</td></tr>
+          <tr><td>Received By</td><td style="text-align:right">${escapeHtml(r.receivedByName || '—')}</td></tr>
+          <tr><td>Method</td><td style="text-align:right">${escapeHtml((r.paymentMethod || 'cash').replace(/_/g, ' '))}</td></tr></table>
+          <table class="meta"><tr><td>Student</td><td style="text-align:right;font-weight:bold">${escapeHtml(r.studentName || '—')}</td></tr>
+          <tr><td>Class</td><td style="text-align:right">${escapeHtml(r.className || '—')}</td></tr></table>
+          <table><tr><td style="font-weight:bold">Fee</td><td style="text-align:right;font-weight:bold">Amount</td></tr>${lines}
+          <tr class="tot"><td>Total Received</td><td style="text-align:right">${fmoney(r.amount)}</td></tr></table>
+          <div class="foot">Thank you. Please collect this receipt as proof of payment.</div></body></html>`);
+        w.document.close(); w.focus(); w.print();
+      } catch (err) { showToast('Could not load receipt: ' + err.message, 'error'); }
+    }
+
+    // ---------------- Student fee breakdown modal ----------------
+
+    async function showStudentFeeBreakdown(studentId) {
+      let modal = document.getElementById('feeBreakdownModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'feeBreakdownModal';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;';
+        modal.innerHTML = `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;max-width:760px;width:100%;max-height:85vh;overflow:auto;padding:20px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div style="font-weight:800;font-size:1rem;" id="feeBreakdownTitle">Fee Breakdown</div>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('feeBreakdownModal').style.display='none'"><i class="fas fa-times"></i></button>
+          </div><div id="feeBreakdownBody"></div></div>`;
+        document.body.appendChild(modal);
+      }
+      modal.style.display = 'flex';
+      const body = document.getElementById('feeBreakdownBody');
+      body.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);">Loading…</div>';
+      try {
+        const res = await apiFetch(`/api/fee-management/students/${studentId}`);
+        if (!res.ok) throw new Error(`Server returned ${res.status}`);
+        const data = await res.json();
+        document.getElementById('feeBreakdownTitle').textContent = `${data.student.name} — Fees`;
+        const obs = data.obligations || [];
+        const pays = data.payments || [];
+        const open = obs.filter(o => !['cancelled', 'waived', 'exempt'].includes(o.status) && numSafe(o.remaining) > 0);
+        body.innerHTML = `
+          <div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:10px;">${escapeHtml(data.student.className || 'No class')} · Admitted ${escapeHtml(data.student.admissionDate || '—')} · Outstanding ${fmoney(open.reduce((a,o)=>a+numSafe(o.remaining),0))}</div>
+          <table class="data-table" style="margin-bottom:16px;"><thead><tr><th style="text-align:left;">Fee</th><th style="text-align:center;">Period</th><th style="text-align:right;">Amount</th><th style="text-align:right;">Paid</th><th style="text-align:right;">Remaining</th><th style="text-align:center;">Status</th></tr></thead><tbody>
+          ${obs.map(o => `<tr><td style="text-align:left;">${escapeHtml(o.feeName)} <small style="color:var(--text-muted);">${CAT_LABEL[o.category] || o.category}</small></td>
+            <td style="text-align:center;">${escapeHtml(o.periodLabel || '—')}</td><td style="text-align:right;">${fmoney(o.finalAmount)}</td>
+            <td style="text-align:right;">${fmoney(o.paidAmount)}</td><td style="text-align:right;">${fmoney(o.remaining)}</td>
+            <td style="text-align:center;">${escapeHtml(o.payStatus)}</td></tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">No obligations yet</td></tr>'}
+          </tbody></table>
+          <div style="font-weight:700;margin-bottom:6px;">Payments</div>
+          ${pays.map(p => `<div style="display:flex;gap:8px;font-size:0.82rem;padding:4px 0;border-bottom:1px solid var(--border);">
+            <span style="font-weight:700;">${escapeHtml(p.receiptNo)}</span><span>${escapeHtml(p.feeName || '')}</span>
+            <span style="margin-left:auto;">${fmoney(p.amount)}</span><span>${escapeHtml(p.paymentDate || '')}</span>
+            <span>${p.status === 'reversed' ? 'Reversed' : ''}</span></div>`).join('') || '<div style="font-size:0.82rem;color:var(--text-muted);">No payments yet</div>'}`;
+      } catch (err) {
+        body.innerHTML = `<div style="color:var(--danger);">${escapeHtml(err.message)}</div>`;
+      }
+    }
+    document.addEventListener('click', e => {
+      const m = document.getElementById('feeBreakdownModal');
+      if (m && e.target === m) m.style.display = 'none';
+    });
+
+    // ---------------- Fee Configuration ----------------
+
+    function setFeeCfgLevel(level) {
+      FMG().cfgLevel = level;
+      document.querySelectorAll('.fee-cfg-level').forEach(b => b.classList.toggle('active', b.dataset.level === level));
+      renderFeeConfig();
+    }
+
+    function renderFeeConfig() {
+      const wrap = document.getElementById('feeConfigTableWrap');
+      if (!wrap || !FMG().loaded) return;
+      const level = FMG().cfgLevel || 'all';
+      const classFilter = document.getElementById('feeCfgClassFilter')?.value || '';
+      const studentFilter = document.getElementById('feeCfgStudentFilter')?.value || '';
+      const statusFilter = document.getElementById('feeCfgStatusFilter')?.value || '';
+      const query = (document.getElementById('feeCfgSearch')?.value || '').toLowerCase().trim();
+      let items = FMG().items.slice();
+      if (level !== 'all') items = items.filter(i => i.level === level);
+      if (classFilter) items = items.filter(i => String(i.classId) === String(classFilter) || i.level !== 'class');
+      if (studentFilter) items = items.filter(i => String(i.studentId) === String(studentFilter) || i.level !== 'student');
+      if (statusFilter === 'active') items = items.filter(i => i.isActive);
+      if (statusFilter === 'inactive') items = items.filter(i => !i.isActive);
+      if (query) items = items.filter(i =>
+        String(i.name || '').toLowerCase().includes(query) ||
+        String(i.category || '').toLowerCase().includes(query) ||
+        String(i.className || '').toLowerCase().includes(query) ||
+        String(i.studentName || '').toLowerCase().includes(query));
+
+      if (!items.length) {
+        wrap.innerHTML = `<div class="empty-state"><div class="icon">⚙️</div><div class="msg">No fee rules configured</div><div class="sub">Click "Add New Fee" to create a school-wide, class-wise or student-wise fee.</div></div>`;
+        return;
+      }
+      const targetOf = (i) => i.level === 'school' ? 'Whole school'
+        : i.level === 'class' ? (i.className || 'Class #' + i.classId)
+        : (i.studentName || 'Student #' + i.studentId);
+      const discOf = (i) => {
+        if (i.exempt) return 'Exempt';
+        if (i.discountPercent) return i.discountPercent + '%';
+        if (i.discountAmount) return 'Rs. ' + i.discountAmount;
+        return '—';
+      };
+      wrap.innerHTML = `<div style="overflow-x:auto;"><table class="data-table"><thead><tr>
+        <th style="text-align:left;">Fee Name</th><th style="text-align:left;">Category</th><th style="text-align:right;">Amount</th>
+        <th style="text-align:center;">Frequency</th><th style="text-align:left;">Level</th><th style="text-align:left;">Applies To</th>
+        <th style="text-align:center;">Effective</th><th style="text-align:center;">Due day</th><th style="text-align:center;">Discount</th>
+        <th style="text-align:center;">Status</th><th style="text-align:center;"></th></tr></thead><tbody>
+        ${items.map(i => `<tr style="${i.isActive ? '' : 'opacity:0.55;'}">
+          <td style="text-align:left;font-weight:600;">${escapeHtml(i.name)}</td>
+          <td style="text-align:left;">${CAT_LABEL[i.category] || escapeHtml(i.category)}</td>
+          <td style="text-align:right;">${fmoney(i.amount)}</td>
+          <td style="text-align:center;">${FREQ_LABEL[i.frequency] || i.frequency}</td>
+          <td style="text-align:left;">${LEVEL_LABEL[i.level] || i.level}</td>
+          <td style="text-align:left;">${escapeHtml(targetOf(i))}</td>
+          <td style="text-align:center;">${escapeHtml(i.effectiveFrom || '—')}${i.effectiveTo ? ' → ' + escapeHtml(i.effectiveTo) : ''}</td>
+          <td style="text-align:center;">${i.dueDay || '—'}</td>
+          <td style="text-align:center;">${escapeHtml(discOf(i))}</td>
+          <td style="text-align:center;">${i.isActive ? '<span class="badge" style="background:rgba(34,197,94,0.15);color:#22c55e;">Active</span>' : '<span class="badge" style="background:rgba(148,163,184,0.15);color:#94a3b8;">Inactive</span>'}</td>
+          <td style="text-align:center; white-space:nowrap;">
+            <button class="btn btn-secondary btn-sm" onclick="openFeeItemModal(${i.id})" title="Edit"><i class="fas fa-pen"></i></button>
+            ${i.isActive ? `<button class="btn btn-secondary btn-sm" onclick="deactivateFeeItem(${i.id})" title="Deactivate"><i class="fas fa-ban"></i></button>` : ''}
+          </td></tr>`).join('')}</tbody></table></div>`;
+    }
+
+    function openFeeItemModal(itemId) {
+      FMG().editingItemId = itemId || null;
+      let modal = document.getElementById('feeItemModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'feeItemModal';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2100;display:flex;align-items:center;justify-content:center;padding:20px;';
+        document.body.appendChild(modal);
+      }
+      const item = itemId ? feeItemById(itemId) : null;
+      const opt = (v, cur) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${v === cur ? '' : ''}${escapeHtml(String(v).replace(/_/g, ' '))}</option>`;
+      modal.innerHTML = `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;max-width:620px;width:100%;max-height:90vh;overflow:auto;padding:22px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <div style="font-weight:800;font-size:1.05rem;">${item ? 'Edit Fee' : 'Add New Fee'}</div>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('feeItemModal').style.display='none'"><i class="fas fa-times"></i></button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="form-group" style="grid-column:1/-1;margin-bottom:0;"><label class="form-label">Fee name *</label>
+            <input id="fiName" class="form-input" placeholder="e.g. Tuition Fee, Admission Fee, Exam Fee" value="${escapeHtml(item?.name || '')}"></div>
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">Category</label>
+            <select id="fiCategory" class="form-input">${['tuition','admission','transport','exam','activity','hostel','fine','other'].map(c => opt(c, item?.category || 'other')).join('')}</select></div>
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">Amount (Rs.) *</label>
+            <input id="fiAmount" type="number" min="0" step="0.01" class="form-input" value="${item ? item.amount : ''}"></div>
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">Frequency</label>
+            <select id="fiFrequency" class="form-input">${['one_time','monthly','quarterly','annually','per_term'].map(f => opt(f, item?.frequency || 'monthly')).join('')}</select></div>
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">Applies to (level) *</label>
+            <select id="fiLevel" class="form-input" onchange="feeItemLevelChanged()">
+              <option value="school" ${item?.level === 'school' ? 'selected' : ''}>School-wide</option>
+              <option value="class" ${item?.level === 'class' ? 'selected' : ''}>Class-wise</option>
+              <option value="student" ${item?.level === 'student' ? 'selected' : ''}>Student-wise</option></select></div>
+          <div class="form-group" id="fiClassWrap" style="margin-bottom:0;display:${item?.level === 'class' ? 'block' : 'none'};"><label class="form-label">Class *</label>
+            <select id="fiClassId" class="form-input"><option value="">— pick class —</option>${FMG().classes.map(c => `<option value="${c.id}" ${String(c.id) === String(item?.classId) ? 'selected' : ''}>${escapeHtml(feeClsLabel(c))}</option>`).join('')}</select></div>
+          <div class="form-group" id="fiStudentWrap" style="margin-bottom:0;display:${item?.level === 'student' ? 'block' : 'none'};"><label class="form-label">Student *</label>
+            <select id="fiStudentId" class="form-input"><option value="">— pick student —</option>${FMG().students.map(s => `<option value="${s.id}" ${String(s.id) === String(item?.studentId) ? 'selected' : ''}>${escapeHtml(s.name)}${s.rollNo ? ' (' + escapeHtml(s.rollNo) + ')' : ''}</option>`).join('')}</select></div>
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">Effective from *</label>
+            <input id="fiEffectiveFrom" type="date" class="form-input" value="${item?.effectiveFrom || todayIsoLocal()}"></div>
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">Effective to</label>
+            <input id="fiEffectiveTo" type="date" class="form-input" value="${item?.effectiveTo || ''}"></div>
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">Due day of month</label>
+            <input id="fiDueDay" type="number" min="1" max="31" class="form-input" value="${item?.dueDay || 10}"></div>
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">Mid-month billing</label>
+            <select id="fiBillingMode" class="form-input"><option value="full" ${item?.billingMode !== 'prorated' ? 'selected' : ''}>Full month</option><option value="prorated" ${item?.billingMode === 'prorated' ? 'selected' : ''}>Prorated</option></select></div>
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">Discount %</label>
+            <input id="fiDiscountPct" type="number" min="0" max="100" step="0.01" class="form-input" value="${item?.discountPercent ?? ''}" placeholder="student-wise only"></div>
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">Discount amount (Rs.)</label>
+            <input id="fiDiscountAmt" type="number" min="0" step="0.01" class="form-input" value="${item?.discountAmount ?? ''}" placeholder="student-wise only"></div>
+          <div class="form-group" style="margin-bottom:0;display:flex;align-items:flex-end;gap:8px;">
+            <label style="display:flex;gap:6px;align-items:center;font-size:0.85rem;"><input type="checkbox" id="fiExempt" ${item?.exempt ? 'checked' : ''}> Exempt (waive fee)</label></div>
+          <div class="form-group" style="grid-column:1/-1;margin-bottom:0;"><label class="form-label">Notes</label>
+            <input id="fiNotes" class="form-input" value="${escapeHtml(item?.notes || '')}"></div>
+        </div>
+        <div id="fiError" style="color:var(--danger);font-size:0.82rem;margin-top:10px;display:none;"></div>
+        <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end;">
+          <button class="btn btn-ghost" onclick="document.getElementById('feeItemModal').style.display='none'">Cancel</button>
+          <button class="btn btn-primary" id="fiSaveBtn" onclick="saveFeeItem()"><i class="fas fa-check"></i> ${item ? 'Save changes' : 'Create fee'}</button>
+        </div></div>`;
+      modal.style.display = 'flex';
+    }
+    function todayIsoLocal() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+    function feeItemLevelChanged() {
+      const lvl = document.getElementById('fiLevel')?.value;
+      const cw = document.getElementById('fiClassWrap'), sw = document.getElementById('fiStudentWrap');
+      if (cw) cw.style.display = lvl === 'class' ? 'block' : 'none';
+      if (sw) sw.style.display = lvl === 'student' ? 'block' : 'none';
+    }
+
+    async function saveFeeItem() {
+      const errEl = document.getElementById('fiError');
+      errEl.style.display = 'none';
+      const body = {
+        name: document.getElementById('fiName').value,
+        category: document.getElementById('fiCategory').value,
+        amount: document.getElementById('fiAmount').value,
+        frequency: document.getElementById('fiFrequency').value,
+        level: document.getElementById('fiLevel').value,
+        classId: document.getElementById('fiClassId')?.value || null,
+        studentId: document.getElementById('fiStudentId')?.value || null,
+        effectiveFrom: document.getElementById('fiEffectiveFrom').value,
+        effectiveTo: document.getElementById('fiEffectiveTo').value || null,
+        dueDay: parseInt(document.getElementById('fiDueDay').value, 10) || 10,
+        billingMode: document.getElementById('fiBillingMode').value,
+        discountPercent: document.getElementById('fiDiscountPct').value === '' ? null : document.getElementById('fiDiscountPct').value,
+        discountAmount: document.getElementById('fiDiscountAmt').value === '' ? null : document.getElementById('fiDiscountAmt').value,
+        exempt: document.getElementById('fiExempt').checked,
+        notes: document.getElementById('fiNotes').value,
+      };
+      const id = FMG().editingItemId;
+      const btn = document.getElementById('fiSaveBtn');
+      btn.disabled = true;
+      try {
+        const res = await apiFetch(id ? `/api/fee-management/items/${id}` : '/api/fee-management/items', {
+          method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `Server returned ${res.status}`);
+        document.getElementById('feeItemModal').style.display = 'none';
+        showToast(id ? 'Fee updated' : 'Fee created — obligations generated for eligible students', 'success');
+        await loadFeeCenter(true);
+        if (FMG().activeSubTab === 'config') renderFeeConfig();
+      } catch (e) {
+        errEl.textContent = e.message; errEl.style.display = 'block';
+      } finally { btn.disabled = false; }
+    }
+
+    async function deactivateFeeItem(id) {
+      if (!confirm('Deactivate this fee? Future unpaid obligations it created will be cancelled; payment history is preserved.')) return;
+      try {
+        const res = await apiFetch(`/api/fee-management/items/${id}`, { method: 'DELETE' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `Server returned ${res.status}`);
+        showToast('Fee deactivated', 'success');
+        await loadFeeCenter(true); renderFeeConfig();
+      } catch (e) { showToast('Could not deactivate: ' + e.message, 'error'); }
+    }
+
+    async function runFeeReconcile() {
+      if (!confirm('Generate missing fee obligations for all students? Existing obligations and payments are never duplicated.')) return;
+      try {
+        const res = await apiFetch('/api/fee-management/obligations/reconcile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `Server returned ${res.status}`);
+        showToast(`Reconciliation done — ${data.created || 0} new obligation(s) for ${data.students || 0} student(s)`, 'success');
+        await loadFeeCenter(true);
+        renderActiveFeeSubTab();
+      } catch (e) { showToast('Reconciliation failed: ' + e.message, 'error'); }
+    }
   </script>
 </body>
 
