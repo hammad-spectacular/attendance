@@ -462,25 +462,25 @@
        ================================ */
     .save-bar {
       position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
+      bottom: 16px;
+      left: 50%;
+      width: max-content;
+      max-width: calc(100vw - 32px);
       z-index: 100;
       background: var(--bg-card);
-      border-top: 2px solid var(--warning);
-      box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.25);
-      transform: translateY(100%);
+      border: 1px solid var(--warning);
+      border-radius: 14px;
+      box-shadow: 0 10px 34px rgba(0, 0, 0, 0.4);
+      transform: translate(-50%, 140%);
       transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-      padding: 12px 20px;
+      padding: 10px 16px;
     }
 
     .save-bar.visible {
-      transform: translateY(0);
+      transform: translate(-50%, 0);
     }
 
     .save-bar-inner {
-      max-width: 960px;
-      margin: 0 auto;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -555,7 +555,38 @@
 
     /* push page content up when save bar is visible */
     body.savebar-open .main {
-      padding-bottom: 90px;
+      padding-bottom: 76px;
+    }
+
+    /* ================================
+       FEE CONFIG — compact table & filters
+       ================================ */
+    #feeConfigTableWrap .fee-cfg-table {
+      font-size: 0.78rem;
+      table-layout: auto;
+    }
+
+    #feeConfigTableWrap .fee-cfg-table th,
+    #feeConfigTableWrap .fee-cfg-table td {
+      padding: 7px 9px;
+      vertical-align: middle;
+    }
+
+    #feeConfigTableWrap .fee-cfg-table td {
+      white-space: normal;
+      word-break: break-word;
+    }
+
+    .fee-cfg-filter-hint {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      align-self: center;
+    }
+
+    select.form-input:disabled,
+    input.form-input:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
     }
 
 
@@ -2975,12 +3006,18 @@
         <button class="btn btn-ghost fee-subtab-btn" id="feeSubTabBtn-config" onclick="switchFeeSubTab('config')">
           <i class="fa-solid fa-sliders"></i> Fee Configuration
         </button>
+        <button class="btn btn-ghost fee-subtab-btn" id="feeSubTabBtn-expenses" onclick="switchFeeSubTab('expenses')">
+          <i class="fa-solid fa-receipt"></i> Expenses
+        </button>
         <span style="flex:1"></span>
         <button class="btn btn-primary btn-sm" id="feeAddNewBtn" onclick="openFeeItemModal()">
           <i class="fa-solid fa-plus"></i> Add New Fee
         </button>
         <button class="btn btn-secondary btn-sm" onclick="openFeeItemModal(null, 'charge')" title="Add a one-off or custom charge for a specific student or class — e.g. exam fee, trip fee, fine">
           <i class="fa-solid fa-plus"></i> Add Charge
+        </button>
+        <button class="btn btn-secondary btn-sm" id="feeAddExpenseBtn" onclick="openExpenseModal()" title="Record a school expense — view, edit or delete it under the Expenses sub-tab">
+          <i class="fa-solid fa-wallet"></i> Add Expense
         </button>
         <button class="btn btn-secondary btn-sm" onclick="openFeeStructureModal()" title="Monthly, admission, transport and discount rates that drive voucher amounts">
           <i class="fa-solid fa-sliders"></i> Fee Rates
@@ -3146,15 +3183,16 @@
               <button class="btn btn-secondary btn-sm" onclick="runFeeReconcile()" title="Generates any missing fee obligations for existing students from the rules above. Safe to run repeatedly — it never duplicates charges or touches payments."><i class="fa-solid fa-rotate"></i> Sync Student Fees</button>
               <span class="hint" style="font-size:0.75rem;color:var(--text-muted);align-self:center;">Applies the fee rules above to students who don't have obligations yet</span>
             </div>
-            <div class="fees-filter-row" style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
+            <div class="fees-filter-row" style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:flex-end;">
               <div class="form-group" style="flex:0 1 170px; min-width:150px; margin-bottom:0;">
                 <label class="form-label" for="feeCfgClassFilter">Class</label>
-                <select id="feeCfgClassFilter" class="form-input" onchange="renderFeeConfig()"><option value="">All Classes</option></select>
+                <select id="feeCfgClassFilter" class="form-input" onchange="onFeeCfgClassChange()"><option value="">All Classes</option></select>
               </div>
               <div class="form-group" style="flex:0 1 170px; min-width:150px; margin-bottom:0;">
                 <label class="form-label" for="feeCfgStudentFilter">Student</label>
                 <select id="feeCfgStudentFilter" class="form-input" onchange="renderFeeConfig()"><option value="">All Students</option></select>
               </div>
+              <span class="fee-cfg-filter-hint" id="feeCfgFilterHint"></span>
               <div class="form-group" style="flex:0 1 130px; min-width:110px; margin-bottom:0;">
                 <label class="form-label" for="feeCfgStatusFilter">Status</label>
                 <select id="feeCfgStatusFilter" class="form-input" onchange="renderFeeConfig()">
@@ -3167,6 +3205,44 @@
               </div>
             </div>
             <div id="feeConfigTableWrap"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Expenses Sub-Tab -->
+      <div id="feeSubTab-expenses" class="fee-subtab-content" style="display:none;">
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-header-left">
+              <div class="section-icon green" style="background:rgba(239,68,68,0.12); color:#ef4444;"><i class="fa-solid fa-wallet"></i></div>
+              <div>
+                <div class="section-title">Expenses</div>
+                <div class="section-subtitle">School expenses recorded from the Fees section — also visible in Finance → Expenses</div>
+              </div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="openExpenseModal()"><i class="fa-solid fa-plus"></i> Add Expense</button>
+          </div>
+          <div class="section-body">
+            <div class="fees-filter-row" style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
+              <div class="form-group" style="flex:0 1 170px; min-width:150px; margin-bottom:0;">
+                <label class="form-label" for="feeExpCategoryFilter">Category</label>
+                <select id="feeExpCategoryFilter" class="form-input" onchange="renderFeeExpenses()"><option value="">All Categories</option></select>
+              </div>
+              <div class="form-group" style="flex:0 1 150px; min-width:130px; margin-bottom:0;">
+                <label class="form-label" for="feeExpStatusFilter">Status</label>
+                <select id="feeExpStatusFilter" class="form-input" onchange="renderFeeExpenses()">
+                  <option value="">All Status</option>
+                  <option value="unpaid">Unpaid</option>
+                  <option value="partially_paid">Partially Paid</option>
+                  <option value="paid">Paid</option>
+                </select>
+              </div>
+              <div class="form-group" style="flex:1 1 200px; min-width:180px; margin-bottom:0;">
+                <label class="form-label" for="feeExpSearch">Search</label>
+                <input type="text" id="feeExpSearch" class="form-input" placeholder="Search expense name or notes..." oninput="renderFeeExpenses()">
+              </div>
+            </div>
+            <div id="feeExpensesTableWrap"></div>
           </div>
         </div>
       </div>
@@ -9300,13 +9376,7 @@
           FMG().classes.map(c => `<option value="${c.id}">${escapeHtml(feeClsLabel(c))}</option>`).join('');
         if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
       });
-      const stSel = document.getElementById('feeCfgStudentFilter');
-      if (stSel) {
-        const keep = stSel.value;
-        stSel.innerHTML = '<option value="">All Students</option>' +
-          FMG().students.map(s => `<option value="${s.id}">${escapeHtml(s.name)}${s.rollNo ? ' (' + escapeHtml(s.rollNo) + ')' : ''}</option>`).join('');
-        if (keep && [...stSel.options].some(o => o.value === keep)) stSel.value = keep;
-      }
+      populateFeeCfgStudentFilter();
       injectPendingCategoryFilter();
       injectCollectCategoryFilter();
     }
@@ -9339,7 +9409,7 @@
     function populateFeePendingFilters() {}
 
     function switchFeeSubTab(subTabName) {
-      ['collect', 'pending', 'history', 'config'].forEach(t => {
+      ['collect', 'pending', 'history', 'config', 'expenses'].forEach(t => {
         const btn = document.getElementById(`feeSubTabBtn-${t}`);
         const content = document.getElementById(`feeSubTab-${t}`);
         if (btn) btn.classList.toggle('active', t === subTabName);
@@ -9354,7 +9424,8 @@
       if (tab === 'collect') renderFeeCollect();
       else if (tab === 'pending') renderFeePending();
       else if (tab === 'history') loadFeeReceipts();
-      else if (tab === 'config') renderFeeConfig();
+      else if (tab === 'config') { syncFeeCfgFilters(); renderFeeConfig(); }
+      else if (tab === 'expenses') renderFeeExpenses();
     }
 
     // ---------------- Collect Fee ----------------
@@ -9724,7 +9795,51 @@
     function setFeeCfgLevel(level) {
       FMG().cfgLevel = level;
       document.querySelectorAll('.fee-cfg-level').forEach(b => b.classList.toggle('active', b.dataset.level === level));
+      syncFeeCfgFilters();
       renderFeeConfig();
+    }
+
+    // Keeps the Class/Student dropdowns in sync with the All / School-wise /
+    // Class-wise / Student-wise level buttons and with each other, and explains
+    // the current scope in the hint line under the filters.
+    function syncFeeCfgFilters() {
+      const level = FMG().cfgLevel || 'all';
+      const classSel = document.getElementById('feeCfgClassFilter');
+      const studentSel = document.getElementById('feeCfgStudentFilter');
+      const hint = document.getElementById('feeCfgFilterHint');
+      if (!classSel || !studentSel) return;
+      const schoolMode = level === 'school';
+      classSel.disabled = schoolMode;
+      studentSel.disabled = schoolMode || (level === 'class' && !classSel.value);
+      if (schoolMode) { classSel.value = ''; studentSel.value = ''; }
+      populateFeeCfgStudentFilter();
+      if (hint) {
+        if (schoolMode) hint.textContent = 'School-wise rules apply to every student — class and student filters are off.';
+        else if (level === 'class' && !classSel.value) hint.textContent = 'Pick a class to narrow the list, or switch to All / Student-wise.';
+        else if (classSel.value && studentSel.value) hint.textContent = 'Showing rules that apply to the selected student (school-wide + their class + student-specific).';
+        else if (studentSel.value) hint.textContent = 'Showing every rule that applies to the selected student.';
+        else if (classSel.value) hint.textContent = 'Showing school-wide rules plus rules for the selected class and its students.';
+        else hint.textContent = '';
+      }
+    }
+
+    function onFeeCfgClassChange() {
+      populateFeeCfgStudentFilter();
+      syncFeeCfgFilters();
+      renderFeeConfig();
+    }
+
+    function populateFeeCfgStudentFilter() {
+      const sel = document.getElementById('feeCfgStudentFilter');
+      if (!sel) return;
+      const classSel = document.getElementById('feeCfgClassFilter');
+      const classId = classSel ? classSel.value : '';
+      const keep = sel.value;
+      const students = (FMG().students || []).filter(s => !classId || String(s.classId) === String(classId));
+      sel.innerHTML = `<option value="">${classId ? 'All Students in class' : 'All Students'}</option>` +
+        students.map(s => `<option value="${s.id}">${escapeHtml(s.name)}${s.rollNo ? ' (' + escapeHtml(s.rollNo) + ')' : ''}</option>`).join('');
+      if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
+      else if (classId && keep && ![...sel.options].some(o => o.value === keep)) sel.value = '';
     }
 
     function renderFeeConfig() {
@@ -9738,8 +9853,23 @@
       const query = (document.getElementById('feeCfgSearch')?.value || '').toLowerCase().trim();
       let items = FMG().items.slice();
       if (level !== 'all') items = items.filter(i => i.level === level);
-      if (classFilter) items = items.filter(i => String(i.classId) === String(classFilter) || i.level !== 'class');
-      if (studentFilter) items = items.filter(i => String(i.studentId) === String(studentFilter) || i.level !== 'student');
+      const stu = studentFilter ? feeStudentById(studentFilter) : null;
+      if (classFilter || studentFilter) {
+        items = items.filter(i => {
+          if (i.level === 'school') return true;
+          if (i.level === 'class') {
+            if (classFilter && String(i.classId) !== String(classFilter)) return false;
+            if (studentFilter) return stu && String(i.classId) === String(stu.classId);
+            return true;
+          }
+          if (studentFilter) return String(i.studentId) === String(studentFilter);
+          if (classFilter) {
+            const s = feeStudentById(i.studentId);
+            return s && String(s.classId) === String(classFilter);
+          }
+          return true;
+        });
+      }
       if (statusFilter === 'active') items = items.filter(i => i.isActive);
       if (statusFilter === 'inactive') items = items.filter(i => !i.isActive);
       if (query) items = items.filter(i =>
@@ -9773,7 +9903,7 @@
         if (i.discountAmount) return 'Rs. ' + i.discountAmount;
         return '—';
       };
-      wrap.innerHTML = `${caption}<div style="overflow-x:auto;"><table class="data-table"><thead><tr>
+      wrap.innerHTML = `${caption}<div style="overflow-x:auto;"><table class="data-table fee-cfg-table"><thead><tr>
         <th style="text-align:left;">Fee Name</th><th style="text-align:left;">Category</th><th style="text-align:right;">Amount</th>
         <th style="text-align:center;">Frequency</th><th style="text-align:left;">Level</th><th style="text-align:left;">Applies To</th>
         <th style="text-align:center;">Effective</th><th style="text-align:center;">Due day</th><th style="text-align:center;">Discount</th>
@@ -9923,7 +10053,11 @@
     }
 
     async function deactivateFeeItem(id) {
-      if (!confirm('Deactivate this fee? Future unpaid obligations it created will be cancelled; payment history is preserved.')) return;
+      const ok = await fmConfirm(
+        'Deactivate this fee rule?',
+        'Future unpaid obligations it created will be cancelled. Payment history is preserved. The rule can be reactivated later.'
+      );
+      if (!ok) return;
       try {
         const res = await apiFetch(`/api/fee-management/items/${id}`, { method: 'DELETE' });
         const data = await res.json().catch(() => ({}));
@@ -9934,7 +10068,11 @@
     }
 
     async function runFeeReconcile() {
-      if (!confirm('Generate missing fee obligations for all students? Existing obligations and payments are never duplicated.')) return;
+      const ok = await fmConfirm(
+        'Sync student fees?',
+        'Generate missing fee obligations for all students? Existing obligations and payments are never duplicated.'
+      );
+      if (!ok) return;
       try {
         const res = await apiFetch('/api/fee-management/obligations/reconcile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
         const data = await res.json().catch(() => ({}));
@@ -9943,6 +10081,255 @@
         await loadFeeCenter(true);
         renderActiveFeeSubTab();
       } catch (e) { showToast('Reconciliation failed: ' + e.message, 'error'); }
+    }
+
+    // ---------------- Shared confirm modal ----------------
+    // Replaces native confirm() dialogs with an in-page modal so destructive
+    // fee actions never fall back to a blocking top-level browser alert.
+    function fmConfirm(title, message) {
+      return new Promise(resolve => {
+        let modal = document.getElementById('fmConfirmModal');
+        if (!modal) {
+          modal = document.createElement('div');
+          modal.id = 'fmConfirmModal';
+          modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2300;display:none;align-items:center;justify-content:center;padding:20px;';
+          document.body.appendChild(modal);
+        }
+        modal.innerHTML = `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;max-width:440px;width:100%;padding:22px;box-shadow:var(--shadow-lg);">
+          <div style="font-weight:800;font-size:1rem;margin-bottom:8px;">${escapeHtml(title)}</div>
+          <div style="font-size:0.85rem;color:var(--text-secondary);line-height:1.5;margin-bottom:18px;">${escapeHtml(message)}</div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button class="btn btn-ghost" id="fmConfirmCancel">Cancel</button>
+            <button class="btn btn-primary" id="fmConfirmOk" style="background:var(--danger);">Confirm</button>
+          </div></div>`;
+        const done = (val) => { modal.style.display = 'none'; resolve(val); };
+        document.getElementById('fmConfirmCancel').onclick = () => done(false);
+        document.getElementById('fmConfirmOk').onclick = () => done(true);
+        modal.onclick = (e) => { if (e.target === modal) done(false); };
+        modal.style.display = 'flex';
+      });
+    }
+
+    // ---------------- Expenses ----------------
+    // Expenses live in the finance module (expense_obligations) so they also
+    // show up on the Finance pages; this view is a lightweight manager for them.
+    window.feeExpenses = { loaded: false, loading: false, failed: false, error: null, categories: [], items: [], editingId: null };
+
+    function expNum(v) { return Number(v) || 0; }
+    function expDate(v) {
+      if (!v) return '—';
+      const s = v instanceof Date ? v.toISOString() : String(v);
+      return s.slice(0, 10);
+    }
+    function expStatusBadge(st) {
+      const map = {
+        unpaid: ['Unpaid', '#ef4444'],
+        partially_paid: ['Partially Paid', '#f59e0b'],
+        paid: ['Paid', '#22c55e']
+      };
+      const [label, color] = map[st] || [st || '—', '#94a3b8'];
+      return `<span class="badge" style="background:rgba(148,163,184,0.15);color:${color};">${label}</span>`;
+    }
+
+    async function loadFeeExpenses(force) {
+      const fe = window.feeExpenses;
+      if (fe.loading) return fe.loaded;
+      if (fe.loaded && !force) return true;
+      fe.loading = true; fe.failed = false; fe.error = null;
+      try {
+        // /bootstrap seeds the default expense categories for the tenant on
+        // first use, so hit it before reading categories/obligations.
+        const [bootRes, obsRes] = await Promise.all([
+          apiFetch('/api/finance/bootstrap'),
+          apiFetch('/api/finance/expenses/obligations')
+        ]);
+        if (!bootRes.ok) throw new Error(`Finance service returned ${bootRes.status}`);
+        const boot = await bootRes.json();
+        fe.categories = (boot.expense_categories || []).filter(c => c.is_active !== false);
+        fe.items = obsRes.ok ? await obsRes.json() : [];
+        fe.loaded = true;
+        populateFeeExpCategoryFilter();
+        if (FMG().activeSubTab === 'expenses') renderFeeExpenses();
+      } catch (err) {
+        console.error('Failed to load expenses:', err);
+        fe.failed = true; fe.error = err.message;
+        showToast('Failed to load expenses: ' + err.message, 'error');
+        const wrap = document.getElementById('feeExpensesTableWrap');
+        if (wrap && FMG().activeSubTab === 'expenses') renderFeeExpenses();
+      } finally { fe.loading = false; }
+      return fe.loaded;
+    }
+
+    function populateFeeExpCategoryFilter() {
+      const sel = document.getElementById('feeExpCategoryFilter');
+      if (!sel) return;
+      const keep = sel.value;
+      sel.innerHTML = '<option value="">All Categories</option>' +
+        (window.feeExpenses.categories || []).map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+      if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
+    }
+
+    function renderFeeExpenses() {
+      const wrap = document.getElementById('feeExpensesTableWrap');
+      if (!wrap) return;
+      const fe = window.feeExpenses;
+      if (!fe.loaded) {
+        if (!fe.loading && !fe.failed) loadFeeExpenses();
+        wrap.innerHTML = fe.failed
+          ? `<div class="empty-state"><div class="msg" style="color:var(--danger);">Could not load expenses</div><div class="sub">${escapeHtml(fe.error || '')}</div><button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="loadFeeExpenses(true).then(()=>renderFeeExpenses())"><i class="fas fa-rotate"></i> Retry</button></div>`
+          : `<div class="empty-state"><div class="loader-spinner" style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px;"></div><div style="font-size:0.85rem;color:var(--text-secondary);">Loading expenses...</div></div>`;
+        return;
+      }
+      const catFilter = document.getElementById('feeExpCategoryFilter')?.value || '';
+      const statusFilter = document.getElementById('feeExpStatusFilter')?.value || '';
+      const query = (document.getElementById('feeExpSearch')?.value || '').toLowerCase().trim();
+      let items = (fe.items || []).slice();
+      if (catFilter) items = items.filter(i => String(i.category_id) === String(catFilter));
+      if (statusFilter) items = items.filter(i => i.payment_status === statusFilter);
+      if (query) items = items.filter(i =>
+        String(i.name || '').toLowerCase().includes(query) ||
+        String(i.description || '').toLowerCase().includes(query) ||
+        String(i.category_name || '').toLowerCase().includes(query));
+
+      const total = items.reduce((a, i) => a + expNum(i.amount_due), 0);
+      const paid = items.reduce((a, i) => a + expNum(i.amount_paid), 0);
+      const summary = `<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;">
+        <div class="section-card" style="padding:12px 16px;border:1px solid var(--border);box-shadow:none;flex:1;min-width:150px;"><div style="font-size:0.75rem;color:var(--text-secondary);">Total expenses</div><div style="font-size:1.1rem;font-weight:800;">${fmoney(total)}</div></div>
+        <div class="section-card" style="padding:12px 16px;border:1px solid var(--border);box-shadow:none;flex:1;min-width:150px;"><div style="font-size:0.75rem;color:var(--text-secondary);">Paid</div><div style="font-size:1.1rem;font-weight:800;color:#22c55e;">${fmoney(paid)}</div></div>
+        <div class="section-card" style="padding:12px 16px;border:1px solid var(--border);box-shadow:none;flex:1;min-width:150px;"><div style="font-size:0.75rem;color:var(--text-secondary);">Outstanding</div><div style="font-size:1.1rem;font-weight:800;color:#f59e0b;">${fmoney(Math.max(0, total - paid))}</div></div>
+      </div>`;
+
+      if (!items.length) {
+        wrap.innerHTML = summary + `<div class="empty-state"><div class="icon">🧾</div><div class="msg">No expenses recorded</div><div class="sub">Click "+ Add Expense" to record a school expense — it will also appear under Finance → Expenses.</div></div>`;
+        return;
+      }
+      wrap.innerHTML = summary + `<div style="overflow-x:auto;"><table class="data-table fee-cfg-table"><thead><tr>
+        <th style="text-align:left;">Date</th><th style="text-align:left;">Expense</th><th style="text-align:left;">Category</th>
+        <th style="text-align:right;">Amount</th><th style="text-align:right;">Paid</th><th style="text-align:right;">Outstanding</th>
+        <th style="text-align:center;">Status</th><th style="text-align:center;"></th></tr></thead><tbody>
+        ${items.map(i => `<tr>
+          <td style="text-align:left;white-space:nowrap;">${escapeHtml(expDate(i.due_date || i.period_start || i.created_at))}</td>
+          <td style="text-align:left;">
+            <div style="font-weight:600;">${escapeHtml(i.name)}</div>
+            ${i.description ? `<div style="font-size:0.72rem;color:var(--text-muted);">${escapeHtml(String(i.description).slice(0, 80))}${String(i.description).length > 80 ? '…' : ''}</div>` : ''}
+          </td>
+          <td style="text-align:left;">${escapeHtml(i.category_name || '—')}</td>
+          <td style="text-align:right;font-weight:700;">${fmoney(i.amount_due)}</td>
+          <td style="text-align:right;">${fmoney(i.amount_paid)}</td>
+          <td style="text-align:right;">${fmoney(i.outstanding)}</td>
+          <td style="text-align:center;">${expStatusBadge(i.payment_status)}</td>
+          <td style="text-align:center;white-space:nowrap;">
+            <button class="btn btn-secondary btn-sm" onclick="openExpenseModal(${i.id})" title="Edit"><i class="fas fa-pen"></i></button>
+            <button class="btn btn-secondary btn-sm" onclick="deleteFeeExpense(${i.id})" title="${expNum(i.amount_paid) > 0 ? 'Has payments — reverse them in Finance first' : 'Delete'}" ${expNum(i.amount_paid) > 0 ? 'disabled style="opacity:0.4;"' : ''}><i class="fas fa-trash"></i></button>
+          </td></tr>`).join('')}</tbody></table></div>`;
+    }
+
+    function openExpenseModal(expenseId) {
+      const fe = window.feeExpenses;
+      fe.editingId = expenseId || null;
+      const item = expenseId ? (fe.items || []).find(i => String(i.id) === String(expenseId)) : null;
+      let modal = document.getElementById('expenseModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'expenseModal';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2100;display:flex;align-items:center;justify-content:center;padding:20px;';
+        document.body.appendChild(modal);
+      }
+      const catOpts = (fe.categories || []).map(c =>
+        `<option value="${c.id}" ${item && String(item.category_id) === String(c.id) ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('');
+      modal.innerHTML = `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;max-height:90vh;overflow:auto;padding:22px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <div style="font-weight:800;font-size:1.05rem;">${item ? 'Edit Expense' : 'Add Expense'}</div>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('expenseModal').style.display='none'"><i class="fas fa-times"></i></button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="form-group" style="grid-column:1/-1;margin-bottom:0;"><label class="form-label">Expense title *</label>
+            <input id="exName" class="form-input" maxlength="160" placeholder="e.g. Electricity bill, Rent, Stationery" value="${escapeHtml(item?.name || '')}"></div>
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">Category *</label>
+            <select id="exCategory" class="form-input">${catOpts || '<option value="">— no categories —</option>'}</select>
+            <button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="addExpenseCategory()"><i class="fas fa-plus"></i> New category</button></div>
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">Amount (Rs.) *</label>
+            <input id="exAmount" type="number" min="0" step="0.01" class="form-input" value="${item ? expNum(item.amount_due) : ''}"></div>
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">Date</label>
+            <input id="exDate" type="date" class="form-input" value="${item ? expDate(item.due_date || item.period_start) : todayIsoLocal()}"></div>
+          <div class="form-group" style="grid-column:1/-1;margin-bottom:0;"><label class="form-label">Notes / description</label>
+            <textarea id="exNotes" class="form-input" rows="2" maxlength="2000" placeholder="Optional details about this expense">${escapeHtml(item?.description || '')}</textarea></div>
+        </div>
+        <div id="exError" style="color:var(--danger);font-size:0.82rem;margin-top:10px;display:none;"></div>
+        <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end;">
+          <button class="btn btn-ghost" onclick="document.getElementById('expenseModal').style.display='none'">Cancel</button>
+          <button class="btn btn-primary" id="exSaveBtn" onclick="saveFeeExpense()"><i class="fas fa-check"></i> ${item ? 'Save changes' : 'Save expense'}</button>
+        </div></div>`;
+      modal.style.display = 'flex';
+    }
+
+    async function addExpenseCategory() {
+      const name = prompt('New expense category name:');
+      if (!name || !name.trim()) return;
+      try {
+        const res = await apiFetch('/api/finance/expense-categories', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name.trim() })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `Server returned ${res.status}`);
+        showToast('Category added', 'success');
+        await loadFeeExpenses(true);
+        const sel = document.getElementById('exCategory');
+        if (sel && data.id) {
+          const opt = document.createElement('option');
+          opt.value = data.id; opt.textContent = data.name || name.trim(); opt.selected = true;
+          sel.appendChild(opt);
+        }
+      } catch (e) { showToast('Could not add category: ' + e.message, 'error'); }
+    }
+
+    async function saveFeeExpense() {
+      const errEl = document.getElementById('exError');
+      errEl.style.display = 'none';
+      const id = window.feeExpenses.editingId;
+      const body = {
+        name: document.getElementById('exName').value,
+        category_id: document.getElementById('exCategory').value || null,
+        amount_due: document.getElementById('exAmount').value,
+        due_date: document.getElementById('exDate').value || null,
+        description: document.getElementById('exNotes').value
+      };
+      const btn = document.getElementById('exSaveBtn');
+      btn.disabled = true;
+      try {
+        const res = await apiFetch(id ? `/api/finance/expenses/obligations/${id}` : '/api/finance/expenses/obligations', {
+          method: id ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(id ? body : { ...body, expense_type: 'one_time' })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `Server returned ${res.status}`);
+        document.getElementById('expenseModal').style.display = 'none';
+        showToast(id ? 'Expense updated' : 'Expense recorded', 'success');
+        await loadFeeExpenses(true);
+        if (FMG().activeSubTab === 'expenses') renderFeeExpenses();
+      } catch (e) {
+        errEl.textContent = e.message; errEl.style.display = 'block';
+      } finally { btn.disabled = false; }
+    }
+
+    async function deleteFeeExpense(id) {
+      const item = (window.feeExpenses.items || []).find(i => String(i.id) === String(id));
+      const name = item ? item.name : 'this expense';
+      const ok = await fmConfirm(
+        'Delete expense?',
+        `"${name}" will be permanently removed. This is only possible while no payments are recorded against it.`
+      );
+      if (!ok) return;
+      try {
+        const res = await apiFetch(`/api/finance/expenses/obligations/${id}`, { method: 'DELETE' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `Server returned ${res.status}`);
+        showToast('Expense deleted', 'success');
+        await loadFeeExpenses(true);
+        if (FMG().activeSubTab === 'expenses') renderFeeExpenses();
+      } catch (e) { showToast('Could not delete: ' + e.message, 'error'); }
     }
   </script>
 </body>

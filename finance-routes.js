@@ -118,7 +118,7 @@ function createFinanceRouter({ pool, requireAuth }) {
   if (!pool || typeof requireAuth !== 'function') throw new TypeError('Finance router requires the application pool and authentication middleware.')
 
   const router = express.Router()
-  router.use(requireAuth(['admin']))
+  router.use(requireAuth(['admin', 'super_admin']))
   router.use(async (req, res, next) => {
     try {
       userTenant(req)
@@ -1797,6 +1797,15 @@ function createFinanceRouter({ pool, requireAuth }) {
       }
       const paid = await calculatePaid(client, 'expense_payments', 'obligation_id', obligationId, req.user.tenant_id)
       if (amountToCents(paid) > 0n) fail(409, 'An obligation with payments cannot be edited; reverse or record a correction instead.')
+      const name = body.name === undefined
+        ? current.name
+        : requiredText(body.name, 'Expense name', 160)
+      const categoryId = body.category_id === undefined || body.category_id === null || body.category_id === ''
+        ? current.category_id
+        : positiveId(body.category_id, 'Expense category')
+      if (body.category_id !== undefined && body.category_id !== null && body.category_id !== '') {
+        await assertCategory(client, 'expense_categories', categoryId, req.user.tenant_id)
+      }
       const amount = body.amount_due === undefined
         ? current.amount_due
         : validAmount(body.amount_due, 'Actual bill amount', { allowZero: true })
@@ -1811,16 +1820,47 @@ function createFinanceRouter({ pool, requireAuth }) {
       const description = body.description === undefined ? current.description : optionalText(body.description, 2000)
       const updated = await client.query(
         `UPDATE expense_obligations
-         SET amount_due=$1, expected_amount=$2, due_date=$3, description=$4,
-             updated_at=CURRENT_TIMESTAMP
-         WHERE id=$5 AND tenant_id=$6 RETURNING *`,
-        [amount, expected, dueDate, description, obligationId, req.user.tenant_id]
+         SET name=$1, category_id=$2, amount_due=$3, expected_amount=$4, due_date=$5,
+             description=$6, updated_at=CURRENT_TIMESTAMP
+         WHERE id=$7 AND tenant_id=$8 RETURNING *`,
+        [name, categoryId, amount, expected, dueDate, description, obligationId, req.user.tenant_id]
       )
       await audit(client, req, req.user.tenant_id, 'expense_obligation_updated', 'expense_obligation', obligationId, {
-        before: { amount_due: current.amount_due, expected_amount: current.expected_amount, due_date: current.due_date },
-        after: { amount_due: amount, expected_amount: expected, due_date: dueDate }
+        before: { name: current.name, category_id: current.category_id, amount_due: current.amount_due, expected_amount: current.expected_amount, due_date: current.due_date },
+        after: { name, category_id: categoryId, amount_due: amount, expected_amount: expected, due_date: dueDate }
       })
       return updated.rows[0]
+    })
+    res.json(result)
+  }))
+
+  router.delete('/expenses/obligations/:id', route(async (req, res) => {
+    const obligationId = positiveId(req.params.id, 'Expense obligation')
+    const result = await transaction(async client => {
+      const currentResult = await client.query(
+        'SELECT * FROM expense_obligations WHERE id=$1 AND tenant_id=$2 FOR UPDATE',
+        [obligationId, req.user.tenant_id]
+      )
+      const current = currentResult.rows[0]
+      if (!current) fail(404, 'Expense obligation was not found.')
+      if (req.user.branch_id != null && Number(current.branch_id) !== Number(req.user.branch_id)) {
+        fail(404, 'Expense obligation was not found.')
+      }
+      const paymentCount = await client.query(
+        'SELECT COUNT(*)::int AS n FROM expense_payments WHERE tenant_id=$1 AND obligation_id=$2',
+        [req.user.tenant_id, obligationId]
+      )
+      if (paymentCount.rows[0].n > 0) {
+        fail(409, 'This expense has payments recorded against it. Reverse the payments first, then delete it.')
+      }
+      await client.query(
+        'DELETE FROM expense_obligations WHERE id=$1 AND tenant_id=$2',
+        [obligationId, req.user.tenant_id]
+      )
+      await audit(client, req, req.user.tenant_id, 'expense_obligation_deleted', 'expense_obligation', obligationId, {
+        name: current.name, amount_due: current.amount_due, category_id: current.category_id
+      })
+      return { deleted: true }
     })
     res.json(result)
   }))
