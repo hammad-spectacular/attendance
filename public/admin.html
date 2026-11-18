@@ -577,6 +577,16 @@
       word-break: break-word;
     }
 
+    .fpr-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px 12px;
+    }
+
+    .fpr-cell .form-label {
+      margin-bottom: 4px;
+    }
+
     .fee-cfg-filter-hint {
       font-size: 0.75rem;
       color: var(--text-muted);
@@ -3016,9 +3026,6 @@
         <button class="btn btn-secondary btn-sm" onclick="openFeeItemModal(null, 'charge')" title="Add a one-off or custom charge for a specific student or class — e.g. exam fee, trip fee, fine">
           <i class="fa-solid fa-plus"></i> Add Charge
         </button>
-        <button class="btn btn-secondary btn-sm" id="feeAddExpenseBtn" onclick="openExpenseModal()" title="Record a school expense — view, edit or delete it under the Expenses sub-tab">
-          <i class="fa-solid fa-wallet"></i> Add Expense
-        </button>
         <button class="btn btn-secondary btn-sm" onclick="openFeeStructureModal()" title="Monthly, admission, transport and discount rates that drive voucher amounts">
           <i class="fa-solid fa-sliders"></i> Fee Rates
         </button>
@@ -3180,6 +3187,7 @@
               <button class="btn btn-secondary btn-sm fee-cfg-level" data-level="class" onclick="setFeeCfgLevel('class')">Class-wise</button>
               <button class="btn btn-secondary btn-sm fee-cfg-level" data-level="student" onclick="setFeeCfgLevel('student')">Student-wise</button>
               <span style="flex:1"></span>
+              <button class="btn btn-secondary btn-sm" onclick="addFeeConfigRow()" title="Stage a new fee rule row — it is saved when you click Save All Changes"><i class="fa-solid fa-plus"></i> Add Fee Row</button>
               <button class="btn btn-secondary btn-sm" onclick="runFeeReconcile()" title="Generates any missing fee obligations for existing students from the rules above. Safe to run repeatedly — it never duplicates charges or touches payments."><i class="fa-solid fa-rotate"></i> Sync Student Fees</button>
               <span class="hint" style="font-size:0.75rem;color:var(--text-muted);align-self:center;">Applies the fee rules above to students who don't have obligations yet</span>
             </div>
@@ -3204,6 +3212,7 @@
                 <input type="text" id="feeCfgSearch" class="form-input" placeholder="Search fee name or category..." oninput="renderFeeConfig()">
               </div>
             </div>
+            <div id="feeConfigPendingRows"></div>
             <div id="feeConfigTableWrap"></div>
           </div>
         </div>
@@ -3958,11 +3967,12 @@
     // Dirty tracking
     const dirtyState = {
       'tab-teachers': new Map(), // id -> { original, current }
-      'tab-students': new Map()  // id -> { original, current }
+      'tab-students': new Map(), // id -> { original, current }
+      'tab-fees': new Map()      // pending fee-row uid -> { row }
     };
 
     function hasAnyDirtyChanges() {
-      return dirtyState['tab-teachers'].size > 0 || dirtyState['tab-students'].size > 0;
+      return dirtyState['tab-teachers'].size > 0 || dirtyState['tab-students'].size > 0 || dirtyState['tab-fees'].size > 0;
     }
 
     async function reloadAllData(isInitial = false, forceFetch = false) {
@@ -7972,7 +7982,7 @@
       }
       if (activeTabId === newTabId && document.querySelector(panelSelector)?.classList.contains('active')) return;
 
-      if (hasAnyDirtyChanges() && (activeTabId === 'tab-teachers' || activeTabId === 'tab-students')) {
+      if (hasAnyDirtyChanges() && (activeTabId === 'tab-teachers' || activeTabId === 'tab-students' || activeTabId === 'tab-fees')) {
         const activeTabDirty = dirtyState[activeTabId] && dirtyState[activeTabId].size > 0;
         if (activeTabDirty) {
           const tabName = document.querySelector(`.tab-btn[data-section="${activeTabId}"]`)?.textContent.trim() || 'this tab';
@@ -8092,6 +8102,11 @@
       } else if (activeTabId === 'tab-students') {
         dirtyState['tab-students'].clear();
         filterStudents();
+      } else if (activeTabId === 'tab-fees') {
+        const fm = window.feeMgmt;
+        if (fm) fm.pendingFeeRows = [];
+        dirtyState['tab-fees'].clear();
+        renderFeePendingRows();
       }
       updateSaveBar();
       showToast('Undo successful', 'info');
@@ -8159,6 +8174,45 @@
           }
           dirtyState['tab-students'].clear();
           filterStudents();
+        } else if (activeTabId === 'tab-fees') {
+          const fm = window.feeMgmt;
+          const rows = (fm && fm.pendingFeeRows) ? fm.pendingFeeRows.slice() : [];
+          const keep = [];
+          for (const row of rows) {
+            const body = validateFeePendingRow(row);
+            if (typeof body === 'string') {
+              failedCount++;
+              if (!firstError) firstError = body;
+              keep.push(row);
+              continue;
+            }
+            try {
+              const response = await apiFetch('/api/fee-management/items', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+              });
+              const data2 = await response.json().catch(() => null);
+              if (response.ok) {
+                savedCount++;
+                dirtyState['tab-fees'].delete(row.uid);
+              } else {
+                failedCount++;
+                if (!firstError) firstError = data2?.error || `HTTP ${response.status}`;
+                keep.push(row);
+              }
+            } catch (e) {
+              failedCount++;
+              if (!firstError) firstError = e.message;
+              keep.push(row);
+            }
+          }
+          if (fm) fm.pendingFeeRows = keep;
+          renderFeePendingRows();
+          if (savedCount > 0) {
+            await loadFeeCenter(true);
+            if (FMG().activeSubTab === 'config') renderFeeConfig();
+          }
         }
 
         if (savedCount > 0) await refreshDashboardAfterSave();
@@ -9312,7 +9366,7 @@
     window.feeMgmt = {
       loaded: false, loading: false, loadError: null,
       students: [], classes: [], items: [], obligations: [], summary: null,
-      payments: [], cfgLevel: 'all', editingItemId: null,
+      payments: [], cfgLevel: 'all', editingItemId: null, pendingFeeRows: [],
       activeSubTab: 'collect',
       // Legacy fields the older fee code paths still read; kept empty so any
       // straggler call degrades gracefully instead of throwing.
@@ -9934,8 +9988,11 @@
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || `Server returned ${res.status}`);
+        const it = feeItemById(id);
+        if (it) it.isActive = true;
+        renderFeeConfig();
         showToast('Fee reactivated', 'success');
-        await loadFeeCenter(true); renderFeeConfig();
+        loadFeeCenter(true).then(() => { if (FMG().activeSubTab === 'config') renderFeeConfig(); });
       } catch (e) { showToast('Could not reactivate: ' + e.message, 'error'); }
     }
 
@@ -10062,8 +10119,11 @@
         const res = await apiFetch(`/api/fee-management/items/${id}`, { method: 'DELETE' });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || `Server returned ${res.status}`);
+        const it = feeItemById(id);
+        if (it) it.isActive = false;
+        renderFeeConfig();
         showToast('Fee deactivated', 'success');
-        await loadFeeCenter(true); renderFeeConfig();
+        loadFeeCenter(true).then(() => { if (FMG().activeSubTab === 'config') renderFeeConfig(); });
       } catch (e) { showToast('Could not deactivate: ' + e.message, 'error'); }
     }
 
@@ -10108,6 +10168,123 @@
         modal.onclick = (e) => { if (e.target === modal) done(false); };
         modal.style.display = 'flex';
       });
+    }
+
+    // ---------------- Inline "Add Fee Row" staging ----------------
+    // New fee rules are staged as editable rows above the table and only hit
+    // the API when the admin clicks "Save All Changes" in the sticky bar.
+    let feeRowSeq = 0;
+    const FEE_ROW_FREQS = ['one_time', 'monthly', 'quarterly', 'annually'];
+
+    function addFeeConfigRow() {
+      const fm = FMG();
+      fm.pendingFeeRows = fm.pendingFeeRows || [];
+      const uid = 'feeRow_' + (++feeRowSeq);
+      fm.pendingFeeRows.push({
+        uid,
+        name: '', category: 'tuition', amount: '', frequency: 'monthly',
+        level: 'school', classId: '', studentId: '',
+        effectiveFrom: todayIsoLocal(), dueDay: 10, discountAmount: ''
+      });
+      dirtyState['tab-fees'].set(uid, { row: true });
+      renderFeePendingRows();
+      updateSaveBar();
+      const first = document.querySelector(`#feePendingRow-${uid} input`);
+      if (first) first.focus();
+    }
+
+    function removeFeeConfigRow(uid) {
+      const fm = FMG();
+      fm.pendingFeeRows = (fm.pendingFeeRows || []).filter(r => r.uid !== uid);
+      dirtyState['tab-fees'].delete(uid);
+      renderFeePendingRows();
+      updateSaveBar();
+    }
+
+    function feePendingInput(uid, field, el) {
+      const row = (FMG().pendingFeeRows || []).find(r => r.uid === uid);
+      if (!row) return;
+      row[field] = el.value;
+    }
+
+    function feePendingLevelChange(uid) {
+      const row = (FMG().pendingFeeRows || []).find(r => r.uid === uid);
+      if (!row) return;
+      row.level = document.getElementById(`fprLevel-${uid}`)?.value || row.level;
+      // Keep the applies-to selection coherent with the chosen level.
+      if (row.level === 'school') { row.classId = ''; row.studentId = ''; }
+      if (row.level === 'class') row.studentId = '';
+      if (row.level === 'student') row.classId = '';
+      renderFeePendingRows();
+    }
+
+    function feePendingAppliesToHtml(row) {
+      if (row.level === 'school') {
+        return `<div class="fpr-cell" style="display:flex;align-items:center;"><span style="font-size:0.8rem;color:var(--text-secondary);padding:6px 4px;">Whole school</span></div>`;
+      }
+      if (row.level === 'class') {
+        return `<div class="fpr-cell"><select class="form-input fpr-input" onchange="feePendingInput('${row.uid}','classId',this)">
+          <option value="">— pick class —</option>
+          ${FMG().classes.map(c => `<option value="${c.id}" ${String(c.id) === String(row.classId) ? 'selected' : ''}>${escapeHtml(feeClsLabel(c))}</option>`).join('')}
+        </select></div>`;
+      }
+      return `<div class="fpr-cell"><select class="form-input fpr-input" onchange="feePendingInput('${row.uid}','studentId',this)">
+        <option value="">— pick student —</option>
+        ${FMG().students.map(s => `<option value="${s.id}" ${String(s.id) === String(row.studentId) ? 'selected' : ''}>${escapeHtml(s.name)}${s.rollNo ? ' (' + escapeHtml(s.rollNo) + ')' : ''}</option>`).join('')}
+      </select></div>`;
+    }
+
+    function renderFeePendingRows() {
+      const wrap = document.getElementById('feeConfigPendingRows');
+      if (!wrap) return;
+      const rows = FMG().pendingFeeRows || [];
+      if (!rows.length) { wrap.innerHTML = ''; return; }
+      wrap.innerHTML = rows.map(row => `<div id="feePendingRow-${row.uid}" style="border:1px dashed var(--warning);border-radius:10px;padding:12px;margin-bottom:10px;background:rgba(245,158,11,0.05);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <span style="font-size:0.72rem;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;color:var(--warning);"><i class="fas fa-plus-circle"></i> New fee rule — pending save</span>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="removeFeeConfigRow('${row.uid}')" title="Remove row"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="fpr-grid">
+          <div class="fpr-cell"><label class="form-label">Fee name *</label><input class="form-input fpr-input" placeholder="e.g. Tuition Fee" value="${escapeHtml(row.name)}" oninput="feePendingInput('${row.uid}','name',this)"></div>
+          <div class="fpr-cell"><label class="form-label">Category</label><select class="form-input fpr-input" onchange="feePendingInput('${row.uid}','category',this)">${(FMG().categories || []).map(c => `<option value="${c}" ${c === row.category ? 'selected' : ''}>${CAT_LABEL[c] || c}</option>`).join('')}</select></div>
+          <div class="fpr-cell"><label class="form-label">Amount (Rs) *</label><input type="number" min="0" step="0.01" class="form-input fpr-input" value="${escapeHtml(row.amount)}" oninput="feePendingInput('${row.uid}','amount',this)"></div>
+          <div class="fpr-cell"><label class="form-label">Frequency</label><select class="form-input fpr-input" onchange="feePendingInput('${row.uid}','frequency',this)">${FEE_ROW_FREQS.map(f => `<option value="${f}" ${f === row.frequency ? 'selected' : ''}>${FREQ_LABEL[f] || f}</option>`).join('')}</select></div>
+          <div class="fpr-cell"><label class="form-label">Level *</label><select id="fprLevel-${row.uid}" class="form-input fpr-input" onchange="feePendingLevelChange('${row.uid}')">
+            <option value="school" ${row.level === 'school' ? 'selected' : ''}>School-wise</option>
+            <option value="class" ${row.level === 'class' ? 'selected' : ''}>Class-wise</option>
+            <option value="student" ${row.level === 'student' ? 'selected' : ''}>Student-wise</option></select></div>
+          <div class="fpr-cell"><label class="form-label">Applies to</label>${feePendingAppliesToHtml(row)}</div>
+          <div class="fpr-cell"><label class="form-label">Effective *</label><input type="date" class="form-input fpr-input" value="${escapeHtml(row.effectiveFrom)}" oninput="feePendingInput('${row.uid}','effectiveFrom',this)"></div>
+          <div class="fpr-cell"><label class="form-label">Due day (1–31)</label><input type="number" min="1" max="31" class="form-input fpr-input" value="${escapeHtml(row.dueDay)}" oninput="feePendingInput('${row.uid}','dueDay',this)"></div>
+          <div class="fpr-cell"><label class="form-label">Discount (Rs)</label><input type="number" min="0" step="0.01" class="form-input fpr-input" value="${escapeHtml(row.discountAmount)}" placeholder="—" oninput="feePendingInput('${row.uid}','discountAmount',this)"></div>
+          <div class="fpr-cell" style="display:flex;align-items:flex-end;"><span class="badge" style="background:rgba(34,197,94,0.15);color:#22c55e;">Active</span></div>
+        </div>
+      </div>`).join('');
+    }
+
+    function validateFeePendingRow(row) {
+      const name = String(row.name || '').trim();
+      if (!name) return `Row ${row.uid}: fee name is required.`;
+      const amount = Number(row.amount);
+      if (row.amount === '' || row.amount == null || !isFinite(amount) || amount < 0) return `"${name}": amount must be a valid number.`;
+      if (row.level === 'class' && !row.classId) return `"${name}": pick a class for a class-wise fee.`;
+      if (row.level === 'student' && !row.studentId) return `"${name}": pick a student for a student-wise fee.`;
+      const body = {
+        name,
+        category: row.category || 'other',
+        amount,
+        frequency: FEE_ROW_FREQS.includes(row.frequency) ? row.frequency : 'monthly',
+        level: ['school', 'class', 'student'].includes(row.level) ? row.level : 'school',
+        classId: row.level === 'class' ? row.classId : null,
+        studentId: row.level === 'student' ? row.studentId : null,
+        effectiveFrom: row.effectiveFrom || todayIsoLocal(),
+        dueDay: Math.min(31, Math.max(1, parseInt(row.dueDay, 10) || 10)),
+        discountAmount: row.discountAmount === '' || row.discountAmount == null ? null : row.discountAmount,
+        billingMode: 'full',
+        exempt: false,
+        notes: null
+      };
+      return body;
     }
 
     // ---------------- Expenses ----------------
