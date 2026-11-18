@@ -54,11 +54,13 @@ var MENU_CONFIG = {
           dataSection: 'tab-stats'
         },
         {
+          // Not gated behind a feature switch: the admin has to be able to see that
+          // QR attendance is on its way, so the item stays in the menu and the tab
+          // itself explains that it will be available soon.
           label: 'QR Attendance',
-          desc: 'QR-based staff attendance.',
+          desc: 'QR-based staff attendance — available soon.',
           href: '#tab-qr-attendance',
-          dataSection: 'tab-qr-attendance',
-          dataFeatureKey: 'qr_attendance'
+          dataSection: 'tab-qr-attendance'
         }
       ]
     },
