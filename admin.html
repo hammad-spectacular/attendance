@@ -9230,10 +9230,17 @@
        voucher-based implementations above (same global names, later wins). -->
   <script>
     window.feeMgmt = {
-      loaded: false, loading: false,
+      loaded: false, loading: false, loadError: null,
       students: [], classes: [], items: [], obligations: [], summary: null,
-      payments: [], cfgLevel: 'all', editingItemId: null
+      payments: [], cfgLevel: 'all', editingItemId: null,
+      activeSubTab: 'collect',
+      // Legacy fields the older fee code paths still read; kept empty so any
+      // straggler call degrades gracefully instead of throwing.
+      vouchers: [], receipts: [], receiptsLoaded: false, settings: {}, branding: {}
     };
+    // The tab-activation hooks above this script still gate rendering on
+    // window.feeCenter.loaded / .activeSubTab — alias them to the new state.
+    window.feeCenter = window.feeMgmt;
 
     const FMG = () => window.feeMgmt;
     const fmoney = (v) => formatFeeCurrency(Number(v) || 0);
@@ -9266,13 +9273,16 @@
         fm.obligations = obsRes.ok ? await obsRes.json() : [];
         fm.summary = sumRes.ok ? await sumRes.json() : null;
         fm.loaded = true;
+        fm.loadError = null;
         fm.paymentsLoaded = false;
         populateFeeClassFilters();
         populateFeeConfigFilters();
         if (typeof activeTabId !== 'undefined' && activeTabId === 'tab-fees') renderActiveFeeSubTab();
       } catch (err) {
         console.error('Failed to load fee management:', err);
+        fm.loadError = err.message;
         showToast('Failed to load fee data: ' + err.message, 'error');
+        renderActiveFeeSubTab();
       } finally { fm.loading = false; }
       return fm.loaded;
     }
@@ -9367,9 +9377,16 @@
     }
     function numSafe(v) { return Number(v) || 0; }
 
+    function feeNotLoadedHtml() {
+      const fm = FMG();
+      if (fm.loading) return `<div class="empty-state"><div class="loader-spinner" style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px;"></div><div style="font-size:0.85rem;color:var(--text-secondary);">Loading fee data...</div></div>`;
+      return `<div class="empty-state"><div class="msg" style="color:var(--danger);">Could not load fee data</div><div class="sub">${escapeHtml(fm.loadError || 'Unknown error')}</div><button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="loadFeeCenter(true).then(()=>renderActiveFeeSubTab())"><i class="fas fa-rotate"></i> Retry</button></div>`;
+    }
+
     function renderFeeCollect() {
       const wrap = document.getElementById('feeCollectTableWrap');
-      if (!wrap || !FMG().loaded) return;
+      if (!wrap) return;
+      if (!FMG().loaded) { wrap.innerHTML = feeNotLoadedHtml(); return; }
       const classFilter = document.getElementById('feeCollectClassFilter')?.value || '';
       const catFilter = document.getElementById('feeCollectCategoryFilter')?.value || '';
       const query = (document.getElementById('feeCollectSearch')?.value || '').toLowerCase().trim();
@@ -9505,7 +9522,8 @@
 
     function renderFeePending() {
       const wrap = document.getElementById('feePendingTableWrap');
-      if (!wrap || !FMG().loaded) return;
+      if (!wrap) return;
+      if (!FMG().loaded) { wrap.innerHTML = feeNotLoadedHtml(); return; }
       const classFilter = document.getElementById('feePendingClassFilter')?.value || '';
       const catFilter = document.getElementById('feePendingCategoryFilter')?.value || '';
       const statusFilter = document.getElementById('feePendingStatusFilter')?.value || '';
@@ -9707,7 +9725,8 @@
 
     function renderFeeConfig() {
       const wrap = document.getElementById('feeConfigTableWrap');
-      if (!wrap || !FMG().loaded) return;
+      if (!wrap) return;
+      if (!FMG().loaded) { wrap.innerHTML = feeNotLoadedHtml(); return; }
       const level = FMG().cfgLevel || 'all';
       const classFilter = document.getElementById('feeCfgClassFilter')?.value || '';
       const studentFilter = document.getElementById('feeCfgStudentFilter')?.value || '';
