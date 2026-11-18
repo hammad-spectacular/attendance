@@ -1181,6 +1181,7 @@
         <td>
           <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
             <button class="btn btn-sm btn-primary" data-action="print" data-id="${f.id}"><i class="fa-solid fa-print"></i> Print</button>
+            <button class="btn btn-sm" data-action="details" data-id="${f.id}" title="Itemized fee &amp; charge breakdown"><i class="fa-solid fa-list"></i> Details</button>
             <button class="btn btn-sm" data-action="charges" data-id="${f.id}">Charges</button>
             <button class="btn btn-sm btn-danger" data-action="reverse" data-id="${f.id}">Reverse</button>
           </div>
@@ -1544,6 +1545,11 @@
       setTimeout(() => window.print(), 120);
       return;
     }
+    if (action === 'details') {
+      const voucher = state.vouchers.find((v) => String(v.id) === String(id));
+      renderDetailsModal(voucher);
+      return;
+    }
     if (action === 'charges') {
       state.chargesFor = state.vouchers.find((v) => String(v.id) === String(id));
       renderChargesModal();
@@ -1745,6 +1751,76 @@
     loadVouchers();
     toast('Demo data reset.', 'ok');
   }));
+
+  // Itemized fee & charge breakdown for a single voucher — shown before
+  // printing so the admin can verify every fee and expense on the challan.
+  function renderDetailsModal(voucher) {
+    const existing = document.getElementById('detailsModal');
+    if (existing) existing.remove();
+    if (!voucher) return;
+
+    const n = (v) => E.num(v);
+    const settings = state.feeSettings;
+    const fine = n(voucher.lateFine);
+    const paid = n(voucher.paidTuition);
+    const total = voucher.balanceDue != null
+      ? voucher.balanceDue
+      : Math.max(0, n(voucher.amount) + fine - paid) + n(voucher.previousArrears) + n(voucher.remainingAnnualCharges);
+
+    const rows = [];
+    rows.push(`<tr><td>Monthly Tuition Fee</td><td style="text-align:right;">${money(E.tuitionOf(voucher))}</td></tr>`);
+    if (n(voucher.discount) > 0) rows.push(`<tr><td>Less: Discount / Scholarship</td><td style="text-align:right;color:var(--success);">- ${money(voucher.discount)}</td></tr>`);
+    for (const c of voucher.charges ?? []) rows.push(`<tr><td>${escapeHtml(c.label || 'Charge')}</td><td style="text-align:right;">${money(c.amount)}</td></tr>`);
+    for (const a of voucher.arrears ?? []) rows.push(`<tr><td>Arrears — ${escapeHtml(E.periodLabel(a))}</td><td style="text-align:right;">${money(a.amount)}${a.fine ? ` <span class="hint">(+${money(a.fine)} fine)</span>` : ''}</td></tr>`);
+    if (fine > 0) rows.push(`<tr><td>Late Fine${voucher.fineWaived ? ' (waived)' : ''}</td><td style="text-align:right;">${money(fine)}</td></tr>`);
+    if (paid > 0) rows.push(`<tr><td>Less: Already Paid</td><td style="text-align:right;color:var(--success);">- ${money(paid)}</td></tr>`);
+    if (n(voucher.remainingAnnualCharges) > 0) rows.push(`<tr><td>Annual Charges Outstanding</td><td style="text-align:right;color:var(--danger);">${money(voucher.remainingAnnualCharges)}</td></tr>`);
+    rows.push(`<tr style="font-weight:800;border-top:2px solid var(--border);"><td>Total Payable</td><td style="text-align:right;">${money(total)}</td></tr>`);
+    if (voucher.status === 'Paid' || voucher.status === 'Partially Paid') {
+      rows.push(`<tr><td>Paid so far</td><td style="text-align:right;color:var(--success);">${money(voucher.paidTotal ?? paid)}</td></tr>`);
+      rows.push(`<tr style="font-weight:800;"><td>Balance Due</td><td style="text-align:right;color:${(voucher.balanceDue ?? 0) > 0 ? 'var(--danger)' : 'var(--success)'};">${money(voucher.balanceDue ?? 0)}</td></tr>`);
+    }
+
+    const dueDate = voucher.dueDate ? new Date(voucher.dueDate) : new Date();
+    if (!voucher.dueDate) dueDate.setDate(dueDate.getDate() + (settings.dueDays ?? E.DEFAULT_DUE_DAYS));
+
+    const modal = document.createElement('div');
+    modal.className = 'modal-backdrop no-print';
+    modal.id = 'detailsModal';
+    modal.innerHTML = `
+      <div class="modal" style="max-width:560px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.25rem;">
+          <div>
+            <h2 style="font-size:1.05rem;">Fee Breakdown — Voucher #${voucher.id}</h2>
+            <p class="hint" style="margin-top:0.15rem;">${escapeHtml(voucher.studentName ?? '')} · ${escapeHtml(voucher.className ?? '')} · ${escapeHtml(voucher.month)} ${escapeHtml(voucher.year)} · Due ${dueDate.toLocaleDateString('en-GB')}</p>
+          </div>
+          <button class="btn btn-sm" data-close-details><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="table-wrap" style="margin:0.75rem 0;">
+          <table class="data" style="font-size:0.85rem;">
+            <thead><tr><th>Particulars</th><th style="text-align:right;width:130px;">Amount</th></tr></thead>
+            <tbody>${rows.join('')}</tbody>
+          </table>
+        </div>
+        <p class="hint">${(voucher.charges ?? []).length ? `Includes ${plural(voucher.charges.length, 'added charge')}. ` : ''}Edit charges with the Charges button; this view updates after saving.</p>
+        <div class="row" style="justify-content:flex-end;margin-top:0.75rem;">
+          <button class="btn" data-close-details>Close</button>
+          <button class="btn btn-primary" id="btnDetailsPrint"><i class="fa-solid fa-print"></i> Print challan</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+
+    modal.querySelectorAll('[data-close-details]').forEach((b) => b.addEventListener('click', () => modal.remove()));
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+    const printBtn = modal.querySelector('#btnDetailsPrint');
+    if (printBtn) printBtn.addEventListener('click', () => {
+      state.printTargetId = voucher.id;
+      modal.remove();
+      setPrintPage('landscape', '5mm');
+      renderChallans();
+      setTimeout(() => window.print(), 120);
+    });
+  }
 
   // Charges modal
   function renderChargesModal() {

@@ -2979,6 +2979,9 @@
         <button class="btn btn-primary btn-sm" id="feeAddNewBtn" onclick="openFeeItemModal()">
           <i class="fa-solid fa-plus"></i> Add New Fee
         </button>
+        <button class="btn btn-secondary btn-sm" onclick="openFeeItemModal(null, 'charge')" title="Add a one-off or custom charge for a specific student or class — e.g. exam fee, trip fee, fine">
+          <i class="fa-solid fa-plus"></i> Add Charge
+        </button>
         <button class="btn btn-secondary btn-sm" onclick="openFeeStructureModal()" title="Monthly, admission, transport and discount rates that drive voucher amounts">
           <i class="fa-solid fa-sliders"></i> Fee Rates
         </button>
@@ -3140,7 +3143,8 @@
               <button class="btn btn-secondary btn-sm fee-cfg-level" data-level="class" onclick="setFeeCfgLevel('class')">Class-wise</button>
               <button class="btn btn-secondary btn-sm fee-cfg-level" data-level="student" onclick="setFeeCfgLevel('student')">Student-wise</button>
               <span style="flex:1"></span>
-              <button class="btn btn-secondary btn-sm" onclick="runFeeReconcile()" title="Backfill obligations for existing students"><i class="fa-solid fa-rotate"></i> Reconcile Students</button>
+              <button class="btn btn-secondary btn-sm" onclick="runFeeReconcile()" title="Generates any missing fee obligations for existing students from the rules above. Safe to run repeatedly — it never duplicates charges or touches payments."><i class="fa-solid fa-rotate"></i> Sync Student Fees</button>
+              <span class="hint" style="font-size:0.75rem;color:var(--text-muted);align-self:center;">Applies the fee rules above to students who don't have obligations yet</span>
             </div>
             <div class="fees-filter-row" style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
               <div class="form-group" style="flex:0 1 170px; min-width:150px; margin-bottom:0;">
@@ -9751,13 +9755,25 @@
       const targetOf = (i) => i.level === 'school' ? 'Whole school'
         : i.level === 'class' ? (i.className || 'Class #' + i.classId)
         : (i.studentName || 'Student #' + i.studentId);
+      // When a specific student is filtered, make it explicit that inherited
+      // school/class rules plus this student's own charges are all shown.
+      let caption = '';
+      if (studentFilter) {
+        const s = (FMG().students || []).find(st => String(st.id) === String(studentFilter));
+        const own = items.filter(i => i.level === 'student').length;
+        caption = `<div style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:10px;padding:8px 12px;background:rgba(79,70,229,0.07);border:1px solid var(--border);border-radius:8px;">
+          <i class="fas fa-user" style="color:var(--primary);"></i>
+          Showing fees &amp; charges for <strong>${escapeHtml(s?.name || 'selected student')}</strong> —
+          ${items.length} rule(s) apply, including ${own} student-specific charge(s). Use <strong>+ Add Charge</strong> for a one-off fee.
+        </div>`;
+      }
       const discOf = (i) => {
         if (i.exempt) return 'Exempt';
         if (i.discountPercent) return i.discountPercent + '%';
         if (i.discountAmount) return 'Rs. ' + i.discountAmount;
         return '—';
       };
-      wrap.innerHTML = `<div style="overflow-x:auto;"><table class="data-table"><thead><tr>
+      wrap.innerHTML = `${caption}<div style="overflow-x:auto;"><table class="data-table"><thead><tr>
         <th style="text-align:left;">Fee Name</th><th style="text-align:left;">Category</th><th style="text-align:right;">Amount</th>
         <th style="text-align:center;">Frequency</th><th style="text-align:left;">Level</th><th style="text-align:left;">Applies To</th>
         <th style="text-align:center;">Effective</th><th style="text-align:center;">Due day</th><th style="text-align:center;">Discount</th>
@@ -9793,8 +9809,10 @@
       } catch (e) { showToast('Could not reactivate: ' + e.message, 'error'); }
     }
 
-    function openFeeItemModal(itemId) {
+    function openFeeItemModal(itemId, preset) {
       FMG().editingItemId = itemId || null;
+      const isCharge = !itemId && preset === 'charge';
+      const studentFilterVal = document.getElementById('feeCfgStudentFilter')?.value || '';
       let modal = document.getElementById('feeItemModal');
       if (!modal) {
         modal = document.createElement('div');
@@ -9804,29 +9822,36 @@
       }
       const item = itemId ? feeItemById(itemId) : null;
       const opt = (v, cur) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${v === cur ? '' : ''}${escapeHtml(String(v).replace(/_/g, ' '))}</option>`;
+      // Charge preset: one-off fee; if a student is already filtered in the
+      // table, pre-select that student so the charge lands on the right person.
+      const defLevel = isCharge && studentFilterVal ? 'student' : (item?.level || 'school');
+      const defStudent = isCharge && studentFilterVal ? studentFilterVal : (item?.studentId || '');
+      const defFreq = isCharge ? 'one_time' : (item?.frequency || 'monthly');
+      const defCat = isCharge ? 'other' : (item?.category || 'other');
       modal.innerHTML = `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;max-width:620px;width:100%;max-height:90vh;overflow:auto;padding:22px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-          <div style="font-weight:800;font-size:1.05rem;">${item ? 'Edit Fee' : 'Add New Fee'}</div>
+          <div style="font-weight:800;font-size:1.05rem;">${item ? 'Edit Fee' : isCharge ? 'Add Charge — custom fee' : 'Add New Fee'}</div>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('feeItemModal').style.display='none'"><i class="fas fa-times"></i></button>
         </div>
+        ${isCharge ? `<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:12px;">One-off charge for a specific student or class (e.g. exam fee, trip fee, fine). It does not replace tuition.</div>` : ''}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div class="form-group" style="grid-column:1/-1;margin-bottom:0;"><label class="form-label">Fee name *</label>
-            <input id="fiName" class="form-input" placeholder="e.g. Tuition Fee, Admission Fee, Exam Fee" value="${escapeHtml(item?.name || '')}"></div>
+            <input id="fiName" class="form-input" placeholder="${isCharge ? 'e.g. Exam Fee, Trip Fee, Fine' : 'e.g. Tuition Fee, Admission Fee, Exam Fee'}" value="${escapeHtml(item?.name || '')}"></div>
           <div class="form-group" style="margin-bottom:0;"><label class="form-label">Category</label>
-            <select id="fiCategory" class="form-input">${['tuition','admission','transport','exam','activity','hostel','fine','other'].map(c => opt(c, item?.category || 'other')).join('')}</select></div>
+            <select id="fiCategory" class="form-input">${['tuition','admission','transport','exam','activity','hostel','fine','other'].map(c => opt(c, defCat)).join('')}</select></div>
           <div class="form-group" style="margin-bottom:0;"><label class="form-label">Amount (Rs.) *</label>
             <input id="fiAmount" type="number" min="0" step="0.01" class="form-input" value="${item ? item.amount : ''}"></div>
           <div class="form-group" style="margin-bottom:0;"><label class="form-label">Frequency</label>
-            <select id="fiFrequency" class="form-input">${['one_time','monthly','quarterly','annually','per_term'].map(f => opt(f, item?.frequency || 'monthly')).join('')}</select></div>
+            <select id="fiFrequency" class="form-input">${['one_time','monthly','quarterly','annually','per_term'].map(f => opt(f, defFreq)).join('')}</select></div>
           <div class="form-group" style="margin-bottom:0;"><label class="form-label">Applies to (level) *</label>
             <select id="fiLevel" class="form-input" onchange="feeItemLevelChanged()">
-              <option value="school" ${item?.level === 'school' ? 'selected' : ''}>School-wide</option>
-              <option value="class" ${item?.level === 'class' ? 'selected' : ''}>Class-wise</option>
-              <option value="student" ${item?.level === 'student' ? 'selected' : ''}>Student-wise</option></select></div>
-          <div class="form-group" id="fiClassWrap" style="margin-bottom:0;display:${item?.level === 'class' ? 'block' : 'none'};"><label class="form-label">Class *</label>
+              <option value="school" ${defLevel === 'school' ? 'selected' : ''}>School-wide</option>
+              <option value="class" ${defLevel === 'class' ? 'selected' : ''}>Class-wise</option>
+              <option value="student" ${defLevel === 'student' ? 'selected' : ''}>Student-wise</option></select></div>
+          <div class="form-group" id="fiClassWrap" style="margin-bottom:0;display:${defLevel === 'class' ? 'block' : 'none'};"><label class="form-label">Class *</label>
             <select id="fiClassId" class="form-input"><option value="">— pick class —</option>${FMG().classes.map(c => `<option value="${c.id}" ${String(c.id) === String(item?.classId) ? 'selected' : ''}>${escapeHtml(feeClsLabel(c))}</option>`).join('')}</select></div>
-          <div class="form-group" id="fiStudentWrap" style="margin-bottom:0;display:${item?.level === 'student' ? 'block' : 'none'};"><label class="form-label">Student *</label>
-            <select id="fiStudentId" class="form-input"><option value="">— pick student —</option>${FMG().students.map(s => `<option value="${s.id}" ${String(s.id) === String(item?.studentId) ? 'selected' : ''}>${escapeHtml(s.name)}${s.rollNo ? ' (' + escapeHtml(s.rollNo) + ')' : ''}</option>`).join('')}</select></div>
+          <div class="form-group" id="fiStudentWrap" style="margin-bottom:0;display:${defLevel === 'student' ? 'block' : 'none'};"><label class="form-label">Student *</label>
+            <select id="fiStudentId" class="form-input"><option value="">— pick student —</option>${FMG().students.map(s => `<option value="${s.id}" ${String(s.id) === String(defStudent) ? 'selected' : ''}>${escapeHtml(s.name)}${s.rollNo ? ' (' + escapeHtml(s.rollNo) + ')' : ''}</option>`).join('')}</select></div>
           <div class="form-group" style="margin-bottom:0;"><label class="form-label">Effective from *</label>
             <input id="fiEffectiveFrom" type="date" class="form-input" value="${item?.effectiveFrom || todayIsoLocal()}"></div>
           <div class="form-group" style="margin-bottom:0;"><label class="form-label">Effective to</label>
