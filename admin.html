@@ -577,6 +577,31 @@
       word-break: break-word;
     }
 
+    #feePendingTableWrap .data-table {
+      font-size: 0.82rem;
+    }
+
+    #feePendingTableWrap .data-table th,
+    #feePendingTableWrap .data-table td {
+      padding: 9px 12px;
+      vertical-align: middle;
+    }
+
+    .fee-pager {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 12px 4px 2px;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    .fee-pager .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
     .fpr-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -3002,34 +3027,14 @@
 
     <!-- ==================== FEES TAB ==================== -->
     <div id="tab-fees" class="tab-content">
-      <!-- Fee Management Sub-Nav Pills -->
+      <!-- Fees header: Pending Fees is the only view; voucher & challan
+           generation live on the Voucher Generator page. -->
       <div style="display:flex; gap:10px; border-bottom: 2px solid var(--border); padding-bottom: 12px; margin-bottom: 20px; flex-wrap:wrap; align-items:center;">
-        <button class="btn btn-ghost fee-subtab-btn active" id="feeSubTabBtn-collect" onclick="switchFeeSubTab('collect')">
-          <i class="fa-solid fa-cash-register"></i> Collect Fee
-        </button>
-        <button class="btn btn-ghost fee-subtab-btn" id="feeSubTabBtn-pending" onclick="switchFeeSubTab('pending')">
-          <i class="fa-solid fa-hourglass-half"></i> Pending Fees
-        </button>
-        <button class="btn btn-ghost fee-subtab-btn" id="feeSubTabBtn-history" onclick="switchFeeSubTab('history')">
-          <i class="fa-solid fa-list"></i> Payment History
-        </button>
-        <button class="btn btn-ghost fee-subtab-btn" id="feeSubTabBtn-config" onclick="switchFeeSubTab('config')">
-          <i class="fa-solid fa-sliders"></i> Fee Configuration
-        </button>
-        <button class="btn btn-ghost fee-subtab-btn" id="feeSubTabBtn-expenses" onclick="switchFeeSubTab('expenses')">
-          <i class="fa-solid fa-receipt"></i> Expenses
-        </button>
+        <span style="font-weight:700; font-size:0.95rem; color:var(--text); display:inline-flex; align-items:center; gap:8px;">
+          <i class="fa-solid fa-hourglass-half" style="color:var(--warning,#f59e0b);"></i> Pending Fees
+        </span>
         <span style="flex:1"></span>
-        <button class="btn btn-primary btn-sm" id="feeAddNewBtn" onclick="openFeeItemModal()">
-          <i class="fa-solid fa-plus"></i> Add New Fee
-        </button>
-        <button class="btn btn-secondary btn-sm" onclick="openFeeItemModal(null, 'charge')" title="Add a one-off or custom charge for a specific student or class — e.g. exam fee, trip fee, fine">
-          <i class="fa-solid fa-plus"></i> Add Charge
-        </button>
-        <button class="btn btn-secondary btn-sm" onclick="openFeeStructureModal()" title="Monthly, admission, transport and discount rates that drive voucher amounts">
-          <i class="fa-solid fa-sliders"></i> Fee Rates
-        </button>
-        <a class="btn btn-secondary btn-sm" href="/voucher-generator.html#generate" title="Create monthly fee vouchers (challans) for a class">
+        <a class="btn btn-primary btn-sm" href="/voucher-generator.html#generate" title="Create monthly fee vouchers (challans) for a class">
           <i class="fa-solid fa-file-invoice"></i> Generate Voucher
         </a>
         <a class="btn btn-secondary btn-sm" href="/voucher-generator.html#collect" title="Open challans and receipts">
@@ -3038,7 +3043,7 @@
       </div>
 
       <!-- 1. Collect Fee Sub-Tab -->
-      <div id="feeSubTab-collect" class="fee-subtab-content">
+      <div id="feeSubTab-collect" class="fee-subtab-content" style="display:none;">
         <!-- Stats Grid (populated by renderFeeSummaryCards) -->
         <div id="feesSummaryCards" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:24px;"></div>
 
@@ -3096,7 +3101,7 @@
       </div>
 
       <!-- 2. Pending Fees Sub-Tab -->
-      <div id="feeSubTab-pending" class="fee-subtab-content" style="display:none;">
+      <div id="feeSubTab-pending" class="fee-subtab-content">
         <div class="section-card">
           <div class="section-header">
             <div class="section-header-left">
@@ -3110,37 +3115,25 @@
             </div>
           </div>
           <div class="section-body">
-            <div class="fees-filter-row" style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
+            <div class="fees-filter-row" style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:flex-end;">
+              <div class="form-group" style="flex:0 1 200px; min-width:170px; margin-bottom:0;">
+                <label class="form-label" for="feePendingSearch">Search</label>
+                <input type="text" id="feePendingSearch" class="form-input" placeholder="Search student name, ID or class..." oninput="renderFeePending()">
+              </div>
               <div class="form-group" style="flex:0 1 180px; min-width:150px; margin-bottom:0;">
                 <label class="form-label" for="feePendingClassFilter">Class</label>
                 <select id="feePendingClassFilter" class="form-input" onchange="renderFeePending()">
                   <option value="">All Classes</option>
                 </select>
               </div>
-              <div class="form-group" style="flex:0 1 150px; min-width:130px; margin-bottom:0;">
-                <label class="form-label" for="feePendingMonthFilter">Month</label>
-                <select id="feePendingMonthFilter" class="form-input" onchange="renderFeePending()">
-                  <option value="">All Months</option>
-                </select>
-              </div>
-              <div class="form-group" style="flex:0 1 110px; min-width:100px; margin-bottom:0;">
-                <label class="form-label" for="feePendingYearFilter">Year</label>
-                <select id="feePendingYearFilter" class="form-input" onchange="renderFeePending()">
-                  <option value="">All Years</option>
-                </select>
-              </div>
-              <div class="form-group" style="flex:0 1 160px; min-width:140px; margin-bottom:0;">
-                <label class="form-label" for="feePendingStatusFilter">Status</label>
+              <div class="form-group" style="flex:0 1 170px; min-width:140px; margin-bottom:0;">
+                <label class="form-label" for="feePendingStatusFilter">Payment status</label>
                 <select id="feePendingStatusFilter" class="form-input" onchange="renderFeePending()">
                   <option value="">All Status</option>
-                  <option value="Unpaid">Unpaid</option>
-                  <option value="Partially Paid">Partially Paid</option>
-                  <option value="Paid">Paid</option>
+                  <option value="unpaid">Unpaid</option>
+                  <option value="partially_paid">Partially Paid</option>
+                  <option value="overdue">Overdue</option>
                 </select>
-              </div>
-              <div class="form-group" style="flex:1 1 200px; min-width:180px; margin-bottom:0;">
-                <label class="form-label" for="feePendingSearch">Search</label>
-                <input type="text" id="feePendingSearch" class="form-input" placeholder="Search student or admission no..." oninput="renderFeePending()">
               </div>
             </div>
             <div id="feePendingTableWrap"></div>
@@ -9367,7 +9360,7 @@
       loaded: false, loading: false, loadError: null,
       students: [], classes: [], items: [], obligations: [], summary: null,
       payments: [], cfgLevel: 'all', editingItemId: null, pendingFeeRows: [],
-      activeSubTab: 'collect',
+      activeSubTab: 'pending',
       // Legacy fields the older fee code paths still read; kept empty so any
       // straggler call degrades gracefully instead of throwing.
       vouchers: [], receipts: [], receiptsLoaded: false, settings: {}, branding: {}
@@ -9431,8 +9424,6 @@
         if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
       });
       populateFeeCfgStudentFilter();
-      injectPendingCategoryFilter();
-      injectCollectCategoryFilter();
     }
 
     function injectPendingCategoryFilter() {
@@ -9633,7 +9624,7 @@
           (failed.length ? `<div style="margin-top:10px;color:var(--danger);font-size:0.85rem;">${failed.map(f => `${escapeHtml(feeStudentById(f.studentId)?.name || f.studentId)}: ${escapeHtml(f.error)}`).join('<br>')}</div>` : '');
         showToast(`${ok.length} payment(s) recorded${failed.length ? `, ${failed.length} failed` : ''}`, ok.length ? 'success' : 'error');
         await loadFeeCenter(true);
-        renderFeeCollect();
+        renderActiveFeeSubTab();
       } catch (err) {
         showToast('Payment failed: ' + err.message, 'error');
       } finally {
@@ -9649,51 +9640,146 @@
 
     // ---------------- Pending Fees ----------------
 
+    // ---------------- Pending Fees ----------------
+    // One row per student who still owes money. Obligations are aggregated
+    // client-side from the already-loaded /api/fee-management/obligations —
+    // no extra requests, no duplicate records.
+    const FEE_PENDING_PAGE_SIZE = 15;
+    let feePendingPage = 1;
+    let feePendingSig = '';
+
+    function feePendingStudentRows() {
+      const byStudent = new Map();
+      for (const o of FMG().obligations) {
+        if (['cancelled', 'waived', 'exempt'].includes(o.status)) continue;
+        if (numSafe(o.remaining) <= 0) continue;
+        const key = String(o.studentId);
+        if (!byStudent.has(key)) byStudent.set(key, []);
+        byStudent.get(key).push(o);
+      }
+      const rows = [];
+      for (const [sid, obs] of byStudent) {
+        const student = feeStudentById(sid);
+        const open = obs.filter(o => numSafe(o.remaining) > 0);
+        const totalFee = obs.reduce((a, o) => a + numSafe(o.finalAmount != null ? o.finalAmount : o.originalAmount), 0);
+        const paid = obs.reduce((a, o) => a + numSafe(o.paidAmount), 0);
+        const remaining = obs.reduce((a, o) => a + numSafe(o.remaining), 0);
+        const dues = open.map(o => o.dueDate).filter(Boolean).sort();
+        const status = open.some(o => o.payStatus === 'overdue') ? 'overdue'
+          : (open.some(o => o.payStatus === 'partially_paid') || paid > 0.004) ? 'partially_paid' : 'unpaid';
+        rows.push({
+          studentId: sid,
+          name: student?.name || open[0]?.studentName || 'Student',
+          studentLabel: student?.rollNo || student?.admissionNumber || open[0]?.studentRoll || open[0]?.admissionNumber || `#${sid}`,
+          classId: student?.classId ?? open[0]?.classId ?? '',
+          className: student?.className || open[0]?.className || 'Unassigned',
+          totalFee, paid, remaining,
+          dueDate: dues.length ? dues[0] : '—',
+          status,
+          openCount: open.length
+        });
+      }
+      return rows;
+    }
+
+    function feePendingStatusMeta(status) {
+      return {
+        unpaid: { label: 'Unpaid', color: '#ef4444' },
+        partially_paid: { label: 'Partially Paid', color: '#f59e0b' },
+        overdue: { label: 'Overdue', color: '#dc2626' },
+        paid: { label: 'Paid', color: '#22c55e' }
+      }[status] || { label: status, color: '#94a3b8' };
+    }
+
     function renderFeePending() {
       const wrap = document.getElementById('feePendingTableWrap');
       if (!wrap) return;
       if (!FMG().loaded) { wrap.innerHTML = feeNotLoadedHtml(); return; }
       const classFilter = document.getElementById('feePendingClassFilter')?.value || '';
-      const catFilter = document.getElementById('feePendingCategoryFilter')?.value || '';
       const statusFilter = document.getElementById('feePendingStatusFilter')?.value || '';
       const query = (document.getElementById('feePendingSearch')?.value || '').toLowerCase().trim();
-      let rows = FMG().obligations.filter(o => !['cancelled', 'waived'].includes(o.status));
-      if (classFilter) rows = rows.filter(o => String(o.classId) === String(classFilter));
-      if (catFilter) rows = rows.filter(o => o.category === catFilter);
-      if (statusFilter) rows = rows.filter(o => o.payStatus === statusFilter.toLowerCase().replace(/ /g, '_') || o.status === statusFilter);
-      if (query) rows = rows.filter(o =>
-        String(o.studentName || '').toLowerCase().includes(query) ||
-        String(o.studentRoll || o.admissionNumber || '').toLowerCase().includes(query) ||
-        String(o.feeName || '').toLowerCase().includes(query));
-      rows.sort((a, b) => String(a.dueDate || '9999').localeCompare(String(b.dueDate || '9999')) || String(a.studentName).localeCompare(String(b.studentName)));
+
+      // Reset to page 1 whenever the active filter combination changes.
+      const sig = `${classFilter}|${statusFilter}|${query}`;
+      if (sig !== feePendingSig) { feePendingSig = sig; feePendingPage = 1; }
+
+      let rows = feePendingStudentRows();
+      if (classFilter) rows = rows.filter(r => String(r.classId) === String(classFilter));
+      if (statusFilter) rows = rows.filter(r => r.status === statusFilter);
+      if (query) rows = rows.filter(r =>
+        String(r.name || '').toLowerCase().includes(query) ||
+        String(r.studentLabel || '').toLowerCase().includes(query) ||
+        String(r.className || '').toLowerCase().includes(query));
+      rows.sort((a, b) =>
+        (a.status === 'overdue' ? 0 : 1) - (b.status === 'overdue' ? 0 : 1) ||
+        String(a.dueDate).localeCompare(String(b.dueDate)) ||
+        String(a.name).localeCompare(String(b.name)));
 
       if (!rows.length) {
-        wrap.innerHTML = `<div class="empty-state"><div class="icon">✅</div><div class="msg">No matching fee obligations</div><div class="sub">Every obligation is paid or none exist for these filters.</div></div>`;
+        wrap.innerHTML = `<div class="empty-state"><div class="icon">✅</div>
+          <div class="msg">No pending fees</div>
+          <div class="sub">${classFilter || statusFilter || query ? 'No students match these filters.' : 'Every student is fully paid — outstanding dues will appear here.'}</div></div>`;
         return;
       }
-      const stColor = { unpaid: '#ef4444', partially_paid: '#f59e0b', paid: '#22c55e', overdue: '#dc2626', exempt: '#94a3b8' };
-      const stLabel = { unpaid: 'Unpaid', partially_paid: 'Partially Paid', paid: 'Paid', overdue: 'Overdue', exempt: 'Exempt' };
-      wrap.innerHTML = `<div style="overflow-x:auto;"><table class="data-table"><thead><tr>
-        <th style="text-align:left;">Student</th><th style="text-align:left;">Student ID</th><th style="text-align:left;">Class</th>
-        <th style="text-align:left;">Fee</th><th style="text-align:left;">Category</th><th style="text-align:center;">Period</th>
-        <th style="text-align:right;">Original</th><th style="text-align:right;">Discount</th>
-        <th style="text-align:right;">Paid</th><th style="text-align:right;">Remaining</th>
-        <th style="text-align:center;">Due</th><th style="text-align:center;">Status</th><th style="text-align:center;"></th></tr></thead><tbody>
-        ${rows.map(o => `<tr>
-          <td style="text-align:left;font-weight:600;cursor:pointer;color:var(--primary-light);" onclick="showStudentFeeBreakdown(${o.studentId})">${escapeHtml(o.studentName || '—')}</td>
-          <td style="text-align:left;">${escapeHtml(o.studentRoll || o.admissionNumber || '—')}</td>
-          <td style="text-align:left;">${escapeHtml(o.className || 'Unassigned')}</td>
-          <td style="text-align:left;">${escapeHtml(o.feeName)}</td>
-          <td style="text-align:left;">${CAT_LABEL[o.category] || escapeHtml(o.category)}</td>
-          <td style="text-align:center;">${escapeHtml(o.periodLabel || '—')}</td>
-          <td style="text-align:right;">${fmoney(o.originalAmount)}</td>
-          <td style="text-align:right;">${fmoney(o.discountAmount)}</td>
-          <td style="text-align:right;">${fmoney(o.paidAmount)}</td>
-          <td style="text-align:right;font-weight:700;color:${numSafe(o.remaining) > 0 ? 'var(--danger,#dc2626)' : 'var(--success)'};">${fmoney(o.remaining)}</td>
-          <td style="text-align:center;">${escapeHtml(o.dueDate || '—')}</td>
-          <td style="text-align:center;"><span class="badge" style="background:rgba(148,163,184,0.15);color:${stColor[o.payStatus] || '#94a3b8'};">${stLabel[o.payStatus] || o.status}</span></td>
-          <td style="text-align:center;">${numSafe(o.remaining) > 0 ? `<button class="btn btn-primary btn-sm" onclick="collectStudentFromPending(${o.studentId})"><i class="fas fa-money-bill-wave"></i></button>` : ''}</td>
-        </tr>`).join('')}</tbody></table></div>`;
+
+      const totalPages = Math.max(1, Math.ceil(rows.length / FEE_PENDING_PAGE_SIZE));
+      feePendingPage = Math.min(Math.max(1, feePendingPage), totalPages);
+      const pageRows = rows.slice((feePendingPage - 1) * FEE_PENDING_PAGE_SIZE, feePendingPage * FEE_PENDING_PAGE_SIZE);
+      const from = (feePendingPage - 1) * FEE_PENDING_PAGE_SIZE + 1;
+      const to = Math.min(rows.length, feePendingPage * FEE_PENDING_PAGE_SIZE);
+
+      wrap.innerHTML = `
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="text-align:left;">Student Name</th>
+                <th style="text-align:left;">Student ID</th>
+                <th style="text-align:left;">Class</th>
+                <th style="text-align:right;">Total Fee</th>
+                <th style="text-align:right;">Amount Paid</th>
+                <th style="text-align:right;">Remaining Balance</th>
+                <th style="text-align:center;">Due Date</th>
+                <th style="text-align:center;">Payment Status</th>
+                <th style="text-align:center;">Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${pageRows.map(r => {
+                const meta = feePendingStatusMeta(r.status);
+                return `<tr>
+                  <td style="text-align:left;font-weight:600;">
+                    <span style="cursor:pointer;color:var(--primary-light);" onclick="showStudentFeeBreakdown(${r.studentId})">${escapeHtml(r.name)}</span>
+                    ${r.openCount > 1 ? `<div style="font-size:0.72rem;color:var(--text-muted);font-weight:400;">${r.openCount} open items</div>` : ''}
+                  </td>
+                  <td style="text-align:left;">${escapeHtml(r.studentLabel)}</td>
+                  <td style="text-align:left;">${escapeHtml(r.className)}</td>
+                  <td style="text-align:right;">${fmoney(r.totalFee)}</td>
+                  <td style="text-align:right;">${fmoney(r.paid)}</td>
+                  <td style="text-align:right;font-weight:800;color:#dc2626;">${fmoney(r.remaining)}</td>
+                  <td style="text-align:center;">${escapeHtml(r.dueDate)}</td>
+                  <td style="text-align:center;"><span class="badge" style="background:rgba(148,163,184,0.15);color:${meta.color};">${meta.label}</span></td>
+                  <td style="text-align:center; white-space:nowrap;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="showStudentFeeBreakdown(${r.studentId})" title="View fee details"><i class="fas fa-eye"></i> View</button>
+                  </td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div class="fee-pager">
+          <span>Showing ${from}–${to} of ${rows.length} student${rows.length === 1 ? '' : 's'}</span>
+          <span style="flex:1"></span>
+          <button type="button" class="btn btn-secondary btn-sm" ${feePendingPage <= 1 ? 'disabled' : ''} onclick="feePendingGoPage(${feePendingPage - 1})"><i class="fas fa-chevron-left"></i> Prev</button>
+          <span>Page ${feePendingPage} of ${totalPages}</span>
+          <button type="button" class="btn btn-secondary btn-sm" ${feePendingPage >= totalPages ? 'disabled' : ''} onclick="feePendingGoPage(${feePendingPage + 1})">Next <i class="fas fa-chevron-right"></i></button>
+        </div>`;
+    }
+
+    function feePendingGoPage(page) {
+      feePendingPage = page;
+      renderFeePending();
+      document.getElementById('feePendingTableWrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function collectStudentFromPending(studentId) {
