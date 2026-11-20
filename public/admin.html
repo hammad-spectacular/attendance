@@ -3027,21 +3027,39 @@
 
     <!-- ==================== FEES TAB ==================== -->
     <div id="tab-fees" class="tab-content">
-      <!-- Fees header: Pending Fees is the only view; voucher & challan
-           generation live on the Voucher Generator page. -->
+      <!-- Fees header: the module is intentionally minimal — voucher generation,
+           pending vouchers and fee configuration all live in the Voucher
+           Generator workspace. -->
       <div style="display:flex; gap:10px; border-bottom: 2px solid var(--border); padding-bottom: 12px; margin-bottom: 20px; flex-wrap:wrap; align-items:center;">
         <span style="font-weight:700; font-size:0.95rem; color:var(--text); display:inline-flex; align-items:center; gap:8px;">
-          <i class="fa-solid fa-hourglass-half" style="color:var(--warning,#f59e0b);"></i> Pending Fees
+          <i class="fa-solid fa-money-bill-wave" style="color:var(--primary,#3b82f6);"></i> Fees
         </span>
-        <span style="flex:1"></span>
-        <a class="btn btn-primary btn-sm" href="/voucher-generator.html#generate" title="Create monthly fee vouchers (challans) for a class">
-          <i class="fa-solid fa-file-invoice"></i> Generate Voucher
+      </div>
+
+      <!-- The Fees module is intentionally minimal: voucher generation,
+           pending vouchers and fee configuration all live in the Voucher
+           Generator workspace. The legacy fee views below are kept in the DOM
+           (hidden) so their handlers, APIs and records remain intact. -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:20px; max-width:900px;">
+        <a href="/voucher-generator.html#generate" class="section-card" style="text-decoration:none; color:inherit; display:block; transition:transform .15s ease, box-shadow .15s ease;">
+          <div class="section-body" style="padding:28px 24px;">
+            <div class="section-icon amber" style="background: rgba(250, 204, 21, 0.14); color: #f59e0b; width:52px; height:52px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; margin-bottom:16px;"><i class="fa-solid fa-file-invoice"></i></div>
+            <div style="font-weight:700; font-size:1.05rem; margin-bottom:6px;">Fee Voucher Generator</div>
+            <p style="color:var(--text-muted); font-size:0.88rem; line-height:1.5; margin:0;">Pick a month, class or students, preview the charges from the active fee configuration and generate printable challans. Outstanding vouchers and balances are shown alongside.</p>
+            <span class="btn btn-primary btn-sm" style="margin-top:18px; display:inline-flex; align-items:center; gap:8px;">Open <i class="fa-solid fa-arrow-right"></i></span>
+          </div>
         </a>
-        <a class="btn btn-secondary btn-sm" href="/voucher-generator.html#collect" title="Open challans and receipts">
-          <i class="fa-solid fa-print"></i> Challans
+        <a href="/voucher-generator.html#config" class="section-card" style="text-decoration:none; color:inherit; display:block; transition:transform .15s ease, box-shadow .15s ease;">
+          <div class="section-body" style="padding:28px 24px;">
+            <div class="section-icon" style="background: rgba(59,130,246,0.12); color:#3b82f6; width:52px; height:52px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; margin-bottom:16px;"><i class="fa-solid fa-sliders"></i></div>
+            <div style="font-weight:700; font-size:1.05rem; margin-bottom:6px;">Fee Configuration</div>
+            <p style="color:var(--text-muted); font-size:0.88rem; line-height:1.5; margin:0;">Manage the school fee structure — monthly, admission, transport, discount and extra charges. Changes take effect this month or next, and paid vouchers are never altered.</p>
+            <span class="btn btn-secondary btn-sm" style="margin-top:18px; display:inline-flex; align-items:center; gap:8px;">Open <i class="fa-solid fa-arrow-right"></i></span>
+          </div>
         </a>
       </div>
 
+      <div id="legacyFeeViews" style="display:none;">
       <!-- 1. Collect Fee Sub-Tab -->
       <div id="feeSubTab-collect" class="fee-subtab-content" style="display:none;">
         <!-- Stats Grid (populated by renderFeeSummaryCards) -->
@@ -3248,6 +3266,7 @@
           </div>
         </div>
       </div>
+      </div><!-- /legacyFeeViews -->
     </div>
 
     <!-- ==================== COORDINATORS TAB ==================== -->
@@ -9381,6 +9400,10 @@
 
     async function loadFeeCenter(force) {
       const fm = FMG();
+      // The Fees tab only links to the Voucher Generator now; the legacy
+      // fee-management views stay in the DOM (hidden) so their APIs and
+      // records remain intact, but their data is no longer needed here.
+      if (document.getElementById('legacyFeeViews')?.style.display === 'none') return true;
       if (fm.loading) return fm.loaded;
       if (fm.loaded && !force) return true;
       fm.loading = true;

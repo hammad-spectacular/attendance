@@ -1007,6 +1007,13 @@ async function createTables() {
 
     ALTER TABLE fee_receipts ADD COLUMN IF NOT EXISTS payment_method VARCHAR(40);
     ALTER TABLE fee_receipts ADD COLUMN IF NOT EXISTS payment_date DATE;
+
+    -- Fee configuration versioning: rows are never rewritten, a change is a
+    -- new row whose effective_from says which billing month it starts on.
+    -- voided marks a removed override so the previous version applies again.
+    ALTER TABLE fee_structures ADD COLUMN IF NOT EXISTS effective_from DATE NOT NULL DEFAULT '2000-01-01';
+    ALTER TABLE fee_structures ADD COLUMN IF NOT EXISTS voided BOOLEAN NOT NULL DEFAULT false;
+    CREATE INDEX IF NOT EXISTS idx_fee_structures_effective ON fee_structures(tenant_id, type, target_id, effective_from);
   `)
 
   // --- Configurable student fee management: fee items, obligations, payments ---

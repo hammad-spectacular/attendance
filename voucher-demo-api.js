@@ -331,6 +331,44 @@
       return result;
     },
 
+    /** Demo stand-ins for the live fee-configuration endpoints. */
+    async feeConfig() {
+      const db = load();
+      const students = db.students.map((s) => {
+        const cls = db.classes.find((c) => String(c.id) === String(s.classId));
+        return {
+          id: s.id, name: s.name,
+          rollNo: s.admissionNumber || '', classId: s.classId,
+          className: cls ? E.classLabel(cls, cls.id) : null,
+        };
+      });
+      return {
+        classes: db.classes.map((c) => ({ id: c.id, label: E.classLabel(c, c.id) })),
+        students,
+        structures: [],
+        presets: [],
+        presetVersions: [],
+      };
+    },
+
+    async previewReprice({ month, year } = {}) {
+      const db = load();
+      const existing = db.fees.filter((f) => f.month === month && String(f.year) === String(year));
+      const billed = new Set(existing.map((f) => String(f.studentId)));
+      const open = db.students.filter((s) => !E.isLeft(s)).length - billed.size;
+      return { month, year: String(year), students: db.students.length, create: Math.max(0, open), update: 0, preserved: 0, affected: Math.max(0, open) };
+    },
+
+    async saveFeeConfig({ effectiveFrom, structures, presets, applyMonth } = {}) {
+      // The demo has no server-side versioning; keep the presets in branding.
+      try {
+        const branding = { ...(this.branding ? await this.branding() : {}) };
+        branding.chargePresets = Array.isArray(presets) ? presets : [];
+        root.localStorage?.setItem(BRAND_KEY, JSON.stringify(branding));
+      } catch (err) { /* ignore */ }
+      return { structuresSaved: Array.isArray(structures) ? structures.length : 0, presetsSaved: effectiveFrom, applied: null };
+    },
+
     /** Receipts, newest first. */
     payments() {
       return [...load().payments].sort((a, b) => b.id - a.id).map((p) => ({ ...p }));

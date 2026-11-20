@@ -90,11 +90,38 @@ function createFeeRouter({ pool, requireAuth }) {
     }
   }
 
-  /** The fee rules of one student: their own row wins over the class row. */
-  function feeFor(feeMap, student) {
-    const own = feeMap.get(`student:${student.id}`)
-    const klass = student.class_id != null ? feeMap.get(`class:${student.class_id}`) : null
-    const row = own || klass
+  const FEE_EPOCH = '2000-01-01'
+
+  /** 'YYYY-MM-DD' for a DATE column value or Date, in server-local time. */
+  function isoDay(value) {
+    if (value == null) return ''
+    if (value instanceof Date) {
+      const p = (n) => String(n).padStart(2, '0')
+      return `${value.getFullYear()}-${p(value.getMonth() + 1)}-${p(value.getDate())}`
+    }
+    return String(value).slice(0, 10)
+  }
+
+  /** The fee rule in force on `asOf`: newest non-voided version effective by then. */
+  function pickFeeVersion(rows, asOf) {
+    const day = asOf instanceof Date ? isoDay(asOf) : String(asOf ?? '').slice(0, 10)
+    let best = null
+    for (const row of rows ?? []) {
+      if (row.voided) continue
+      const eff = row.effective_from ? isoDay(row.effective_from) : FEE_EPOCH
+      if (eff > day) continue
+      const bestEff = best?.effective_from ? isoDay(best.effective_from) : FEE_EPOCH
+      if (!best || eff > bestEff || (eff === bestEff && num(row.id) > num(best.id))) best = row
+    }
+    return best
+  }
+
+  /** The fee rules of one student: their own row wins over the class row, then the school default. */
+  function feeFor(feeVersions, student, asOf) {
+    const pick = (key) => pickFeeVersion(feeVersions.get(key), asOf)
+    const row = pick(`student:${student.id}`)
+      || (student.class_id != null ? pick(`class:${student.class_id}`) : null)
+      || pick('school:0')
     return {
       monthlyFee: num(row?.monthly_fee),
       discount: num(row?.discount),
@@ -107,7 +134,7 @@ function createFeeRouter({ pool, requireAuth }) {
    * Loads the whole school into the shape the fee engine expects:
    * settings, classes, students, vouchers and receipts.
    */
-  async function loadDb(client, tenantId, user) {
+  async function loadDb(client, tenantId, user, asOf = new Date()) {
     const branchId = isCoordinator(user) ? user.branch_id : null
 
     const classQuery = branchId
@@ -120,15 +147,20 @@ function createFeeRouter({ pool, requireAuth }) {
     const [classesRes, studentsRes, feesRes, settingsRes, voucherRes, receiptRes] = await Promise.all([
       classQuery,
       studentQuery,
-      client.query('SELECT type, target_id, monthly_fee, admission_fee, transport_fee, discount FROM fee_structures WHERE tenant_id = $1 ORDER BY id', [tenantId]),
+      client.query('SELECT id, type, target_id, monthly_fee, admission_fee, transport_fee, discount, effective_from, voided FROM fee_structures WHERE tenant_id = $1 ORDER BY effective_from, id', [tenantId]),
       client.query('SELECT due_days, late_fine, branding FROM fee_settings WHERE tenant_id = $1', [tenantId]),
       client.query('SELECT * FROM fee_vouchers WHERE tenant_id = $1 ORDER BY year, month, id', [tenantId]),
       client.query('SELECT * FROM fee_receipts WHERE tenant_id = $1 ORDER BY id', [tenantId]),
     ])
 
-    // The newest fee row for a class or a student wins.
-    const feeMap = new Map()
-    for (const row of feesRes.rows) feeMap.set(`${row.type}:${row.target_id}`, row)
+    // Every fee-structure version, grouped by scope; pickFeeVersion resolves
+    // which one was in force on `asOf` (a billing month start, or today).
+    const feeVersions = new Map()
+    for (const row of feesRes.rows) {
+      const key = `${row.type}:${row.target_id}`
+      if (!feeVersions.has(key)) feeVersions.set(key, [])
+      feeVersions.get(key).push(row)
+    }
 
     // Annual charges already paid come from the receipts that are not reversed.
     const paidAnnual = new Map()
@@ -137,16 +169,19 @@ function createFeeRouter({ pool, requireAuth }) {
       paidAnnual.set(row.student_id, num(paidAnnual.get(row.student_id)) + num(row.paid_ac))
     }
 
-    const classes = classesRes.rows.map((c) => ({
-      id: c.id,
-      name: c.name,
-      section: c.section || '',
-      monthlyFee: num(feeMap.get(`class:${c.id}`)?.monthly_fee),
-      annualCharges: num(feeMap.get(`class:${c.id}`)?.admission_fee),
-    }))
+    const classes = classesRes.rows.map((c) => {
+      const rule = pickFeeVersion(feeVersions.get(`class:${c.id}`), asOf)
+      return {
+        id: c.id,
+        name: c.name,
+        section: c.section || '',
+        monthlyFee: num(rule?.monthly_fee),
+        annualCharges: num(rule?.admission_fee),
+      }
+    })
 
     const students = studentsRes.rows.map((s) => {
-      const fee = feeFor(feeMap, s)
+      const fee = feeFor(feeVersions, s, asOf)
       return {
         id: s.id,
         name: s.name,
@@ -188,16 +223,46 @@ function createFeeRouter({ pool, requireAuth }) {
     return E.withBalances(vouchers, db.fees, students, db.settings)
   }
 
+  const round2 = (v) => Math.round(v * 100) / 100
+
+  /** Tidied saved-charge presets: name, positive amount, optional class scope. */
+  function normalizePresets(list) {
+    return (Array.isArray(list) ? list : [])
+      .map((p, i) => ({
+        id: p?.id || `p${i}`,
+        label: String(p?.label ?? '').trim(),
+        amount: round2(num(p?.amount)),
+        classId: p?.classId == null ? '' : String(p.classId),
+      }))
+      .filter((p) => p.label && p.amount > 0)
+  }
+
+  /**
+   * The preset list in force for a billing month. Versions live in
+   * branding.chargePresetVersions as {effectiveFrom:'YYYY-MM', presets}.
+   * Falls back to the legacy flat chargePresets for schools saved before
+   * versioning existed.
+   */
+  function presetsForPeriod(branding, periodStart) {
+    const versions = Array.isArray(branding?.chargePresetVersions) ? branding.chargePresetVersions : []
+    const monthStr = `${periodStart.getFullYear()}-${String(periodStart.getMonth() + 1).padStart(2, '0')}`
+    let best = null
+    for (const v of versions) {
+      const eff = String(v?.effectiveFrom || '')
+      if (eff && eff <= monthStr && (!best || eff > best.eff)) best = { eff, presets: v.presets }
+    }
+    return normalizePresets(best ? best.presets : branding?.chargePresets)
+  }
+
   /**
    * The saved challan charges that apply to this student: every school-wide
    * preset plus the ones scoped to the student's class. A preset whose name
    * is already a monthly charge (the transport fee, say) is not repeated.
    */
-  function presetChargesFor(db, student) {
-    const presets = Array.isArray(db.branding?.chargePresets) ? db.branding.chargePresets : []
+  function presetChargesFor(db, student, presets) {
     const taken = new Set((student.monthlyCharges ?? []).map((c) => String(c.label).toLowerCase()))
     const out = []
-    for (const p of presets) {
+    for (const p of presets ?? []) {
       const label = String(p?.label ?? '').trim()
       const amount = num(p?.amount)
       if (!label || !(amount > 0) || taken.has(label.toLowerCase())) continue
@@ -207,6 +272,76 @@ function createFeeRouter({ pool, requireAuth }) {
       out.push({ label, amount })
     }
     return out
+  }
+
+  /** What one student's voucher for a period should bill, from effective config. */
+  function voucherSpecFor(db, student, periodPresets) {
+    const extra = presetChargesFor(db, student, periodPresets)
+    const s = extra.length
+      ? { ...student, monthlyCharges: [...(student.monthlyCharges ?? []), ...extra] }
+      : student
+    const baseAmount = num(s.monthlyFee)
+    const discount = num(s.discount)
+    const charges = E.cleanCharges(s.monthlyCharges)
+    const amount = Math.max(0, baseAmount - discount) + charges.reduce((a, c) => a + num(c.amount), 0)
+    return { baseAmount, discount, charges, amount }
+  }
+
+  function periodStartFor(month, year) {
+    const monthIdx = E.MONTHS.indexOf(month)
+    return new Date(Number(year), monthIdx < 0 ? 0 : monthIdx, 1)
+  }
+
+  /**
+   * Works out what re-pricing one billing period would do WITHOUT writing:
+   * create vouchers for students who have none, update amounts on vouchers
+   * that are not fully paid, and leave Paid vouchers untouched.
+   */
+  function planPeriodReprice(db, month, year) {
+    const periodStart = periodStartFor(month, year)
+    const periodPresets = presetsForPeriod(db.branding, periodStart)
+    const plan = { create: [], update: [], preserved: 0 }
+    for (const student of db.students.filter((s) => !E.isLeft(s))) {
+      const spec = voucherSpecFor(db, student, periodPresets)
+      const existing = db.fees.find((v) =>
+        String(v.studentId) === String(student.id) && v.month === month && String(v.year) === String(year))
+      if (!existing) plan.create.push({ student, spec })
+      else if (E.voucherStatus(existing) === 'Paid') plan.preserved++
+      else plan.update.push({ voucher: existing, student, spec })
+    }
+    return plan
+  }
+
+  /**
+   * Applies a reprice plan: new vouchers are created exactly like Generate,
+   * open vouchers get new amounts while every paid rupee stays recorded,
+   * and fully paid vouchers are never touched.
+   */
+  async function applyPeriodReprice(client, tenantId, db, plan, month, year) {
+    const issued = new Date()
+    const dueDate = new Date(issued.getTime() + db.settings.dueDays * DAY_MS)
+    const classes = new Map(db.classes.map((c) => [String(c.id), c]))
+    let created = 0
+    let updated = 0
+    for (const { student, spec } of plan.create) {
+      const voucher = E.newVoucher(
+        { ...student, monthlyCharges: spec.charges },
+        E.classLabel(classes.get(String(student.classId)), student.classId),
+        month, year, issued, dueDate
+      )
+      if (E.insertIfNew(db, voucher)) created++
+    }
+    for (const { voucher, student, spec } of plan.update) {
+      voucher.amount = spec.amount
+      voucher.baseAmount = spec.baseAmount
+      voucher.discount = spec.discount
+      voucher.charges = spec.charges
+      voucher.remainingAnnualCharges = Math.max(0, num(student.annualCharges) - num(student.paidAnnualCharges))
+      voucher.status = E.voucherStatus(voucher)
+      updated++
+    }
+    await persist(client, tenantId, db)
+    return { created, updated, preserved: plan.preserved }
   }
 
   // --------------------------------------------------------------------------
@@ -416,7 +551,12 @@ function createFeeRouter({ pool, requireAuth }) {
       const year = String(body.year || new Date().getFullYear())
 
       const count = await withTransaction(async (client) => {
-        const db = await loadDb(client, tenantId, req.user)
+        // Fees and presets resolve as they were in force for THIS billing
+        // month, so a config saved for next month cannot leak backwards.
+        const monthIdx = E.MONTHS.indexOf(month)
+        const periodStart = new Date(Number(year), monthIdx < 0 ? new Date().getMonth() : monthIdx, 1)
+        const db = await loadDb(client, tenantId, req.user, periodStart)
+        const periodPresets = presetsForPeriod(db.branding, periodStart)
         const alreadyBilled = new Set(
           db.fees.filter((f) => f.month === month && String(f.year) === year).map((f) => String(f.studentId))
         )
@@ -435,7 +575,7 @@ function createFeeRouter({ pool, requireAuth }) {
         let made = 0
         for (const student of targets) {
           if (alreadyBilled.has(String(student.id))) continue
-          const extra = presetChargesFor(db, student)
+          const extra = presetChargesFor(db, student, periodPresets)
           const voucher = E.newVoucher(
             extra.length ? { ...student, monthlyCharges: [...(student.monthlyCharges ?? []), ...extra] } : student,
             E.classLabel(classes.get(String(student.classId)), student.classId),
@@ -452,6 +592,180 @@ function createFeeRouter({ pool, requireAuth }) {
       })
 
       res.json({ count, month, year })
+    } catch (err) {
+      sendError(res, err)
+    }
+  })
+
+  // --------------------------------------------------------------------------
+  // Fee configuration: versioned structures + scheduled presets
+  // --------------------------------------------------------------------------
+
+  const configAuth = requireAuth(['admin', 'super_admin'])
+
+  /** Everything the Fee Configuration tab needs: rules in force, targets, presets. */
+  router.get('/config', configAuth, async (req, res) => {
+    try {
+      const client = await pool.connect()
+      try {
+        const tenantId = req.user.tenant_id
+        const today = new Date()
+        const [classesRes, studentsRes, structRes, settingsRes] = await Promise.all([
+          client.query('SELECT id, name, section FROM classes WHERE tenant_id = $1 ORDER BY id', [tenantId]),
+          client.query('SELECT id, name, roll_no, class_id, login_id FROM students WHERE tenant_id = $1 ORDER BY name, id', [tenantId]),
+          client.query('SELECT * FROM fee_structures WHERE tenant_id = $1 ORDER BY effective_from, id', [tenantId]),
+          client.query('SELECT branding FROM fee_settings WHERE tenant_id = $1', [tenantId]),
+        ])
+        const classLabelOf = (id) => {
+          const c = classesRes.rows.find((x) => String(x.id) === String(id))
+          return c ? `${c.name}${c.section ? ' - ' + c.section : ''}` : null
+        }
+        const byKey = new Map()
+        for (const r of structRes.rows) {
+          const key = `${r.type}:${r.target_id}`
+          if (!byKey.has(key)) byKey.set(key, [])
+          byKey.get(key).push(r)
+        }
+        const structures = []
+        for (const rows of byKey.values()) {
+          const cur = pickFeeVersion(rows, today)
+          if (cur) structures.push(cur)
+        }
+        const branding = settingsRes.rows[0]?.branding || {}
+        res.json({
+          classes: classesRes.rows.map((c) => ({ id: c.id, label: `${c.name}${c.section ? ' - ' + c.section : ''}` })),
+          students: studentsRes.rows.map((s) => ({
+            id: s.id, name: s.name, rollNo: s.roll_no || s.login_id || '',
+            classId: s.class_id, className: classLabelOf(s.class_id),
+          })),
+          structures: structures.map((r) => ({
+            id: r.id, type: r.type, target_id: r.target_id,
+            effective_from: isoDay(r.effective_from),
+            monthly_fee: num(r.monthly_fee), admission_fee: num(r.admission_fee),
+            transport_fee: num(r.transport_fee), discount: num(r.discount),
+          })),
+          presets: presetsForPeriod(branding, today),
+          presetVersions: Array.isArray(branding.chargePresetVersions) ? branding.chargePresetVersions : [],
+        })
+      } finally {
+        client.release()
+      }
+    } catch (err) {
+      sendError(res, err)
+    }
+  })
+
+  /** Dry run: how many vouchers a reprice of a billing month would touch. */
+  router.post('/config/preview', configAuth, async (req, res) => {
+    try {
+      const { month, year } = req.body || {}
+      if (!E.MONTHS.includes(month) || !/^\d{4}$/.test(String(year))) {
+        return res.status(400).json({ error: 'Pick a valid month and year.' })
+      }
+      const client = await pool.connect()
+      try {
+        const db = await loadDb(client, req.user.tenant_id, req.user, periodStartFor(month, String(year)))
+        const plan = planPeriodReprice(db, month, String(year))
+        res.json({
+          month, year: String(year),
+          students: db.students.filter((s) => !E.isLeft(s)).length,
+          create: plan.create.length,
+          update: plan.update.length,
+          preserved: plan.preserved,
+          affected: plan.create.length + plan.update.length,
+        })
+      } finally {
+        client.release()
+      }
+    } catch (err) {
+      sendError(res, err)
+    }
+  })
+
+  /**
+   * Saves the fee configuration as new effective-dated versions — old rows are
+   * never rewritten, so history stays auditable — and optionally re-prices the
+   * effective month's vouchers (unpaid/partial only; paid vouchers untouched).
+   */
+  router.post('/config/save', configAuth, async (req, res) => {
+    try {
+      const body = req.body || {}
+      const eff = String(body.effectiveFrom || '')
+      const effMatch = /^(\d{4})-(\d{2})$/.exec(eff)
+      if (!effMatch) return res.status(400).json({ error: 'effectiveFrom must be YYYY-MM.' })
+      const effMonthStr = eff
+      const effDate = new Date(Number(effMatch[1]), Number(effMatch[2]) - 1, 1)
+      const effIso = isoDay(effDate)
+
+      const structures = Array.isArray(body.structures) ? body.structures : []
+      const cleanStructures = []
+      for (const s of structures) {
+        const type = String(s?.type || '')
+        if (!['school', 'class', 'student'].includes(type)) {
+          return res.status(400).json({ error: `Unknown fee scope "${type}".` })
+        }
+        const target = type === 'school' ? 0 : parseInt(s?.target_id, 10)
+        if (type !== 'school' && !Number.isFinite(target)) {
+          return res.status(400).json({ error: 'Every class/student fee needs a target.' })
+        }
+        const amounts = {}
+        for (const f of ['monthly_fee', 'admission_fee', 'transport_fee', 'discount']) {
+          const v = Number(s?.[f])
+          if (!Number.isFinite(v) || v < 0) return res.status(400).json({ error: `${f} must be a non-negative number.` })
+          amounts[f] = v
+        }
+        cleanStructures.push({ type, target, voided: s?.voided === true, ...amounts })
+      }
+      const presets = normalizePresets(body.presets)
+      const applyMonth = /^\d{4}-\d{2}$/.test(String(body.applyMonth || '')) ? String(body.applyMonth) : null
+
+      const tenantId = req.user.tenant_id
+      const result = await withTransaction(async (client) => {
+        const existing = await client.query(
+          'SELECT * FROM fee_structures WHERE tenant_id = $1 ORDER BY effective_from, id', [tenantId])
+        let structuresSaved = 0
+        for (const s of cleanStructures) {
+          const key = `${s.type}:${s.target}`
+          const rows = existing.rows.filter((r) => `${r.type}:${r.target_id}` === key)
+          const dup = rows.some((r) =>
+            isoDay(r.effective_from) === effIso && !!r.voided === s.voided &&
+            num(r.monthly_fee) === s.monthly_fee && num(r.admission_fee) === s.admission_fee &&
+            num(r.transport_fee) === s.transport_fee && num(r.discount) === s.discount)
+          if (dup) continue
+          await client.query(
+            `INSERT INTO fee_structures (type, target_id, monthly_fee, admission_fee, transport_fee, discount, tenant_id, effective_from, voided, created_at, updated_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),NOW())`,
+            [s.type, s.target, s.monthly_fee, s.admission_fee, s.transport_fee, s.discount, tenantId, effIso, s.voided])
+          structuresSaved++
+        }
+
+        // Presets: replace the version for this effective month, keep the rest.
+        const settingsRes = await client.query('SELECT branding FROM fee_settings WHERE tenant_id = $1', [tenantId])
+        const branding = (settingsRes.rows[0] && settingsRes.rows[0].branding) || {}
+        const versions = (Array.isArray(branding.chargePresetVersions) ? branding.chargePresetVersions : [])
+          .filter((v) => String(v?.effectiveFrom || '') !== effMonthStr)
+        versions.push({ effectiveFrom: effMonthStr, presets })
+        versions.sort((a, b) => String(a.effectiveFrom).localeCompare(String(b.effectiveFrom)))
+        branding.chargePresetVersions = versions
+        branding.chargePresets = presetsForPeriod(branding, new Date())
+        await client.query(
+          `INSERT INTO fee_settings (tenant_id, due_days, late_fine, branding, updated_at)
+           VALUES ($1, 10, 0, $2::jsonb, NOW())
+           ON CONFLICT (tenant_id) DO UPDATE SET branding = $2::jsonb, updated_at = NOW()`,
+          [tenantId, JSON.stringify(branding)])
+
+        let applied = null
+        if (applyMonth) {
+          const [ay, am] = applyMonth.split('-').map(Number)
+          const applyMonthName = E.MONTHS[am - 1]
+          const db = await loadDb(client, tenantId, req.user, new Date(ay, am - 1, 1))
+          const plan = planPeriodReprice(db, applyMonthName, String(ay))
+          applied = await applyPeriodReprice(client, tenantId, db, plan, applyMonthName, String(ay))
+        }
+        return { structuresSaved, presetsSaved: effMonthStr, applied }
+      })
+
+      res.json(result)
     } catch (err) {
       sendError(res, err)
     }

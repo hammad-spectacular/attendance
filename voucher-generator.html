@@ -639,7 +639,9 @@
 <nav class="tab-nav no-print">
   <div class="tab-nav-inner">
     <button class="tab-btn active" data-tab="generate"><i class="fa-solid fa-layer-group"></i> Generate Vouchers</button>
+    <button class="tab-btn" data-tab="pending"><i class="fa-solid fa-hourglass-half"></i> Pending Vouchers</button>
     <button class="tab-btn" data-tab="collect"><i class="fa-solid fa-cash-register"></i> Collect Fee &amp; Receipt</button>
+    <button class="tab-btn" data-tab="config"><i class="fa-solid fa-sliders"></i> Fee Configuration</button>
   </div>
 </nav>
 
@@ -826,6 +828,52 @@
     </div>
 
     <div id="collectResult"></div>
+  </section>
+
+  <!-- ================= PENDING VOUCHERS ================= -->
+  <section id="tab-pending" style="display: none;">
+    <div class="panel no-print">
+      <h2 style="font-size: 1.05rem; margin-bottom: 0.25rem;">Pending Vouchers</h2>
+      <p class="hint" style="margin-bottom: 1rem;">
+        Students who still owe money, worked out from their vouchers — the same figures the challan and the collection screen use.
+      </p>
+      <div class="row" style="margin-bottom: 1rem;">
+        <div style="flex: 2 1 260px;">
+          <label class="form-label">Search</label>
+          <input type="text" id="pendSearch" class="form-input" placeholder="Student name, ID or class">
+        </div>
+        <div style="flex: 1 1 180px;">
+          <label class="form-label">Class</label>
+          <select id="pendClass" class="form-input"><option value="all">All Classes</option></select>
+        </div>
+        <div style="flex: 1 1 160px;">
+          <label class="form-label">Payment status</label>
+          <select id="pendStatus" class="form-input">
+            <option value="">All Status</option>
+            <option value="unpaid">Unpaid</option>
+            <option value="partially_paid">Partially Paid</option>
+            <option value="overdue">Overdue</option>
+          </select>
+        </div>
+      </div>
+      <div id="pendTableWrap"></div>
+    </div>
+  </section>
+
+  <!-- ================= FEE CONFIGURATION ================= -->
+  <section id="tab-config" style="display: none;">
+    <div class="panel no-print">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
+        <div>
+          <h2 style="font-size: 1.05rem; margin-bottom: 0.25rem;">Fee Configuration</h2>
+          <p class="hint" style="margin-bottom: 0;">
+            The charges every applicable student is billed. Class-wise and student-wise rules override the school default — removing one restores the fallback.
+          </p>
+        </div>
+        <button class="btn btn-primary" id="btnSaveConfig"><i class="fa-solid fa-floppy-disk"></i> Save Configuration</button>
+      </div>
+      <div id="configBody" style="margin-top: 1rem;"></div>
+    </div>
   </section>
 
 </main>
@@ -1960,16 +2008,581 @@
     });
   });
 
+  // --- Pending vouchers -----------------------------------------------------
+  // One row per student who still owes money, aggregated from their vouchers
+  // with the same engine maths the challan and collection screens use.
+  const PEND_PAGE_SIZE = 15;
+  let pendRows = [];
+  let pendPage = 1;
+  let pendSig = '';
+
+  async function loadPending() {
+    const wrap = $('pendTableWrap');
+    wrap.innerHTML = '<div class="empty">Loading…</div>';
+    try {
+      const [vouchers, students] = await Promise.all([api.listFees({}), api.students()]);
+      const byStudent = new Map();
+      for (const v of vouchers) {
+        if (v.studentId == null) continue;
+        const k = String(v.studentId);
+        if (!byStudent.has(k)) byStudent.set(k, []);
+        byStudent.get(k).push(v);
+      }
+      const lateFine = state.feeSettings?.lateFine || 0;
+      const now = Date.now();
+      const rows = [];
+      for (const [sid, vs] of byStudent) {
+        const student = students.find((s) => String(s.id) === String(sid))
+          || { id: sid, name: vs[0]?.studentName, admissionNumber: vs[0]?.admissionNumber, classId: vs[0]?.classId, annualCharges: 0, paidAnnualCharges: 0 };
+        const dues = E.studentDues(student, vs, lateFine);
+        if (!(dues.totalNow > 0.004)) continue;
+        const openVs = vs
+          .filter((v) => (v.balanceDue ?? 0) > 0.004 || E.tuitionOwed(v, lateFine) > 0.004)
+          .sort((a, b) => E.periodOf(a) - E.periodOf(b));
+        if (!openVs.length && dues.annualCharges <= 0.004) continue;
+        const paid = vs.reduce((a, v) => a + E.num(v.paidTuition) + E.num(v.paidAC), 0);
+        const totalPayable = openVs.reduce((a, v) => a + E.num(v.amount), 0);
+        const dues0 = openVs.map((v) => v.dueDate).filter(Boolean).sort();
+        const status = openVs.some((v) => v.dueDate && new Date(v.dueDate).getTime() < now && E.tuitionOwed(v, lateFine) > 0.004)
+          ? 'overdue'
+          : openVs.some((v) => E.num(v.paidTuition) + E.num(v.paidAC) > 0 || v.status === 'Partially Paid')
+            ? 'partially_paid' : 'unpaid';
+        rows.push({
+          studentId: sid,
+          name: student.name || 'Student',
+          studentLabel: student.admissionNumber || student.rollNo || `#${sid}`,
+          classId: student.classId ?? vs[0]?.classId ?? '',
+          className: classNameOf(student.classId ?? vs[0]?.classId) || vs[0]?.className || 'Unassigned',
+          totalPayable, paid, remaining: dues.totalNow,
+          dueDate: dues0.length ? String(dues0[0]).slice(0, 10) : '—',
+          status, vouchers: openVs,
+        });
+      }
+      pendRows = rows.sort((a, b) =>
+        (a.status === 'overdue' ? 0 : 1) - (b.status === 'overdue' ? 0 : 1) ||
+        String(a.dueDate).localeCompare(String(b.dueDate)) ||
+        String(a.name).localeCompare(String(b.name)));
+      const sel = $('pendClass');
+      const keep = sel.value;
+      sel.innerHTML = '<option value="all">All Classes</option>'
+        + CLASSES.map((c) => `<option value="${c.id}">${escapeHtml(E.classLabel(c, c.id))}</option>`).join('');
+      sel.value = keep && [...sel.options].some((o) => o.value === keep) ? keep : 'all';
+      renderPending();
+    } catch (err) {
+      wrap.innerHTML = `<div class="empty">Could not load pending vouchers: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  const PEND_STATUS = {
+    unpaid: { label: 'Unpaid', cls: 'badge-danger' },
+    partially_paid: { label: 'Partially Paid', cls: 'badge-warning' },
+    overdue: { label: 'Overdue', cls: 'badge-danger' },
+    paid: { label: 'Paid', cls: 'badge-success' },
+  };
+
+  function renderPending() {
+    const wrap = $('pendTableWrap');
+    const classFilter = $('pendClass')?.value || 'all';
+    const statusFilter = $('pendStatus')?.value || '';
+    const query = ($('pendSearch')?.value || '').toLowerCase().trim();
+    const sig = `${classFilter}|${statusFilter}|${query}`;
+    if (sig !== pendSig) { pendSig = sig; pendPage = 1; }
+
+    let rows = pendRows;
+    if (classFilter !== 'all') rows = rows.filter((r) => String(r.classId) === String(classFilter));
+    if (statusFilter) rows = rows.filter((r) => r.status === statusFilter);
+    if (query) rows = rows.filter((r) =>
+      String(r.name).toLowerCase().includes(query) ||
+      String(r.studentLabel).toLowerCase().includes(query) ||
+      String(r.className).toLowerCase().includes(query));
+
+    if (!rows.length) {
+      wrap.innerHTML = '<div class="empty">✅<br>No pending vouchers' +
+        (classFilter !== 'all' || statusFilter || query ? ' match these filters.' : ' — every student is fully paid.') + '</div>';
+      return;
+    }
+
+    const totalPages = Math.max(1, Math.ceil(rows.length / PEND_PAGE_SIZE));
+    pendPage = Math.min(Math.max(1, pendPage), totalPages);
+    const pageRows = rows.slice((pendPage - 1) * PEND_PAGE_SIZE, pendPage * PEND_PAGE_SIZE);
+    const from = (pendPage - 1) * PEND_PAGE_SIZE + 1;
+    const to = Math.min(rows.length, pendPage * PEND_PAGE_SIZE);
+
+    wrap.innerHTML = `
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr>
+            <th>Student Name</th><th>Student ID</th><th>Class</th>
+            <th style="text-align:right;">Total Payable</th><th style="text-align:right;">Amount Paid</th>
+            <th style="text-align:right;">Remaining Balance</th><th>Due Date</th>
+            <th>Payment Status</th><th></th>
+          </tr></thead>
+          <tbody>
+            ${pageRows.map((r) => {
+              const meta = PEND_STATUS[r.status] || PEND_STATUS.unpaid;
+              return `<tr style="cursor:pointer;" data-pend-student="${r.studentId}">
+                <td style="font-weight:700;">${escapeHtml(r.name)}${r.vouchers.length > 1 ? `<div style="font-size:0.72rem;color:var(--text-muted);font-weight:400;">${r.vouchers.length} open vouchers</div>` : ''}</td>
+                <td>${escapeHtml(r.studentLabel)}</td>
+                <td>${escapeHtml(r.className)}</td>
+                <td style="text-align:right;">${money(r.totalPayable)}</td>
+                <td style="text-align:right; color:var(--text-muted);">${money(r.paid)}</td>
+                <td style="text-align:right;font-weight:800;color:var(--danger);">${money(r.remaining)}</td>
+                <td>${escapeHtml(r.dueDate)}</td>
+                <td><span class="badge ${meta.cls}">${meta.label}</span></td>
+                <td><button class="btn btn-sm" data-pend-view="${r.studentId}" title="View this student's vouchers"><i class="fa-solid fa-eye"></i> View</button></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="row" style="margin-top:0.75rem;align-items:center;">
+        <span class="hint">Showing ${from}–${to} of ${rows.length} student${rows.length === 1 ? '' : 's'}</span>
+        <span style="flex:1"></span>
+        <button class="btn btn-sm" id="pendPrev" ${pendPage <= 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left"></i> Prev</button>
+        <span class="hint" style="padding:0 0.5rem;">Page ${pendPage} of ${totalPages}</span>
+        <button class="btn btn-sm" id="pendNext" ${pendPage >= totalPages ? 'disabled' : ''}>Next <i class="fa-solid fa-chevron-right"></i></button>
+      </div>`;
+
+    wrap.querySelector('#pendPrev')?.addEventListener('click', () => { pendPage--; renderPending(); });
+    wrap.querySelector('#pendNext')?.addEventListener('click', () => { pendPage++; renderPending(); });
+    wrap.querySelectorAll('[data-pend-view]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const row = pendRows.find((r) => String(r.studentId) === String(btn.dataset.pendView))
+          || rows.find((r) => String(r.studentId) === String(btn.dataset.pendView));
+        if (row) openPendingStudent(row);
+      });
+    });
+    wrap.querySelectorAll('tr[data-pend-student]').forEach((tr) => {
+      tr.addEventListener('click', () => {
+        const row = pendRows.find((r) => String(r.studentId) === String(tr.dataset.pendStudent));
+        if (row) openPendingStudent(row);
+      });
+    });
+  }
+
+  /** Every open voucher a student has, each with its own breakdown. */
+  function openPendingStudent(row) {
+    const existing = document.getElementById('pendingStudentModal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.className = 'modal-backdrop no-print';
+    modal.id = 'pendingStudentModal';
+    const lateFine = state.feeSettings?.lateFine || 0;
+    const vouchers = [...(row.vouchers || [])].sort((a, b) => E.periodOf(b) - E.periodOf(a));
+    const totalRemaining = vouchers.reduce((a, v) => a + Math.max(0, (v.balanceDue ?? 0)), 0);
+    modal.innerHTML = `
+      <div class="modal" style="max-width:640px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem;">
+          <div>
+            <h2 style="font-size:1.05rem;">${escapeHtml(row.name)}</h2>
+            <p class="hint" style="margin-top:0.15rem;">${escapeHtml(row.studentLabel)} · ${escapeHtml(row.className)} · Outstanding ${money(row.remaining)}</p>
+          </div>
+          <button class="btn btn-sm" data-close-pend><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="table-wrap" style="margin:0.75rem 0;">
+          <table class="data" style="font-size:0.85rem;">
+            <thead><tr><th>Voucher</th><th style="text-align:right;">Amount</th><th style="text-align:right;">Paid</th><th style="text-align:right;">Balance</th><th>Due</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              ${vouchers.map((v) => {
+                const paid = E.num(v.paidTuition) + E.num(v.paidAC);
+                const bal = v.balanceDue ?? Math.max(0, E.num(v.amount) + (v.lateFine ?? 0) - E.num(v.paidTuition));
+                const meta = PEND_STATUS[v.status === 'Paid' ? 'paid' : v.status === 'Partially Paid' ? 'partially_paid' : 'unpaid'];
+                return `<tr>
+                  <td style="font-weight:600;">#${v.id} · ${escapeHtml(v.month)} ${escapeHtml(v.year)}</td>
+                  <td style="text-align:right;">${money(v.amount)}</td>
+                  <td style="text-align:right;">${money(paid)}</td>
+                  <td style="text-align:right;font-weight:700;color:${bal > 0 ? 'var(--danger)' : 'var(--success)'};">${money(bal)}</td>
+                  <td>${v.dueDate ? escapeHtml(String(v.dueDate).slice(0, 10)) : '—'}</td>
+                  <td><span class="badge ${meta.cls}">${escapeHtml(v.status)}</span></td>
+                  <td><button class="btn btn-sm" data-pend-details="${v.id}"><i class="fa-solid fa-list"></i></button></td>
+                </tr>`;
+              }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">No open vouchers</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+        <p class="hint">Voucher balances include arrears carried forward and outstanding annual charges — the same totals the collection screen charges.</p>
+        <div class="row" style="justify-content:flex-end;margin-top:0.75rem;">
+          <button class="btn" data-close-pend>Close</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.querySelectorAll('[data-close-pend]').forEach((b) => b.addEventListener('click', () => modal.remove()));
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+    modal.querySelectorAll('[data-pend-details]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const v = vouchers.find((x) => String(x.id) === String(btn.dataset.pendDetails));
+        if (v) { modal.remove(); renderDetailsModal(v); }
+      });
+    });
+  }
+
+  // --- Fee configuration -----------------------------------------------------
+  // Draft = what the admin sees; the server keeps every save as a new
+  // effective-dated version so history is never overwritten.
+  let cfgData = null;
+  let cfgDraft = { structures: [], presets: [] };
+  let cfgOrigSig = '';
+
+  const CFG_SCOPE_LABEL = { school: 'School-wide', class: 'Class-wise', student: 'Student-wise' };
+
+  async function loadFeeConfig() {
+    const body = $('configBody');
+    body.innerHTML = '<div class="empty">Loading fee configuration…</div>';
+    try {
+      cfgData = await api.feeConfig();
+      cfgDraft = {
+        structures: (cfgData.structures || []).map((r) => ({
+          type: r.type, target_id: r.target_id === 0 ? 0 : r.target_id,
+          monthly_fee: r.monthly_fee, admission_fee: r.admission_fee,
+          transport_fee: r.transport_fee, discount: r.discount,
+          effective_from: r.effective_from, _deleted: false, _isNew: false,
+        })),
+        presets: (cfgData.presets || []).map((p) => ({ ...p })),
+      };
+      cfgOrigSig = cfgSignature();
+      renderFeeConfig();
+    } catch (err) {
+      body.innerHTML = `<div class="empty">Could not load fee configuration: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  function cfgKey(s) { return `${s.type}:${s.target_id}`; }
+  function cfgSigOf(s) {
+    return [s.monthly_fee, s.admission_fee, s.transport_fee, s.discount].join('|');
+  }
+  function cfgSignature() {
+    return JSON.stringify({
+      s: cfgDraft.structures.map((x) => [cfgKey(x), cfgSigOf(x), x._deleted ? 1 : 0]),
+      p: cfgDraft.presets.map((p) => [p.label, p.amount, p.classId]),
+    });
+  }
+  function cfgChanged() { return cfgSignature() !== cfgOrigSig; }
+
+  function cfgScopeLabel(s) {
+    if (s.type === 'school') return 'School-wide (default)';
+    if (s.type === 'class') {
+      const c = (cfgData?.classes || []).find((x) => String(x.id) === String(s.target_id));
+      return `Class: ${c ? c.label : s.target_id}`;
+    }
+    const st = (cfgData?.students || []).find((x) => String(x.id) === String(s.target_id));
+    return `Student: ${st ? st.name : s.target_id}`;
+  }
+
+  function cfgTotalMonthly(s) {
+    return Math.max(0, E.num(s.monthly_fee) - E.num(s.discount)) + E.num(s.transport_fee);
+  }
+
+  function renderFeeConfig() {
+    const body = $('configBody');
+    if (!cfgData) return;
+    const rows = [...cfgDraft.structures].sort((a, b) => {
+      const order = { school: 0, class: 1, student: 2 };
+      return (order[a.type] ?? 3) - (order[b.type] ?? 3) || cfgScopeLabel(a).localeCompare(cfgScopeLabel(b));
+    });
+    const presetRows = cfgDraft.presets.map((p, i) => `
+      <tr>
+        <td><input class="form-input" data-preset-label="${i}" value="${escapeHtml(p.label)}" placeholder="e.g. Examination Fee" style="min-width:160px;"></td>
+        <td style="width:130px;"><input type="number" class="form-input" data-preset-amount="${i}" value="${E.num(p.amount) || ''}" min="0" step="1"></td>
+        <td style="width:170px;"><select class="form-input" data-preset-class="${i}">
+          <option value="">All classes</option>
+          ${(cfgData.classes || []).map((c) => `<option value="${c.id}" ${String(c.id) === String(p.classId ?? '') ? 'selected' : ''}>${escapeHtml(c.label)}</option>`).join('')}
+        </select></td>
+        <td style="width:50px;"><button class="btn btn-sm btn-danger" data-preset-remove="${i}" title="Remove charge"><i class="fa-solid fa-xmark"></i></button></td>
+      </tr>`).join('');
+
+    body.innerHTML = `
+      <h3 style="font-size:0.9rem;margin:0 0 0.5rem;">Fee rules</h3>
+      <div class="table-wrap" style="margin-bottom:1rem;">
+        <table class="data">
+          <thead><tr>
+            <th>Applies to</th><th style="text-align:right;">Monthly Fee</th><th style="text-align:right;">Admission</th>
+            <th style="text-align:right;">Transport</th><th style="text-align:right;">Discount</th>
+            <th style="text-align:right;">Total / month</th><th>Effective</th><th></th>
+          </tr></thead>
+          <tbody>
+            ${rows.length ? rows.map((s) => `
+              <tr style="${s._deleted ? 'opacity:0.45;text-decoration:line-through;' : ''}">
+                <td style="font-weight:600;">${escapeHtml(cfgScopeLabel(s))}${s._isNew ? ' <span class="badge badge-warning">new</span>' : ''}</td>
+                <td style="text-align:right;">${money(s.monthly_fee)}</td>
+                <td style="text-align:right;">${money(s.admission_fee)}</td>
+                <td style="text-align:right;">${money(s.transport_fee)}</td>
+                <td style="text-align:right;">${money(s.discount)}</td>
+                <td style="text-align:right;font-weight:700;">${money(cfgTotalMonthly(s))}</td>
+                <td>${s.effective_from ? escapeHtml(String(s.effective_from).slice(0, 7)) : '—'}</td>
+                <td style="white-space:nowrap;">
+                  <button class="btn btn-sm" data-cfg-edit="${cfgKey(s)}" ${s._deleted ? 'disabled' : ''} title="Edit"><i class="fa-solid fa-pen"></i></button>
+                  ${s._deleted
+                    ? `<button class="btn btn-sm" data-cfg-restore="${cfgKey(s)}" title="Undo remove"><i class="fa-solid fa-rotate-left"></i></button>`
+                    : `<button class="btn btn-sm btn-danger" data-cfg-remove="${cfgKey(s)}" title="Remove (restores the fallback rule)"><i class="fa-solid fa-trash"></i></button>`}
+                </td>
+              </tr>`).join('')
+            : '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);">No fee rules yet — add the school default below.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+      <button class="btn btn-sm" id="btnAddRule"><i class="fa-solid fa-plus"></i> Add fee rule</button>
+
+      <h3 style="font-size:0.9rem;margin:1.25rem 0 0.5rem;">Additional monthly charges</h3>
+      <p class="hint" style="margin-top:0;"><i class="fa-solid fa-circle-info"></i> Billed on top of the monthly fee (exam, computer, library…). A class scope limits the charge to that class.</p>
+      <div class="table-wrap" style="margin:0.5rem 0 0.5rem;">
+        <table class="data">
+          <thead><tr><th>Charge name</th><th style="width:130px;">Amount</th><th style="width:170px;">Applies to</th><th style="width:50px;"></th></tr></thead>
+          <tbody>${presetRows || '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">No extra charges.</td></tr>'}</tbody>
+        </table>
+      </div>
+      <button class="btn btn-sm" id="btnAddPreset"><i class="fa-solid fa-plus"></i> Add charge</button>
+      <div class="hint" id="cfgDirtyHint" style="margin-top:0.75rem;${cfgChanged() ? '' : 'display:none;'}"><i class="fa-solid fa-circle-exclamation"></i> Unsaved changes — click <strong>Save Configuration</strong> and choose when they take effect.</div>`;
+
+    // Rule actions
+    body.querySelector('#btnAddRule')?.addEventListener('click', () => openRuleModal(null));
+    body.querySelectorAll('[data-cfg-edit]').forEach((b) => b.addEventListener('click', () => {
+      const s = cfgDraft.structures.find((x) => cfgKey(x) === b.dataset.cfgEdit);
+      if (s) openRuleModal(s);
+    }));
+    body.querySelectorAll('[data-cfg-remove]').forEach((b) => b.addEventListener('click', () => {
+      const s = cfgDraft.structures.find((x) => cfgKey(x) === b.dataset.cfgRemove);
+      if (s) {
+        if (s._isNew) cfgDraft.structures = cfgDraft.structures.filter((x) => x !== s);
+        else s._deleted = true;
+        renderFeeConfig();
+      }
+    }));
+    body.querySelectorAll('[data-cfg-restore]').forEach((b) => b.addEventListener('click', () => {
+      const s = cfgDraft.structures.find((x) => cfgKey(x) === b.dataset.cfgRestore);
+      if (s) { s._deleted = false; renderFeeConfig(); }
+    }));
+
+    // Preset edits (live draft, saved with the configuration)
+    body.querySelectorAll('[data-preset-label]').forEach((el) => el.addEventListener('input', () => {
+      cfgDraft.presets[Number(el.dataset.presetLabel)].label = el.value;
+    }));
+    body.querySelectorAll('[data-preset-amount]').forEach((el) => el.addEventListener('input', () => {
+      cfgDraft.presets[Number(el.dataset.presetAmount)].amount = E.num(el.value);
+    }));
+    body.querySelectorAll('[data-preset-class]').forEach((el) => el.addEventListener('change', () => {
+      cfgDraft.presets[Number(el.dataset.presetClass)].classId = el.value;
+    }));
+    body.querySelectorAll('[data-preset-remove]').forEach((b) => b.addEventListener('click', () => {
+      cfgDraft.presets.splice(Number(b.dataset.presetRemove), 1);
+      renderFeeConfig();
+    }));
+    body.querySelector('#btnAddPreset')?.addEventListener('click', () => {
+      cfgDraft.presets.push({ id: `p${Date.now()}`, label: '', amount: 0, classId: '' });
+      renderFeeConfig();
+      const inputs = body.querySelectorAll('[data-preset-label]');
+      inputs[inputs.length - 1]?.focus();
+    });
+  }
+
+  /** Add/edit modal for one fee rule. */
+  function openRuleModal(existing) {
+    const old = document.getElementById('ruleModal');
+    if (old) old.remove();
+    const isNew = !existing;
+    const draft = existing ? { ...existing } : { type: 'school', target_id: 0, monthly_fee: 0, admission_fee: 0, transport_fee: 0, discount: 0 };
+    const modal = document.createElement('div');
+    modal.className = 'modal-backdrop no-print';
+    modal.id = 'ruleModal';
+    const scopeOptions = (selType, selTarget) => `
+      <div class="form-group" style="flex:1 1 160px;">
+        <label class="form-label">Applies to</label>
+        <select id="ruleScopeType" class="form-input">
+          <option value="school" ${selType === 'school' ? 'selected' : ''}>School-wide (default)</option>
+          <option value="class" ${selType === 'class' ? 'selected' : ''}>Class-wise</option>
+          <option value="student" ${selType === 'student' ? 'selected' : ''}>Student-wise</option>
+        </select>
+      </div>
+      <div class="form-group" style="flex:2 1 220px;" id="ruleScopeTargetWrap" ${selType === 'school' ? 'style="display:none;"' : ''}>
+        <label class="form-label" id="ruleScopeTargetLabel">Target</label>
+        <select id="ruleScopeTarget" class="form-input"></select>
+      </div>`;
+    modal.innerHTML = `
+      <div class="modal" style="max-width:520px;">
+        <h2 style="font-size:1.05rem;margin-bottom:0.75rem;">${isNew ? 'Add fee rule' : 'Edit fee rule'}</h2>
+        <div class="row" style="gap:0.75rem;">
+          ${scopeOptions(draft.type, draft.target_id)}
+        </div>
+        <div class="row" style="gap:0.75rem;margin-top:0.75rem;">
+          <div class="form-group" style="flex:1 1 110px;"><label class="form-label">Monthly fee</label><input type="number" id="ruleMonthly" class="form-input" min="0" step="1" value="${E.num(draft.monthly_fee) || ''}"></div>
+          <div class="form-group" style="flex:1 1 110px;"><label class="form-label">Admission (annual)</label><input type="number" id="ruleAdmission" class="form-input" min="0" step="1" value="${E.num(draft.admission_fee) || ''}"></div>
+          <div class="form-group" style="flex:1 1 110px;"><label class="form-label">Transport / mo</label><input type="number" id="ruleTransport" class="form-input" min="0" step="1" value="${E.num(draft.transport_fee) || ''}"></div>
+          <div class="form-group" style="flex:1 1 110px;"><label class="form-label">Discount / mo</label><input type="number" id="ruleDiscount" class="form-input" min="0" step="1" value="${E.num(draft.discount) || ''}"></div>
+        </div>
+        <p class="hint" id="ruleTotalHint" style="margin-top:0.5rem;"></p>
+        <div class="row" style="justify-content:flex-end;margin-top:0.75rem;gap:0.5rem;">
+          <button class="btn" data-close-rule>Cancel</button>
+          <button class="btn btn-primary" id="btnRuleSave">${isNew ? 'Add rule' : 'Save rule'}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+
+    const typeSel = modal.querySelector('#ruleScopeType');
+    const targetWrap = modal.querySelector('#ruleScopeTargetWrap');
+    const targetSel = modal.querySelector('#ruleScopeTarget');
+    const targetLabel = modal.querySelector('#ruleScopeTargetLabel');
+    const totalHint = modal.querySelector('#ruleTotalHint');
+
+    function fillTargets() {
+      const t = typeSel.value;
+      targetWrap.style.display = t === 'school' ? 'none' : '';
+      targetLabel.textContent = t === 'class' ? 'Class' : 'Student';
+      if (t === 'class') {
+        targetSel.innerHTML = (cfgData.classes || []).map((c) => `<option value="${c.id}">${escapeHtml(c.label)}</option>`).join('');
+      } else if (t === 'student') {
+        targetSel.innerHTML = (cfgData.students || []).map((s) => `<option value="${s.id}">${escapeHtml(s.name)}${s.className ? ' — ' + escapeHtml(s.className) : ''}</option>`).join('');
+      }
+      if (isNew || draft.target_id == null) targetSel.value = '';
+      else if ([...targetSel.options].some((o) => String(o.value) === String(draft.target_id))) targetSel.value = String(draft.target_id);
+      updateTotal();
+    }
+    function updateTotal() {
+      const total = Math.max(0, E.num(modal.querySelector('#ruleMonthly').value) - E.num(modal.querySelector('#ruleDiscount').value)) + E.num(modal.querySelector('#ruleTransport').value);
+      totalHint.innerHTML = `Total billed per month: <strong>${money(total)}</strong> (monthly − discount + transport).`;
+    }
+    for (const id of ['ruleMonthly', 'ruleAdmission', 'ruleTransport', 'ruleDiscount']) {
+      modal.querySelector('#' + id).addEventListener('input', updateTotal);
+    }
+    typeSel.addEventListener('change', fillTargets);
+    fillTargets();
+
+    modal.querySelectorAll('[data-close-rule]').forEach((b) => b.addEventListener('click', () => modal.remove()));
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+    modal.querySelector('#btnRuleSave').addEventListener('click', () => {
+      const type = typeSel.value;
+      const target_id = type === 'school' ? 0 : parseInt(targetSel.value, 10);
+      if (type !== 'school' && !Number.isFinite(target_id)) { toast('Pick a target.', 'err'); return; }
+      const entry = {
+        type, target_id,
+        monthly_fee: E.num(modal.querySelector('#ruleMonthly').value),
+        admission_fee: E.num(modal.querySelector('#ruleAdmission').value),
+        transport_fee: E.num(modal.querySelector('#ruleTransport').value),
+        discount: E.num(modal.querySelector('#ruleDiscount').value),
+        _deleted: false, _isNew: isNew,
+      };
+      const key = cfgKey(entry);
+      const idx = cfgDraft.structures.findIndex((x) => cfgKey(x) === key);
+      if (idx >= 0) cfgDraft.structures[idx] = { ...cfgDraft.structures[idx], ...entry, _isNew: cfgDraft.structures[idx]._isNew };
+      else cfgDraft.structures.push(entry);
+      modal.remove();
+      renderFeeConfig();
+    });
+  }
+
+  /** Effective-date picker: Current Month (preview + confirm) or Next Month. */
+  function openEffectiveModal() {
+    const old = document.getElementById('effectiveModal');
+    if (old) old.remove();
+    const now = new Date();
+    const curMonth = E.MONTHS[now.getMonth()];
+    const curYear = now.getFullYear();
+    const nextDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const nextMonth = E.MONTHS[nextDate.getMonth()];
+    const nextYear = nextDate.getFullYear();
+    const ym = (m, y) => `${y}-${String(E.MONTHS.indexOf(m) + 1).padStart(2, '0')}`;
+
+    const modal = document.createElement('div');
+    modal.className = 'modal-backdrop no-print';
+    modal.id = 'effectiveModal';
+    modal.innerHTML = `
+      <div class="modal" style="max-width:460px;">
+        <h2 style="font-size:1.05rem;margin-bottom:0.25rem;">When should these changes take effect?</h2>
+        <p class="hint" style="margin-bottom:1rem;">Vouchers already generated keep their printed amounts until re-priced; paid vouchers are never modified.</p>
+        <label style="display:flex;gap:0.6rem;align-items:flex-start;padding:0.7rem;border:1px solid var(--border);border-radius:10px;margin-bottom:0.6rem;cursor:pointer;">
+          <input type="radio" name="effChoice" value="current" checked style="margin-top:0.2rem;">
+          <span><strong>Current Month — ${curMonth} ${curYear}</strong><br><span class="hint" id="effPreviewHint">Checking how many vouchers this affects…</span></span>
+        </label>
+        <label style="display:flex;gap:0.6rem;align-items:flex-start;padding:0.7rem;border:1px solid var(--border);border-radius:10px;margin-bottom:1rem;cursor:pointer;">
+          <input type="radio" name="effChoice" value="next" style="margin-top:0.2rem;">
+          <span><strong>Next Month — ${nextMonth} ${nextYear}</strong><br><span class="hint">Schedules the change from the 1st; this month's vouchers stay as they are.</span></span>
+        </label>
+        <div class="row" style="justify-content:flex-end;gap:0.5rem;">
+          <button class="btn" data-close-eff>Cancel</button>
+          <button class="btn btn-primary" id="btnEffConfirm">Save Configuration</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.querySelectorAll('[data-close-eff]').forEach((b) => b.addEventListener('click', () => modal.remove()));
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+    // Live preview for the current-month option.
+    api.previewReprice({ month: curMonth, year: String(curYear) }).then((p) => {
+      const el = modal.querySelector('#effPreviewHint');
+      if (el) el.textContent = p.affected > 0
+        ? `Will update ${p.update} voucher(s) and create ${p.create} new one(s) for ${p.students} students; ${p.preserved} paid voucher(s) stay untouched.`
+        : 'No vouchers exist for this month yet — generation will use the new configuration.';
+    }).catch(() => {
+      const el = modal.querySelector('#effPreviewHint');
+      if (el) el.textContent = 'Could not preview — the save will still apply safely.';
+    });
+
+    modal.querySelector('#btnEffConfirm').addEventListener('click', (e) => withLoading(e.currentTarget, 'Saving…', async () => {
+      const choice = modal.querySelector('input[name="effChoice"]:checked')?.value || 'current';
+      const isCurrent = choice === 'current';
+      const effectiveFrom = isCurrent ? ym(curMonth, curYear) : ym(nextMonth, nextYear);
+      const applyMonth = isCurrent ? ym(curMonth, curYear) : null;
+      // Only send rules that actually changed vs the loaded snapshot.
+      const orig = new Map((cfgData?.structures || []).map((r) => [`${r.type}:${r.target_id}`, cfgSigOf({ monthly_fee: r.monthly_fee, admission_fee: r.admission_fee, transport_fee: r.transport_fee, discount: r.discount })]));
+      const structures = cfgDraft.structures
+        .filter((s) => {
+          const key = cfgKey(s);
+          const sig = cfgSigOf(s);
+          if (s._isNew && !s._deleted) return true;
+          if (s._deleted) return orig.has(key);
+          return orig.get(key) !== sig;
+        })
+        .map((s) => ({
+          type: s.type, target_id: s.target_id === 0 ? 0 : s.target_id,
+          monthly_fee: E.num(s.monthly_fee), admission_fee: E.num(s.admission_fee),
+          transport_fee: E.num(s.transport_fee), discount: E.num(s.discount),
+          voided: s._deleted === true,
+        }));
+      const presets = cfgDraft.presets
+        .filter((p) => p.label && E.num(p.amount) > 0)
+        .map((p) => ({ id: p.id, label: String(p.label).trim(), amount: E.roundRupees(E.num(p.amount)), classId: p.classId || '' }));
+      try {
+        const res = await api.saveFeeConfig({ effectiveFrom, structures, presets, applyMonth });
+        const bits = [];
+        if (res.structuresSaved) bits.push(`${res.structuresSaved} rule change(s)`);
+        bits.push(`effective ${effectiveFrom}`);
+        if (res.applied) bits.push(`re-priced ${res.applied.month || ''}: ${res.applied.updated} updated, ${res.applied.created} created, ${res.applied.preserved} paid kept`);
+        toast(`Fee configuration saved — ${bits.join(', ')}.`, 'ok');
+        modal.remove();
+        await loadFeeConfig();
+        loadVouchers();
+        if (state.tab === 'pending') loadPending();
+      } catch (err) {
+        toast(err.message || 'The configuration could not be saved.', 'err');
+      }
+    }));
+  }
+
+  $('btnSaveConfig').addEventListener('click', () => {
+    if (!cfgChanged()) { toast('Nothing changed yet.', 'warn'); return; }
+    // Validate presets before offering the effective-date choice.
+    const bad = cfgDraft.presets.find((p) => (p.label && !(E.num(p.amount) > 0)) || (!p.label && E.num(p.amount) > 0));
+    if (bad) { toast('Every additional charge needs both a name and an amount above zero.', 'err'); return; }
+    openEffectiveModal();
+  });
+
+  $('pendSearch')?.addEventListener('input', renderPending);
+  $('pendClass')?.addEventListener('change', renderPending);
+  $('pendStatus')?.addEventListener('change', renderPending);
+
   // Tabs
   function switchTab(name) {
-    const tab = name === 'collect' ? 'collect' : 'generate';
+    const tab = ['generate', 'pending', 'collect', 'config'].includes(name) ? name : 'generate';
     document.querySelectorAll('.tab-btn').forEach((b) => {
       b.classList.toggle('active', b.dataset.tab === tab);
     });
     state.tab = tab;
     $('tab-generate').style.display = tab === 'generate' ? 'block' : 'none';
+    $('tab-pending').style.display = tab === 'pending' ? 'block' : 'none';
     $('tab-collect').style.display = tab === 'collect' ? 'block' : 'none';
-    setPrintPage(tab === 'generate' ? 'landscape' : 'portrait', tab === 'generate' ? '5mm' : '8mm');
+    $('tab-config').style.display = tab === 'config' ? 'block' : 'none';
+    setPrintPage(tab === 'collect' ? 'portrait' : 'landscape', tab === 'collect' ? '8mm' : '5mm');
+    if (tab === 'pending') loadPending();
+    if (tab === 'config' && !cfgData) loadFeeConfig();
   }
 
   document.querySelectorAll('.tab-btn').forEach((btn) => {
@@ -2036,6 +2649,8 @@
   function tabFromHash() {
     const hash = String(window.location.hash || '').toLowerCase();
     if (hash.includes('collect')) switchTab('collect');
+    else if (hash.includes('pending')) switchTab('pending');
+    else if (hash.includes('config')) switchTab('config');
     else if (hash.includes('generate')) switchTab('generate');
   }
 

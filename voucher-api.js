@@ -132,6 +132,29 @@
       return request('/vouchers/generate', { method: 'POST', body: { month, year, classId, studentIds } });
     },
 
+    // --- Fee configuration ---------------------------------------------------
+
+    /** The effective fee rules, classes, students and saved charges. */
+    async feeConfig() {
+      return request('/config');
+    },
+
+    /** Dry run: how many vouchers re-pricing a month would create/update/preserve. */
+    async previewReprice({ month, year } = {}) {
+      return request('/config/preview', { method: 'POST', body: { month, year } });
+    },
+
+    /**
+     * Saves the configuration as effective-dated versions.
+     * effectiveFrom: 'YYYY-MM'. applyMonth: 'YYYY-MM' re-prices that period.
+     */
+    async saveFeeConfig({ effectiveFrom, structures, presets, applyMonth } = {}) {
+      return request('/config/save', {
+        method: 'POST',
+        body: { effectiveFrom, structures, presets, applyMonth },
+      });
+    },
+
     async setCharges(voucherId, charges) {
       const data = await request(`/vouchers/${encodeURIComponent(voucherId)}/charges`, {
         method: 'PUT',
