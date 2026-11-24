@@ -2703,21 +2703,16 @@
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label" for="studentName">Student Name</label>
-                <input class="form-input" type="text" id="studentName" placeholder="e.g. Ali Hassan" oninput="saveStudentFormDraft()">
+                <input class="form-input" type="text" id="studentName" placeholder="e.g. Ali Hassan" required oninput="saveStudentFormDraft()">
               </div>
               <div class="form-group">
-                <label class="form-label" for="studentRoll">Roll Number</label>
-                <input class="form-input" type="text" id="studentRoll" placeholder="e.g. CS-109" oninput="saveStudentFormDraft()">
+                <label class="form-label" for="studentPhone">Phone number <span id="studentPhoneLabel" style="font-weight:400;">(optional)</span></label>
+                <input class="form-input" type="tel" id="studentPhone" placeholder="03001234567" inputmode="numeric" pattern="[0-9]{11}" title="11 digits (e.g., 03001234567)" oninput="sanitizePhoneInput(this); saveStudentFormDraft()">
               </div>
-              <div class="form-group">
-                <label class="form-label" for="studentPhone">Contact</label>
-                <input class="form-input" type="tel" id="studentPhone" placeholder="03001234567" pattern="[0-9]{11}"
-                  title="11 digits (e.g., 03001234567)" required oninput="saveStudentFormDraft()">
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="studentEmail">Recovery email <span style="font-weight:400;">(optional)</span></label>
-                <input class="form-input" type="email" id="studentEmail" placeholder="student@example.com" oninput="saveStudentFormDraft()">
-              </div>
+            </div>
+            <div style="font-size:0.82rem; color:var(--text-secondary); margin:-4px 0 12px 0;">
+              <i class="fas fa-hashtag" style="margin-right:5px;"></i>
+              Roll number is assigned automatically by the system, in the order students join the school.
             </div>
             <div class="form-group" style="max-width:320px;">
               <label class="form-label" for="studentClass">Class / Section</label>
@@ -3562,9 +3557,9 @@
         <input class="form-input" type="text" id="editStudentRoll" placeholder="e.g. CS-109">
       </div>
       <div class="form-group">
-        <label class="form-label" for="editStudentPhone">Contact</label>
-        <input class="form-input" type="tel" id="editStudentPhone" placeholder="03001234567" pattern="[0-9]{11}"
-          title="11 digits (e.g., 03001234567)" required>
+        <label class="form-label" for="editStudentPhone">Phone number <span id="editStudentPhoneLabel" style="font-weight:400;">(optional)</span></label>
+        <input class="form-input" type="tel" id="editStudentPhone" placeholder="03001234567" inputmode="numeric" pattern="[0-9]{11}"
+          title="11 digits (e.g., 03001234567)" oninput="sanitizePhoneInput(this)">
       </div>
       <div class="form-group">
         <label class="form-label" for="editStudentEmail">Recovery email</label>
@@ -5852,14 +5847,21 @@
     const STUDENT_VIEW_DRAFT_KEY = 'draft:admin:studentView';
     const ADMIN_DRAFT_MAX_AGE = 12 * 60 * 60 * 1000; // 12 hours
 
+    // A phone number is optional, but when one is typed it has to be a plain
+    // 11-digit number. Strip everything that is not a digit as they type, so
+    // spaces, dashes and brackets can never sneak into the stored value.
+    function sanitizePhoneInput(el) {
+      if (!el) return;
+      const digits = el.value.replace(/\D/g, '').slice(0, 11);
+      if (el.value !== digits) el.value = digits;
+    }
+
     function saveStudentFormDraft() {
       if (!window.DraftStore) return;
       const val = id => { const el = document.getElementById(id); return el ? el.value : ''; };
       DraftStore.save(STUDENT_FORM_DRAFT_KEY, {
         name: val('studentName'),
-        roll: val('studentRoll'),
         phone: val('studentPhone'),
-        email: val('studentEmail'),
         classId: val('studentClass')
       }, false);
     }
@@ -5872,14 +5874,12 @@
       if (!window.DraftStore) return false;
       const d = DraftStore.load(STUDENT_FORM_DRAFT_KEY, ADMIN_DRAFT_MAX_AGE, false);
       if (!d) return false;
-      if (!(d.name || d.roll || d.phone || d.email || d.classId)) return false;
+      if (!(d.name || d.phone || d.classId)) return false;
       // Opening the form populates the class dropdown from the loaded classes.
       if (!addStudentOpen) toggleAddStudent();
       const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
       set('studentName', d.name);
-      set('studentRoll', d.roll);
       set('studentPhone', d.phone);
-      set('studentEmail', d.email);
       set('studentClass', d.classId);
       return true;
     }
@@ -5925,9 +5925,7 @@
         form.classList.remove('open');
         btn.innerHTML = '<i class="fas fa-plus"></i> Add Student';
         document.getElementById('studentName').value = '';
-        document.getElementById('studentRoll').value = '';
         document.getElementById('studentPhone').value = '';
-        document.getElementById('studentEmail').value = '';
         document.getElementById('studentClass').value = '';
         // Form closed (cancel or after save): the draft is no longer needed.
         clearStudentFormDraft();
@@ -5936,18 +5934,12 @@
 
     async function saveStudent() {
       const name = document.getElementById('studentName').value.trim();
-      const rollNo = document.getElementById('studentRoll').value.trim();
       const phone = document.getElementById('studentPhone').value.trim();
-      const email = document.getElementById('studentEmail').value.trim();
       const classId = document.getElementById('studentClass').value;
       const btn = document.querySelector('#addStudentForm .btn-primary, button[onclick="saveStudent()"]');
 
       if (!name) {
         showToast('⚠️ Please enter student name', 'warning');
-        return;
-      }
-      if (!rollNo) {
-        showToast('⚠️ Please enter roll number', 'warning');
         return;
       }
       if (!classId) {
@@ -5970,12 +5962,11 @@
 
       setButtonLoading(btn, true, '<i class="fas fa-spinner fa-spin"></i> Creating...');
 
+      // No roll number is sent: the system assigns it, in join order.
       const studentBody = {
         name,
-        roll_no: rollNo,
         phone: phone || null,
-        class_id: Number(classId),
-        email: email || null
+        class_id: Number(classId)
       };
       if (window.appData.selectedBranchId) studentBody.branch_id = window.appData.selectedBranchId;
 
@@ -6002,7 +5993,8 @@
         // Close the form after the refreshed class list is ready.
         toggleAddStudent();
         filterStudents();
-        showToast('✅ Student saved successfully', 'success');
+        const assignedRoll = data.student && data.student.roll_no ? ` — Roll No. ${data.student.roll_no}` : '';
+        showToast(`✅ Student saved successfully${assignedRoll}`, 'success');
 
         // Show credentials only if a password was actually created. With the
         // portal off there is deliberately nothing to hand out, and nothing to say.
@@ -8344,16 +8336,20 @@
         whatsappEnabled = true;
       }
 
+      // The phone number is always optional - WhatsApp only makes it more useful,
+      // it never makes it mandatory.
+      const phoneHint = whatsappEnabled ? '(optional - needed for WhatsApp)' : '(optional)';
+
       // Add Student form
       const studentPhoneLabel = document.getElementById('studentPhoneLabel');
       if (studentPhoneLabel) {
-        studentPhoneLabel.textContent = whatsappEnabled ? '(required for WhatsApp)' : '(optional)';
+        studentPhoneLabel.textContent = phoneHint;
       }
 
       // Edit Student modal
       const editStudentPhoneLabel = document.getElementById('editStudentPhoneLabel');
       if (editStudentPhoneLabel) {
-        editStudentPhoneLabel.textContent = whatsappEnabled ? '(required for WhatsApp)' : '(optional)';
+        editStudentPhoneLabel.textContent = phoneHint;
       }
     }
 

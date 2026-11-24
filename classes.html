@@ -1091,14 +1091,13 @@
                       <label class="form-label">Name</label>
                       <input class="form-input" type="text" id="studentName${cls.id}" placeholder="e.g. Ahmed Khan">
                     </div>
-                    <div class="form-group">
-                      <label class="form-label">Roll No</label>
-                      <input class="form-input" type="text" id="studentRoll${cls.id}" placeholder="e.g. 01">
-                    </div>
                   </div>
                   <div class="form-group" style="margin-bottom:10px;">
-                    <label class="form-label">Contact</label>
-                    <input class="form-input" type="tel" id="studentPhone${cls.id}" placeholder="03001234567" pattern="[0-9]{11}" title="11 digits" required>
+                    <label class="form-label">Phone number <span style="font-weight:400;">(optional)</span></label>
+                    <input class="form-input" type="tel" id="studentPhone${cls.id}" placeholder="03001234567" inputmode="numeric" pattern="[0-9]{11}" title="11 digits" oninput="sanitizePhoneInput(this)">
+                  </div>
+                  <div style="font-size:0.8rem; color:var(--text-secondary); margin:-4px 0 10px 0;">
+                    Roll number is assigned automatically by the system.
                   </div>
                   <div style="display:flex; gap:8px;">
                     <button class="btn btn-primary btn-sm" onclick="addStudent(${cls.id})" style="flex:1;">
@@ -1224,17 +1223,20 @@
       form.classList.toggle('hidden');
     }
 
+    // A phone number is optional, but when one is typed it has to be a plain
+    // 11-digit number. Strip everything that is not a digit as they type.
+    function sanitizePhoneInput(el) {
+      if (!el) return;
+      const digits = el.value.replace(/\D/g, '').slice(0, 11);
+      if (el.value !== digits) el.value = digits;
+    }
+
     async function addStudent(classId) {
       const name = document.getElementById(`studentName${classId}`).value.trim();
-      const rollNo = document.getElementById(`studentRoll${classId}`).value.trim();
       const phone = document.getElementById(`studentPhone${classId}`).value.trim();
 
       if (!name) {
         showToast('⚠️ Enter student name', 'warning');
-        return;
-      }
-      if (!rollNo) {
-        showToast('⚠️ Enter roll number', 'warning');
         return;
       }
       if (phone && !/^[0-9]{11}$/.test(phone)) {
@@ -1246,17 +1248,16 @@
         const response = await fetch(`${API}/api/students`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, roll_no: rollNo, phone: phone || null, class_id: classId })
+          body: JSON.stringify({ name, phone: phone || null, class_id: classId })
         });
 
         if (!response.ok) {
-          // Show the server's reason (duplicate roll number / duplicate name).
+          // Show the server's reason (duplicate name / capacity).
           const errData = await response.json().catch(() => ({}));
           throw new Error(errData.error || `Failed to add student (${response.status})`);
         }
 
         document.getElementById(`studentName${classId}`).value = '';
-        document.getElementById(`studentRoll${classId}`).value = '';
         document.getElementById(`studentPhone${classId}`).value = '';
         document.getElementById(`addStudentForm${classId}`).classList.add('hidden');
 

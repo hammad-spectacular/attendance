@@ -1867,6 +1867,40 @@ async function nextFreeLoginNumber(queryable, table, prefix, tenantId, extraTake
   return n
 }
 
+// Roll numbers belong to the system, not to the person filling the form: a student
+// gets one automatically, in the order they join the school. The counter is the
+// highest plain number already used in that school, so legacy roll numbers like
+// "CS-109" are left alone and the sequence simply continues past them.
+//
+// A per-school advisory lock (held until the surrounding transaction ends) keeps
+// two admins adding a student at the same moment from grabbing the same number.
+// Callers must already be inside a transaction for the lock to cover the insert.
+async function lockStudentRollSequence(queryable, tenantId) {
+  // A stable 64-bit key per school, derived in JS so it does not depend on any
+  // Postgres helper function being callable by the app's role.
+  const lockKey = crypto.createHash('sha256').update(String(tenantId)).digest().readBigInt64BE(0).toString()
+  await queryable.query('SELECT pg_advisory_xact_lock($1)', [lockKey])
+  const res = await queryable.query(
+    `SELECT COALESCE(MAX(roll_no::int), 0) AS max_roll
+       FROM students
+      WHERE tenant_id = $1 AND roll_no ~ '^[0-9]+$'`,
+    [tenantId]
+  )
+  return Number(res.rows[0]?.max_roll || 0)
+}
+
+// A phone number is optional. When one is given it has to be a plain 11-digit
+// number (e.g. 03001234567) - spaces, dashes and brackets are just formatting and
+// get stripped before the check.
+function cleanStudentPhone(value) {
+  if (value === undefined || value === null) return ''
+  return String(value).replace(/[\s\-()+]/g, '').trim()
+}
+
+function isValidStudentPhone(phone) {
+  return !phone || /^[0-9]{11}$/.test(phone)
+}
+
 app.post('/api/auth/create-teacher', requireAuth(['admin']), async (req, res) => {
   try {
     const { name, phone, class_id } = req.body
@@ -1941,11 +1975,18 @@ app.post('/api/auth/create-teacher', requireAuth(['admin']), async (req, res) =>
 
 // POST /api/auth/create-student
 app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) => {
+  let client = null
   try {
-    const { name, roll_no, phone, class_id } = req.body
+    // The roll number is deliberately NOT read from the request: the system
+    // assigns it, in the order students join the school.
+    const { name, class_id } = req.body
     const email = normalizeEmail(req.body.email)
+    const phone = cleanStudentPhone(req.body.phone)
     if (!name) return res.status(400).json({ error: 'Student name is required' })
     if (email === undefined) return res.status(400).json({ error: 'Enter a valid email address' })
+    if (!isValidStudentPhone(phone)) {
+      return res.status(400).json({ error: 'Phone number must be exactly 11 digits' })
+    }
 
     const tenant_id = req.user.tenant_id
 
@@ -1969,20 +2010,31 @@ app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) =>
       }
     }
 
-    const dupErr = await findStudentDuplicate(pool, tenant_id, { roll_no, name })
+    const dupErr = await findStudentDuplicate(pool, tenant_id, { name })
     if (dupErr) return res.status(400).json({ error: dupErr })
 
-    const nextNum = await nextFreeLoginNumber(pool, 'students', 'S', tenant_id)
-    const shortId = `S${String(nextNum).padStart(3, '0')}`
-    const studentId = `${tenant_id}-${shortId}`
     const { tempPassword, passwordHash } = await mintCredentialIfPortalEnabled(tenant_id, 'student')
 
-    const result = await pool.query(
+    // One transaction for the roll number, the login number and the insert, so
+    // two simultaneous adds can never land on the same number.
+    client = await pool.connect()
+    await client.query('BEGIN')
+    const rollSeq = await lockStudentRollSequence(client, tenant_id)
+    const rollNo = String(rollSeq + 1)
+    const nextNum = await nextFreeLoginNumber(client, 'students', 'S', tenant_id)
+    const shortId = `S${String(nextNum).padStart(3, '0')}`
+    const studentId = `${tenant_id}-${shortId}`
+
+    const result = await client.query(
       `INSERT INTO students (name, roll_no, phone, class_id, login_id, password_hash, role, tenant_id, branch_id, is_first_login, email, email_verified_at)
        VALUES ($1, $2, $3, $4, $5, $6, 'student', $7, $8, true, $9, NULL)
        RETURNING id, name, roll_no, phone, class_id, login_id, role, tenant_id, branch_id, is_first_login, email, email_verified_at`,
-      [name, roll_no || null, phone || null, class_id || null, shortId, passwordHash, tenant_id, branchId, email]
+      [name, rollNo, phone || null, class_id || null, shortId, passwordHash, tenant_id, branchId, email]
     )
+    await client.query('COMMIT')
+    client.release()
+    client = null
+
     if (email) issueEmailVerification(result.rows[0]).catch(err => console.error('Verification email send failed:', err.message))
     const body = {
       success: true,
@@ -1999,8 +2051,13 @@ app.post('/api/auth/create-student', requireAuth(['admin']), async (req, res) =>
   } catch (err) {
     console.error('Create student error:', err)
 
+    if (client) {
+      try { await client.query('ROLLBACK') } catch (_) { /* connection already gone */ }
+      client.release()
+    }
+
     if (err.code === '23505' && err.constraint === 'students_tenant_roll_key') {
-      return res.status(400).json({ error: `Roll number "${roll_no}" is already used by another student in this school. Please choose a different one.` })
+      return res.status(400).json({ error: 'That roll number was just taken by another student. Please try again.' })
     }
 
     res.status(500).json({ error: 'Something went wrong while creating the student. Please try again.' })
@@ -2064,6 +2121,10 @@ app.post('/api/auth/bulk-create-students', requireAuth(['admin', 'super_admin'])
     }
     let cursor = 1;
 
+    // Roll numbers are handed out by the system, in join order, so a bulk import
+    // continues the school's sequence instead of leaving those students blank.
+    let rollCursor = await lockStudentRollSequence(client, tenant_id);
+
     const createdAccounts = [];
     const values = [];
     let paramIndex = 1;
@@ -2079,11 +2140,13 @@ app.post('/api/auth/bulk-create-students', requireAuth(['admin', 'super_admin'])
       usedLoginNums.add(cursor);
       cursor += 1;
       const name = names ? names[i] : `Student ${i + 1}`;
+      rollCursor += 1;
+      const rollNo = String(rollCursor);
 
       // name, roll_no, phone, class_id, login_id, password_hash, role, tenant_id, is_first_login, email, branch_id
-      queryParams.push(name, null, null, class_id, shortId, batchHash, tenant_id, branchId);
+      queryParams.push(name, rollNo, null, class_id, shortId, batchHash, tenant_id, branchId);
       values.push(`($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, 'student', $${paramIndex++}, true, NULL, $${paramIndex++})`);
-      const acct = { login_id: `${tenant_id}-${shortId}`, db_login_id: shortId, name };
+      const acct = { login_id: `${tenant_id}-${shortId}`, db_login_id: shortId, name, roll_no: rollNo };
       if (batchTempPassword !== null) acct.temp_password = batchTempPassword;
       createdAccounts.push(acct);
     }
@@ -3851,28 +3914,46 @@ async function handleStudentClassChangeFee(tenantId, studentId) {
 }
 
 app.post('/api/students', requireAuth(['admin', 'super_admin']), async (req, res) => {
+  let client = null
   try {
-    const { name, roll_no, phone, class_id } = req.body
+    // Roll number is assigned by the system (see lockStudentRollSequence), never
+    // typed in by the admin.
+    const { name, class_id } = req.body
     const tenant_id = req.user.tenant_id
     if (!name || !String(name).trim()) return res.status(400).json({ error: 'Student name is required' })
+    const phone = cleanStudentPhone(req.body.phone)
+    if (!isValidStudentPhone(phone)) {
+      return res.status(400).json({ error: 'Phone number must be exactly 11 digits' })
+    }
     const capErr = await capacityViolation(pool, tenant_id, 'student')
     if (capErr) return res.status(400).json({ error: capErr })
 
     const branchPick = await resolveBranchForWrite(pool, tenant_id, req.body.branch_id)
     if (branchPick.error) return res.status(400).json({ error: branchPick.error })
 
-    const dupErr = await findStudentDuplicate(pool, tenant_id, { roll_no, name })
+    const dupErr = await findStudentDuplicate(pool, tenant_id, { name })
     if (dupErr) return res.status(400).json({ error: dupErr })
 
-    const result = await pool.query(
+    client = await pool.connect()
+    await client.query('BEGIN')
+    const rollSeq = await lockStudentRollSequence(client, tenant_id)
+    const result = await client.query(
       'INSERT INTO students (name, roll_no, phone, class_id, tenant_id, branch_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [String(name).trim(), roll_no, phone, class_id, tenant_id, branchPick.branch ? branchPick.branch.id : null]
+      [String(name).trim(), String(rollSeq + 1), phone || null, class_id, tenant_id, branchPick.branch ? branchPick.branch.id : null]
     )
+    await client.query('COMMIT')
+    client.release()
+    client = null
+
     await assignFeesForStudent(tenant_id, result.rows[0].id, 'registration')
     res.json({ ...result.rows[0], capacity_notice: await capacityNotice(pool, tenant_id, 'student') })
   } catch (err) {
+    if (client) {
+      try { await client.query('ROLLBACK') } catch (_) { /* connection already gone */ }
+      client.release()
+    }
     if (err.code === '23505' && String(err.constraint || '').includes('roll')) {
-      return res.status(400).json({ error: `Roll number "${roll_no}" is already used by another student in this school. Please choose a different one.` })
+      return res.status(400).json({ error: 'That roll number was just taken by another student. Please try again.' })
     }
     console.error('Error creating student:', err)
     res.status(500).json({ error: 'Failed to create student: ' + err.message })

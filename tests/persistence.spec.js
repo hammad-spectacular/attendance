@@ -196,7 +196,8 @@ test.describe('admin student-form draft persistence', () => {
 
     await page.click('#addStudentToggleBtn');
     await page.fill('#studentName', 'Draft Kid');
-    await page.fill('#studentRoll', 'R-9');
+    // The roll number is assigned by the system, so only the phone is drafted.
+    await page.fill('#studentPhone', '03001234567');
 
     // Draft lives in sessionStorage and holds the typed values.
     const draft = await page.evaluate(() => window.sessionStorage.getItem('draft:admin:studentForm'));
@@ -209,7 +210,7 @@ test.describe('admin student-form draft persistence', () => {
 
     // The form reopens with the restored values.
     await expect(page.locator('#studentName')).toHaveValue('Draft Kid');
-    await expect(page.locator('#studentRoll')).toHaveValue('R-9');
+    await expect(page.locator('#studentPhone')).toHaveValue('03001234567');
   });
 });
 
