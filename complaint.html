@@ -28,12 +28,16 @@ button.primary:disabled{opacity:.45;cursor:not-allowed}
 #status-msg.ok{color:#2f7d3b}
 #status-msg.err{color:var(--hard)}
 #access-denied{display:none;padding:40px 20px;text-align:center;color:var(--hard);font-weight:600;font-size:1.1rem}
+.back-btn{display:inline-flex;align-items:center;gap:6px;font-size:.85rem;color:var(--acc);background:var(--card);border:1px solid var(--line);padding:7px 14px;border-radius:8px;text-decoration:none;font-weight:600;cursor:pointer;margin-bottom:16px}
+.back-btn:hover{background:var(--acc);color:var(--accfg);border-color:var(--acc)}
+.back-btn i{font-size:.9rem}
 </style>
 </head>
 <body>
 <div id="navContainer"></div>
 <div id="access-denied">Access denied.</div>
 <main id="main-content" style="display:none">
+<a href="./index.html" class="back-btn" id="backBtn" title="Back to Home" aria-label="Back to Home"><i class="fas fa-arrow-left"></i>Back to Home</a>
 <h1>Submit a Complaint</h1>
 <p class="sub">Your complaint will be reviewed by the administration.</p>
 <div class="card">
