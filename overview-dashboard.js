@@ -1,7 +1,6 @@
 (function () {
   'use strict';
 
-  let lastOverviewData = null;
   let showAllPriorities = false;
   let searchTimer = null;
 
@@ -27,33 +26,7 @@
 
   function initials(name) {
     const parts = String(name || 'Admin').trim().split(/\s+/);
-    return parts.slice(0, 2).map(p => p[0] ? p[0].toUpperCase() : '').join('') || 'AD';
-  }
-
-  function buildRingSvg(pct, color) {
-    const r = 32;
-    const c = 2 * Math.PI * r;
-    const clamped = pct == null ? 0 : Math.max(0, Math.min(100, Number(pct)));
-    const dash = (clamped / 100) * c;
-    return `
-      <svg viewBox="0 0 78 78" aria-hidden="true">
-        <circle cx="39" cy="39" r="${r}" fill="none" stroke="rgba(255,255,255,0.16)" stroke-width="6.5"></circle>
-        <circle cx="39" cy="39" r="${r}" fill="none" stroke="${color}" stroke-width="6.5"
-          stroke-linecap="round" stroke-dasharray="${dash.toFixed(1)} ${c.toFixed(1)}"></circle>
-      </svg>`;
-  }
-
-  function buildDonutSvg(pct) {
-    const r = 42;
-    const c = 2 * Math.PI * r;
-    const clamped = pct == null ? 0 : Math.max(0, Math.min(100, Number(pct)));
-    const dash = (clamped / 100) * c;
-    return `
-      <svg viewBox="0 0 108 108" width="108" height="108" style="transform:rotate(-90deg)" aria-hidden="true">
-        <circle cx="54" cy="54" r="${r}" fill="none" stroke="var(--eye-border)" stroke-width="11"></circle>
-        <circle cx="54" cy="54" r="${r}" fill="none" stroke="#17675F" stroke-width="11"
-          stroke-linecap="round" stroke-dasharray="${dash.toFixed(1)} ${c.toFixed(1)}"></circle>
-      </svg>`;
+    return parts.slice(0, 2).map(p => (p[0] ? p[0].toUpperCase() : '')).join('') || 'AD';
   }
 
   function navigateToTarget(tab, href, searchValue) {
@@ -80,7 +53,37 @@
     }
   }
 
-  function renderHeaderMeta(data) {
+  function consolidatePriorities(rawPriorities) {
+    const list = Array.isArray(rawPriorities) ? rawPriorities : [];
+    const seen = new Set();
+    const out = [];
+    const hasUnassigned = list.some(p => p && p.id === 'unassigned-classes');
+
+    const actionLabels = {
+      'unassigned-classes': 'Assign Teacher \u2192',
+      'unmarked-attendance': 'Mark Attendance \u2192',
+      'overdue-fees': 'Review Balances \u2192',
+      'absent-today': 'View Absentees \u2192',
+      'pending-complaints': 'Review Complaints \u2192',
+    };
+
+    for (const item of list) {
+      if (!item || !item.id) continue;
+      // Remove redundant Teacher Coverage / timetable-unplaced alert when class assignment alert exists
+      if (item.id === 'teacher-coverage' || (item.id === 'timetable-unplaced' && hasUnassigned)) {
+        continue;
+      }
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      out.push({
+        ...item,
+        actionLabel: actionLabels[item.id] || item.actionLabel || 'Open \u2192',
+      });
+    }
+    return out;
+  }
+
+  function renderHeaderMeta(data, consolidatedPriorities) {
     const now = new Date();
     const greetEl = document.getElementById('ovGreeting');
     if (greetEl) {
@@ -93,7 +96,7 @@
         weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
       });
       const tStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-      dateEl.textContent = `${dStr} · Updated ${tStr}`;
+      dateEl.textContent = `${dStr} \u00B7 Updated ${tStr}`;
     }
 
     const schoolEl = document.getElementById('sidebarSchoolName');
@@ -126,7 +129,7 @@
 
     const dot = document.getElementById('notifBadgeDot');
     if (dot) {
-      const count = (data.priorities || []).length;
+      const count = consolidatedPriorities.length;
       if (count > 0) {
         dot.textContent = count > 9 ? '9+' : String(count);
         dot.style.display = 'inline-flex';
@@ -136,150 +139,74 @@
     }
   }
 
-  function renderHealthPanel(data) {
-    const el = document.getElementById('ovHealthPanel');
+  function renderKpis(data, priorities) {
+    const el = document.getElementById('ovKpiGrid');
     if (!el) return;
 
-    const priCount = (data.priorities || []).length;
-    const scoreHtml = data.operatingScore !== null
-      ? `<div class="ov-score-pill"><strong>${data.operatingScore}</strong><span>/ 100 Operating Score</span></div>`
-      : `<div class="ov-score-pill"><strong>Live</strong><span>Operational Monitor</span></div>`;
-
-    const priPill = priCount > 0
-      ? `<div class="ov-priority-pill"><i class="fas fa-circle-exclamation"></i> ${priCount} priorit${priCount === 1 ? 'y needs' : 'ies need'} attention</div>`
-      : `<div class="ov-priority-pill healthy"><i class="fas fa-circle-check"></i> All tracked systems healthy</div>`;
-
     const attPct = data.attendance.pctToday;
+    const attDot = attPct === null ? 'indigo' : (attPct >= 85 ? 'green' : 'amber');
+    const attVal = attPct !== null ? `${attPct}%` : '\u2014';
     const attSub = data.attendance.markedTotal > 0
       ? `${data.attendance.presentToday.toLocaleString()} of ${data.students.active.toLocaleString()} present`
       : 'No attendance marked today';
 
-    const tchPct = data.staff.availabilityPct;
-    const tchSub = data.staff.qrAttendanceEnabled
-      ? (data.staff.presentTeachers !== null ? `${data.staff.presentTeachers} of ${data.staff.totalTeachers} present` : 'No check-ins today')
-      : 'QR attendance disabled';
+    let feeDot = 'indigo';
+    let feeVal = 'Disabled';
+    let feeSub = 'Fees module not enabled';
+    let feeTab = 'tab-classes';
+    if (data.fees && data.fees.enabled) {
+      const fpct = data.fees.collectionPct;
+      feeDot = fpct === null ? 'indigo' : (fpct >= 80 ? 'green' : 'amber');
+      feeVal = fpct !== null ? `${fpct}%` : formatPKR(data.fees.collected);
+      feeSub = `${formatPKR(data.fees.collected)} collected \u00B7 ${formatPKR(data.fees.outstanding)} due`;
+      feeTab = 'tab-fees';
+    }
 
-    const feePct = data.fees.enabled ? data.fees.collectionPct : null;
-    const feeSub = data.fees.enabled
-      ? (data.fees.expected > 0 ? `${formatPKR(data.fees.collected)} of ${formatPKR(data.fees.expected)}` : 'No active fee obligations')
-      : 'Fees module disabled';
-
-    const priRingPct = Math.min(100, priCount * 15);
-    const priRingSub = priCount > 0 ? `${priCount} open alert${priCount === 1 ? '' : 's'}` : 'No pending alerts';
-
-    el.innerHTML = `
-      <div>
-        <div class="ov-health-title">School health today</div>
-        <div class="ov-health-desc">
-          ${priCount > 0
-            ? `Core operations are running. ${priCount} operational item${priCount === 1 ? '' : 's'} require administrative review.`
-            : 'Core attendance, staffing, and fee operations are currently in good standing.'}
-        </div>
-        <div class="ov-health-badges">
-          ${scoreHtml}
-          ${priPill}
-        </div>
-        <button type="button" class="ov-health-link" onclick="document.getElementById('ovPriorityCard')?.scrollIntoView({behavior:'smooth'})">
-          Open priority inbox &rarr;
-        </button>
-      </div>
-      <div class="ov-rings-grid">
-        <div class="ov-ring-item" data-nav-tab="tab-attendance">
-          <div class="ov-ring-svg">
-            ${buildRingSvg(attPct, '#5CB890')}
-            <div class="ov-ring-val">${attPct !== null ? attPct + '%' : '—'}</div>
-          </div>
-          <div class="ov-ring-label">Student Attendance</div>
-          <div class="ov-ring-sub">${esc(attSub)}</div>
-        </div>
-        <div class="ov-ring-item" data-nav-tab="tab-qr-attendance">
-          <div class="ov-ring-svg">
-            ${buildRingSvg(tchPct, '#E5A94B')}
-            <div class="ov-ring-val">${tchPct !== null ? tchPct + '%' : 'N/A'}</div>
-          </div>
-          <div class="ov-ring-label">Teacher Availability</div>
-          <div class="ov-ring-sub">${esc(tchSub)}</div>
-        </div>
-        <div class="ov-ring-item" data-nav-tab="tab-fees">
-          <div class="ov-ring-svg">
-            ${buildRingSvg(feePct, '#668ED0')}
-            <div class="ov-ring-val">${feePct !== null ? feePct + '%' : '—'}</div>
-          </div>
-          <div class="ov-ring-label">Fee Collection</div>
-          <div class="ov-ring-sub">${esc(feeSub)}</div>
-        </div>
-        <div class="ov-ring-item" onclick="document.getElementById('ovPriorityCard')?.scrollIntoView({behavior:'smooth'})">
-          <div class="ov-ring-svg">
-            ${buildRingSvg(priRingPct, '#D96E63')}
-            <div class="ov-ring-val">${priCount}</div>
-          </div>
-          <div class="ov-ring-label">Priority Work</div>
-          <div class="ov-ring-sub">${esc(priRingSub)}</div>
-        </div>
-      </div>`;
-  }
-
-  function renderKpis(data) {
-    const el = document.getElementById('ovKpiGrid');
-    if (!el) return;
-
-    const feeCard = data.fees.enabled
-      ? `
-        <button type="button" class="ov-kpi-card" data-nav-tab="tab-fees">
-          <div class="ov-kpi-top">
-            <span class="ov-kpi-title">Outstanding fees</span>
-            <span class="ov-live-badge">LIVE</span>
-          </div>
-          <div class="ov-kpi-value">${esc(formatPKR(data.fees.outstanding))}</div>
-          <div class="ov-kpi-sub">${data.fees.overdueAccounts} overdue account${data.fees.overdueAccounts === 1 ? '' : 's'} · ${data.fees.studentsWithDues} with dues</div>
-        </button>`
-      : `
-        <button type="button" class="ov-kpi-card" data-nav-tab="tab-classes">
-          <div class="ov-kpi-top">
-            <span class="ov-kpi-title">Classes &amp; sections</span>
-            <span class="ov-live-badge">LIVE</span>
-          </div>
-          <div class="ov-kpi-value">${data.students.classCount}</div>
-          <div class="ov-kpi-sub">${data.staff.unassignedClasses} needing teacher assignment</div>
-        </button>`;
-
-    const staffSub = data.staff.qrAttendanceEnabled && data.staff.presentTeachers !== null
-      ? `${data.staff.presentTeachers} present · ${data.staff.unassignedClasses} unassigned class${data.staff.unassignedClasses === 1 ? '' : 'es'}`
-      : `${data.staff.unassignedClasses} class${data.staff.unassignedClasses === 1 ? '' : 'es'} without assigned teacher`;
+    const priCount = priorities.length;
+    const priDot = priCount > 0 ? 'red' : 'green';
+    const priSub = priCount > 0
+      ? `${priCount} item${priCount === 1 ? '' : 's'} require action`
+      : 'All tracked systems clear';
 
     el.innerHTML = `
       <button type="button" class="ov-kpi-card" data-nav-tab="tab-students">
         <div class="ov-kpi-top">
-          <span class="ov-kpi-title">Students</span>
-          <span class="ov-live-badge">LIVE</span>
+          <span class="ov-kpi-title">Total Students</span>
+          <span class="ov-status-dot indigo" aria-hidden="true"></span>
         </div>
         <div class="ov-kpi-value">${data.students.active.toLocaleString()}</div>
-        <div class="ov-kpi-sub">${data.students.classCount} classes · ${data.students.newThisMonth} new this month</div>
+        <div class="ov-kpi-sub">${data.students.classCount} classes \u00B7 ${data.students.newThisMonth} new this month</div>
       </button>
-      <button type="button" class="ov-kpi-card" data-nav-tab="tab-teachers">
+      <button type="button" class="ov-kpi-card" data-nav-tab="tab-attendance">
         <div class="ov-kpi-top">
-          <span class="ov-kpi-title">Teaching staff</span>
-          <span class="ov-live-badge">LIVE</span>
+          <span class="ov-kpi-title">Today's Attendance</span>
+          <span class="ov-status-dot ${attDot}" aria-hidden="true"></span>
         </div>
-        <div class="ov-kpi-value">${data.staff.totalTeachers}</div>
-        <div class="ov-kpi-sub">${esc(staffSub)}</div>
+        <div class="ov-kpi-value">${attVal}</div>
+        <div class="ov-kpi-sub">${esc(attSub)}</div>
       </button>
-      ${feeCard}
-      <button type="button" class="ov-kpi-card" data-nav-tab="tab-students">
+      <button type="button" class="ov-kpi-card" data-nav-tab="${feeTab}">
         <div class="ov-kpi-top">
-          <span class="ov-kpi-title">Recent admissions</span>
-          <span class="ov-live-badge">30D</span>
+          <span class="ov-kpi-title">Fee Collection</span>
+          <span class="ov-status-dot ${feeDot}" aria-hidden="true"></span>
         </div>
-        <div class="ov-kpi-value">${data.admissions.recentCount}</div>
-        <div class="ov-kpi-sub">Enrolled this month · ${data.students.frozen} inactive</div>
+        <div class="ov-kpi-value">${esc(feeVal)}</div>
+        <div class="ov-kpi-sub">${esc(feeSub)}</div>
+      </button>
+      <button type="button" class="ov-kpi-card" onclick="document.getElementById('ovPriorityCard')?.scrollIntoView({behavior:'smooth'})">
+        <div class="ov-kpi-top">
+          <span class="ov-kpi-title">Open Priorities</span>
+          <span class="ov-status-dot ${priDot}" aria-hidden="true"></span>
+        </div>
+        <div class="ov-kpi-value">${priCount}</div>
+        <div class="ov-kpi-sub">${esc(priSub)}</div>
       </button>`;
   }
 
-  function renderPriorityInbox(data) {
+  function renderPriorityInbox(priorities) {
     const el = document.getElementById('ovPriorityCard');
     if (!el) return;
-    const all = data.priorities || [];
-    const shown = showAllPriorities ? all : all.slice(0, 6);
+    const shown = showAllPriorities ? priorities : priorities.slice(0, 5);
 
     const listHtml = shown.length > 0
       ? shown.map(item => `
@@ -297,15 +224,15 @@
               ${esc(item.actionLabel)}
             </button>
           </div>`).join('')
-      : `<div class="ov-empty"><i class="fas fa-circle-check" style="color:var(--eye-teal-mid);margin-right:6px;"></i>No urgent issues require action right now.</div>`;
+      : `<div class="ov-empty"><i class="fas fa-circle-check" style="color:var(--eye-green);margin-right:6px;"></i>No urgent issues require action right now.</div>`;
 
     el.innerHTML = `
       <div class="ov-card-head">
         <div>
           <div class="ov-card-title">Priority inbox</div>
-          <div class="ov-card-sub">${all.length} item${all.length === 1 ? '' : 's'} across school operations</div>
+          <div class="ov-card-sub">${priorities.length} item${priorities.length === 1 ? '' : 's'} requiring attention</div>
         </div>
-        ${all.length > 6 ? `<button type="button" class="ov-card-action" id="ovTogglePrioritiesBtn">${showAllPriorities ? 'Show less' : 'View all →'}</button>` : ''}
+        ${priorities.length > 5 ? `<button type="button" class="ov-card-action" id="ovTogglePrioritiesBtn">${showAllPriorities ? 'Show less' : 'View all \u2192'}</button>` : ''}
       </div>
       <div class="ov-inbox-list">${listHtml}</div>`;
 
@@ -313,65 +240,9 @@
     if (toggleBtn) {
       toggleBtn.addEventListener('click', () => {
         showAllPriorities = !showAllPriorities;
-        renderPriorityInbox(data);
+        renderPriorityInbox(priorities);
       });
     }
-  }
-
-  function renderFeeRecovery(data) {
-    const el = document.getElementById('ovFeeRecoveryCard');
-    if (!el) return;
-
-    if (!data.fees.enabled) {
-      el.innerHTML = `
-        <div class="ov-card-head">
-          <div>
-            <div class="ov-card-title">Fee recovery</div>
-            <div class="ov-card-sub">Student fee ledger</div>
-          </div>
-        </div>
-        <div class="ov-empty">Fees module is currently disabled for this tenant.</div>`;
-      return;
-    }
-
-    const f = data.fees;
-    const pct = f.collectionPct !== null ? f.collectionPct : 0;
-    const monthLabel = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
-    el.innerHTML = `
-      <div class="ov-card-head">
-        <div>
-          <div class="ov-card-title">Fee recovery</div>
-          <div class="ov-card-sub">${esc(monthLabel)}</div>
-        </div>
-        <button type="button" class="ov-card-action" data-nav-tab="tab-fees">View ledger &rarr;</button>
-      </div>
-      <div class="ov-fee-body">
-        <div class="ov-donut-wrap">
-          ${buildDonutSvg(pct)}
-          <div class="ov-donut-center">
-            <strong>${f.collectionPct !== null ? pct + '%' : '—'}</strong>
-            <span>collected</span>
-          </div>
-        </div>
-        <div class="ov-fee-legend">
-          <div>
-            <div class="ov-fee-stat-label"><span class="ov-dot" style="background:#17675F"></span> Collected</div>
-            <div class="ov-fee-stat-val">${esc(formatPKR(f.collected))}</div>
-          </div>
-          <div>
-            <div class="ov-fee-stat-label"><span class="ov-dot" style="background:#E5A94B"></span> Outstanding</div>
-            <div class="ov-fee-stat-val">${esc(formatPKR(f.outstanding))}</div>
-          </div>
-        </div>
-      </div>
-      <div class="ov-overdue-banner">
-        <div>
-          <strong>${esc(formatPKR(f.overdue))} past due</strong>
-          <span>${f.overdueAccounts} account${f.overdueAccounts === 1 ? '' : 's'} overdue</span>
-        </div>
-        <button type="button" class="ov-card-action" data-nav-tab="tab-fees">Review &rarr;</button>
-      </div>`;
   }
 
   function renderQuickActions(data) {
@@ -393,58 +264,32 @@
       actions.push({ label: 'Add staff', icon: 'fa-user-plus', tab: 'tab-teachers' });
     }
     if (f.fees) {
-      actions.push({ label: 'Generate fee voucher', icon: 'fa-file-invoice-dollar', href: '/voucher-generator.html#generate' });
+      actions.push({ label: 'Fee voucher', icon: 'fa-file-invoice-dollar', href: '/voucher-generator.html#generate' });
+    }
+    if (f.timetable) {
+      actions.push({ label: 'Timetable', icon: 'fa-calendar-days', href: '/tt2/' });
     }
 
     el.innerHTML = `
       <div class="ov-card-head">
         <div>
           <div class="ov-card-title">Quick actions</div>
-          <div class="ov-card-sub">Common office tasks</div>
+          <div class="ov-card-sub">Common administrative workflows</div>
         </div>
       </div>
-      <div class="ov-actions-list">
+      <div class="ov-actions-grid">
         ${actions.map(a => `
           <button type="button" class="ov-action-btn"
             ${a.tab ? `data-nav-tab="${esc(a.tab)}"` : ''}
             ${a.href ? `data-nav-href="${esc(a.href)}"` : ''}>
-            <i class="fas ${esc(a.icon)}" style="color:var(--eye-teal-mid)"></i>
+            <i class="fas ${esc(a.icon)}"></i>
             <span>${esc(a.label)}</span>
           </button>`).join('')}
         <button type="button" class="ov-action-primary" data-nav-tab="tab-classes">
-          <span>View all services</span>
+          <span>Manage classes &amp; services</span>
           <i class="fas fa-arrow-right"></i>
         </button>
       </div>`;
-  }
-
-  function renderSchedule(data) {
-    const el = document.getElementById('ovScheduleCard');
-    if (!el) return;
-    const items = data.schedule || [];
-
-    const bodyHtml = items.length > 0
-      ? `<div class="ov-schedule-list">
-          ${items.map(s => `
-            <div class="ov-schedule-row" style="cursor:pointer"
-              ${s.tab ? `data-nav-tab="${esc(s.tab)}"` : ''}
-              ${s.href ? `data-nav-href="${esc(s.href)}"` : ''}>
-              <div class="ov-schedule-time">${esc(s.time)}</div>
-              <div class="ov-schedule-title">${esc(s.title)}</div>
-              <div class="ov-schedule-dept">${esc(s.department)}</div>
-            </div>`).join('')}
-         </div>`
-      : `<div class="ov-empty">No scheduled exams or announcements posted yet.</div>`;
-
-    el.innerHTML = `
-      <div class="ov-card-head">
-        <div>
-          <div class="ov-card-title">Campus schedule</div>
-          <div class="ov-card-sub">Exams &amp; school notices</div>
-        </div>
-        <button type="button" class="ov-card-action" data-nav-href="/datesheet.html">Datesheet &rarr;</button>
-      </div>
-      ${bodyHtml}`;
   }
 
   function renderAttendanceTrend(data) {
@@ -476,7 +321,8 @@
         </div>`;
     }).join('');
 
-    const footerMsg = data.attendance.absentToday > 0
+    const hasAbsences = data.attendance.absentToday > 0;
+    const footerMsg = hasAbsences
       ? `${data.attendance.absentToday} student${data.attendance.absentToday === 1 ? '' : 's'} absent today`
       : 'No absences recorded today';
 
@@ -489,52 +335,39 @@
         <button type="button" class="ov-card-action" data-nav-tab="tab-stats">Attendance report &rarr;</button>
       </div>
       <div class="ov-trend-bars">${barsHtml}</div>
-      <div class="ov-trend-footer" style="${data.attendance.absentToday > 0 ? '' : 'color:var(--eye-teal-mid)'}">${esc(footerMsg)}</div>`;
+      <div class="ov-trend-footer ${hasAbsences ? 'warn' : 'ok'}">
+        <span class="ov-status-dot ${hasAbsences ? 'amber' : 'green'}" aria-hidden="true"></span>
+        <span>${esc(footerMsg)}</span>
+      </div>`;
   }
 
-  function renderTeacherCoverage(data) {
-    const el = document.getElementById('ovCoverageCard');
+  function renderSchedule(data) {
+    const el = document.getElementById('ovScheduleCard');
     if (!el) return;
-    const s = data.staff;
-    const items = s.coverItems || [];
+    const items = data.schedule || [];
 
-    const headSub = s.qrAttendanceEnabled && s.presentTeachers !== null
-      ? `${s.presentTeachers} / ${s.totalTeachers} present`
-      : `${s.totalTeachers} teaching staff`;
-
-    const banner = items.length > 0
-      ? `<div class="ov-cover-banner">
-           <strong>${items.length} item${items.length === 1 ? '' : 's'} need cover / assignment</strong>
-           <span>Review class &amp; timetable coverage</span>
+    const bodyHtml = items.length > 0
+      ? `<div class="ov-schedule-list">
+          ${items.map(s => `
+            <div class="ov-schedule-row" style="cursor:pointer"
+              ${s.tab ? `data-nav-tab="${esc(s.tab)}"` : ''}
+              ${s.href ? `data-nav-href="${esc(s.href)}"` : ''}>
+              <div class="ov-schedule-time">${esc(s.time)}</div>
+              <div class="ov-schedule-title">${esc(s.title)}</div>
+              <div class="ov-schedule-dept">${esc(s.department)}</div>
+            </div>`).join('')}
          </div>`
-      : `<div class="ov-cover-banner">
-           <strong>All classes covered</strong>
-           <span>Every active class has an assigned teacher</span>
-         </div>`;
-
-    const listHtml = items.slice(0, 3).map(c => `
-      <div class="ov-schedule-row" style="grid-template-columns:1fr auto;">
-        <div>
-          <div class="ov-schedule-title">${esc(c.label)}</div>
-          <div class="ov-schedule-dept">${esc(c.detail)}</div>
-        </div>
-        <button type="button" class="ov-inbox-btn"
-          ${c.actionTab ? `data-nav-tab="${esc(c.actionTab)}"` : ''}
-          ${c.actionHref ? `data-nav-href="${esc(c.actionHref)}"` : ''}>
-          Assign &rarr;
-        </button>
-      </div>`).join('');
+      : `<div class="ov-empty">No scheduled exams or announcements posted yet.</div>`;
 
     el.innerHTML = `
       <div class="ov-card-head">
         <div>
-          <div class="ov-card-title">Teacher coverage</div>
-          <div class="ov-card-sub">${esc(headSub)}</div>
+          <div class="ov-card-title">Campus schedule</div>
+          <div class="ov-card-sub">Upcoming exams &amp; notices</div>
         </div>
-        <button type="button" class="ov-card-action" data-nav-tab="tab-classes">Manage cover &rarr;</button>
+        <button type="button" class="ov-card-action" data-nav-href="/datesheet.html">Datesheet &rarr;</button>
       </div>
-      ${banner}
-      ${listHtml}`;
+      ${bodyHtml}`;
   }
 
   function bindOverviewNavClicks() {
@@ -554,6 +387,9 @@
     const overviewTab = document.getElementById('tab-overview');
     if (!overviewTab) return;
 
+    const errBanner = document.getElementById('ovErrorBanner');
+    if (errBanner) errBanner.style.display = 'none';
+
     const branchId = window.appData?.selectedBranchId || 'all';
     const yearEl = document.getElementById('academicYearSelect');
     const year = yearEl ? yearEl.value : 'all';
@@ -563,28 +399,25 @@
       const res = await window.apiFetch(`/api/dashboard/overview?${qs.toString()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      lastOverviewData = data;
+      const priorities = consolidatePriorities(data.priorities);
 
-      renderHeaderMeta(data);
-      renderHealthPanel(data);
-      renderKpis(data);
-      renderPriorityInbox(data);
-      renderFeeRecovery(data);
+      renderHeaderMeta(data, priorities);
+      renderKpis(data, priorities);
+      renderPriorityInbox(priorities);
       renderQuickActions(data);
-      renderSchedule(data);
       renderAttendanceTrend(data);
-      renderTeacherCoverage(data);
+      renderSchedule(data);
       bindOverviewNavClicks();
     } catch (err) {
       console.error('Overview load error:', err);
-      const hp = document.getElementById('ovHealthPanel');
-      if (hp) {
-        hp.innerHTML = `
+      if (errBanner) {
+        errBanner.style.display = 'flex';
+        errBanner.innerHTML = `
           <div>
-            <div class="ov-health-title">Could not load live school overview</div>
-            <div class="ov-health-desc">${esc(err.message || 'Network or server error')}</div>
-            <button type="button" class="ov-health-link" onclick="window.loadOverviewDashboard()">Retry &rarr;</button>
-          </div>`;
+            <div class="ov-error-title">Could not load live school overview</div>
+            <div class="ov-error-desc">${esc(err.message || 'Network or server error')}</div>
+          </div>
+          <button type="button" class="ov-retry-btn" onclick="window.loadOverviewDashboard()">Retry</button>`;
       }
     }
   }
