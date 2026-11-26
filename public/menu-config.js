@@ -6,33 +6,47 @@
 var MENU_CONFIG = {
   admin: [
     {
-      id: 'tab-people-menu',
-      label: 'People',
-      icon: 'fa-users',
+      id: 'tab-overview-btn',
+      label: 'Overview',
+      icon: 'fa-house',
+      href: '#tab-overview',
+      dataSection: 'tab-overview',
+      active: true
+    },
+    {
+      id: 'tab-students-btn',
+      label: 'Students',
+      icon: 'fa-user-graduate',
+      href: '#tab-students',
+      dataSection: 'tab-students',
+      dataFeatureKey: 'student_management'
+    },
+    {
+      id: 'tab-academics-menu',
+      label: 'Academics',
+      icon: 'fa-book-open',
+      activeSections: ['tab-classes', 'tab-announcements'],
       dropdown: [
         {
-          label: 'Teachers',
-          desc: 'Manage teacher accounts.',
-          href: '#tab-teachers',
-          dataSection: 'tab-teachers',
-          dataFeatureKey: 'teacher_management'
+          label: 'Classes & Sections',
+          desc: 'Manage classes and teacher assignments.',
+          href: '#tab-classes',
+          dataSection: 'tab-classes'
         },
         {
-          label: 'Students',
-          desc: 'Manage student accounts.',
-          href: '#tab-students',
-          dataSection: 'tab-students',
-          dataFeatureKey: 'student_management'
+          label: 'Generate Time Table',
+          desc: 'Makes the weekly class timetable.',
+          href: '/tt2/',
+          dataFeatureKey: 'timetable'
         },
         {
-          label: 'Coordinators',
-          desc: 'Manage coordinator accounts.',
-          href: '#tab-coordinators',
-          dataSection: 'tab-coordinators'
+          label: 'Announcements',
+          desc: 'School-wide notices and updates.',
+          href: '#tab-announcements',
+          dataSection: 'tab-announcements'
         }
       ]
     },
-    { id: 'tab-classes', label: 'Classes', icon: 'fa-book', href: '#tab-classes', dataSection: 'tab-classes' },
     {
       id: 'tab-attendance-menu',
       label: 'Attendance',
@@ -54,11 +68,8 @@ var MENU_CONFIG = {
           dataSection: 'tab-stats'
         },
         {
-          // Not gated behind a feature switch: the admin has to be able to see that
-          // QR attendance is on its way, so the item stays in the menu and the tab
-          // itself explains that it will be available soon.
           label: 'QR Attendance',
-          desc: 'QR-based staff attendance — available soon.',
+          desc: 'QR-based staff attendance.',
           href: '#tab-qr-attendance',
           dataSection: 'tab-qr-attendance'
         }
@@ -66,7 +77,7 @@ var MENU_CONFIG = {
     },
     {
       id: 'tab-fees-menu',
-      label: 'Fees',
+      label: 'Fees & Accounts',
       icon: 'fa-money-bill-wave',
       href: '#tab-fees',
       dataSection: 'tab-fees',
@@ -74,8 +85,8 @@ var MENU_CONFIG = {
       activeSections: ['tab-fees'],
       dropdown: [
         {
-          label: 'Fees',
-          desc: 'Fee structures, payments and reports.',
+          label: 'Fee Center & Ledger',
+          desc: 'Fee structures, obligations and payments.',
           href: '#tab-fees',
           dataSection: 'tab-fees'
         },
@@ -88,23 +99,11 @@ var MENU_CONFIG = {
           label: 'Generate Voucher',
           desc: 'Make and print the class fee challans.',
           href: '/voucher-generator.html#generate'
-        }
-      ]
-    },
-    {
-      id: 'tab-finance-menu',
-      label: 'Finance',
-      icon: 'fa-wallet',
-      dropdown: [
-        {
-          label: 'Overview',
-          desc: 'Review cash, income, and obligations.',
-          href: '/finance-overview.html'
         },
         {
-          label: 'Payroll',
-          desc: 'Manage employees and payroll.',
-          href: '/finance-payroll.html'
+          label: 'Finance Overview',
+          desc: 'Review cash, income, and obligations.',
+          href: '/finance-overview.html'
         },
         {
           label: 'Expenses',
@@ -114,16 +113,36 @@ var MENU_CONFIG = {
       ]
     },
     {
-      id: 'tab-automated',
-      label: 'Automated',
-      icon: 'fa-wand-magic-sparkles',
+      id: 'tab-staff-menu',
+      label: 'Staff & Payroll',
+      icon: 'fa-users',
+      activeSections: ['tab-teachers', 'tab-coordinators'],
       dropdown: [
         {
-          label: 'Generate Time Table',
-          desc: 'Makes the weekly class timetable.',
-          href: '/tt2/',
-          dataFeatureKey: 'timetable'
+          label: 'Teachers',
+          desc: 'Manage teacher accounts.',
+          href: '#tab-teachers',
+          dataSection: 'tab-teachers',
+          dataFeatureKey: 'teacher_management'
         },
+        {
+          label: 'Coordinators',
+          desc: 'Manage coordinator accounts.',
+          href: '#tab-coordinators',
+          dataSection: 'tab-coordinators'
+        },
+        {
+          label: 'Payroll',
+          desc: 'Manage employees and payroll.',
+          href: '/finance-payroll.html'
+        }
+      ]
+    },
+    {
+      id: 'tab-exams-menu',
+      label: 'Exams & Results',
+      icon: 'fa-calendar-check',
+      dropdown: [
         {
           label: 'Generate Date Sheet',
           desc: 'Makes the exam dates for your classes.',
@@ -135,6 +154,7 @@ var MENU_CONFIG = {
       id: 'tab-complaints-menu',
       label: 'Complaints',
       icon: 'fa-circle-exclamation',
+      activeSections: ['tab-complaints'],
       dropdown: [
         {
           label: 'Teacher complaints',
@@ -149,12 +169,6 @@ var MENU_CONFIG = {
           href: '#tab-complaints',
           dataSection: 'tab-complaints',
           dataRole: 'student'
-        },
-        {
-          label: 'Announcements',
-          desc: 'School-wide announcements.',
-          href: '#tab-announcements',
-          dataSection: 'tab-announcements'
         }
       ]
     },

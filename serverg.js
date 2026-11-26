@@ -16,6 +16,7 @@ const { createTt2Router } = require('./timetable/tt2/routes')
 const { createFinanceRouter } = require('./finance-routes')
 const { createFeeRouter } = require('./fee-routes')
 const { createFeeManagementRouter } = require('./fee-management-routes')
+const { createDashboardRouter } = require('./dashboard-routes')
 const FM = require('./fee-management')
 
 const app = express()
@@ -550,6 +551,7 @@ app.use('/api/tt2', tt2FeatureCheck, createTt2Router({
 app.use('/api/finance', createFinanceRouter({ pool, requireAuth }))
 app.use('/api/fees', createFeeRouter({ pool, requireAuth }))
 app.use('/api/fee-management', createFeeManagementRouter({ pool, requireAuth }))
+app.use('/api/dashboard', createDashboardRouter({ pool, requireAuth }))
 
 // ============================================
 // CREATE TABLES ON STARTUP

@@ -2459,6 +2459,7 @@
   </style>
     <link rel="stylesheet" href="ui-buttons.css">
   <link rel="stylesheet" href="./shared-nav.css">
+  <link rel="stylesheet" href="./overview-dashboard.css">
 </head>
 
 <body class="gates-pending">
@@ -2475,67 +2476,156 @@
     </div>
   </div>
 
-  <!-- ======================== HEADER ======================== -->
-  <div class="header">
-    <div class="header-inner">
-      <div class="header-left">
-        <a href="./index.html" class="back-btn" title="Back to Home" aria-label="Back to Home">
-          <i class="fas fa-arrow-left"></i>
-        </a>
-        <div class="header-title">
-          <strong><i class="fas fa-shield-halved" style="margin-right:6px; font-size:1rem;"></i>Admin Dashboard</strong>
-          <span>The Eye — School Management System</span>
-        </div>
-      </div>
-      <!-- Branch selector (rendered by JS once bootstrap loads) -->
-      <div class="branch-selector-wrap" id="branchSelectorWrap" style="display:none;">
-        <select id="branchSelector" class="branch-selector" onchange="onBranchChanged(this.value)">
-          <option value="all">All Branches</option>
-        </select>
-      </div>
-      <div class="header-right">
-        <!-- Theme toggle button (separate from dropdown) -->
-        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
-          <i class="fas fa-moon" id="themeIcon"></i>
-        </button>
+  <!-- ======================== APP SHELL ======================== -->
+  <div class="eye-shell" id="eyeShell">
 
-        <!-- User menu dropdown -->
-        <div id="headerMenuWrap" class="header-menu-wrap">
-          <button id="headerMenuToggle" class="header-menu-toggle" aria-expanded="false" aria-controls="headerMenuPanel" aria-label="Open menu" title="Menu">
-            <i class="fas fa-ellipsis-vertical"></i>
-          </button>
-          <div id="headerMenuPanel" class="header-menu-panel">
-            <button class="btn" onclick="openChangePasswordModal(); closeHeaderMenu();" style="padding:8px 14px;font-size:0.75rem;background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.25);color:white;border-radius:10px;font-weight:600;cursor:pointer;transition:all 0.3s ease;font-family:'Inter',sans-serif;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'"><i class="fas fa-key"></i> Change Password</button>
-            <button class="btn" onclick="handleLogout()" style="padding:8px 14px;font-size:0.75rem;background:rgba(239,68,68,0.2);border:2px solid rgba(239,68,68,0.3);color:white;border-radius:10px;font-weight:600;cursor:pointer;transition:all 0.3s ease;font-family:'Inter',sans-serif;" onmouseover="this.style.background='rgba(239,68,68,0.35)'" onmouseout="this.style.background='rgba(239,68,68,0.2)'"><i class="fas fa-sign-out-alt"></i> Logout</button>
+    <!-- ==================== LEFT SIDEBAR ==================== -->
+    <aside class="eye-sidebar" id="eyeSidebar" aria-label="Primary navigation">
+      <div class="eye-sidebar-brand">
+        <div class="eye-brand-left">
+          <div class="eye-brand-logo" id="sidebarBrandLogo">TE</div>
+          <div class="eye-brand-text">
+            <div class="eye-brand-name" id="sidebarSchoolName">The Eye</div>
+            <div class="eye-brand-sub">School Management</div>
           </div>
         </div>
+        <button type="button" class="eye-collapse-btn" id="sidebarCollapseBtn" title="Toggle sidebar" aria-label="Toggle sidebar">
+          <i class="fas fa-angles-left"></i>
+        </button>
       </div>
-    </div>
-  </div>
 
-  <!-- ======================== CAPACITY ======================== -->
-  <!-- Every headcount lives in one strip: students, teachers and coordinators side by
-       side, so the numbers are read in one place instead of being split between the
-       header and the panel below it. -->
-  <div class="capacity-strip" id="capacityStrip" style="display:none;border-bottom:1px solid var(--border);padding:8px 18px;font-size:0.82rem;color:var(--text-secondary);gap:24px;flex-wrap:wrap;align-items:center;background:var(--bg-card);">
-    <span id="capStudentsWrap" style="display:flex;align-items:center;gap:8px;"><strong style="color:var(--text);">Students:</strong> <span id="capStudents">—</span></span>
-    <span id="capTeachersWrap" style="display:flex;align-items:center;gap:8px;"><strong style="color:var(--text);">Teachers:</strong> <span id="capTeachers">—</span></span>
-    <span id="capCoordinatorsWrap" style="display:flex;align-items:center;gap:8px;"><strong style="color:var(--text);">Coordinators:</strong> <span id="capCoordinators">—</span></span>
-  </div>
+      <div class="eye-sidebar-section-label">Main Workspace</div>
 
-  <!-- ======================== TAB NAVIGATION ======================== -->
-  <nav class="tab-nav" id="tabNav">
-    <button id="mobileNavToggle" class="tab-nav-toggle" aria-expanded="false" aria-controls="tabNavInner" aria-label="Open section menu">
-      <span id="mobileNavToggleLabel">People</span>
-      <i class="fas fa-bars tab-nav-toggle-icon"></i>
-    </button>
-    <div class="tab-nav-inner" id="tabNavInner">
-      <!-- Navigation items will be generated by shared-nav.js from menu-config.js -->
-    </div>
-  </nav>
+      <!-- ======================== TAB NAVIGATION ======================== -->
+      <nav class="tab-nav" id="tabNav">
+        <button id="mobileNavToggle" class="tab-nav-toggle" aria-expanded="false" aria-controls="tabNavInner" aria-label="Open section menu" style="display:none;">
+          <span id="mobileNavToggleLabel">Overview</span>
+          <i class="fas fa-bars tab-nav-toggle-icon"></i>
+        </button>
+        <div class="tab-nav-inner" id="tabNavInner">
+          <!-- Navigation items will be generated by shared-nav.js from menu-config.js -->
+        </div>
+      </nav>
 
-  <!-- ======================== MAIN ======================== -->
-  <div class="main">
+      <div class="eye-sidebar-footer">
+        <div class="eye-sidebar-footer-card">
+          <div class="eyelabel">Academic Year</div>
+          <div class="eyeval" id="sidebarYearLabel">2026-27</div>
+          <div id="sidebarCampusLabel" style="color:var(--eye-muted);margin-top:2px;">All Campuses</div>
+          <div class="eyerole">School Administrator</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ==================== MAIN SHELL ==================== -->
+    <div class="eye-main-shell">
+
+      <!-- ======================== TOP HEADER ======================== -->
+      <header class="eye-topbar">
+        <div class="eye-topbar-left">
+          <button type="button" class="eye-mobile-menu-btn" id="eyeMobileMenuBtn" aria-label="Open navigation menu">
+            <i class="fas fa-bars"></i>
+          </button>
+          <div>
+            <div class="eye-breadcrumb" id="ovBreadcrumb">ADMINISTRATION / ALL CAMPUSES</div>
+            <h1 class="eye-greeting" id="ovGreeting">Good morning, Administrator</h1>
+            <div class="eye-dateline" id="ovDateline">Loading school status...</div>
+          </div>
+        </div>
+
+        <div class="eye-topbar-right">
+          <select id="academicYearSelect" class="eye-control-pill" aria-label="Academic year">
+            <option value="all" selected>AY 2026-27 · All</option>
+            <option value="2026-27">AY 2026-27</option>
+            <option value="2025-26">AY 2025-26</option>
+          </select>
+
+          <!-- Branch selector (rendered by JS once bootstrap loads) -->
+          <div class="branch-selector-wrap" id="branchSelectorWrap" style="display:none;">
+            <select id="branchSelector" class="eye-control-pill branch-selector" onchange="onBranchChanged(this.value)" aria-label="Branch selector">
+              <option value="all">All Branches</option>
+            </select>
+          </div>
+
+          <div class="eye-search-wrap">
+            <i class="fas fa-magnifying-glass"></i>
+            <input type="search" id="globalSearchInput" class="eye-search-input" placeholder="Search students, staff, receipts..." autocomplete="off" aria-label="Global search">
+            <div class="eye-search-results" id="globalSearchResults"></div>
+          </div>
+
+          <button type="button" class="eye-icon-btn" id="notifBellBtn" onclick="switchTab('tab-complaints')" title="Pending alerts &amp; complaints" aria-label="Notifications">
+            <i class="fas fa-bell"></i>
+            <span class="eye-notif-dot" id="notifBadgeDot">0</span>
+          </button>
+
+          <button type="button" class="eye-icon-btn theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+            <i class="fas fa-moon" id="themeIcon"></i>
+          </button>
+
+          <!-- User menu dropdown -->
+          <div id="headerMenuWrap" class="header-menu-wrap">
+            <button type="button" id="headerMenuToggle" class="eye-profile-chip header-menu-toggle" aria-expanded="false" aria-controls="headerMenuPanel" aria-label="Open account menu">
+              <div class="eye-avatar" id="topbarAvatar">AD</div>
+              <div class="eye-profile-meta">
+                <div class="eye-profile-name" id="topbarAdminName">Administrator</div>
+                <div class="eye-profile-role" id="topbarAdminRole">School Administrator</div>
+              </div>
+              <i class="fas fa-chevron-down" style="font-size:0.68rem;color:var(--eye-muted);margin-left:2px;"></i>
+            </button>
+            <div id="headerMenuPanel" class="header-menu-panel">
+              <button class="btn" onclick="openChangePasswordModal(); closeHeaderMenu();" style="padding:8px 14px;font-size:0.75rem;background:var(--eye-teal-deep);border:1px solid var(--eye-border);color:white;border-radius:10px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;"><i class="fas fa-key"></i> Change Password</button>
+              <button class="btn" onclick="handleLogout()" style="padding:8px 14px;font-size:0.75rem;background:#D96E63;border:1px solid rgba(217,110,99,0.4);color:white;border-radius:10px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- ======================== CAPACITY ======================== -->
+      <div class="capacity-strip" id="capacityStrip" style="display:none;border-bottom:1px solid var(--eye-border);padding:8px 24px;font-size:0.8rem;color:var(--eye-muted);gap:24px;flex-wrap:wrap;align-items:center;background:var(--eye-card);">
+        <span id="capStudentsWrap" style="display:flex;align-items:center;gap:8px;"><strong style="color:var(--eye-ink);">Students:</strong> <span id="capStudents">—</span></span>
+        <span id="capTeachersWrap" style="display:flex;align-items:center;gap:8px;"><strong style="color:var(--eye-ink);">Teachers:</strong> <span id="capTeachers">—</span></span>
+        <span id="capCoordinatorsWrap" style="display:flex;align-items:center;gap:8px;"><strong style="color:var(--eye-ink);">Coordinators:</strong> <span id="capCoordinators">—</span></span>
+      </div>
+
+      <!-- ======================== MAIN ======================== -->
+      <div class="main">
+
+        <!-- ==================== OVERVIEW TAB ==================== -->
+        <div id="tab-overview" class="tab-content active">
+          <div class="ov-stack">
+            <section class="ov-health-panel" id="ovHealthPanel" aria-label="School Health Overview">
+              <div>
+                <div class="ov-health-title">School health today</div>
+                <div class="ov-health-desc">Loading live school metrics...</div>
+              </div>
+              <div class="ov-rings-grid">
+                <div class="ov-skeleton" style="height:110px;"></div>
+                <div class="ov-skeleton" style="height:110px;"></div>
+                <div class="ov-skeleton" style="height:110px;"></div>
+                <div class="ov-skeleton" style="height:110px;"></div>
+              </div>
+            </section>
+
+            <section class="ov-kpi-grid" id="ovKpiGrid" aria-label="Key Performance Indicators">
+              <div class="ov-kpi-card"><div class="ov-skeleton" style="height:74px;"></div></div>
+              <div class="ov-kpi-card"><div class="ov-skeleton" style="height:74px;"></div></div>
+              <div class="ov-kpi-card"><div class="ov-skeleton" style="height:74px;"></div></div>
+              <div class="ov-kpi-card"><div class="ov-skeleton" style="height:74px;"></div></div>
+            </section>
+
+            <section class="ov-mid-grid">
+              <div class="ov-card" id="ovPriorityCard"><div class="ov-skeleton" style="height:180px;"></div></div>
+              <div class="ov-card" id="ovFeeRecoveryCard"><div class="ov-skeleton" style="height:180px;"></div></div>
+              <div class="ov-card" id="ovQuickActionsCard"><div class="ov-skeleton" style="height:180px;"></div></div>
+            </section>
+
+            <section class="ov-low-grid">
+              <div class="ov-card" id="ovScheduleCard"><div class="ov-skeleton" style="height:170px;"></div></div>
+              <div class="ov-card" id="ovTrendCard"><div class="ov-skeleton" style="height:170px;"></div></div>
+              <div class="ov-card" id="ovCoverageCard"><div class="ov-skeleton" style="height:170px;"></div></div>
+            </section>
+          </div>
+        </div>
 
     <!-- ==================== BRANCHES TAB ==================== -->
     <!-- Only visible when tenant has zero branches (initial setup) -->
@@ -7220,6 +7310,7 @@
       // Wait for bootstrap to finish before reloading data with branch filter
       const doReload = () => {
         reloadAllData(false, true);
+        if (window.loadOverviewDashboard) window.loadOverviewDashboard();
       };
       if (window.appData.bootstrapLoaded) {
         doReload();
@@ -8026,6 +8117,11 @@
 
       activeTabId = newTabId;
       history.replaceState(null, '', '#' + newTabId);
+      document.getElementById('eyeShell')?.classList.remove('mobile-drawer-open');
+
+      if (newTabId === 'tab-overview' && window.loadOverviewDashboard) {
+        window.loadOverviewDashboard();
+      }
 
       if (newTabId === 'tab-fees') {
         loadFeeCenter().then(() => { if (window.feeCenter.loaded) renderActiveFeeSubTab(); });
@@ -9237,6 +9333,7 @@
 
   <script src="./menu-config.js"></script>
   <script src="./shared-nav.js"></script>
+  <script src="./overview-dashboard.js"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function() {
       if (window.initSharedNav) {
@@ -10614,6 +10711,8 @@
       } catch (e) { showToast('Could not delete: ' + e.message, 'error'); }
     }
   </script>
+    </div><!-- /.eye-main-shell -->
+  </div><!-- /.eye-shell -->
 </body>
 
 </html>
