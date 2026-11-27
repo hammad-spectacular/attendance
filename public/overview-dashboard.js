@@ -3,6 +3,23 @@
 
   let showAllPriorities = false;
   let searchTimer = null;
+  let lastAdminName = 'Administrator';
+  let lastDateline = '';
+
+  const TAB_TITLES = {
+    'tab-overview': null,
+    'tab-students': 'Students',
+    'tab-classes': 'Classes & Sections',
+    'tab-attendance': 'Attendance',
+    'tab-stats': 'Attendance Stats',
+    'tab-announcements': 'Announcements',
+    'tab-qr-attendance': 'QR Staff Attendance',
+    'tab-fees': 'Fees & Accounts',
+    'tab-teachers': 'Teachers',
+    'tab-coordinators': 'Coordinators',
+    'tab-complaints': 'Complaints',
+    'tab-branches': 'Branches',
+  };
 
   function esc(str) {
     return String(str == null ? '' : str)
@@ -29,13 +46,42 @@
     return parts.slice(0, 2).map(p => (p[0] ? p[0].toUpperCase() : '')).join('') || 'AD';
   }
 
+  function shortDateLabel(isoDate) {
+    if (!isoDate) return '';
+    const d = new Date(isoDate + 'T00:00:00');
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  function updateHeaderForTab(tabId) {
+    const titleEl = document.getElementById('ovGreeting');
+    const dateEl = document.getElementById('ovDateline');
+    const active = tabId || 'tab-overview';
+    const customTitle = TAB_TITLES[active];
+
+    if (titleEl) {
+      if (customTitle) {
+        titleEl.textContent = customTitle;
+      } else {
+        const now = new Date();
+        titleEl.textContent = `${greetingForHour(now.getHours())}, ${lastAdminName}`;
+      }
+    }
+    if (dateEl) {
+      dateEl.style.display = customTitle ? 'none' : 'block';
+      if (!customTitle && lastDateline) {
+        dateEl.textContent = lastDateline;
+      }
+    }
+  }
+
   function navigateToTarget(tab, href, searchValue) {
     if (tab && typeof window.switchTab === 'function') {
       window.switchTab(tab, false);
       if (searchValue) {
         setTimeout(() => {
-          const inputId = tab === 'tab-students' ? 'studentSearch'
-            : tab === 'tab-teachers' ? 'teacherSearch'
+          const inputId = tab === 'tab-students' ? 'studentSearchInput'
+            : tab === 'tab-teachers' ? 'teacherSearchInput'
             : null;
           if (inputId) {
             const el = document.getElementById(inputId);
@@ -60,11 +106,11 @@
     const hasUnassigned = list.some(p => p && p.id === 'unassigned-classes');
 
     const actionLabels = {
-      'unassigned-classes': 'Assign Teacher \u2192',
-      'unmarked-attendance': 'Mark Attendance \u2192',
-      'overdue-fees': 'Review Balances \u2192',
-      'absent-today': 'View Absentees \u2192',
-      'pending-complaints': 'Review Complaints \u2192',
+      'unassigned-classes': 'Assign',
+      'unmarked-attendance': 'Mark',
+      'overdue-fees': 'Review',
+      'absent-today': 'View',
+      'pending-complaints': 'Review',
     };
 
     for (const item of list) {
@@ -76,7 +122,7 @@
       seen.add(item.id);
       out.push({
         ...item,
-        actionLabel: actionLabels[item.id] || item.actionLabel || 'Open \u2192',
+        actionLabel: actionLabels[item.id] || 'Open',
       });
     }
     return out;
@@ -84,19 +130,15 @@
 
   function renderHeaderMeta(data, consolidatedPriorities) {
     const now = new Date();
-    const greetEl = document.getElementById('ovGreeting');
-    if (greetEl) {
-      greetEl.textContent = `${greetingForHour(now.getHours())}, ${data.adminName || 'Administrator'}`;
-    }
+    lastAdminName = data.adminName || 'Administrator';
+    const dStr = now.toLocaleDateString('en-US', {
+      weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
+    });
+    const tStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    lastDateline = `${dStr} · Updated ${tStr}`;
 
-    const dateEl = document.getElementById('ovDateline');
-    if (dateEl) {
-      const dStr = now.toLocaleDateString('en-US', {
-        weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
-      });
-      const tStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-      dateEl.textContent = `${dStr} \u00B7 Updated ${tStr}`;
-    }
+    const activePanel = document.querySelector('.tab-content.active');
+    updateHeaderForTab(activePanel ? activePanel.id : 'tab-overview');
 
     const schoolEl = document.getElementById('sidebarSchoolName');
     if (schoolEl && data.schoolName) schoolEl.textContent = data.schoolName;
@@ -108,22 +150,16 @@
     if (avatarEl) avatarEl.textContent = initials(data.adminName);
 
     const nameEl = document.getElementById('topbarAdminName');
-    if (nameEl) nameEl.textContent = data.adminName || 'Administrator';
+    if (nameEl) nameEl.textContent = lastAdminName;
 
     const roleEl = document.getElementById('topbarAdminRole');
-    if (roleEl) roleEl.textContent = data.adminRole === 'super_admin' ? 'Super Administrator' : 'Administrator';
+    if (roleEl) roleEl.textContent = data.adminRole === 'super_admin' ? 'Super administrator' : 'Administrator';
 
     const crumbEl = document.getElementById('ovBreadcrumb');
     if (crumbEl) {
       const sel = document.getElementById('branchSelector');
-      const branchLabel = sel && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex].text : 'All Branches';
-      crumbEl.textContent = `ADMINISTRATION / ${branchLabel.toUpperCase()}`;
-    }
-
-    const footerCampus = document.getElementById('sidebarCampusLabel');
-    if (footerCampus) {
-      const sel = document.getElementById('branchSelector');
-      footerCampus.textContent = sel && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex].text : 'All Campuses';
+      const branchLabel = sel && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex].text : 'All branches';
+      crumbEl.textContent = `Administration / ${branchLabel}`;
     }
 
     const dot = document.getElementById('notifBadgeDot');
@@ -142,59 +178,70 @@
     const el = document.getElementById('ovKpiGrid');
     if (!el) return;
 
-    const attPct = data.attendance.pctToday;
-    const attTone = attPct === null ? 'indigo' : (attPct >= 85 ? 'green' : 'amber');
-    const attVal = attPct !== null ? `${attPct}%` : '\u2014';
-    const attSub = data.attendance.markedTotal > 0
-      ? `${data.attendance.presentToday.toLocaleString()} of ${data.students.active.toLocaleString()} present`
-      : 'Not marked today';
+    const stuCount = data.students.active || 0;
+    const stuSub = stuCount > 0
+      ? `${data.students.classCount} classes · ${data.students.newThisMonth} new this month`
+      : '<span class="ov-kpi-action">Add first student &rarr;</span>';
 
-    let feeTone = 'indigo';
+    const attPct = data.attendance.pctToday;
+    const attMarked = data.attendance.markedTotal > 0;
+    const attTone = !attMarked ? 'primary' : (attPct >= 85 ? 'green' : 'amber');
+    const attVal = attMarked && attPct !== null ? `${attPct}%` : 'Not marked';
+    const attSub = attMarked
+      ? `${data.attendance.presentToday.toLocaleString()} of ${stuCount.toLocaleString()} present`
+      : '<span class="ov-kpi-action">Mark attendance &rarr;</span>';
+
+    let feeTone = 'primary';
     let feeVal = 'Disabled';
-    let feeSub = 'Module disabled';
+    let feeSub = 'Fees module not enabled';
     let feeTab = 'tab-classes';
     if (data.fees && data.fees.enabled) {
-      const fpct = data.fees.collectionPct;
-      feeTone = fpct === null ? 'indigo' : (fpct >= 80 ? 'green' : 'amber');
-      feeVal = fpct !== null ? `${fpct}%` : formatPKR(data.fees.collected);
-      feeSub = `${formatPKR(data.fees.collected)} collected \u00B7 ${formatPKR(data.fees.outstanding)} due`;
       feeTab = 'tab-fees';
+      if (data.fees.expected > 0) {
+        const fpct = data.fees.collectionPct;
+        feeTone = fpct === null ? 'primary' : (fpct >= 80 ? 'green' : 'amber');
+        feeVal = fpct !== null ? `${fpct}%` : formatPKR(data.fees.collected);
+        feeSub = `${formatPKR(data.fees.collected)} collected · ${formatPKR(data.fees.outstanding)} due`;
+      } else {
+        feeVal = 'No dues';
+        feeSub = '<span class="ov-kpi-action">Set up fees &rarr;</span>';
+      }
     }
 
     const priCount = priorities.length;
     const priTone = priCount > 0 ? 'red' : 'green';
     const priSub = priCount > 0
-      ? `${priCount} item${priCount === 1 ? '' : 's'} need action`
-      : 'All clear';
+      ? `${priCount} item${priCount === 1 ? '' : 's'} need attention`
+      : 'All systems clear';
 
     el.innerHTML = `
       <button type="button" class="ov-kpi-card" data-nav-tab="tab-students">
         <div class="ov-kpi-top">
-          <span class="ov-kpi-title">Total Students</span>
-          <span class="ov-kpi-icon indigo" aria-hidden="true"><i class="fas fa-user-graduate"></i></span>
+          <span class="ov-kpi-title">Total students</span>
+          <span class="ov-kpi-icon primary" aria-hidden="true"><i class="fas fa-user-graduate"></i></span>
         </div>
-        <div class="ov-kpi-value">${data.students.active.toLocaleString()}</div>
-        <div class="ov-kpi-sub">${data.students.classCount} classes \u00B7 ${data.students.newThisMonth} new this month</div>
+        <div class="ov-kpi-value">${stuCount.toLocaleString()}</div>
+        <div class="ov-kpi-sub">${stuSub}</div>
       </button>
       <button type="button" class="ov-kpi-card" data-nav-tab="tab-attendance">
         <div class="ov-kpi-top">
-          <span class="ov-kpi-title">Today's Attendance</span>
+          <span class="ov-kpi-title">Today's attendance</span>
           <span class="ov-kpi-icon ${attTone}" aria-hidden="true"><i class="fas fa-clipboard-check"></i></span>
         </div>
-        <div class="ov-kpi-value">${attVal}</div>
-        <div class="ov-kpi-sub">${esc(attSub)}</div>
+        <div class="ov-kpi-value" style="${!attMarked ? 'font-size:20px;' : ''}">${attVal}</div>
+        <div class="ov-kpi-sub">${attSub}</div>
       </button>
       <button type="button" class="ov-kpi-card" data-nav-tab="${feeTab}">
         <div class="ov-kpi-top">
-          <span class="ov-kpi-title">Fee Collection</span>
+          <span class="ov-kpi-title">Fee collection</span>
           <span class="ov-kpi-icon ${feeTone}" aria-hidden="true"><i class="fas fa-wallet"></i></span>
         </div>
-        <div class="ov-kpi-value">${esc(feeVal)}</div>
-        <div class="ov-kpi-sub">${esc(feeSub)}</div>
+        <div class="ov-kpi-value" style="${data.fees && data.fees.enabled && data.fees.expected === 0 ? 'font-size:20px;' : ''}">${esc(feeVal)}</div>
+        <div class="ov-kpi-sub">${feeSub}</div>
       </button>
       <button type="button" class="ov-kpi-card" onclick="document.getElementById('ovPriorityCard')?.scrollIntoView({behavior:'smooth'})">
         <div class="ov-kpi-top">
-          <span class="ov-kpi-title">Open Priorities</span>
+          <span class="ov-kpi-title">Open priorities</span>
           <span class="ov-kpi-icon ${priTone}" aria-hidden="true"><i class="fas fa-circle-exclamation"></i></span>
         </div>
         <div class="ov-kpi-value">${priCount}</div>
@@ -211,7 +258,7 @@
       ? shown.map(item => `
           <div class="ov-inbox-item">
             <div class="ov-inbox-left">
-              <div class="ov-count-badge ${esc(item.severity)}">${item.count}</div>
+              <span class="ov-severity-dot ${esc(item.severity)}" aria-hidden="true"></span>
               <div style="min-width:0;">
                 <div class="ov-inbox-title">${esc(item.title)}</div>
                 <div class="ov-inbox-meta">${esc(item.meta)}</div>
@@ -223,14 +270,17 @@
               ${esc(item.actionLabel)}
             </button>
           </div>`).join('')
-      : `<div class="ov-empty"><i class="fas fa-circle-check" style="color:var(--eye-green);margin-right:6px;"></i>All clear — no pending issues.</div>`;
+      : `<div class="ov-empty">
+           <span>No urgent issues require action right now.</span>
+         </div>`;
 
     el.innerHTML = `
       <div class="ov-card-head">
         <div>
-          <div class="ov-card-title">Priority Inbox</div>
+          <div class="ov-card-title">Priority inbox</div>
+          <div class="ov-card-sub">${priorities.length} open item${priorities.length === 1 ? '' : 's'}</div>
         </div>
-        ${priorities.length > 5 ? `<button type="button" class="ov-card-action" id="ovTogglePrioritiesBtn">${showAllPriorities ? 'Show less' : 'View all \u2192'}</button>` : ''}
+        ${priorities.length > 5 ? `<button type="button" class="ov-card-action" id="ovTogglePrioritiesBtn">${showAllPriorities ? 'Show less' : 'View all'}</button>` : ''}
       </div>
       <div class="ov-inbox-list">${listHtml}</div>`;
 
@@ -250,22 +300,26 @@
 
     const actions = [];
     if (f.student_management !== false) {
-      actions.push({ label: 'Add Student', icon: 'fa-plus', tab: 'tab-students' });
+      actions.push({ label: 'Add student', icon: 'fa-plus', tab: 'tab-students' });
     }
     if (f.fees) {
-      actions.push({ label: 'Receive Fee', icon: 'fa-receipt', href: '/voucher-generator.html#collect' });
+      actions.push({ label: 'Receive fee', icon: 'fa-receipt', href: '/voucher-generator.html#collect' });
     }
     if (f.attendance !== false) {
-      actions.push({ label: 'Mark Attendance', icon: 'fa-clipboard-check', tab: 'tab-attendance' });
+      actions.push({ label: 'Mark attendance', icon: 'fa-clipboard-check', tab: 'tab-attendance' });
     }
     if (f.fees) {
-      actions.push({ label: 'Fee Voucher', icon: 'fa-file-invoice-dollar', href: '/voucher-generator.html#generate' });
+      actions.push({ label: 'Fee voucher', icon: 'fa-file-invoice-dollar', href: '/voucher-generator.html#generate' });
+    }
+    actions.push({ label: 'Manage classes', icon: 'fa-book-open', tab: 'tab-classes' });
+    if (f.teacher_management !== false) {
+      actions.push({ label: 'Add staff', icon: 'fa-user-plus', tab: 'tab-teachers' });
     }
 
     el.innerHTML = `
       <div class="ov-card-head">
         <div>
-          <div class="ov-card-title">Quick Actions</div>
+          <div class="ov-card-title">Quick actions</div>
         </div>
       </div>
       <div class="ov-actions-grid">
@@ -273,13 +327,9 @@
           <button type="button" class="ov-action-btn"
             ${a.tab ? `data-nav-tab="${esc(a.tab)}"` : ''}
             ${a.href ? `data-nav-href="${esc(a.href)}"` : ''}>
-            <i class="fas ${esc(a.icon)}"></i>
+            <i class="fas ${esc(a.icon)}" aria-hidden="true"></i>
             <span>${esc(a.label)}</span>
           </button>`).join('')}
-        <button type="button" class="ov-action-primary" data-nav-tab="tab-classes">
-          <span>Manage Classes &amp; Services</span>
-          <i class="fas fa-arrow-right"></i>
-        </button>
       </div>`;
   }
 
@@ -287,46 +337,62 @@
     const el = document.getElementById('ovTrendCard');
     if (!el) return;
     const trend = data.attendance.trend || [];
+    const markedToday = data.attendance.markedTotal > 0;
 
     if (trend.length === 0) {
       el.innerHTML = `
         <div class="ov-card-head">
           <div>
-            <div class="ov-card-title">Attendance Trend</div>
+            <div class="ov-card-title">Attendance trend</div>
           </div>
-          <button type="button" class="ov-card-action" data-nav-tab="tab-stats">Report &rarr;</button>
+          <button type="button" class="ov-card-action" data-nav-tab="tab-stats">View report &rarr;</button>
         </div>
-        <div class="ov-empty">No attendance records yet.</div>`;
+        <div class="ov-empty">
+          <span>No attendance records yet. Mark daily attendance to see trends.</span>
+          <button type="button" class="ov-empty-action" data-nav-tab="tab-attendance">Mark attendance</button>
+        </div>`;
       return;
     }
 
+    const todayIso = new Date().toISOString().slice(0, 10);
     const barsHtml = trend.map((d, idx) => {
-      const isLast = idx === trend.length - 1;
+      const isToday = d.date === todayIso || (idx === trend.length - 1 && markedToday);
       const heightPct = Math.max(12, Math.min(100, d.pct));
+      const shortDate = shortDateLabel(d.date);
       return `
-        <div class="ov-bar-col ${isLast ? 'today' : ''}" title="${esc(d.date)}: ${d.present}/${d.total} present (${d.pct}%)">
+        <div class="ov-bar-col ${isToday ? 'today' : ''}" title="${esc(d.date)}: ${d.present}/${d.total} present (${d.pct}%)">
           <div class="ov-bar-pct">${d.pct}%</div>
           <div class="ov-bar-fill" style="height:${heightPct}%"></div>
-          <div class="ov-bar-day">${esc(d.day)}</div>
+          <div class="ov-bar-day">${esc(d.day)}${shortDate ? `<br>${esc(shortDate)}` : ''}${isToday ? '<br>(Today)' : ''}</div>
         </div>`;
     }).join('');
 
-    const hasAbsences = data.attendance.absentToday > 0;
-    const footerMsg = hasAbsences
-      ? `${data.attendance.absentToday} absent today`
-      : 'No absences today';
+    let footerClass = 'neutral';
+    let footerIcon = 'fa-clock';
+    let footerMsg = 'Attendance not marked yet';
+    if (markedToday) {
+      if (data.attendance.absentToday > 0) {
+        footerClass = 'warn';
+        footerIcon = 'fa-circle-exclamation';
+        footerMsg = `${data.attendance.absentToday} student${data.attendance.absentToday === 1 ? '' : 's'} absent today`;
+      } else {
+        footerClass = 'ok';
+        footerIcon = 'fa-circle-check';
+        footerMsg = 'No absences today';
+      }
+    }
 
     el.innerHTML = `
       <div class="ov-card-head">
         <div>
-          <div class="ov-card-title">Attendance Trend</div>
-          <div class="ov-card-sub">Last ${trend.length} school day${trend.length === 1 ? '' : 's'}</div>
+          <div class="ov-card-title">Attendance trend</div>
+          <div class="ov-card-sub">Last ${trend.length} recorded day${trend.length === 1 ? '' : 's'}</div>
         </div>
-        <button type="button" class="ov-card-action" data-nav-tab="tab-stats">Report &rarr;</button>
+        <button type="button" class="ov-card-action" data-nav-tab="tab-stats">View report &rarr;</button>
       </div>
       <div class="ov-trend-bars">${barsHtml}</div>
-      <div class="ov-trend-footer ${hasAbsences ? 'warn' : 'ok'}">
-        <i class="fas ${hasAbsences ? 'fa-circle-exclamation' : 'fa-circle-check'}"></i>
+      <div class="ov-trend-footer ${footerClass}">
+        <i class="fas ${footerIcon}" aria-hidden="true"></i>
         <span>${esc(footerMsg)}</span>
       </div>`;
   }
@@ -347,12 +413,18 @@
               <div class="ov-schedule-dept">${esc(s.department)}</div>
             </div>`).join('')}
          </div>`
-      : `<div class="ov-empty">No upcoming exams or announcements.</div>`;
+      : `<div class="ov-empty">
+           <span>No upcoming exams or school notices posted yet.</span>
+           <div style="display:flex;gap:8px;">
+             <button type="button" class="ov-empty-action" data-nav-href="/datesheet.html">Add datesheet</button>
+             <button type="button" class="ov-empty-action" data-nav-tab="tab-announcements">Post notice</button>
+           </div>
+         </div>`;
 
     el.innerHTML = `
       <div class="ov-card-head">
         <div>
-          <div class="ov-card-title">Campus Schedule</div>
+          <div class="ov-card-title">Campus schedule</div>
           <div class="ov-card-sub">Exams &amp; notices</div>
         </div>
         <button type="button" class="ov-card-action" data-nav-href="/datesheet.html">Datesheet &rarr;</button>
@@ -417,6 +489,14 @@
     const panel = document.getElementById('globalSearchResults');
     if (!input || !panel) return;
 
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        input.focus();
+        input.select();
+      }
+    });
+
     input.addEventListener('input', () => {
       const q = input.value.trim();
       clearTimeout(searchTimer);
@@ -438,8 +518,8 @@
             panel.innerHTML = items.map(r => `
               <button type="button" class="eye-search-item" data-tab="${esc(r.targetTab)}" data-search="${esc(r.searchValue)}">
                 <div>
-                  <div style="font-weight:700;font-size:0.82rem">${esc(r.title)}</div>
-                  <div style="font-size:0.72rem;color:var(--eye-muted)">${esc(r.subtitle)}</div>
+                  <div style="font-weight:600;font-size:13px">${esc(r.title)}</div>
+                  <div style="font-size:12px;color:var(--text-secondary)">${esc(r.subtitle)}</div>
                 </div>
                 <span class="ov-live-badge">${esc(r.type)}</span>
               </button>`).join('');
@@ -492,13 +572,12 @@
     const yearSel = document.getElementById('academicYearSelect');
     if (yearSel) {
       yearSel.addEventListener('change', () => {
-        const lbl = document.getElementById('sidebarYearLabel');
-        if (lbl) lbl.textContent = yearSel.value === 'all' ? 'All Years' : yearSel.value;
         loadOverviewDashboard();
       });
     }
   }
 
+  window.updateHeaderForTab = updateHeaderForTab;
   window.loadOverviewDashboard = loadOverviewDashboard;
 
   document.addEventListener('DOMContentLoaded', () => {

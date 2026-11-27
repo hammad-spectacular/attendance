@@ -1,0 +1,108 @@
+/* ==========================================================================
+   THE EYE — DESIGN TOKENS
+   Spacing: 4 / 8 / 12 / 16 / 24 / 32px
+   Radius: 8px inputs/buttons, 12px cards
+   Colors: Indigo primary, neutral gray scale, semantic status only
+   Typography: 12 / 14 / 16 / 20 / 28px; weights 400 / 500 / 600
+   ========================================================================== */
+
+:root {
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Radii */
+  --radius-control: 8px;
+  --radius-card: 12px;
+
+  /* Typography */
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 20px;
+  --text-xl: 28px;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  /* Colors (Light default) */
+  --primary: #4F46E5;
+  --primary-hover: #4338CA;
+  --primary-soft: #EEF2FF;
+  --primary-light: #6366F1;
+  --bg: #F8FAFC;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #F8FAFC;
+  --bg-input: #FFFFFF;
+  --bg-subtle: #F1F5F9;
+  --border: #E2E8F0;
+  --border-focus: #4F46E5;
+  --text: #111827;
+  --text-secondary: #475569;
+  --text-muted: #475569;
+
+  /* Semantic Status Colors */
+  --success: #16A34A;
+  --success-bg: #DCFCE7;
+  --warning: #D97706;
+  --warning-bg: #FEF3C7;
+  --danger: #DC2626;
+  --danger-bg: #FEE2E2;
+
+  /* Subtle elevation */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 10px 25px -5px rgba(15, 23, 42, 0.1);
+  --table-row-hover: #F8FAFC;
+  --table-stripe: #FFFFFF;
+  --badge-bg: #EEF2FF;
+  --badge-text: #4F46E5;
+  --bar-muted: #CBD5E1;
+
+  /* Layout */
+  --sidebar-w: 244px;
+  --sidebar-collapsed-w: 68px;
+  --header-h: 60px;
+}
+
+[data-theme="dark"] {
+  --primary: #6366F1;
+  --primary-hover: #4F46E5;
+  --primary-soft: rgba(99, 102, 241, 0.18);
+  --primary-light: #818CF8;
+  --bg: #0F172A;
+  --bg-card: #1E293B;
+  --bg-card-hover: #263348;
+  --bg-input: #0F172A;
+  --bg-subtle: #1E293B;
+  --border: #334155;
+  --border-focus: #6366F1;
+  --text: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --text-muted: #94A3B8;
+  --success-bg: rgba(22, 163, 74, 0.16);
+  --warning-bg: rgba(217, 119, 6, 0.16);
+  --danger-bg: rgba(220, 38, 38, 0.16);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+  --table-row-hover: rgba(255, 255, 255, 0.04);
+  --table-stripe: rgba(255, 255, 255, 0.01);
+  --badge-bg: rgba(99, 102, 241, 0.2);
+  --badge-text: #A5B4FC;
+  --bar-muted: #475569;
+}
+
+/* Global focus-visible accessibility ring */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}

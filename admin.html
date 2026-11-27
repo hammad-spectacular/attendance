@@ -26,59 +26,59 @@
        THEME VARIABLES
        ================================ */
     [data-theme="dark"] {
-      --bg: #0f172a;
-      --bg-card: #1e293b;
+      --bg: #0F172A;
+      --bg-card: #1E293B;
       --bg-card-hover: #263348;
-      --bg-input: #0f172a;
+      --bg-input: #0F172A;
       --border: #334155;
-      --border-focus: #075E54;
-      --text: #f1f5f9;
-      --text-secondary: #94a3b8;
-      --text-muted: #64748b;
-      --primary: #075E54;
-      --primary-light: #5eead4;
-      --primary-hover: #064E45;
-      --success: #16a34a;
-      --success-bg: rgba(22, 163, 74, 0.12);
-      --danger: #dc2626;
-      --danger-bg: rgba(220, 38, 38, 0.1);
-      --warning: #d97706;
-      --warning-bg: rgba(217, 119, 6, 0.1);
-      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      --border-focus: #6366F1;
+      --text: #F8FAFC;
+      --text-secondary: #CBD5E1;
+      --text-muted: #94A3B8;
+      --primary: #6366F1;
+      --primary-light: #818CF8;
+      --primary-hover: #4F46E5;
+      --success: #16A34A;
+      --success-bg: rgba(22, 163, 74, 0.16);
+      --danger: #DC2626;
+      --danger-bg: rgba(220, 38, 38, 0.16);
+      --warning: #D97706;
+      --warning-bg: rgba(217, 119, 6, 0.16);
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
       --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
-      --gradient: linear-gradient(135deg, #075E54 0%, #064E45 100%);
-      --table-row-hover: rgba(7, 94, 84, 0.08);
-      --table-stripe: rgba(255, 255, 255, 0.02);
-      --badge-bg: rgba(7, 94, 84, 0.16);
-      --badge-text: #5eead4;
+      --gradient: #6366F1;
+      --table-row-hover: rgba(255, 255, 255, 0.04);
+      --table-stripe: rgba(255, 255, 255, 0.01);
+      --badge-bg: rgba(99, 102, 241, 0.2);
+      --badge-text: #A5B4FC;
     }
 
     [data-theme="light"] {
-      --bg: #F5F7F8;
-      --bg-card: #ffffff;
-      --bg-card-hover: #f8fafc;
-      --bg-input: #F5F7F8;
+      --bg: #F8FAFC;
+      --bg-card: #FFFFFF;
+      --bg-card-hover: #F8FAFC;
+      --bg-input: #FFFFFF;
       --border: #E2E8F0;
-      --border-focus: #075E54;
-      --text: #172B2A;
-      --text-secondary: #64748B;
-      --text-muted: #64748B;
-      --primary: #075E54;
-      --primary-light: #0D9488;
-      --primary-hover: #064E45;
+      --border-focus: #4F46E5;
+      --text: #111827;
+      --text-secondary: #475569;
+      --text-muted: #475569;
+      --primary: #4F46E5;
+      --primary-light: #6366F1;
+      --primary-hover: #4338CA;
       --success: #16A34A;
-      --success-bg: rgba(22, 163, 74, 0.08);
+      --success-bg: #DCFCE7;
       --danger: #DC2626;
-      --danger-bg: rgba(220, 38, 38, 0.06);
+      --danger-bg: #FEE2E2;
       --warning: #D97706;
-      --warning-bg: rgba(217, 119, 6, 0.06);
-      --shadow: 0 4px 6px -1px rgba(23, 43, 42, 0.06);
-      --shadow-lg: 0 10px 25px -5px rgba(23, 43, 42, 0.1);
-      --gradient: linear-gradient(135deg, #075E54 0%, #064E45 100%);
-      --table-row-hover: rgba(7, 94, 84, 0.05);
-      --table-stripe: rgba(0, 0, 0, 0.015);
-      --badge-bg: #E6F4F1;
-      --badge-text: #075E54;
+      --warning-bg: #FEF3C7;
+      --shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+      --shadow-lg: 0 10px 25px -5px rgba(15, 23, 42, 0.1);
+      --gradient: #4F46E5;
+      --table-row-hover: #F8FAFC;
+      --table-stripe: #FFFFFF;
+      --badge-bg: #EEF2FF;
+      --badge-text: #4F46E5;
     }
 
     * {
@@ -112,7 +112,7 @@
       top: 0;
       z-index: 1000;
       overflow: visible;
-      box-shadow: 0 4px 20px rgba(7, 94, 84, 0.3);
+      box-shadow: 0 4px 20px rgba(79, 70, 229, 0.3);
       animation: headerSlideDown 0.5s ease-out;
     }
 
@@ -412,7 +412,7 @@
       color: #fff;
       background: var(--gradient);
       border-color: var(--primary);
-      box-shadow: 0 2px 8px rgba(7, 94, 84, 0.35);
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
     }
 
     .tab-nav-toggle {
@@ -454,7 +454,7 @@
 
     .inline-edit-input:focus {
       border-color: var(--border-focus);
-      box-shadow: 0 0 0 3px rgba(7, 94, 84, 0.15);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
     }
 
     /* ================================
@@ -674,7 +674,7 @@
     
     .credentials-panel {
       display: none;
-      background: linear-gradient(135deg, rgba(7, 94, 84, 0.08), rgba(14, 165, 233, 0.08));
+      background: linear-gradient(135deg, rgba(79, 70, 229, 0.08), rgba(14, 165, 233, 0.08));
       border: 1px solid var(--border);
       border-left: 4px solid var(--primary);
       border-radius: 12px;
@@ -969,7 +969,7 @@
     .form-input:focus,
     .form-textarea:focus {
       border-color: var(--border-focus);
-      box-shadow: 0 0 0 3px rgba(7, 94, 84, 0.15);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
     }
 
     .form-input::placeholder,
@@ -1011,11 +1011,11 @@
     .btn-primary {
       background: var(--gradient);
       color: white;
-      box-shadow: 0 4px 12px rgba(7, 94, 84, 0.3);
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
     }
 
     .btn-primary:hover {
-      box-shadow: 0 6px 18px rgba(7, 94, 84, 0.45);
+      box-shadow: 0 6px 18px rgba(79, 70, 229, 0.45);
       transform: translateY(-1px);
     }
 
@@ -1475,7 +1475,7 @@
     }
 
     .btn-edit:hover {
-      background: rgba(7, 94, 84, 0.2);
+      background: rgba(79, 70, 229, 0.2);
       transform: scale(1.1);
     }
 
@@ -2394,21 +2394,21 @@
     }
 
     .btn-primary {
-      background: linear-gradient(135deg, #075E54 0%, #0D9488 100%);
+      background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
       color: #ffffff !important;
       border: 1px solid rgba(255, 255, 255, 0.2);
-      box-shadow: 0 4px 12px rgba(7, 94, 84, 0.35);
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
     }
 
     .btn-primary:hover {
-      background: linear-gradient(135deg, #064E45 0%, #075E54 100%);
-      box-shadow: 0 6px 18px rgba(7, 94, 84, 0.5);
+      background: linear-gradient(135deg, #4338CA 0%, #4F46E5 100%);
+      box-shadow: 0 6px 18px rgba(79, 70, 229, 0.5);
       transform: translateY(-1px);
     }
 
     .btn-primary:active {
       transform: translateY(0);
-      box-shadow: 0 2px 6px rgba(7, 94, 84, 0.3);
+      box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
     }
 
     .btn-secondary {
@@ -2464,6 +2464,7 @@
     }
   </style>
     <link rel="stylesheet" href="ui-buttons.css">
+  <link rel="stylesheet" href="./design-tokens.css">
   <link rel="stylesheet" href="./shared-nav.css">
   <link rel="stylesheet" href="./overview-dashboard.css">
 </head>
@@ -2510,12 +2511,11 @@
         </div>
       </nav>
 
-      <div class="eye-sidebar-footer">
-        <div class="eye-sidebar-footer-card">
-          <div class="eyelabel">Academic Year</div>
-          <div class="eyeval" id="sidebarYearLabel">2026-27</div>
-          <div id="sidebarCampusLabel" style="color:var(--eye-muted);margin-top:2px;">All Campuses</div>
-          <div class="eyerole">School Administrator</div>
+      <div class="eye-sidebar-footer" id="capacityStrip" style="display:none;">
+        <div class="eye-capacity-chips">
+          <span class="eye-capacity-chip" id="capStudentsWrap" style="display:none;">Students <strong id="capStudents">—</strong></span>
+          <span class="eye-capacity-chip" id="capTeachersWrap" style="display:none;">Teachers <strong id="capTeachers">—</strong></span>
+          <span class="eye-capacity-chip" id="capCoordinatorsWrap" style="display:none;">Coordinators <strong id="capCoordinators">—</strong></span>
         </div>
       </div>
     </aside>
@@ -2534,65 +2534,63 @@
             </svg>
           </button>
           <div>
-            <div class="eye-breadcrumb" id="ovBreadcrumb">ADMINISTRATION / ALL CAMPUSES</div>
-            <h1 class="eye-greeting" id="ovGreeting">Good morning, Administrator</h1>
+            <div class="eye-breadcrumb" id="ovBreadcrumb">Administration / All branches</div>
+            <h1 class="eye-page-title" id="ovGreeting">Good morning, Administrator</h1>
             <div class="eye-dateline" id="ovDateline">Loading school status...</div>
           </div>
         </div>
 
         <div class="eye-topbar-right">
-          <select id="academicYearSelect" class="eye-control-pill" aria-label="Academic year">
-            <option value="all" selected>AY 2026-27 · All</option>
-            <option value="2026-27">AY 2026-27</option>
-            <option value="2025-26">AY 2025-26</option>
-          </select>
+          <div class="eye-labelled-select">
+            <label class="eye-select-label" for="academicYearSelect">Academic year</label>
+            <select id="academicYearSelect" class="eye-control-pill" aria-label="Academic year">
+              <option value="all" selected>2026-27 · All</option>
+              <option value="2026-27">2026-27</option>
+              <option value="2025-26">2025-26</option>
+            </select>
+          </div>
 
           <!-- Branch selector (rendered by JS once bootstrap loads) -->
-          <div class="branch-selector-wrap" id="branchSelectorWrap" style="display:none;">
-            <select id="branchSelector" class="eye-control-pill branch-selector" onchange="onBranchChanged(this.value)" aria-label="Branch selector">
-              <option value="all">All Branches</option>
+          <div class="branch-selector-wrap eye-labelled-select" id="branchSelectorWrap" style="display:none;">
+            <label class="eye-select-label" for="branchSelector">Branch</label>
+            <select id="branchSelector" class="eye-control-pill branch-selector" onchange="onBranchChanged(this.value)" aria-label="Branch">
+              <option value="all">All branches</option>
             </select>
           </div>
 
           <div class="eye-search-wrap">
             <i class="fas fa-magnifying-glass"></i>
-            <input type="search" id="globalSearchInput" class="eye-search-input" placeholder="Search students, staff, receipts..." autocomplete="off" aria-label="Global search">
+            <input type="search" id="globalSearchInput" class="eye-search-input" placeholder="Search..." autocomplete="off" aria-label="Global search">
+            <kbd class="eye-search-kbd">⌘K</kbd>
             <div class="eye-search-results" id="globalSearchResults"></div>
           </div>
 
-          <button type="button" class="eye-icon-btn" id="notifBellBtn" onclick="switchTab('tab-complaints')" title="Pending alerts &amp; complaints" aria-label="Notifications">
+          <button type="button" class="eye-icon-btn" id="notifBellBtn" onclick="switchTab('tab-complaints')" title="Notifications &amp; pending complaints" aria-label="Notifications">
             <i class="fas fa-bell"></i>
             <span class="eye-notif-dot" id="notifBadgeDot">0</span>
           </button>
 
-          <button type="button" class="eye-icon-btn theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
-            <i class="fas fa-moon" id="themeIcon"></i>
+          <button type="button" class="eye-icon-btn theme-toggle" onclick="toggleTheme()" title="Display settings (Light/Dark theme)" aria-label="Display settings">
+            <i class="fas fa-gear" id="themeIcon"></i>
           </button>
 
           <!-- User menu dropdown -->
           <div id="headerMenuWrap" class="header-menu-wrap">
-            <button type="button" id="headerMenuToggle" class="eye-profile-chip header-menu-toggle" aria-expanded="false" aria-controls="headerMenuPanel" aria-label="Open account menu">
+            <button type="button" id="headerMenuToggle" class="eye-profile-chip header-menu-toggle" aria-expanded="false" aria-controls="headerMenuPanel" aria-label="Open account menu" title="Account menu">
               <div class="eye-avatar" id="topbarAvatar">AD</div>
               <div class="eye-profile-meta">
                 <div class="eye-profile-name" id="topbarAdminName">Administrator</div>
-                <div class="eye-profile-role" id="topbarAdminRole">School Administrator</div>
+                <div class="eye-profile-role" id="topbarAdminRole">Administrator</div>
               </div>
-              <i class="fas fa-chevron-down" style="font-size:0.68rem;color:var(--eye-muted);margin-left:2px;"></i>
+              <i class="fas fa-chevron-down" style="font-size:11px;color:var(--text-secondary);margin-left:2px;"></i>
             </button>
             <div id="headerMenuPanel" class="header-menu-panel">
-              <button type="button" class="eye-profile-menu-item" onclick="openChangePasswordModal(); closeHeaderMenu();"><i class="fas fa-key"></i><span>Change Password</span></button>
-              <button type="button" class="eye-profile-menu-item danger" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i><span>Logout</span></button>
+              <button type="button" class="eye-profile-menu-item" onclick="openChangePasswordModal(); closeHeaderMenu();"><i class="fas fa-key"></i><span>Change password</span></button>
+              <button type="button" class="eye-profile-menu-item" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i><span>Logout</span></button>
             </div>
           </div>
         </div>
       </header>
-
-      <!-- ======================== CAPACITY ======================== -->
-      <div class="capacity-strip" id="capacityStrip" style="display:none;border-bottom:1px solid var(--eye-border);padding:8px 24px;font-size:0.8rem;color:var(--eye-muted);gap:24px;flex-wrap:wrap;align-items:center;background:var(--eye-card);">
-        <span id="capStudentsWrap" style="display:flex;align-items:center;gap:8px;"><strong style="color:var(--eye-ink);">Students:</strong> <span id="capStudents">—</span></span>
-        <span id="capTeachersWrap" style="display:flex;align-items:center;gap:8px;"><strong style="color:var(--eye-ink);">Teachers:</strong> <span id="capTeachers">—</span></span>
-        <span id="capCoordinatorsWrap" style="display:flex;align-items:center;gap:8px;"><strong style="color:var(--eye-ink);">Coordinators:</strong> <span id="capCoordinators">—</span></span>
-      </div>
 
       <!-- ======================== MAIN ======================== -->
       <div class="main">
@@ -2609,14 +2607,14 @@
               <div class="ov-kpi-card"><div class="ov-skeleton" style="height:74px;"></div></div>
             </section>
 
-            <section class="ov-secondary-grid">
-              <div class="ov-card" id="ovPriorityCard"><div class="ov-skeleton" style="height:200px;"></div></div>
-              <div class="ov-card" id="ovQuickActionsCard"><div class="ov-skeleton" style="height:200px;"></div></div>
+            <section class="ov-primary-row">
+              <div class="ov-card prominent" id="ovPriorityCard"><div class="ov-skeleton" style="height:160px;"></div></div>
+              <div class="ov-card" id="ovQuickActionsCard"><div class="ov-skeleton" style="height:160px;"></div></div>
             </section>
 
             <section class="ov-secondary-grid">
-              <div class="ov-card" id="ovTrendCard"><div class="ov-skeleton" style="height:200px;"></div></div>
-              <div class="ov-card" id="ovScheduleCard"><div class="ov-skeleton" style="height:200px;"></div></div>
+              <div class="ov-card" id="ovTrendCard"><div class="ov-skeleton" style="height:170px;"></div></div>
+              <div class="ov-card" id="ovScheduleCard"><div class="ov-skeleton" style="height:170px;"></div></div>
             </section>
           </div>
         </div>
@@ -2762,20 +2760,18 @@
       <div class="section-card" id="studentsSection">
         <div class="section-header">
           <div class="section-header-left">
-            <div class="section-icon purple" style="background: rgba(14, 165, 233, 0.12); color: #0ea5e9;"><i
+            <div class="section-icon" style="background: var(--primary-soft); color: var(--primary);"><i
                 class="fas fa-user-graduate"></i></div>
             <div>
               <div class="section-title">Students</div>
               <div class="section-subtitle">Manage enrolled students</div>
             </div>
           </div>
-          <div style="display:flex; gap:8px;">
-            <button class="btn btn-primary" onclick="openBulkAddStudentModal()"
-              style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3); opacity:0.85;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-ghost" onclick="openBulkAddStudentModal()" style="border:1px solid var(--border); border-radius:var(--radius-control);">
               <i class="fas fa-users"></i> Add Multiple Students
             </button>
-            <button class="btn btn-primary" onclick="toggleAddStudent()" id="addStudentToggleBtn"
-              style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
+            <button class="btn btn-primary" onclick="toggleAddStudent()" id="addStudentToggleBtn" style="background:var(--primary); border-radius:var(--radius-control); box-shadow:none;">
               <i class="fas fa-plus"></i> Add Student
             </button>
           </div>
@@ -2796,7 +2792,7 @@
             </div>
             <div style="font-size:0.82rem; color:var(--text-secondary); margin:-4px 0 12px 0;">
               <i class="fas fa-hashtag" style="margin-right:5px;"></i>
-              Roll number is assigned automatically by the system, in the order students join the school.
+              Roll number is assigned automatically in enrollment order.
             </div>
             <div class="form-group" style="max-width:320px;">
               <label class="form-label" for="studentClass">Class / Section</label>
@@ -2805,8 +2801,7 @@
               </select>
             </div>
             <div style="display:flex; gap:8px; margin-top:4px;">
-              <button class="btn btn-primary" onclick="saveStudent()"
-                style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
+              <button class="btn btn-primary" onclick="saveStudent()" style="background:var(--primary); box-shadow:none;">
                 <i class="fas fa-check"></i> Save Student
               </button>
               <button class="btn btn-ghost" onclick="toggleAddStudent()">Cancel</button>
@@ -2814,17 +2809,26 @@
           </div>
 
           <!-- Search & Filter Controls -->
-          <div class="search-filter-container" style="display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
-            <div style="flex:1; min-width:240px; position:relative;">
+          <div class="stu-toolbar">
+            <div style="flex:1; min-width:220px;">
               <input type="text" id="studentSearchInput" class="form-input"
-                placeholder="🔍 Search by name or roll number..." oninput="filterStudents()">
+                placeholder="Search by name or roll number..." oninput="stuPage=1; filterStudents()" aria-label="Search students">
             </div>
             <div style="width:200px; min-width:150px;">
-              <select id="studentClassFilter" class="form-input" onchange="filterStudents()"
+              <select id="studentClassFilter" class="form-input" onchange="stuPage=1; filterStudents()"
                 aria-label="Filter students by class">
                 <option value="">All Classes</option>
                 <option value="unassigned">Unassigned</option>
               </select>
+            </div>
+          </div>
+
+          <!-- Bulk Action Bar -->
+          <div class="stu-bulk-bar" id="stuBulkBar">
+            <span id="stuBulkCount">0 selected</span>
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="stu-btn-view" onclick="bulkDeleteSelectedStudents()" style="color:var(--danger); border-color:var(--danger);">Delete selected</button>
+              <button type="button" class="stu-btn-view" onclick="clearStudentSelection()">Clear</button>
             </div>
           </div>
 
@@ -3646,14 +3650,39 @@
           title="11 digits (e.g., 03001234567)" oninput="sanitizePhoneInput(this)">
       </div>
       <div class="form-group">
+        <label class="form-label" for="editStudentClass">Class / Section</label>
+        <select class="form-input" id="editStudentClass">
+          <option value="">Unassigned</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label class="form-label" for="editStudentEmail">Recovery email</label>
         <input class="form-input" type="email" id="editStudentEmail" placeholder="student@example.com">
       </div>
       <div class="edit-modal-actions">
-        <button class="btn btn-primary" onclick="saveEditStudent()"
-          style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);"><i class="fas fa-check"></i>
+        <button class="btn btn-primary" onclick="saveEditStudent()" style="background:var(--primary); box-shadow:none;"><i class="fas fa-check"></i>
           Save</button>
         <button class="btn btn-ghost" onclick="closeEditStudentModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== PROMOTE STUDENT MODAL ======================== -->
+  <div class="edit-modal" id="promoteStudentModal">
+    <div class="edit-modal-card" style="max-width:420px;">
+      <div class="edit-modal-header">
+        <h3><i class="fas fa-arrow-up-right-from-square" style="margin-right:8px; color:var(--primary);"></i>Promote Student</h3>
+        <button class="edit-modal-close" onclick="closePromoteStudentModal()" aria-label="Close promote student modal"><i class="fas fa-times"></i></button>
+      </div>
+      <input type="hidden" id="promoteStudentId">
+      <div id="promoteStudentNameLabel" style="font-size:0.875rem;color:var(--text);font-weight:500;margin-bottom:12px;"></div>
+      <div class="form-group">
+        <label class="form-label" for="promoteTargetClass">Target Class / Section</label>
+        <select class="form-input" id="promoteTargetClass"></select>
+      </div>
+      <div class="edit-modal-actions">
+        <button class="btn btn-primary" onclick="savePromoteStudent()" style="background:var(--primary); box-shadow:none;"><i class="fas fa-check"></i> Promote</button>
+        <button class="btn btn-ghost" onclick="closePromoteStudentModal()">Cancel</button>
       </div>
     </div>
   </div>
@@ -6096,12 +6125,14 @@
     }
 
     async function deleteStudent(id) {
+      const stu = (window.appData.students || []).find(s => s.id === id);
+      const stuName = stu ? stu.name : 'this student';
       const confirmed = await showConfirmModal({
         icon: '🗑️',
-        iconBg: 'rgba(239,68,68,0.12)',
-        title: 'Remove Student',
-        message: 'Are you sure you want to remove this student? Their record and all attendance data will be permanently deleted.',
-        confirmText: 'Yes, Remove',
+        iconBg: 'rgba(220,38,38,0.12)',
+        title: `Remove ${stuName}?`,
+        message: `Are you sure you want to permanently remove ${stuName}? Their record and all attendance data will be deleted.`,
+        confirmText: 'Delete Student',
         confirmClass: 'danger',
         cancelText: 'Cancel'
       });
@@ -6109,8 +6140,9 @@
       try {
         const response = await apiFetch(`/api/students/${id}`, { method: 'DELETE' });
         if (!response.ok) throw new Error('Failed to delete student');
+        selectedStudentIds.delete(id);
         await refreshDashboardAfterSave();
-        showToast('Student removed', 'info');
+        showToast(`${stuName} removed`, 'info');
       } catch (err) {
         showToast(`Error: ${err.message}`, 'error');
       }
@@ -6176,11 +6208,145 @@
       }).join('');
     }
 
+    let stuSortKey = 'name';
+    let stuSortDir = 'asc';
+    let stuPage = 1;
+    const STU_PAGE_SIZE = 25;
+    const selectedStudentIds = new Set();
+
+    function toggleStudentSort(key) {
+      if (stuSortKey === key) {
+        stuSortDir = stuSortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        stuSortKey = key;
+        stuSortDir = 'asc';
+      }
+      stuPage = 1;
+      filterStudents();
+    }
+
+    function toggleStudentSelection(id, checked) {
+      if (checked) selectedStudentIds.add(id);
+      else selectedStudentIds.delete(id);
+      updateStudentBulkBar();
+    }
+
+    function toggleAllStudentsOnPage(checked, idsJson) {
+      const ids = JSON.parse(idsJson || '[]');
+      ids.forEach(id => {
+        if (checked) selectedStudentIds.add(id);
+        else selectedStudentIds.delete(id);
+      });
+      filterStudents();
+    }
+
+    function clearStudentSelection() {
+      selectedStudentIds.clear();
+      filterStudents();
+    }
+
+    function updateStudentBulkBar() {
+      const bar = document.getElementById('stuBulkBar');
+      const lbl = document.getElementById('stuBulkCount');
+      if (!bar || !lbl) return;
+      if (selectedStudentIds.size > 0) {
+        lbl.textContent = `${selectedStudentIds.size} student${selectedStudentIds.size === 1 ? '' : 's'} selected`;
+        bar.classList.add('open');
+      } else {
+        bar.classList.remove('open');
+      }
+    }
+
+    async function bulkDeleteSelectedStudents() {
+      const ids = Array.from(selectedStudentIds);
+      if (ids.length === 0) return;
+      const confirmed = await showConfirmModal({
+        icon: '🗑️',
+        iconBg: 'rgba(220,38,38,0.12)',
+        title: `Delete ${ids.length} selected student${ids.length === 1 ? '' : 's'}?`,
+        message: 'This will permanently delete the selected student records and attendance history.',
+        confirmText: 'Delete Selected',
+        confirmClass: 'danger',
+        cancelText: 'Cancel'
+      });
+      if (!confirmed) return;
+      try {
+        for (const id of ids) {
+          await apiFetch(`/api/students/${id}`, { method: 'DELETE' });
+        }
+        selectedStudentIds.clear();
+        await refreshDashboardAfterSave();
+        showToast('Selected students deleted', 'info');
+      } catch (err) {
+        showToast(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    function toggleStudentRowMenu(id, e) {
+      if (e) e.stopPropagation();
+      document.querySelectorAll('.stu-row-menu.open').forEach(m => {
+        if (m.id !== `stuMenu-${id}`) m.classList.remove('open');
+      });
+      const menu = document.getElementById(`stuMenu-${id}`);
+      if (menu) menu.classList.toggle('open');
+    }
+
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.stu-row-menu.open').forEach(m => m.classList.remove('open'));
+    });
+
+    function openPromoteStudentModal(id) {
+      const stu = (window.appData.students || []).find(s => s.id === id);
+      if (!stu) return;
+      document.getElementById('promoteStudentId').value = stu.id;
+      document.getElementById('promoteStudentNameLabel').textContent = `Student: ${stu.name}`;
+      const sel = document.getElementById('promoteTargetClass');
+      sel.innerHTML = (window.appData.classes || []).map(c =>
+        `<option value="${c.id}" ${c.id === stu.class_id ? 'selected' : ''}>${escapeHtml(classDisplayName(c))}</option>`
+      ).join('');
+      document.getElementById('promoteStudentModal').classList.add('open');
+    }
+
+    function closePromoteStudentModal() {
+      document.getElementById('promoteStudentModal').classList.remove('open');
+    }
+
+    async function savePromoteStudent() {
+      const id = parseInt(document.getElementById('promoteStudentId').value, 10);
+      const classId = parseInt(document.getElementById('promoteTargetClass').value, 10) || null;
+      const stu = (window.appData.students || []).find(s => s.id === id);
+      if (!stu) return;
+      try {
+        const res = await apiFetch(`/api/students/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: stu.name,
+            roll_no: stu.roll_no,
+            phone: stu.phone || null,
+            class_id: classId,
+            email: stu.email || null
+          })
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `Failed (${res.status})`);
+        }
+        closePromoteStudentModal();
+        await refreshDashboardAfterSave();
+        showToast(`${stu.name} updated successfully`, 'success');
+      } catch (err) {
+        showToast(`Error: ${err.message}`, 'error');
+      }
+    }
+
     function renderStudentTable(students) {
       const wrap = document.getElementById('studentsTableWrap');
-      const classes = window.appData.classes;
+      const classes = window.appData.classes || [];
+      const classMap = new Map(classes.map(c => [c.id, classDisplayName(c)]));
 
       if (!students || students.length === 0) {
+        updateStudentBulkBar();
         wrap.innerHTML = `
           <div class="empty-state">
             <div class="icon">🎓</div>
@@ -6191,74 +6357,110 @@
       }
 
       const showStudentId = _featureState && _featureState['student_portal'] === true;
-      const showPortalLock = Boolean(_featureState) && _featureState['student_portal'] === false;
+      const hasAnyContact = students.some(s => s.phone && String(s.phone).trim() !== '');
       shownStudentIds = students.map(s => s.id);
 
+      const sorted = [...students].sort((a, b) => {
+        let va = '';
+        let vb = '';
+        if (stuSortKey === 'name') {
+          va = (a.name || '').toLowerCase();
+          vb = (b.name || '').toLowerCase();
+        } else if (stuSortKey === 'roll_no') {
+          va = String(a.roll_no || '');
+          vb = String(b.roll_no || '');
+        } else if (stuSortKey === 'class') {
+          va = (classMap.get(a.class_id) || 'Unassigned').toLowerCase();
+          vb = (classMap.get(b.class_id) || 'Unassigned').toLowerCase();
+        }
+        if (va < vb) return stuSortDir === 'asc' ? -1 : 1;
+        if (va > vb) return stuSortDir === 'asc' ? 1 : -1;
+        return 0;
+      });
+
+      const totalPages = Math.max(1, Math.ceil(sorted.length / STU_PAGE_SIZE));
+      if (stuPage > totalPages) stuPage = totalPages;
+      const startIdx = (stuPage - 1) * STU_PAGE_SIZE;
+      const pageItems = sorted.slice(startIdx, startIdx + STU_PAGE_SIZE);
+      const pageIds = pageItems.map(s => s.id);
+      const allPageChecked = pageItems.length > 0 && pageItems.every(s => selectedStudentIds.has(s.id));
+
+      const sortIcon = (k) => stuSortKey === k
+        ? (stuSortDir === 'asc' ? 'fa-sort-up' : 'fa-sort-down')
+        : 'fa-sort';
+
       let html = `
-        <div style="overflow-x:auto;">
-        <table class="data-table">
+        <div class="stu-table-scroll">
+        <table class="stu-table">
           <thead>
             <tr>
-              <th style="width:50px; text-align:center;">S#</th>
-              <th style="width:50px; text-align:left;${showStudentId ? '' : 'display:none;'}">ID</th>
-              <th style="text-align:left;">Name</th>
-              <th style="text-align:center; width:120px;">Roll No</th>
-              <th style="text-align:center; width:150px;">Class</th>
-              <th style="text-align:center; width:150px;">Contact</th>
-              <th style="width:130px; text-align:right;">Actions</th>
+              <th style="width:40px; text-align:left;">
+                <input type="checkbox" ${allPageChecked ? 'checked' : ''} aria-label="Select all students on page"
+                  onchange="toggleAllStudentsOnPage(this.checked, '${escapeHtml(JSON.stringify(pageIds))}')">
+              </th>
+              <th style="width:52px; text-align:right;">#</th>
+              ${showStudentId ? '<th style="text-align:right; width:100px;">ID</th>' : ''}
+              <th style="text-align:left;">
+                <button type="button" class="stu-sort-btn" onclick="toggleStudentSort('name')">Name <i class="fas ${sortIcon('name')}"></i></button>
+              </th>
+              <th style="text-align:right; width:110px;">
+                <button type="button" class="stu-sort-btn" onclick="toggleStudentSort('roll_no')">Roll no <i class="fas ${sortIcon('roll_no')}"></i></button>
+              </th>
+              <th style="text-align:left; width:160px;">
+                <button type="button" class="stu-sort-btn" onclick="toggleStudentSort('class')">Class <i class="fas ${sortIcon('class')}"></i></button>
+              </th>
+              ${hasAnyContact ? '<th style="text-align:left; width:150px;">Contact</th>' : ''}
+              <th style="width:120px; text-align:right;">Actions</th>
             </tr>
           </thead>
           <tbody>`;
 
-      students.forEach((s, index) => {
-        const dirtyData = dirtyState['tab-students'].get(s.id)?.current || s;
-        const isDirty = dirtyState['tab-students'].has(s.id);
-        const serialNo = index + 1;
+      pageItems.forEach((s, index) => {
+        const serialNo = startIdx + index + 1;
+        const clsName = classMap.get(s.class_id) || 'Unassigned';
+        const isChecked = selectedStudentIds.has(s.id);
 
         html += `
-          <tr id="row-tab-students-${s.id}" class="${isDirty ? 'row-dirty' : ''}">
-            <td style="color:var(--text-muted); font-size:0.78rem; text-align:center; font-weight:600;">${serialNo}</td>
-            <td style="color:var(--text-muted); font-size:0.75rem; text-align:left;${showStudentId ? '' : 'display:none;'}">${showStudentId ? (s.login_id ? (_tenantCode ? _tenantCode + '-' : '') + escapeHtml(s.login_id) : '—') : ''}</td>
+          <tr id="row-tab-students-${s.id}">
             <td style="text-align:left;">
-              <div style="display:flex;align-items:center;gap:8px;">
-                ${showPortalLock ? '<i class="fas fa-lock" title="Student Portal is not enabled" aria-label="Student Portal is not enabled" style="color:var(--text-muted);"></i>' : ''}
-                <input type="text" class="inline-edit-input" value="${escapeHtml(dirtyData.name)}" oninput="markDirty('tab-students', ${s.id}, 'name', this.value)" style="font-weight:bold;flex:1;min-width:0;">
-              </div>
+              <input type="checkbox" ${isChecked ? 'checked' : ''} aria-label="Select ${escapeHtml(s.name)}"
+                onchange="toggleStudentSelection(${s.id}, this.checked)">
             </td>
-            <td style="text-align:center;">
-              <input type="text" class="inline-edit-input" style="text-align:center;" value="${escapeHtml(dirtyData.roll_no || '')}" placeholder="—" oninput="markDirty('tab-students', ${s.id}, 'roll_no', this.value)">
-            </td>
-            <td style="text-align:center;">
-              <select class="inline-edit-input" style="text-align:center;" onchange="markDirty('tab-students', ${s.id}, 'class_id', this.value ? parseInt(this.value) : null)">
-                <option value="">-- Unassigned --</option>
-                ${getStudentClassOptionsHtml(dirtyData.class_id)}
-              </select>
-            </td>
-            <td style="text-align:center;">
-              <input type="tel" class="inline-edit-input" style="text-align:center; font-family:monospace; letter-spacing:0.3px;" value="${escapeHtml(dirtyData.phone || '')}" placeholder="—" oninput="markDirty('tab-students', ${s.id}, 'phone', this.value)">
-            </td>
+            <td style="text-align:right; color:var(--text-secondary);">${serialNo}</td>
+            ${showStudentId ? `<td style="text-align:right; color:var(--text-secondary);">${s.login_id ? (_tenantCode ? _tenantCode + '-' : '') + escapeHtml(s.login_id) : '—'}</td>` : ''}
+            <td style="text-align:left; font-weight:500;">${escapeHtml(s.name)}${s.is_frozen ? ' <span style="font-size:12px;color:var(--danger);font-weight:400;">(Frozen)</span>' : ''}</td>
+            <td style="text-align:right; font-variant-numeric:tabular-nums;">${escapeHtml(s.roll_no || '—')}</td>
+            <td style="text-align:left; color:var(--text-secondary);">${escapeHtml(clsName)}</td>
+            ${hasAnyContact ? `<td style="text-align:left; color:var(--text-secondary);">${escapeHtml(s.phone || '—')}</td>` : ''}
             <td style="text-align:right;">
-              <div class="action-buttons" style="justify-content: flex-end;">
-                ${showStudentId ? `
-                <button onclick="openAdminRecoveryReveal(${s.id}, 'student')" class="btn-edit" title="Issue one-time temporary password" style="background:var(--warning-bg); color:var(--warning);">
-                  <i class="fas fa-key"></i>
-                </button>` : ''}
-                <button onclick="markDirty('tab-students', ${s.id}, 'is_frozen', ${!dirtyData.is_frozen})" class="btn-edit" title="${dirtyData.is_frozen ? 'Unfreeze Account' : 'Freeze Account'}" style="background: ${dirtyData.is_frozen ? 'var(--danger-bg)' : 'var(--warning-bg)'}; color: ${dirtyData.is_frozen ? 'var(--danger)' : 'var(--warning)'}; border: none;">
-                  <i class="fas ${dirtyData.is_frozen ? 'fa-user-slash' : 'fa-user-check'}"></i>
+              <div class="stu-row-actions">
+                <button type="button" class="stu-btn-view" onclick="openEditStudentModal(${s.id})" title="View &amp; edit student" aria-label="View ${escapeHtml(s.name)}">View</button>
+                <button type="button" class="stu-kebab-btn" onclick="toggleStudentRowMenu(${s.id}, event)" title="More actions" aria-label="More actions for ${escapeHtml(s.name)}">
+                  <i class="fas fa-ellipsis-vertical" aria-hidden="true"></i>
                 </button>
-                <button onclick="openEditStudentModal(${s.id})" class="btn-edit" title="Edit in modal">
-                  <i class="fas fa-expand"></i>
-                </button>
-                <button class="btn-delete" onclick="deleteStudent(${s.id})" title="Remove student" aria-label="Delete student">
-                  <i class="fas fa-trash-alt" aria-hidden="true"></i>
-                </button>
+                <div class="stu-row-menu" id="stuMenu-${s.id}">
+                  <button type="button" class="stu-row-menu-item" onclick="openEditStudentModal(${s.id})"><i class="fas fa-pen"></i><span>Edit</span></button>
+                  <button type="button" class="stu-row-menu-item" onclick="openPromoteStudentModal(${s.id})"><i class="fas fa-arrow-up-right-from-square"></i><span>Promote</span></button>
+                  <button type="button" class="stu-row-menu-item danger" onclick="deleteStudent(${s.id})"><i class="fas fa-trash-alt"></i><span>Delete</span></button>
+                </div>
               </div>
             </td>
           </tr>`;
       });
 
       html += `</tbody></table></div>`;
+      html += `
+        <div class="stu-pagination">
+          <span>Showing ${startIdx + 1}–${Math.min(startIdx + STU_PAGE_SIZE, sorted.length)} of ${sorted.length} students</span>
+          <div class="stu-page-btns">
+            <button type="button" class="stu-btn-view" ${stuPage <= 1 ? 'disabled' : ''} onclick="stuPage--; filterStudents()">Previous</button>
+            <span>Page ${stuPage} of ${totalPages}</span>
+            <button type="button" class="stu-btn-view" ${stuPage >= totalPages ? 'disabled' : ''} onclick="stuPage++; filterStudents()">Next</button>
+          </div>
+        </div>`;
+
       wrap.innerHTML = html;
+      updateStudentBulkBar();
     }
 
     // =============================================================
@@ -7930,6 +8132,11 @@
       document.getElementById('editStudentRoll').value = student.roll_no || '';
       document.getElementById('editStudentPhone').value = student.phone || '';
       document.getElementById('editStudentEmail').value = student.email || '';
+      const clsSel = document.getElementById('editStudentClass');
+      if (clsSel) {
+        clsSel.innerHTML = '<option value="">Unassigned</option>' + getStudentClassOptionsHtml(student.class_id);
+        clsSel.value = student.class_id ? String(student.class_id) : '';
+      }
       document.getElementById('editStudentModal').classList.add('open');
     }
 
@@ -7943,6 +8150,9 @@
       const rollNo = document.getElementById('editStudentRoll').value.trim();
       const phone = document.getElementById('editStudentPhone').value.trim();
       const email = document.getElementById('editStudentEmail').value.trim();
+      const clsSel = document.getElementById('editStudentClass');
+      const existing = window.appData.students.find(s => s.id === id);
+      const classId = clsSel ? (clsSel.value ? parseInt(clsSel.value, 10) : null) : (existing ? existing.class_id : null);
 
       if (!name) {
         showToast('⚠️ Please enter student name', 'warning');
@@ -7957,10 +8167,6 @@
         document.getElementById('editStudentPhone').focus();
         return;
       }
-
-      // Preserve class_id from existing student model
-      const existing = window.appData.students.find(s => s.id === id);
-      const classId = existing ? existing.class_id : null;
 
       try {
         const response = await apiFetch(`/api/students/${id}`, {
@@ -8112,6 +8318,9 @@
       activeTabId = newTabId;
       history.replaceState(null, '', '#' + newTabId);
       document.getElementById('eyeShell')?.classList.remove('mobile-drawer-open');
+      if (typeof window.updateHeaderForTab === 'function') {
+        window.updateHeaderForTab(newTabId);
+      }
 
       if (newTabId === 'tab-overview' && window.loadOverviewDashboard) {
         window.loadOverviewDashboard();
@@ -8799,12 +9008,12 @@
       transform: translateY(-1px);
     }
     .confirm-modal-btn--primary {
-      background: linear-gradient(135deg, #0D9488, #075E54);
+      background: linear-gradient(135deg, #6366F1, #4F46E5);
       color: #fff;
       box-shadow: 0 4px 14px rgba(99,102,241,0.35);
     }
     .confirm-modal-btn--primary:hover {
-      background: linear-gradient(135deg, #14B8A6, #0D9488);
+      background: linear-gradient(135deg, #818CF8, #6366F1);
       box-shadow: 0 6px 20px rgba(99,102,241,0.5);
       transform: translateY(-1px);
     }
@@ -10141,7 +10350,7 @@
       if (studentFilter) {
         const s = (FMG().students || []).find(st => String(st.id) === String(studentFilter));
         const own = items.filter(i => i.level === 'student').length;
-        caption = `<div style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:10px;padding:8px 12px;background:rgba(7, 94, 84,0.07);border:1px solid var(--border);border-radius:8px;">
+        caption = `<div style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:10px;padding:8px 12px;background:rgba(79, 70, 229,0.07);border:1px solid var(--border);border-radius:8px;">
           <i class="fas fa-user" style="color:var(--primary);"></i>
           Showing fees &amp; charges for <strong>${escapeHtml(s?.name || 'selected student')}</strong> —
           ${items.length} rule(s) apply, including ${own} student-specific charge(s). Use <strong>+ Add Charge</strong> for a one-off fee.
