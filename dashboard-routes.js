@@ -127,6 +127,13 @@ function createDashboardRouter({ pool, requireAuth }) {
         attParams
       )
 
+      const attTrendParams = [tenantId]
+      const attTrendBranch = branchId ? (attTrendParams.push(branchId), ` AND s.branch_id = $${attTrendParams.length}`) : ''
+      let attTrendYear = ''
+      if (yearBounds) {
+        attTrendParams.push(yearBounds.start, yearBounds.end)
+        attTrendYear = ` AND a.date BETWEEN $${attTrendParams.length - 1}::date AND $${attTrendParams.length}::date`
+      }
       const attTrendPromise = pool.query(
         `SELECT
            a.date::text AS date,
@@ -137,12 +144,27 @@ function createDashboardRouter({ pool, requireAuth }) {
          FROM attendance a
          JOIN students s ON s.id = a.student_id AND s.tenant_id = $1
          WHERE a.tenant_id = $1
-           AND a.date <= CURRENT_DATE${attBranch}
+           AND a.date <= CURRENT_DATE${attTrendBranch}${attTrendYear}
          GROUP BY a.date
          ORDER BY a.date DESC
          LIMIT 5`,
-        attParams
+        attTrendParams
       )
+
+      const yearsPromise = pool.query(
+        `SELECT DISTINCT
+           CASE WHEN EXTRACT(MONTH FROM d)::int >= 8
+             THEN EXTRACT(YEAR FROM d)::int || '-' || RIGHT((EXTRACT(YEAR FROM d)::int + 1)::text, 2)
+             ELSE (EXTRACT(YEAR FROM d)::int - 1)::text || '-' || RIGHT(EXTRACT(YEAR FROM d)::int::text, 2)
+           END AS ay
+         FROM (
+           SELECT date AS d FROM attendance WHERE tenant_id = $1 AND date IS NOT NULL
+           UNION ALL
+           SELECT COALESCE(billing_period_start, due_date, created_at::date) AS d FROM student_fee_obligations WHERE tenant_id = $1
+         ) sub
+         ORDER BY ay DESC`,
+        [tenantId]
+      ).catch(() => ({ rows: [] }))
 
       // Classes with active students that have not had attendance marked today
       const unmarkedParams = [tenantId]
@@ -259,6 +281,7 @@ function createDashboardRouter({ pool, requireAuth }) {
         dsRes,
         compRes,
         annRes,
+        yearsRes,
       ] = await Promise.all([
         orgPromise,
         adminPromise,
@@ -274,6 +297,7 @@ function createDashboardRouter({ pool, requireAuth }) {
         datesheetPromise,
         complaintsPromise,
         announcementsPromise,
+        yearsPromise,
       ])
 
       const schoolName = orgRes.rows[0]?.school_name || 'Cedar School'
@@ -493,12 +517,23 @@ function createDashboardRouter({ pool, requireAuth }) {
         ? Math.round(scoreParts.reduce((a, b) => a + b, 0) / scoreParts.length)
         : null
 
+      const nowDt = new Date()
+      const curStartYr = nowDt.getMonth() >= 7 ? nowDt.getFullYear() : nowDt.getFullYear() - 1
+      const currentAcademicYear = `${curStartYr}-${String(curStartYr + 1).slice(-2)}`
+      const dbYears = (yearsRes && Array.isArray(yearsRes.rows)) ? yearsRes.rows.map(r => r.ay).filter(Boolean) : []
+      const availableYears = Array.from(new Set([currentAcademicYear, ...dbYears]))
+      const yearHasData = !yearBounds || trend.length > 0 || (feeSummary && feeSummary.obligationsCount > 0) || (yearBounds.label === currentAcademicYear)
+
       res.json({
         generatedAt: new Date().toISOString(),
         schoolName,
         adminName: adminUser.name,
         adminRole: adminUser.role,
         branchId,
+        selectedYear: yearBounds ? yearBounds.label : currentAcademicYear,
+        currentAcademicYear,
+        availableYears,
+        yearHasData,
         features,
         operatingScore,
         students: {

@@ -2508,8 +2508,6 @@
         </div>
       </div>
 
-      <div class="eye-sidebar-section-label">Main Workspace</div>
-
       <!-- ======================== TAB NAVIGATION ======================== -->
       <nav class="tab-nav" id="tabNav">
         <button id="mobileNavToggle" class="tab-nav-toggle" aria-expanded="false" aria-controls="tabNavInner" aria-label="Open section menu" style="display:none;">
@@ -2521,22 +2519,25 @@
         </div>
       </nav>
 
-      <div class="eye-sidebar-footer" id="capacityStrip" style="display:none;">
-        <div class="eye-capacity-chips">
-          <span class="eye-capacity-chip" id="capStudentsWrap" style="display:none;">Students <strong id="capStudents">—</strong></span>
-          <span class="eye-capacity-chip" id="capTeachersWrap" style="display:none;">Teachers <strong id="capTeachers">—</strong></span>
-          <span class="eye-capacity-chip" id="capCoordinatorsWrap" style="display:none;">Coordinators <strong id="capCoordinators">—</strong></span>
+      <div class="eye-rail-account">
+        <button type="button" class="eye-rail-avatar-btn" id="railAvatarBtn" title="Account menu" aria-label="Account menu">
+          <span id="railAvatar">AD</span>
+        </button>
+        <div class="eye-rail-menu" id="railAccountMenu" role="menu">
+          <div class="eye-rail-menu-head">
+            <div class="eye-rail-menu-name" id="railMenuName">Administrator</div>
+            <div class="eye-rail-menu-role" id="railMenuRole">Administrator</div>
+          </div>
+          <button type="button" class="eye-profile-menu-item" onclick="openChangePasswordModal(); document.getElementById('railAccountMenu')?.classList.remove('open');"><i class="fas fa-key"></i><span>Change password</span></button>
+          <button type="button" class="eye-profile-menu-item" style="color:var(--danger);" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i><span>Logout</span></button>
         </div>
-      </div>
-      <div class="eye-rail-avatar-wrap" id="eyeRailAvatarWrap">
-        <button type="button" class="eye-rail-avatar" id="railAvatar" title="Account menu" aria-label="Account menu" onclick="document.getElementById('headerMenuToggle')?.click()">AD</button>
       </div>
     </aside>
 
     <!-- ==================== MAIN SHELL ==================== -->
     <div class="eye-main-shell">
 
-      <!-- ======================== TOP HEADER ======================== -->
+      <!-- ======================== SINGLE-ROW TOP HEADER ======================== -->
       <header class="eye-topbar">
         <div class="eye-topbar-left">
           <button type="button" class="eye-hamburger-btn" id="eyeSidebarToggleBtn" title="Toggle navigation" aria-label="Toggle navigation">
@@ -2546,62 +2547,58 @@
               <line x1="2.5" y1="13.5" x2="15.5" y2="13.5" />
             </svg>
           </button>
-          <div>
-            <div class="eye-breadcrumb" id="ovBreadcrumb">Administration / All branches</div>
-            <h1 class="eye-page-title" id="ovGreeting">Good morning, Administrator</h1>
-            <div class="eye-dateline" id="ovDateline">Loading school status...</div>
-          </div>
+          <h1 class="eye-page-title" id="ovGreeting">Good morning</h1>
         </div>
 
         <div class="eye-topbar-right">
-          <div class="eye-labelled-select">
-            <label class="eye-select-label" for="academicYearSelect">Academic year</label>
-            <select id="academicYearSelect" class="eye-control-pill" aria-label="Academic year">
-              <option value="all" selected>2026-27 · All</option>
-              <option value="2026-27">2026-27</option>
-              <option value="2025-26">2025-26</option>
+          <div class="eye-year-pill">
+            <i class="fas fa-calendar" aria-hidden="true"></i>
+            <select id="academicYearSelect" class="eye-year-select" aria-label="Academic year">
+              <option value="2026-27" selected>2026-27</option>
             </select>
           </div>
 
           <!-- Branch selector (rendered by JS once bootstrap loads) -->
-          <div class="branch-selector-wrap eye-labelled-select" id="branchSelectorWrap" style="display:none;">
-            <label class="eye-select-label" for="branchSelector">Branch</label>
+          <div class="branch-selector-wrap" id="branchSelectorWrap" style="display:none;">
             <select id="branchSelector" class="eye-control-pill branch-selector" onchange="onBranchChanged(this.value)" aria-label="Branch">
               <option value="all">All branches</option>
             </select>
           </div>
 
           <div class="eye-search-wrap">
-            <i class="fas fa-magnifying-glass"></i>
-            <input type="search" id="globalSearchInput" class="eye-search-input" placeholder="Search..." autocomplete="off" aria-label="Global search">
+            <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+            <input type="search" id="globalSearchInput" class="eye-search-input" placeholder="Search students, staff or classes" autocomplete="off" aria-label="Search students, staff or classes">
             <kbd class="eye-search-kbd">⌘K</kbd>
-            <div class="eye-search-results" id="globalSearchResults"></div>
+            <div class="eye-search-results" id="globalSearchResults" role="listbox"></div>
           </div>
 
-          <button type="button" class="eye-icon-btn" id="notifBellBtn" onclick="switchTab('tab-complaints')" title="Notifications &amp; pending complaints" aria-label="Notifications">
-            <i class="fas fa-bell"></i>
-            <span class="eye-notif-dot" id="notifBadgeDot">0</span>
-          </button>
-
-          <button type="button" class="eye-icon-btn theme-toggle" onclick="toggleTheme()" title="Display settings (Light/Dark theme)" aria-label="Display settings">
-            <i class="fas fa-gear" id="themeIcon"></i>
-          </button>
-
-          <!-- User menu dropdown -->
-          <div id="headerMenuWrap" class="header-menu-wrap">
-            <button type="button" id="headerMenuToggle" class="eye-profile-chip header-menu-toggle" aria-expanded="false" aria-controls="headerMenuPanel" aria-label="Open account menu" title="Account menu">
-              <div class="eye-avatar" id="topbarAvatar">AD</div>
-              <div class="eye-profile-meta">
-                <div class="eye-profile-name" id="topbarAdminName">Administrator</div>
-                <div class="eye-profile-role" id="topbarAdminRole">Administrator</div>
-              </div>
-              <i class="fas fa-chevron-down" style="font-size:11px;color:var(--text-secondary);margin-left:2px;"></i>
+          <div class="eye-notif-wrap">
+            <button type="button" class="eye-icon-btn" id="notifBellBtn" title="Notifications" aria-label="Notifications">
+              <i class="fas fa-bell"></i>
+              <span class="eye-notif-dot" id="notifBadgeDot">0</span>
             </button>
-            <div id="headerMenuPanel" class="header-menu-panel">
-              <button type="button" class="eye-profile-menu-item" onclick="openChangePasswordModal(); closeHeaderMenu();"><i class="fas fa-key"></i><span>Change password</span></button>
-              <button type="button" class="eye-profile-menu-item" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i><span>Logout</span></button>
+            <div class="eye-notif-panel" id="notifPanel" role="dialog" aria-label="Notifications">
+              <div class="eye-notif-head">
+                <strong style="font-size:14px;color:var(--ink);">Notifications</strong>
+                <button type="button" id="markAllNotifsReadBtn" class="ov-card-action">Mark all as read</button>
+              </div>
+              <div class="eye-notif-list" id="notifPanelList"></div>
             </div>
           </div>
+
+          <button type="button" class="eye-icon-btn" id="settingsGearBtn" onclick="switchTab('tab-settings')" title="Settings" aria-label="Settings">
+            <i class="fas fa-gear"></i>
+          </button>
+
+          <button type="button" class="eye-hdr-btn" id="hdrChangePwdBtn" onclick="openChangePasswordModal()">
+            <i class="fas fa-key" aria-hidden="true"></i>
+            <span>Change password</span>
+          </button>
+
+          <button type="button" class="eye-hdr-btn eye-hdr-btn--danger" id="hdrLogoutBtn" onclick="this.disabled=true; handleLogout();">
+            <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
+            <span>Logout</span>
+          </button>
         </div>
       </header>
 
@@ -2629,6 +2626,37 @@
               <div class="ov-card" id="ovTrendCard"><div class="ov-skeleton" style="height:170px;"></div></div>
               <div class="ov-card" id="ovScheduleCard"><div class="ov-skeleton" style="height:170px;"></div></div>
             </section>
+          </div>
+        </div>
+
+        <!-- ==================== SETTINGS TAB ==================== -->
+        <div id="tab-settings" class="tab-content">
+          <div class="ov-stack">
+            <div class="section-card">
+              <div class="section-header">
+                <div class="section-header-left">
+                  <div class="section-icon" style="background:var(--accent);color:var(--accent-ink);"><i class="fas fa-school"></i></div>
+                  <div>
+                    <div class="section-title">School profile</div>
+                    <div class="section-subtitle" id="settingsSchoolName">The Eye School</div>
+                  </div>
+                </div>
+              </div>
+              <div class="section-body" style="display:flex;flex-direction:column;gap:20px;">
+                <div>
+                  <div style="font-size:14px;font-weight:600;color:var(--ink);margin-bottom:8px;">Academic years</div>
+                  <div id="settingsYearsList" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:12px;padding-top:16px;border-top:1px solid var(--line);">
+                  <button type="button" class="btn btn-primary" onclick="openChangePasswordModal()">
+                    <i class="fas fa-key"></i> Change password
+                  </button>
+                  <button type="button" class="btn btn-secondary" onclick="toggleTheme()">
+                    <i class="fas fa-circle-half-stroke"></i> Toggle light / dark
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -2780,12 +2808,12 @@
               <div class="section-subtitle">Manage enrolled students</div>
             </div>
           </div>
-          <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <button class="btn btn-ghost" onclick="openBulkAddStudentModal()" style="border:1px solid var(--border); border-radius:var(--radius-control);">
-              <i class="fas fa-users"></i> Add Multiple Students
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-secondary" onclick="openBulkAddStudentModal()">
+              <i class="fas fa-users"></i> Import students
             </button>
-            <button class="btn btn-primary" onclick="toggleAddStudent()" id="addStudentToggleBtn" style="background:var(--primary); border-radius:var(--radius-control); box-shadow:none;">
-              <i class="fas fa-plus"></i> Add Student
+            <button class="btn btn-primary" onclick="toggleAddStudent()" id="addStudentToggleBtn">
+              <i class="fas fa-plus"></i> Add student
             </button>
           </div>
         </div>
@@ -3147,7 +3175,7 @@
         </a>
         <a href="/voucher-generator.html#config" class="section-card" style="text-decoration:none; color:inherit; display:block; transition:transform .15s ease, box-shadow .15s ease;">
           <div class="section-body" style="padding:28px 24px;">
-            <div class="section-icon" style="background: rgba(59,130,246,0.12); color:#3b82f6; width:52px; height:52px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; margin-bottom:16px;"><i class="fa-solid fa-sliders"></i></div>
+            <div class="section-icon" style="background: var(--accent); color: var(--accent-ink); width:52px; height:52px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; margin-bottom:16px;"><i class="fa-solid fa-sliders"></i></div>
             <div style="font-weight:700; font-size:1.05rem; margin-bottom:6px;">Fee Configuration</div>
             <p style="color:var(--text-muted); font-size:0.88rem; line-height:1.5; margin:0;">Manage the school fee structure — monthly, admission, transport, discount and extra charges. Changes take effect this month or next, and paid vouchers are never altered.</p>
             <span class="btn btn-secondary btn-sm" style="margin-top:18px; display:inline-flex; align-items:center; gap:8px;">Open <i class="fa-solid fa-arrow-right"></i></span>

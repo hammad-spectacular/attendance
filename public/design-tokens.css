@@ -1,20 +1,25 @@
 /* ==========================================================================
    THE EYE — DESIGN TOKENS
-   Soft Light Canvas + Black + Lime Design System
+   Soft Light Canvas + Black + Lime Design System (Second Pass)
    ========================================================================== */
 
 :root {
   /* Core Palette */
-  --bg-app: #ECECE8;         /* page canvas, warm light gray */
-  --bg-surface: #F7F7F4;     /* cards on canvas */
-  --bg-surface-2: #FFFFFF;   /* inputs, table rows, nested items */
+  --bg-app: #F1F2EE;         /* page canvas */
+  --surface: #E7EAE3;        /* sage-gray secondary cards */
+  --surface-white: #FFFFFF;  /* list rows, inputs, table rows */
   --ink: #111111;            /* primary text, dark cards, primary buttons */
-  --ink-2: #5C5C57;          /* secondary text (>= 4.5:1 on surfaces) */
-  --line: #E2E2DC;           /* 1px borders/dividers */
+  --ink-2: #5C5C57;          /* secondary text */
+  --line: #DADDD5;           /* 1px borders/dividers */
+  --rail: #111111;           /* left rail background */
+  --rail-divider: #2A2A28;
+  --rail-hover: #1E1E1D;
+  --rail-active: #2B2B29;
+  --rail-icon: #9A9A94;
   --accent: #E6F27A;         /* lime: highlights, active states, charts, key card */
   --accent-hover: #D8E660;
   --accent-soft: rgba(230, 242, 122, 0.35);
-  --accent-ink: #111111;     /* ALWAYS black text/icons on lime, never white */
+  --accent-ink: #111111;     /* ALWAYS black text/icons on lime */
 
   /* Status Only */
   --success: #2E9E5B;
@@ -34,8 +39,10 @@
   --space-8: 32px;
 
   /* Radii */
+  --radius-rail: 28px;
   --radius-card: 24px;
   --radius-inner: 16px;
+  --radius-rail-item: 14px;
   --radius-input: 14px;
   --radius-pill: 999px;
   --radius-control: 999px;
@@ -55,15 +62,15 @@
   /* Minimal Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.08);
 
-  /* Semantic Aliases for Legacy / Shared Components */
+  /* Semantic Aliases for Shared Components */
   --bg: var(--bg-app);
-  --bg-card: var(--bg-surface);
-  --bg-card-alt: var(--bg-surface-2);
-  --bg-card-hover: #EFEFEA;
-  --bg-input: var(--bg-surface-2);
-  --bg-secondary: var(--bg-app);
+  --bg-card: var(--surface);
+  --bg-card-alt: var(--surface-white);
+  --bg-card-hover: #DDE1D8;
+  --bg-input: var(--surface-white);
+  --bg-secondary: var(--surface);
   --bg-subtle: var(--bg-app);
   --border: var(--line);
   --border-focus: var(--ink);
@@ -80,16 +87,16 @@
   --primary-hover: #262626;
   --primary-soft: rgba(17, 17, 17, 0.06);
   --primary-light: #333333;
-  --table-row-hover: #F7F7F4;
-  --table-stripe: var(--bg-surface-2);
+  --table-row-hover: #F7F8F5;
+  --table-stripe: var(--surface-white);
   --badge-bg: var(--accent);
   --badge-text: var(--accent-ink);
-  --bar-muted: #D5D5CE;
+  --bar-muted: #D5D8D0;
   --gradient: var(--ink);
 
   /* Layout */
-  --sidebar-w: 232px;
-  --sidebar-collapsed-w: 72px;
+  --sidebar-w: 220px;
+  --sidebar-collapsed-w: 76px;
   --header-h: 64px;
 }
 
