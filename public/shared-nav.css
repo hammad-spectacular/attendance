@@ -45,7 +45,7 @@
   left: 50%;
   width: 0;
   height: 2px;
-  background-color: var(--primary, #4f46e5);
+  background-color: var(--primary, #075E54);
   transition: width 180ms ease, left 180ms ease;
 }
 
@@ -64,9 +64,9 @@
 
 /* Active tab state — new dropdown elements only */
 .nav-tab-item.active > .tab-btn {
-  color: var(--primary, #4f46e5);
+  color: var(--primary, #075E54);
   font-weight: 600;
-  background-color: rgba(79, 70, 229, 0.08);
+  background-color: rgba(7, 94, 84, 0.08);
 }
 
 .nav-tab-item.active > .tab-btn::after {
@@ -148,8 +148,8 @@
 
 .nav-dropdown-item.active {
   font-weight: 700;
-  color: var(--primary, #4f46e5);
-  background-color: rgba(79, 70, 229, 0.06);
+  color: var(--primary, #075E54);
+  background-color: rgba(7, 94, 84, 0.06);
 }
 
 .nav-dropdown-title {
