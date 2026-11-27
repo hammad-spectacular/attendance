@@ -7,25 +7,6 @@
 (function () {
   'use strict';
 
-  // Load enabled features from API
-  async function loadEnabledFeatures() {
-    try {
-      const token = localStorage.getItem('auth_token');
-      const res = await fetch('/api/features', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      });
-      if (res.ok) {
-        const data = await res.json();
-        window.enabledFeatures = new Set(data.features || []);
-      } else {
-        window.enabledFeatures = new Set();
-      }
-    } catch (err) {
-      console.error('Failed to load features:', err);
-      window.enabledFeatures = new Set();
-    }
-  }
-
   function initSharedNav(role) {
     const container = document.getElementById('tabNavInner');
     if (!container) return;
@@ -41,11 +22,6 @@
     let html = '';
 
     items.forEach(item => {
-      // Skip items with featureKey if feature is not enabled
-      if (item.dataFeatureKey && window.enabledFeatures && !window.enabledFeatures.has(item.dataFeatureKey)) {
-        return;
-      }
-
       if (item.dropdown && item.dropdown.length > 0) {
         const secAttr = item.dataSection ? `data-section="${item.dataSection}"` : '';
         const activeSectionsAttr = Array.isArray(item.activeSections)
@@ -54,19 +30,16 @@
         // A dropdown parent keeps the feature key so the whole menu item is still
         // gated (and hidden) when the tenant has that module switched off.
         const featAttr = item.dataFeatureKey ? `data-feature-key="${item.dataFeatureKey}"` : '';
+        const tipAttr = `data-tooltip="${item.label}" title="${item.label}"`;
         html += `
           <div class="nav-tab-item" id="${item.id}">
-            <button type="button" class="tab-btn" aria-haspopup="true" aria-expanded="false" ${secAttr} ${activeSectionsAttr} ${featAttr}>
+            <button type="button" class="tab-btn" aria-haspopup="true" aria-expanded="false" ${secAttr} ${activeSectionsAttr} ${featAttr} ${tipAttr}>
               ${item.icon ? `<i class="fas ${item.icon}"></i>` : ''}
               <span>${item.label}</span>
               <i class="fas fa-chevron-down nav-arrow" aria-hidden="true"></i>
             </button>
             <div class="nav-dropdown" role="menu">
               ${item.dropdown.map(sub => {
-                // Skip dropdown items with featureKey if feature is not enabled
-                if (sub.dataFeatureKey && window.enabledFeatures && !window.enabledFeatures.has(sub.dataFeatureKey)) {
-                  return '';
-                }
                 const toastAttr = sub.toast ? `onclick="if(window.showToast){showToast('${sub.toast}','info');}else{alert('${sub.toast}');}return false;"` : '';
                 const secAttr = sub.dataSection ? `data-section="${sub.dataSection}"` : '';
                 const roleAttr = sub.dataRole ? `data-role="${sub.dataRole}"` : '';
@@ -90,27 +63,24 @@
           </div>
         `;
       } else {
-        // Skip items with featureKey if feature is not enabled
-        if (item.dataFeatureKey && window.enabledFeatures && !window.enabledFeatures.has(item.dataFeatureKey)) {
-          return;
-        }
         const idAttr = item.id && item.id !== item.dataSection ? `id="${item.id}"` : '';
         const secAttr = item.dataSection ? `data-section="${item.dataSection}"` : '';
         const featAttr = item.dataFeatureKey ? `data-feature-key="${item.dataFeatureKey}"` : '';
         const optStyle = item.optional ? 'style="display:none;"' : '';
         const actAttr = item.action ? `onclick="${item.action}"` : '';
         const clsActive = item.active ? 'active' : '';
+        const tipAttr = `data-tooltip="${item.label}" title="${item.label}"`;
 
         if (item.action && !item.href) {
           html += `
-            <button type="button" class="tab-btn ${clsActive}" ${idAttr} ${actAttr} ${secAttr} ${featAttr} ${optStyle}>
+            <button type="button" class="tab-btn ${clsActive}" ${idAttr} ${actAttr} ${secAttr} ${featAttr} ${optStyle} ${tipAttr}>
               ${item.icon ? `<i class="fas ${item.icon}"></i>` : ''}
               <span>${item.label}</span>
             </button>
           `;
         } else if (item.href) {
           html += `
-            <a href="${item.href}" class="tab-btn ${clsActive}" ${idAttr} ${actAttr} ${secAttr} ${featAttr} ${optStyle}>
+            <a href="${item.href}" class="tab-btn ${clsActive}" ${idAttr} ${actAttr} ${secAttr} ${featAttr} ${optStyle} ${tipAttr}>
               ${item.icon ? `<i class="fas ${item.icon}"></i>` : ''}
               <span>${item.label}</span>
             </a>
@@ -118,7 +88,7 @@
         } else {
           // For dropdown items with actions
           html += `
-            <button type="button" class="tab-btn ${clsActive}" ${idAttr} ${actAttr} ${secAttr} ${featAttr} ${optStyle}>
+            <button type="button" class="tab-btn ${clsActive}" ${idAttr} ${actAttr} ${secAttr} ${featAttr} ${optStyle} ${tipAttr}>
               ${item.icon ? `<i class="fas ${item.icon}"></i>` : ''}
               <span>${item.label}</span>
             </button>
@@ -130,12 +100,6 @@
     container.innerHTML = html;
     setupDropdownEvents(container);
   }
-
-  // Initialize navigation and load features
-  window.initSharedNav = async function(role) {
-    await loadEnabledFeatures();
-    initSharedNav(role);
-  };
 
   function setupDropdownEvents(container) {
     if (!container) return;

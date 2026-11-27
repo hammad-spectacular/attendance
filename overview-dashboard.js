@@ -69,7 +69,6 @@
 
     for (const item of list) {
       if (!item || !item.id) continue;
-      // Remove redundant Teacher Coverage / timetable-unplaced alert when class assignment alert exists
       if (item.id === 'teacher-coverage' || (item.id === 'timetable-unplaced' && hasUnassigned)) {
         continue;
       }
@@ -93,7 +92,7 @@
     const dateEl = document.getElementById('ovDateline');
     if (dateEl) {
       const dStr = now.toLocaleDateString('en-US', {
-        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+        weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
       });
       const tStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
       dateEl.textContent = `${dStr} \u00B7 Updated ${tStr}`;
@@ -112,7 +111,7 @@
     if (nameEl) nameEl.textContent = data.adminName || 'Administrator';
 
     const roleEl = document.getElementById('topbarAdminRole');
-    if (roleEl) roleEl.textContent = data.adminRole === 'super_admin' ? 'Super Administrator' : 'School Administrator';
+    if (roleEl) roleEl.textContent = data.adminRole === 'super_admin' ? 'Super Administrator' : 'Administrator';
 
     const crumbEl = document.getElementById('ovBreadcrumb');
     if (crumbEl) {
@@ -144,35 +143,35 @@
     if (!el) return;
 
     const attPct = data.attendance.pctToday;
-    const attDot = attPct === null ? 'indigo' : (attPct >= 85 ? 'green' : 'amber');
+    const attTone = attPct === null ? 'indigo' : (attPct >= 85 ? 'green' : 'amber');
     const attVal = attPct !== null ? `${attPct}%` : '\u2014';
     const attSub = data.attendance.markedTotal > 0
       ? `${data.attendance.presentToday.toLocaleString()} of ${data.students.active.toLocaleString()} present`
-      : 'No attendance marked today';
+      : 'Not marked today';
 
-    let feeDot = 'indigo';
+    let feeTone = 'indigo';
     let feeVal = 'Disabled';
-    let feeSub = 'Fees module not enabled';
+    let feeSub = 'Module disabled';
     let feeTab = 'tab-classes';
     if (data.fees && data.fees.enabled) {
       const fpct = data.fees.collectionPct;
-      feeDot = fpct === null ? 'indigo' : (fpct >= 80 ? 'green' : 'amber');
+      feeTone = fpct === null ? 'indigo' : (fpct >= 80 ? 'green' : 'amber');
       feeVal = fpct !== null ? `${fpct}%` : formatPKR(data.fees.collected);
       feeSub = `${formatPKR(data.fees.collected)} collected \u00B7 ${formatPKR(data.fees.outstanding)} due`;
       feeTab = 'tab-fees';
     }
 
     const priCount = priorities.length;
-    const priDot = priCount > 0 ? 'red' : 'green';
+    const priTone = priCount > 0 ? 'red' : 'green';
     const priSub = priCount > 0
-      ? `${priCount} item${priCount === 1 ? '' : 's'} require action`
-      : 'All tracked systems clear';
+      ? `${priCount} item${priCount === 1 ? '' : 's'} need action`
+      : 'All clear';
 
     el.innerHTML = `
       <button type="button" class="ov-kpi-card" data-nav-tab="tab-students">
         <div class="ov-kpi-top">
           <span class="ov-kpi-title">Total Students</span>
-          <span class="ov-status-dot indigo" aria-hidden="true"></span>
+          <span class="ov-kpi-icon indigo" aria-hidden="true"><i class="fas fa-user-graduate"></i></span>
         </div>
         <div class="ov-kpi-value">${data.students.active.toLocaleString()}</div>
         <div class="ov-kpi-sub">${data.students.classCount} classes \u00B7 ${data.students.newThisMonth} new this month</div>
@@ -180,7 +179,7 @@
       <button type="button" class="ov-kpi-card" data-nav-tab="tab-attendance">
         <div class="ov-kpi-top">
           <span class="ov-kpi-title">Today's Attendance</span>
-          <span class="ov-status-dot ${attDot}" aria-hidden="true"></span>
+          <span class="ov-kpi-icon ${attTone}" aria-hidden="true"><i class="fas fa-clipboard-check"></i></span>
         </div>
         <div class="ov-kpi-value">${attVal}</div>
         <div class="ov-kpi-sub">${esc(attSub)}</div>
@@ -188,7 +187,7 @@
       <button type="button" class="ov-kpi-card" data-nav-tab="${feeTab}">
         <div class="ov-kpi-top">
           <span class="ov-kpi-title">Fee Collection</span>
-          <span class="ov-status-dot ${feeDot}" aria-hidden="true"></span>
+          <span class="ov-kpi-icon ${feeTone}" aria-hidden="true"><i class="fas fa-wallet"></i></span>
         </div>
         <div class="ov-kpi-value">${esc(feeVal)}</div>
         <div class="ov-kpi-sub">${esc(feeSub)}</div>
@@ -196,7 +195,7 @@
       <button type="button" class="ov-kpi-card" onclick="document.getElementById('ovPriorityCard')?.scrollIntoView({behavior:'smooth'})">
         <div class="ov-kpi-top">
           <span class="ov-kpi-title">Open Priorities</span>
-          <span class="ov-status-dot ${priDot}" aria-hidden="true"></span>
+          <span class="ov-kpi-icon ${priTone}" aria-hidden="true"><i class="fas fa-circle-exclamation"></i></span>
         </div>
         <div class="ov-kpi-value">${priCount}</div>
         <div class="ov-kpi-sub">${esc(priSub)}</div>
@@ -213,7 +212,7 @@
           <div class="ov-inbox-item">
             <div class="ov-inbox-left">
               <div class="ov-count-badge ${esc(item.severity)}">${item.count}</div>
-              <div>
+              <div style="min-width:0;">
                 <div class="ov-inbox-title">${esc(item.title)}</div>
                 <div class="ov-inbox-meta">${esc(item.meta)}</div>
               </div>
@@ -224,13 +223,12 @@
               ${esc(item.actionLabel)}
             </button>
           </div>`).join('')
-      : `<div class="ov-empty"><i class="fas fa-circle-check" style="color:var(--eye-green);margin-right:6px;"></i>No urgent issues require action right now.</div>`;
+      : `<div class="ov-empty"><i class="fas fa-circle-check" style="color:var(--eye-green);margin-right:6px;"></i>All clear — no pending issues.</div>`;
 
     el.innerHTML = `
       <div class="ov-card-head">
         <div>
-          <div class="ov-card-title">Priority inbox</div>
-          <div class="ov-card-sub">${priorities.length} item${priorities.length === 1 ? '' : 's'} requiring attention</div>
+          <div class="ov-card-title">Priority Inbox</div>
         </div>
         ${priorities.length > 5 ? `<button type="button" class="ov-card-action" id="ovTogglePrioritiesBtn">${showAllPriorities ? 'Show less' : 'View all \u2192'}</button>` : ''}
       </div>
@@ -252,29 +250,22 @@
 
     const actions = [];
     if (f.student_management !== false) {
-      actions.push({ label: 'Add student', icon: 'fa-plus', tab: 'tab-students' });
+      actions.push({ label: 'Add Student', icon: 'fa-plus', tab: 'tab-students' });
     }
     if (f.fees) {
-      actions.push({ label: 'Receive fee', icon: 'fa-receipt', href: '/voucher-generator.html#collect' });
+      actions.push({ label: 'Receive Fee', icon: 'fa-receipt', href: '/voucher-generator.html#collect' });
     }
     if (f.attendance !== false) {
-      actions.push({ label: 'Mark attendance', icon: 'fa-clipboard-check', tab: 'tab-attendance' });
-    }
-    if (f.teacher_management !== false) {
-      actions.push({ label: 'Add staff', icon: 'fa-user-plus', tab: 'tab-teachers' });
+      actions.push({ label: 'Mark Attendance', icon: 'fa-clipboard-check', tab: 'tab-attendance' });
     }
     if (f.fees) {
-      actions.push({ label: 'Fee voucher', icon: 'fa-file-invoice-dollar', href: '/voucher-generator.html#generate' });
-    }
-    if (f.timetable) {
-      actions.push({ label: 'Timetable', icon: 'fa-calendar-days', href: '/tt2/' });
+      actions.push({ label: 'Fee Voucher', icon: 'fa-file-invoice-dollar', href: '/voucher-generator.html#generate' });
     }
 
     el.innerHTML = `
       <div class="ov-card-head">
         <div>
-          <div class="ov-card-title">Quick actions</div>
-          <div class="ov-card-sub">Common administrative workflows</div>
+          <div class="ov-card-title">Quick Actions</div>
         </div>
       </div>
       <div class="ov-actions-grid">
@@ -286,7 +277,7 @@
             <span>${esc(a.label)}</span>
           </button>`).join('')}
         <button type="button" class="ov-action-primary" data-nav-tab="tab-classes">
-          <span>Manage classes &amp; services</span>
+          <span>Manage Classes &amp; Services</span>
           <i class="fas fa-arrow-right"></i>
         </button>
       </div>`;
@@ -301,12 +292,11 @@
       el.innerHTML = `
         <div class="ov-card-head">
           <div>
-            <div class="ov-card-title">Attendance trend</div>
-            <div class="ov-card-sub">Last five school days</div>
+            <div class="ov-card-title">Attendance Trend</div>
           </div>
-          <button type="button" class="ov-card-action" data-nav-tab="tab-stats">Attendance report &rarr;</button>
+          <button type="button" class="ov-card-action" data-nav-tab="tab-stats">Report &rarr;</button>
         </div>
-        <div class="ov-empty">No attendance records available yet.</div>`;
+        <div class="ov-empty">No attendance records yet.</div>`;
       return;
     }
 
@@ -323,20 +313,20 @@
 
     const hasAbsences = data.attendance.absentToday > 0;
     const footerMsg = hasAbsences
-      ? `${data.attendance.absentToday} student${data.attendance.absentToday === 1 ? '' : 's'} absent today`
-      : 'No absences recorded today';
+      ? `${data.attendance.absentToday} absent today`
+      : 'No absences today';
 
     el.innerHTML = `
       <div class="ov-card-head">
         <div>
-          <div class="ov-card-title">Attendance trend</div>
-          <div class="ov-card-sub">Last ${trend.length} recorded day${trend.length === 1 ? '' : 's'}</div>
+          <div class="ov-card-title">Attendance Trend</div>
+          <div class="ov-card-sub">Last ${trend.length} school day${trend.length === 1 ? '' : 's'}</div>
         </div>
-        <button type="button" class="ov-card-action" data-nav-tab="tab-stats">Attendance report &rarr;</button>
+        <button type="button" class="ov-card-action" data-nav-tab="tab-stats">Report &rarr;</button>
       </div>
       <div class="ov-trend-bars">${barsHtml}</div>
       <div class="ov-trend-footer ${hasAbsences ? 'warn' : 'ok'}">
-        <span class="ov-status-dot ${hasAbsences ? 'amber' : 'green'}" aria-hidden="true"></span>
+        <i class="fas ${hasAbsences ? 'fa-circle-exclamation' : 'fa-circle-check'}"></i>
         <span>${esc(footerMsg)}</span>
       </div>`;
   }
@@ -357,13 +347,13 @@
               <div class="ov-schedule-dept">${esc(s.department)}</div>
             </div>`).join('')}
          </div>`
-      : `<div class="ov-empty">No scheduled exams or announcements posted yet.</div>`;
+      : `<div class="ov-empty">No upcoming exams or announcements.</div>`;
 
     el.innerHTML = `
       <div class="ov-card-head">
         <div>
-          <div class="ov-card-title">Campus schedule</div>
-          <div class="ov-card-sub">Upcoming exams &amp; notices</div>
+          <div class="ov-card-title">Campus Schedule</div>
+          <div class="ov-card-sub">Exams &amp; notices</div>
         </div>
         <button type="button" class="ov-card-action" data-nav-href="/datesheet.html">Datesheet &rarr;</button>
       </div>
@@ -477,25 +467,23 @@
 
   function setupSidebarShell() {
     const shell = document.getElementById('eyeShell');
-    const collapseBtn = document.getElementById('sidebarCollapseBtn');
-    const mobileBtn = document.getElementById('eyeMobileMenuBtn');
-    if (collapseBtn && shell) {
-      if (localStorage.getItem('eye-sidebar-collapsed') === '1') {
+    const toggleBtn = document.getElementById('eyeSidebarToggleBtn');
+    if (toggleBtn && shell) {
+      if (window.innerWidth > 960 && localStorage.getItem('eye-sidebar-collapsed') === '1') {
         shell.classList.add('sidebar-collapsed');
       }
-      collapseBtn.addEventListener('click', () => {
-        shell.classList.toggle('sidebar-collapsed');
-        localStorage.setItem('eye-sidebar-collapsed', shell.classList.contains('sidebar-collapsed') ? '1' : '0');
-      });
-    }
-    if (mobileBtn && shell) {
-      mobileBtn.addEventListener('click', (e) => {
+      toggleBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        shell.classList.toggle('mobile-drawer-open');
+        if (window.innerWidth <= 960) {
+          shell.classList.toggle('mobile-drawer-open');
+        } else {
+          shell.classList.toggle('sidebar-collapsed');
+          localStorage.setItem('eye-sidebar-collapsed', shell.classList.contains('sidebar-collapsed') ? '1' : '0');
+        }
       });
       document.addEventListener('click', (e) => {
         const sidebar = document.getElementById('eyeSidebar');
-        if (shell.classList.contains('mobile-drawer-open') && sidebar && !sidebar.contains(e.target) && !mobileBtn.contains(e.target)) {
+        if (shell.classList.contains('mobile-drawer-open') && sidebar && !sidebar.contains(e.target) && !toggleBtn.contains(e.target)) {
           shell.classList.remove('mobile-drawer-open');
         }
       });

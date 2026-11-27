@@ -30,9 +30,10 @@
         // A dropdown parent keeps the feature key so the whole menu item is still
         // gated (and hidden) when the tenant has that module switched off.
         const featAttr = item.dataFeatureKey ? `data-feature-key="${item.dataFeatureKey}"` : '';
+        const tipAttr = `data-tooltip="${item.label}" title="${item.label}"`;
         html += `
           <div class="nav-tab-item" id="${item.id}">
-            <button type="button" class="tab-btn" aria-haspopup="true" aria-expanded="false" ${secAttr} ${activeSectionsAttr} ${featAttr}>
+            <button type="button" class="tab-btn" aria-haspopup="true" aria-expanded="false" ${secAttr} ${activeSectionsAttr} ${featAttr} ${tipAttr}>
               ${item.icon ? `<i class="fas ${item.icon}"></i>` : ''}
               <span>${item.label}</span>
               <i class="fas fa-chevron-down nav-arrow" aria-hidden="true"></i>
@@ -68,17 +69,18 @@
         const optStyle = item.optional ? 'style="display:none;"' : '';
         const actAttr = item.action ? `onclick="${item.action}"` : '';
         const clsActive = item.active ? 'active' : '';
+        const tipAttr = `data-tooltip="${item.label}" title="${item.label}"`;
 
         if (item.action && !item.href) {
           html += `
-            <button type="button" class="tab-btn ${clsActive}" ${idAttr} ${actAttr} ${secAttr} ${featAttr} ${optStyle}>
+            <button type="button" class="tab-btn ${clsActive}" ${idAttr} ${actAttr} ${secAttr} ${featAttr} ${optStyle} ${tipAttr}>
               ${item.icon ? `<i class="fas ${item.icon}"></i>` : ''}
               <span>${item.label}</span>
             </button>
           `;
         } else if (item.href) {
           html += `
-            <a href="${item.href}" class="tab-btn ${clsActive}" ${idAttr} ${actAttr} ${secAttr} ${featAttr} ${optStyle}>
+            <a href="${item.href}" class="tab-btn ${clsActive}" ${idAttr} ${actAttr} ${secAttr} ${featAttr} ${optStyle} ${tipAttr}>
               ${item.icon ? `<i class="fas ${item.icon}"></i>` : ''}
               <span>${item.label}</span>
             </a>
@@ -86,7 +88,7 @@
         } else {
           // For dropdown items with actions
           html += `
-            <button type="button" class="tab-btn ${clsActive}" ${idAttr} ${actAttr} ${secAttr} ${featAttr} ${optStyle}>
+            <button type="button" class="tab-btn ${clsActive}" ${idAttr} ${actAttr} ${secAttr} ${featAttr} ${optStyle} ${tipAttr}>
               ${item.icon ? `<i class="fas ${item.icon}"></i>` : ''}
               <span>${item.label}</span>
             </button>
