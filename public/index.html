@@ -51,85 +51,104 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  padding: 20px 24px 28px;
+  padding: 24px 24px 20px;
   animation: heroFadeIn 0.4s ease-out both;
 }
 
-/* Subtle dot texture + Radial Glows */
+/* Background Texture, Luminous Light Plate Glows & Center Scrim */
 .hero-bg-texture {
   position: absolute;
   inset: 0;
   background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
   background-size: 28px 28px;
-  opacity: 0.12;
+  opacity: 0.1;
   pointer-events: none;
+  z-index: 1;
 }
 
 .hero-glow-top {
   position: absolute;
-  top: -120px;
-  right: -100px;
-  width: 540px;
-  height: 540px;
+  top: -12%;
+  right: -8%;
+  width: 45vw;
+  height: 45vw;
+  min-width: 340px;
+  min-height: 340px;
+  max-width: 680px;
+  max-height: 680px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(230, 242, 122, 0.48) 0%, rgba(185, 199, 176, 0.25) 45%, transparent 72%);
-  filter: blur(95px);
-  opacity: 0.45;
+  background: radial-gradient(circle, rgba(230, 242, 122, 0.36) 0%, rgba(185, 199, 176, 0.22) 48%, transparent 74%);
+  filter: blur(105px);
   pointer-events: none;
-  animation: glowDrift 24s ease-in-out infinite alternate;
+  z-index: 2;
+  animation: glowDrift 22s ease-in-out infinite alternate;
 }
 
 .hero-glow-bottom {
   position: absolute;
-  bottom: -140px;
-  left: -100px;
-  width: 440px;
-  height: 440px;
+  bottom: -14%;
+  left: -8%;
+  width: 45vw;
+  height: 45vw;
+  min-width: 320px;
+  min-height: 320px;
+  max-width: 620px;
+  max-height: 620px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(185, 199, 176, 0.4) 0%, transparent 70%);
-  filter: blur(90px);
-  opacity: 0.38;
+  background: radial-gradient(circle, rgba(185, 199, 176, 0.28) 0%, rgba(230, 242, 122, 0.12) 45%, transparent 74%);
+  filter: blur(100px);
   pointer-events: none;
-  animation: glowDrift 28s ease-in-out infinite alternate-reverse;
+  z-index: 2;
+  animation: glowDrift 26s ease-in-out infinite alternate-reverse;
+}
+
+.hero-scrim {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(closest-side, rgba(11, 11, 10, 0.85), transparent);
+  pointer-events: none;
+  z-index: 3;
 }
 
 /* 3 subtle vertical light streaks near bottom center */
 .hero-streaks {
   position: absolute;
-  bottom: 56px;
+  bottom: 52px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   gap: 36px;
   pointer-events: none;
-  opacity: 0.4;
+  opacity: 0.35;
+  z-index: 4;
 }
 
 .hero-streak {
   width: 1px;
-  height: 88px;
+  height: 80px;
   background: linear-gradient(to bottom, transparent, rgba(230, 242, 122, 0.55), transparent);
   animation: streakPulse 10s ease-in-out infinite;
 }
 
 .hero-streak:nth-child(2) {
-  height: 112px;
+  height: 104px;
   animation-delay: -3.5s;
 }
 
 .hero-streak:nth-child(3) {
-  height: 76px;
+  height: 70px;
   animation-delay: -6.5s;
 }
 
-/* Floating Pill Navbar */
+/* Floating Pill Navbar (48px high, z-index above everything) */
 .hero-nav-wrap {
   position: relative;
-  z-index: 30;
+  z-index: 50;
   display: flex;
   justify-content: center;
   width: 100%;
+  min-height: 64px;
+  flex-shrink: 0;
 }
 
 .hero-nav {
@@ -249,7 +268,7 @@ body {
   padding: 12px;
   flex-direction: column;
   gap: 6px;
-  z-index: 40;
+  z-index: 60;
 }
 
 .nav-mobile-sheet.open {
@@ -276,16 +295,17 @@ body {
   margin-top: 4px;
 }
 
-/* Hero Main Stage */
+/* Vertically Centered Hero Block */
 .hero-main {
   position: relative;
   z-index: 20;
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   text-align: center;
-  padding: 36px 0 28px;
-  margin: auto 0;
+  padding: 16px 0;
 }
 
 .hero-badge {
@@ -309,21 +329,23 @@ body {
 }
 
 .hero-title {
-  font-size: clamp(2.25rem, 5.2vw, 4.25rem);
+  font-size: clamp(2rem, min(4.2vw, 6.5vh), 3.5rem);
   font-weight: 500;
-  line-height: 1.06;
+  line-height: 1.1;
   letter-spacing: -0.02em;
-  max-width: 15ch;
-  color: var(--ink-on-dark, #F4F4F0);
+  max-width: 20ch;
+  text-wrap: balance;
+  color: #F4F4F0;
   margin-bottom: 16px;
 }
 
 .hero-sub {
-  font-size: clamp(1rem, 1.4vw, 1.125rem);
+  font-size: 1.0625rem;
   line-height: 1.5;
-  color: var(--ink-2-on-dark, #9A9A94);
-  max-width: 48ch;
-  margin-bottom: 28px;
+  color: #B8B8B0;
+  max-width: 46ch;
+  text-wrap: balance;
+  margin-bottom: 32px;
 }
 
 /* Orbit Nodes (Desktop >= 1100px only) */
@@ -369,41 +391,41 @@ body {
   .orbit-node {
     display: flex;
   }
-  .orbit-node.tl { top: 72px; left: 4%; }
-  .orbit-node.bl { bottom: 130px; left: 6%; }
-  .orbit-node.tr { top: 72px; right: 4%; flex-direction: row-reverse; }
-  .orbit-node.br { bottom: 130px; right: 6%; flex-direction: row-reverse; }
+  .orbit-node.tl { top: 44px; left: 4%; }
+  .orbit-node.bl { bottom: 90px; left: 6%; }
+  .orbit-node.tr { top: 44px; right: 4%; flex-direction: row-reverse; }
+  .orbit-node.br { bottom: 90px; right: 6%; flex-direction: row-reverse; }
 }
 
-/* Glass Sign-In Card */
+/* Elevated Sign-In Card */
 .login-card {
-  width: 100%;
-  max-width: 420px;
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(16px);
+  width: min(440px, 100%);
+  background: #1A1A19;
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 24px;
-  padding: 24px;
+  padding: 32px;
   text-align: left;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  margin-bottom: 20px;
 }
 
 .login-title {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 600;
-  color: var(--ink-on-dark, #F4F4F0);
-  margin-bottom: 18px;
+  color: #F4F4F0;
+  margin-bottom: 20px;
 }
 
 .form-group {
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .form-group label {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
-  color: var(--ink-on-dark, #F4F4F0);
-  margin-bottom: 6px;
+  color: #F4F4F0;
+  margin-bottom: 8px;
 }
 
 .input-wrap {
@@ -413,11 +435,11 @@ body {
 .input-wrap input {
   width: 100%;
   height: 48px;
-  padding: 0 44px 0 14px;
+  padding: 0 48px 0 14px;
   border-radius: 14px;
-  border: 1px solid var(--line-on-dark, #2A2A28);
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--ink-on-dark, #F4F4F0);
+  border: 1px solid #3A3A35;
+  background: #0F0F0E;
+  color: #F4F4F0;
   font-family: inherit;
   font-size: 16px;
   outline: none;
@@ -425,12 +447,18 @@ body {
 }
 
 .input-wrap input::placeholder {
-  color: var(--ink-2-on-dark, #9A9A94);
+  color: #A0A09A;
 }
 
+.input-wrap input:hover {
+  border-color: #55554E;
+}
+
+.input-wrap input:focus,
 .input-wrap input:focus-visible {
   border-color: var(--accent, #E6F27A);
-  box-shadow: 0 0 0 2px var(--accent, #E6F27A);
+  box-shadow: 0 0 0 2px rgba(230, 242, 122, 0.45);
+  outline: none;
 }
 
 .toggle-pw {
@@ -438,31 +466,34 @@ body {
   right: 6px;
   top: 50%;
   transform: translateY(-50%);
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 999px;
   border: none;
   background: transparent;
-  color: var(--ink-2-on-dark, #9A9A94);
+  color: #C9C9C2;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 20px;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 
 .toggle-pw:hover {
-  color: var(--ink-on-dark, #F4F4F0);
+  color: #F4F4F0;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .toggle-pw:focus-visible {
   outline: 2px solid var(--accent, #E6F27A);
+  outline-offset: 2px;
 }
 
 .field-helper {
   font-size: 13px;
-  color: var(--ink-2-on-dark, #9A9A94);
-  margin-top: 6px;
+  color: #A8A8A2;
+  margin-top: 8px;
   line-height: 1.35;
 }
 
@@ -474,16 +505,12 @@ body {
 
 .forgot-link {
   font-size: 13px;
-  color: var(--ink-2-on-dark, #9A9A94);
+  color: #B8B8B0;
   text-decoration: none;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
 }
 
 .forgot-link:hover {
-  color: var(--ink-on-dark, #F4F4F0);
+  color: #F4F4F0;
   text-decoration: underline;
 }
 
@@ -526,7 +553,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin-top: 6px;
+  margin-top: 4px;
   transition: background 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
 }
 
@@ -559,14 +586,13 @@ body {
 }
 
 .register-note {
-  margin-top: 16px;
   font-size: 13px;
-  color: var(--ink-2-on-dark, #9A9A94);
+  color: #B8B8B0;
   text-align: center;
 }
 
 .register-note a {
-  color: var(--ink-on-dark, #F4F4F0);
+  color: #F4F4F0;
   text-decoration: underline;
   text-decoration-color: var(--accent, #E6F27A);
   text-underline-offset: 3px;
@@ -587,10 +613,11 @@ body {
   align-items: center;
   justify-content: center;
   gap: 28px;
-  padding-top: 18px;
+  padding-top: 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   overflow-x: auto;
   scrollbar-width: none;
+  flex-shrink: 0;
 }
 
 .modules-strip::-webkit-scrollbar {
@@ -625,7 +652,7 @@ body {
 
 @keyframes streakPulse {
   0%, 100% { opacity: 0.2; }
-  50% { opacity: 0.65; }
+  50% { opacity: 0.6; }
 }
 
 @keyframes spin {
@@ -638,6 +665,38 @@ body {
   }
 }
 
+/* Short viewports (1366x768 etc.): fit cleanly without scrolling */
+@media (max-height: 800px) {
+  .hero-panel {
+    padding: 16px 24px 14px;
+  }
+  .hero-nav-wrap {
+    min-height: 54px;
+  }
+  .hero-main {
+    padding: 8px 0;
+  }
+  .hero-badge {
+    margin-bottom: 14px;
+  }
+  .hero-title {
+    margin-bottom: 12px;
+  }
+  .hero-sub {
+    margin-bottom: 22px;
+  }
+  .login-card {
+    padding: 24px;
+    margin-bottom: 14px;
+  }
+  .login-title {
+    margin-bottom: 14px;
+  }
+  .form-group {
+    margin-bottom: 14px;
+  }
+}
+
 /* Tablet & Mobile Responsive */
 @media (max-width: 767px) {
   body {
@@ -645,7 +704,7 @@ body {
   }
   .hero-panel {
     border-radius: 24px;
-    padding: 14px 16px 20px;
+    padding: 14px 16px 18px;
     min-height: calc(100dvh - 16px);
   }
   .nav-links,
@@ -655,17 +714,16 @@ body {
   .nav-mobile-toggle {
     display: inline-flex;
   }
-  .hero-main {
-    padding: 24px 0 20px;
-  }
-  .login-card {
-    padding: 20px;
-    max-width: 100%;
-  }
   .modules-strip {
     justify-content: flex-start;
     gap: 20px;
     padding-bottom: 4px;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-card {
+    padding: 24px;
   }
 }
 </style>
@@ -676,6 +734,7 @@ body {
   <div class="hero-bg-texture" aria-hidden="true"></div>
   <div class="hero-glow-top" aria-hidden="true"></div>
   <div class="hero-glow-bottom" aria-hidden="true"></div>
+  <div class="hero-scrim" aria-hidden="true"></div>
   <div class="hero-streaks" aria-hidden="true">
     <div class="hero-streak"></div>
     <div class="hero-streak"></div>
@@ -709,7 +768,7 @@ body {
     </div>
   </header>
 
-  <!-- Hero Content & Glass Login Card -->
+  <!-- Vertically Centered Hero Block -->
   <main class="hero-main">
     <div class="orbit-node tl" aria-hidden="true">
       <span class="orbit-circle"><i class="fas fa-clipboard-check"></i></span>
@@ -738,7 +797,7 @@ body {
     </div>
 
     <h1 class="hero-title">Run your whole school from one place</h1>
-    <p class="hero-sub">Attendance, fees, exams and staff in a single, simple dashboard.</p>
+    <p class="hero-sub">Attendance, fees, exams and staff in one simple dashboard.</p>
 
     <section class="login-card" aria-label="Sign in">
       <h2 class="login-title">Sign in</h2>
@@ -804,12 +863,10 @@ body {
   const mobileMenuBtn = document.getElementById('mobileMenuBtn');
   const mobileNavSheet = document.getElementById('mobileNavSheet');
 
-  // Desktop-only autofocus
   if (window.innerWidth >= 1024) {
     fullIdInput.focus();
   }
 
-  // Mobile menu toggle
   function closeMobileMenu() {
     if (!mobileNavSheet) return;
     mobileNavSheet.classList.remove('open');
@@ -830,7 +887,6 @@ body {
     });
   }
 
-  // Enable/disable Sign in button based on both fields being filled
   function updateSubmitState() {
     const ready = fullIdInput.value.trim().length > 0 && pwInput.value.length > 0;
     loginBtn.disabled = !ready;
@@ -838,7 +894,6 @@ body {
   fullIdInput.addEventListener('input', updateSubmitState);
   pwInput.addEventListener('input', updateSubmitState);
 
-  // Show/hide password toggle
   toggleBtn.addEventListener('click', function () {
     const isPassword = pwInput.type === 'password';
     pwInput.type = isPassword ? 'text' : 'password';
