@@ -1,312 +1,907 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
-<script>
-  (function() {
-    const saved = localStorage.getItem('attendance-theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', saved);
-  })();
-</script>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Eye — Sign In</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Khattack Academy — Sign in</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="./design-tokens.css">
 <style>
-[data-theme="dark"] {
-  --bg: #0f172a; --bg-card: #1e293b; --border: #334155;
-  --text: #f1f5f9; --text-secondary: #94a3b8; --text-muted: #64748b;
-  --primary: #4f46e5; --primary-light: #818cf8;
-  --success: #22c55e; --danger: #ef4444;
-  --shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
-  --shadow-lg: 0 10px 25px -5px rgba(0,0,0,0.4);
-  --gradient: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
-[data-theme="light"] {
-  --bg: #f1f5f9; --bg-card: #ffffff; --border: #e2e8f0;
-  --text: #0f172a; --text-secondary: #475569; --text-muted: #94a3b8;
-  --primary: #4f46e5; --primary-light: #6366f1;
-  --success: #16a34a; --danger: #dc2626;
-  --shadow: 0 4px 6px -1px rgba(0,0,0,0.07);
-  --shadow-lg: 0 10px 25px -5px rgba(0,0,0,0.1);
-  --gradient: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+
+html {
+  scroll-behavior: smooth;
+  background: var(--page-dark, #0B0B0A);
 }
-* { margin:0; padding:0; box-sizing:border-box; }
+
 body {
-  font-family: 'Inter', sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
+  font-family: var(--font-main, 'Inter', sans-serif);
+  background: var(--page-dark, #0B0B0A);
+  color: var(--ink-on-dark, #F4F4F0);
+  min-height: 100dvh;
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Outer Rounded Hero Panel */
+.hero-panel {
+  position: relative;
+  width: 100%;
+  max-width: 1440px;
+  min-height: calc(100dvh - 24px);
+  background: var(--panel-dark, #121211);
+  border: 1px solid var(--line-on-dark, #2A2A28);
+  border-radius: 32px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px 24px 28px;
+  animation: heroFadeIn 0.4s ease-out both;
+}
+
+/* Subtle dot texture + Radial Glows */
+.hero-bg-texture {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 28px 28px;
+  opacity: 0.12;
+  pointer-events: none;
+}
+
+.hero-glow-top {
+  position: absolute;
+  top: -120px;
+  right: -100px;
+  width: 540px;
+  height: 540px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(230, 242, 122, 0.48) 0%, rgba(185, 199, 176, 0.25) 45%, transparent 72%);
+  filter: blur(95px);
+  opacity: 0.45;
+  pointer-events: none;
+  animation: glowDrift 24s ease-in-out infinite alternate;
+}
+
+.hero-glow-bottom {
+  position: absolute;
+  bottom: -140px;
+  left: -100px;
+  width: 440px;
+  height: 440px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(185, 199, 176, 0.4) 0%, transparent 70%);
+  filter: blur(90px);
+  opacity: 0.38;
+  pointer-events: none;
+  animation: glowDrift 28s ease-in-out infinite alternate-reverse;
+}
+
+/* 3 subtle vertical light streaks near bottom center */
+.hero-streaks {
+  position: absolute;
+  bottom: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 36px;
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+.hero-streak {
+  width: 1px;
+  height: 88px;
+  background: linear-gradient(to bottom, transparent, rgba(230, 242, 122, 0.55), transparent);
+  animation: streakPulse 10s ease-in-out infinite;
+}
+
+.hero-streak:nth-child(2) {
+  height: 112px;
+  animation-delay: -3.5s;
+}
+
+.hero-streak:nth-child(3) {
+  height: 76px;
+  animation-delay: -6.5s;
+}
+
+/* Floating Pill Navbar */
+.hero-nav-wrap {
+  position: relative;
+  z-index: 30;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.hero-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  height: 48px;
+  padding: 0 6px 0 8px;
+  background: #181817;
+  border: 1px solid var(--line-on-dark, #2A2A28);
+  border-radius: 999px;
+  backdrop-filter: blur(16px);
+  width: 100%;
+  max-width: 780px;
+}
+
+.nav-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--ink-on-dark, #F4F4F0);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.nav-logo-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--accent, #E6F27A);
+  color: #111111;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nav-link {
+  color: var(--ink-2-on-dark, #9A9A94);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 999px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.nav-link:hover {
+  color: var(--ink-on-dark, #F4F4F0);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.nav-link:focus-visible {
+  outline: 2px solid var(--accent, #E6F27A);
+  outline-offset: 2px;
+}
+
+.nav-register-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: #FFFFFF;
+  color: #111111;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.nav-register-btn:hover {
+  background: var(--accent, #E6F27A);
+}
+
+.nav-register-btn:focus-visible {
+  outline: 2px solid var(--accent, #E6F27A);
+  outline-offset: 2px;
+}
+
+.nav-mobile-toggle {
+  display: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--ink-on-dark, #F4F4F0);
+  font-size: 16px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-mobile-sheet {
+  display: none;
+  position: absolute;
+  top: 56px;
+  left: 0;
+  right: 0;
+  background: #181817;
+  border: 1px solid var(--line-on-dark, #2A2A28);
+  border-radius: 20px;
+  padding: 12px;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 40;
+}
+
+.nav-mobile-sheet.open {
+  display: flex;
+}
+
+.nav-mobile-sheet a {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  border-radius: 12px;
+  color: var(--ink-on-dark, #F4F4F0);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.nav-mobile-sheet a.mobile-reg {
+  background: #FFFFFF;
+  color: #111111;
+  justify-content: center;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+/* Hero Main Stage */
+.hero-main {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 36px 0 28px;
+  margin: auto 0;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(16px);
+  color: var(--ink-on-dark, #F4F4F0);
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 20px;
+}
+
+.hero-badge i {
+  color: var(--accent, #E6F27A);
+  font-size: 11px;
+}
+
+.hero-title {
+  font-size: clamp(2.25rem, 5.2vw, 4.25rem);
+  font-weight: 500;
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+  max-width: 15ch;
+  color: var(--ink-on-dark, #F4F4F0);
+  margin-bottom: 16px;
+}
+
+.hero-sub {
+  font-size: clamp(1rem, 1.4vw, 1.125rem);
+  line-height: 1.5;
+  color: var(--ink-2-on-dark, #9A9A94);
+  max-width: 48ch;
+  margin-bottom: 28px;
+}
+
+/* Orbit Nodes (Desktop >= 1100px only) */
+.orbit-node {
+  position: absolute;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.orbit-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.4s ease;
+  color: var(--accent, #E6F27A);
+  font-size: 14px;
 }
+
+.orbit-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2-on-dark, #9A9A94);
+}
+
+.orbit-line {
+  width: 48px;
+  height: 1px;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.18), transparent);
+}
+
+.orbit-node.right .orbit-line {
+  background: linear-gradient(to left, rgba(255, 255, 255, 0.18), transparent);
+}
+
+@media (min-width: 1100px) {
+  .orbit-node {
+    display: flex;
+  }
+  .orbit-node.tl { top: 72px; left: 4%; }
+  .orbit-node.bl { bottom: 130px; left: 6%; }
+  .orbit-node.tr { top: 72px; right: 4%; flex-direction: row-reverse; }
+  .orbit-node.br { bottom: 130px; right: 6%; flex-direction: row-reverse; }
+}
+
+/* Glass Sign-In Card */
 .login-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 44px 36px 36px;
-  width: 90%;
-  max-width: 400px;
-  box-shadow: var(--shadow-lg);
-  animation: fadeInUp 0.5s ease-out;
+  width: 100%;
+  max-width: 420px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(16px);
+  border-radius: 24px;
+  padding: 24px;
+  text-align: left;
 }
-.login-header { text-align: center; margin-bottom: 32px; }
-.login-header .icon {
-  width: 56px; height: 56px;
-  background: var(--gradient);
-  border-radius: 16px;
-  display: flex; align-items: center; justify-content: center;
-  margin: 0 auto 14px;
-  font-size: 1.5rem; color: white;
-  box-shadow: 0 4px 12px rgba(79,70,229,0.3);
+
+.login-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ink-on-dark, #F4F4F0);
+  margin-bottom: 18px;
 }
-.login-header h1 { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.3px; }
-.login-header p { font-size: 0.82rem; color: var(--text-secondary); margin-top: 4px; }
-.form-group { margin-bottom: 18px; }
+
+.form-group {
+  margin-bottom: 16px;
+}
+
 .form-group label {
-  display: block; font-size: 0.75rem; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.5px;
-  color: var(--text-secondary); margin-bottom: 6px;
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-on-dark, #F4F4F0);
+  margin-bottom: 6px;
 }
+
 .input-wrap {
   position: relative;
 }
+
 .input-wrap input {
-  width: 100%; padding: 12px 14px;
-  border-radius: 10px; border: 2px solid var(--border);
-  background: var(--bg); color: var(--text);
-  font-family: 'Inter', sans-serif; font-size: 0.9rem;
-  outline: none; transition: border-color 0.25s ease, box-shadow 0.25s ease;
-  padding-right: 42px;
+  width: 100%;
+  height: 48px;
+  padding: 0 44px 0 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line-on-dark, #2A2A28);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink-on-dark, #F4F4F0);
+  font-family: inherit;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.input-wrap input:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(79,70,229,0.15);
+
+.input-wrap input::placeholder {
+  color: var(--ink-2-on-dark, #9A9A94);
 }
-.input-wrap .toggle-pw {
+
+.input-wrap input:focus-visible {
+  border-color: var(--accent, #E6F27A);
+  box-shadow: 0 0 0 2px var(--accent, #E6F27A);
+}
+
+.toggle-pw {
   position: absolute;
-  right: 12px; top: 50%;
+  right: 6px;
+  top: 50%;
   transform: translateY(-50%);
-  background: none; border: none;
-  color: var(--text-muted);
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--ink-2-on-dark, #9A9A94);
   cursor: pointer;
-  font-size: 1rem;
-  padding: 4px;
-  transition: color 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
 }
-.input-wrap .toggle-pw:hover { color: var(--text-secondary); }
-.helper {
-  text-align: center;
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  margin: -8px 0 20px;
-  line-height: 1.4;
+
+.toggle-pw:hover {
+  color: var(--ink-on-dark, #F4F4F0);
 }
-.btn {
-  width: 100%; padding: 13px;
-  border: none; border-radius: 10px;
-  background: var(--gradient); color: white;
-  font-family: 'Inter', sans-serif; font-size: 0.9rem;
-  font-weight: 700; cursor: pointer;
-  transition: all 0.25s ease;
-  box-shadow: 0 4px 12px rgba(79,70,229,0.3);
+
+.toggle-pw:focus-visible {
+  outline: 2px solid var(--accent, #E6F27A);
 }
-.btn:hover { box-shadow: 0 6px 18px rgba(79,70,229,0.45); transform: translateY(-1px); }
-.btn:active { transform: translateY(0); }
-.btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+.field-helper {
+  font-size: 13px;
+  color: var(--ink-2-on-dark, #9A9A94);
+  margin-top: 6px;
+  line-height: 1.35;
+}
+
+.forgot-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.forgot-link {
+  font-size: 13px;
+  color: var(--ink-2-on-dark, #9A9A94);
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.forgot-link:hover {
+  color: var(--ink-on-dark, #F4F4F0);
+  text-decoration: underline;
+}
+
+.forgot-link:focus-visible {
+  outline: 2px solid var(--accent, #E6F27A);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 .error-msg {
-  background: rgba(239,68,68,0.1);
-  border: 1px solid rgba(239,68,68,0.2);
-  color: var(--danger);
-  padding: 10px 14px;
-  border-radius: 10px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  margin-top: 16px;
   display: none;
-  animation: fadeIn 0.3s ease-out;
+  align-items: flex-start;
+  gap: 10px;
+  background: rgba(214, 69, 69, 0.16);
+  border: 1px solid rgba(214, 69, 69, 0.4);
+  color: #FCA5A5;
+  padding: 12px 14px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.4;
+  margin-bottom: 14px;
 }
-.error-msg.show { display: block; }
-.footer-link {
-  text-align: center; margin-top: 22px;
-  font-size: 0.8rem; color: var(--text-muted);
+
+.error-msg.show {
+  display: flex;
 }
-.footer-link a { color: var(--primary-light); text-decoration: none; font-weight: 600; }
-.footer-link a:hover { text-decoration: underline; }
-.theme-toggle {
-  position: fixed; top: 20px; right: 20px;
-  width: 40px; height: 40px; border-radius: 50%;
-  border: 2px solid var(--border);
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  cursor: pointer; font-size: 1rem;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.3s ease;
-  z-index: 10;
+
+.signin-btn {
+  width: 100%;
+  height: 48px;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent, #E6F27A);
+  color: #111111;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+  transition: background 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
 }
-.theme-toggle:hover {
-  border-color: var(--primary);
-  color: var(--primary);
-  transform: rotate(20deg);
+
+.signin-btn:hover:not(:disabled) {
+  background: #F0FA8E;
 }
+
+.signin-btn:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.signin-btn:focus-visible {
+  outline: 2px solid #FFFFFF;
+  outline-offset: 2px;
+}
+
+.signin-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .spinner {
   display: inline-block;
-  width: 18px; height: 18px;
-  border: 2px solid rgba(255,255,255,0.3);
-  border-top-color: white;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(17, 17, 17, 0.25);
+  border-top-color: #111111;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
-  vertical-align: middle;
-  margin-right: 6px;
 }
-@keyframes fadeInUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
-@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
-@keyframes spin { to { transform: rotate(360deg); } }
-@media (max-width: 480px) { .login-card { padding: 32px 20px 28px; } }
+
+.register-note {
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--ink-2-on-dark, #9A9A94);
+  text-align: center;
+}
+
+.register-note a {
+  color: var(--ink-on-dark, #F4F4F0);
+  text-decoration: underline;
+  text-decoration-color: var(--accent, #E6F27A);
+  text-underline-offset: 3px;
+  font-weight: 500;
+}
+
+.register-note a:focus-visible {
+  outline: 2px solid var(--accent, #E6F27A);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Bottom Module Strip */
+.modules-strip {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.modules-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.module-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-2-on-dark, #9A9A94);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.module-chip i {
+  font-size: 13px;
+  color: var(--sage, #B9C7B0);
+}
+
+@keyframes heroFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes glowDrift {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(-24px, 18px) scale(1.06); }
+}
+
+@keyframes streakPulse {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.65; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-panel, .hero-glow-top, .hero-glow-bottom, .hero-streak, .spinner {
+    animation: none !important;
+  }
+}
+
+/* Tablet & Mobile Responsive */
+@media (max-width: 767px) {
+  body {
+    padding: 8px;
+  }
+  .hero-panel {
+    border-radius: 24px;
+    padding: 14px 16px 20px;
+    min-height: calc(100dvh - 16px);
+  }
+  .nav-links,
+  .nav-register-btn {
+    display: none;
+  }
+  .nav-mobile-toggle {
+    display: inline-flex;
+  }
+  .hero-main {
+    padding: 24px 0 20px;
+  }
+  .login-card {
+    padding: 20px;
+    max-width: 100%;
+  }
+  .modules-strip {
+    justify-content: flex-start;
+    gap: 20px;
+    padding-bottom: 4px;
+  }
+}
 </style>
-    <link rel="stylesheet" href="ui-buttons.css">
 </head>
 <body>
 
-<button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
-  <i class="fas fa-moon" id="themeIcon"></i>
-</button>
-
-<div class="login-card">
-  <div class="login-header">
-    <div class="icon"><i class="fas fa-eye"></i></div>
-    <h1>Welcome Back</h1>
-    <p>Sign in to your account</p>
+<div class="hero-panel">
+  <div class="hero-bg-texture" aria-hidden="true"></div>
+  <div class="hero-glow-top" aria-hidden="true"></div>
+  <div class="hero-glow-bottom" aria-hidden="true"></div>
+  <div class="hero-streaks" aria-hidden="true">
+    <div class="hero-streak"></div>
+    <div class="hero-streak"></div>
+    <div class="hero-streak"></div>
   </div>
 
-  <form id="loginForm" novalidate>
-    <div class="form-group">
-      <label for="fullId">Full ID</label>
-      <div class="input-wrap">
-        <input type="text" id="fullId" placeholder="e.g. HARV-T001" autocomplete="username" required>
+  <!-- Floating Pill Navbar -->
+  <header class="hero-nav-wrap">
+    <nav class="hero-nav" aria-label="Primary navigation">
+      <a href="/" class="nav-brand">
+        <span class="nav-logo-mark" aria-hidden="true">KA</span>
+        <span>Khattack Academy</span>
+      </a>
+
+      <div class="nav-links">
+        <a href="#modulesStrip" class="nav-link">Features</a>
+        <a href="mailto:support@theeye.edu.pk" class="nav-link">Contact</a>
       </div>
+
+      <a href="./register.html" class="nav-register-btn">Register your school</a>
+
+      <button type="button" class="nav-mobile-toggle" id="mobileMenuBtn" aria-expanded="false" aria-controls="mobileNavSheet" aria-label="Open menu">
+        <i class="fas fa-bars" aria-hidden="true"></i>
+      </button>
+    </nav>
+
+    <div class="nav-mobile-sheet" id="mobileNavSheet">
+      <a href="#modulesStrip" onclick="closeMobileMenu()">Features</a>
+      <a href="mailto:support@theeye.edu.pk" onclick="closeMobileMenu()">Contact</a>
+      <a href="./register.html" class="mobile-reg">Register your school</a>
     </div>
-    <div class="form-group">
-      <label for="password">Password</label>
-      <div class="input-wrap">
-        <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password" required>
-        <button type="button" class="toggle-pw" id="togglePw" tabindex="-1" aria-label="Toggle password visibility">
-          <i class="fas fa-eye"></i>
+  </header>
+
+  <!-- Hero Content & Glass Login Card -->
+  <main class="hero-main">
+    <div class="orbit-node tl" aria-hidden="true">
+      <span class="orbit-circle"><i class="fas fa-clipboard-check"></i></span>
+      <span class="orbit-label">Attendance</span>
+      <span class="orbit-line"></span>
+    </div>
+    <div class="orbit-node bl" aria-hidden="true">
+      <span class="orbit-circle"><i class="fas fa-wallet"></i></span>
+      <span class="orbit-label">Fees</span>
+      <span class="orbit-line"></span>
+    </div>
+    <div class="orbit-node tr right" aria-hidden="true">
+      <span class="orbit-circle"><i class="fas fa-calendar-check"></i></span>
+      <span class="orbit-label">Exams</span>
+      <span class="orbit-line"></span>
+    </div>
+    <div class="orbit-node br right" aria-hidden="true">
+      <span class="orbit-circle"><i class="fas fa-users"></i></span>
+      <span class="orbit-label">Staff</span>
+      <span class="orbit-line"></span>
+    </div>
+
+    <div class="hero-badge">
+      <i class="fas fa-sparkles" aria-hidden="true"></i>
+      <span>Built for schools</span>
+    </div>
+
+    <h1 class="hero-title">Run your whole school from one place</h1>
+    <p class="hero-sub">Attendance, fees, exams and staff in a single, simple dashboard.</p>
+
+    <section class="login-card" aria-label="Sign in">
+      <h2 class="login-title">Sign in</h2>
+
+      <form id="loginForm" novalidate>
+        <div class="form-group">
+          <label for="fullId">Full ID</label>
+          <div class="input-wrap">
+            <input type="text" id="fullId" placeholder="e.g. HARV-T001" autocomplete="username" inputmode="text" required>
+          </div>
+          <p class="field-helper">Your Full ID was given by your school admin.</p>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="input-wrap">
+            <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password" required>
+            <button type="button" class="toggle-pw" id="togglePw" aria-label="Show password">
+              <i class="fas fa-eye" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div class="forgot-row">
+            <a href="/forgot-password.html" class="forgot-link">Forgot password?</a>
+          </div>
+        </div>
+
+        <div class="error-msg" id="loginError" role="alert">
+          <i class="fas fa-circle-exclamation" style="margin-top:2px;flex-shrink:0;" aria-hidden="true"></i>
+          <span id="loginErrorText"></span>
+        </div>
+
+        <button type="submit" class="signin-btn" id="loginBtn" disabled>
+          Sign in
         </button>
-      </div>
-    </div>
+      </form>
+    </section>
 
-    <p class="helper">Your Full ID was provided by your school administrator</p>
+    <p class="register-note">
+      Are you a school? <a href="./register.html">Register here</a>
+    </p>
+  </main>
 
-    <div class="error-msg" id="loginError"></div>
-
-    <button type="submit" class="btn" id="loginBtn">
-      Sign In
-    </button>
-  </form>
-
-  <div class="footer-link" style="margin-top: 14px;">
-    <a href="/forgot-password.html">Forgot Password?</a>
-  </div>
-  <div class="footer-link">
-    Are you a school? <a href="./register.html">Register here</a>
-  </div>
+  <!-- Quiet Bottom Module Strip -->
+  <footer class="modules-strip" id="modulesStrip" aria-label="Included modules">
+    <span class="module-chip"><i class="fas fa-clipboard-check" aria-hidden="true"></i> Attendance</span>
+    <span class="module-chip"><i class="fas fa-wallet" aria-hidden="true"></i> Fees</span>
+    <span class="module-chip"><i class="fas fa-calendar-check" aria-hidden="true"></i> Exams</span>
+    <span class="module-chip"><i class="fas fa-money-check-dollar" aria-hidden="true"></i> Payroll</span>
+    <span class="module-chip"><i class="fas fa-circle-exclamation" aria-hidden="true"></i> Complaints</span>
+  </footer>
 </div>
 
+<script src="/api-config.js"></script>
 <script src="/auth-utils.js"></script>
 <script>
-function toggleTheme() {
-  const html = document.documentElement;
-  const icon = document.getElementById('themeIcon');
-  const isDark = html.getAttribute('data-theme') === 'dark';
-  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
-  icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
-  localStorage.setItem('attendance-theme', isDark ? 'light' : 'dark');
-}
-(function() {
-  const saved = localStorage.getItem('attendance-theme') || 'dark';
-  document.documentElement.setAttribute('data-theme', saved);
-  document.getElementById('themeIcon').className = saved === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
-})();
-
-// Show/hide password toggle
-const pwInput = document.getElementById('password');
-const toggleBtn = document.getElementById('togglePw');
-toggleBtn.addEventListener('click', function() {
-  const isPassword = pwInput.type === 'password';
-  pwInput.type = isPassword ? 'text' : 'password';
-  this.querySelector('i').className = isPassword ? 'fas fa-eye-slash' : 'fas fa-eye';
-});
-
-// Enter key triggers submit
-document.getElementById('fullId').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
-document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
-
-document.getElementById('loginForm').addEventListener('submit', async function(e) {
-  e.preventDefault();
-
-  const fullId = document.getElementById('fullId').value.trim();
-  const password = document.getElementById('password').value;
+(function () {
+  const fullIdInput = document.getElementById('fullId');
+  const pwInput = document.getElementById('password');
+  const loginBtn = document.getElementById('loginBtn');
+  const toggleBtn = document.getElementById('togglePw');
   const errorEl = document.getElementById('loginError');
-  const btn = document.getElementById('loginBtn');
+  const errorTextEl = document.getElementById('loginErrorText');
+  const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+  const mobileNavSheet = document.getElementById('mobileNavSheet');
 
-  errorEl.classList.remove('show');
-  errorEl.textContent = '';
-
-  // Client-side validation
-  if (!fullId) {
-    errorEl.textContent = 'Please enter your Full ID';
-    errorEl.classList.add('show');
-    return;
-  }
-  // Allow SUPER-ADM as a special case
-  if (fullId !== 'SUPER-ADM' && fullId.indexOf('-') === -1) {
-    errorEl.textContent = 'Invalid ID format. Your ID should look like HARV-T001';
-    errorEl.classList.add('show');
-    return;
-  }
-  if (!password) {
-    errorEl.textContent = 'Please enter your password';
-    errorEl.classList.add('show');
-    return;
+  // Desktop-only autofocus
+  if (window.innerWidth >= 1024) {
+    fullIdInput.focus();
   }
 
-  const lastDashIndex = fullId.lastIndexOf('-');
-  const tenant_id = fullId.substring(0, lastDashIndex).toUpperCase();
-  const login_id = fullId.substring(lastDashIndex + 1);
+  // Mobile menu toggle
+  function closeMobileMenu() {
+    if (!mobileNavSheet) return;
+    mobileNavSheet.classList.remove('open');
+    mobileMenuBtn.setAttribute('aria-expanded', 'false');
+  }
+  window.closeMobileMenu = closeMobileMenu;
 
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Signing in...';
+  if (mobileMenuBtn && mobileNavSheet) {
+    mobileMenuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = mobileNavSheet.classList.toggle('open');
+      mobileMenuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.addEventListener('click', (e) => {
+      if (mobileNavSheet.classList.contains('open') && !mobileNavSheet.contains(e.target) && e.target !== mobileMenuBtn) {
+        closeMobileMenu();
+      }
+    });
+  }
 
-  try {
-    const { ok, data } = await apiLogin(fullId, password);
+  // Enable/disable Sign in button based on both fields being filled
+  function updateSubmitState() {
+    const ready = fullIdInput.value.trim().length > 0 && pwInput.value.length > 0;
+    loginBtn.disabled = !ready;
+  }
+  fullIdInput.addEventListener('input', updateSubmitState);
+  pwInput.addEventListener('input', updateSubmitState);
 
-    if (!ok) {
-      errorEl.textContent = data.error || 'Login failed. Please try again.';
-      errorEl.classList.add('show');
-      document.getElementById('password').value = '';
-      btn.disabled = false;
-      btn.textContent = 'Sign In';
+  // Show/hide password toggle
+  toggleBtn.addEventListener('click', function () {
+    const isPassword = pwInput.type === 'password';
+    pwInput.type = isPassword ? 'text' : 'password';
+    this.querySelector('i').className = isPassword ? 'fas fa-eye-slash' : 'fas fa-eye';
+    this.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+  });
+
+  function showError(msg) {
+    errorTextEl.textContent = msg;
+    errorEl.classList.add('show');
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const fullId = fullIdInput.value.trim();
+    const password = pwInput.value;
+
+    errorEl.classList.remove('show');
+    errorTextEl.textContent = '';
+
+    if (!fullId) {
+      showError('Please enter your Full ID.');
+      fullIdInput.focus();
+      return;
+    }
+    if (fullId !== 'SUPER-ADM' && fullId.indexOf('-') === -1) {
+      showError('Invalid ID format. Your ID should look like HARV-T001.');
+      fullIdInput.focus();
+      return;
+    }
+    if (!password) {
+      showError('Please enter your password.');
+      pwInput.focus();
       return;
     }
 
-    if (data.token) setAuthToken(data.token);
-    window.location.replace(data.redirect_url || '/');
-  } catch (err) {
-    errorEl.textContent = formatFetchError(err);
-    errorEl.classList.add('show');
-    document.getElementById('password').value = '';
-    btn.disabled = false;
-    btn.textContent = 'Sign In';
-  }
-});
-</script>
+    loginBtn.disabled = true;
+    loginBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Signing in...';
 
+    try {
+      const { ok, data } = await apiLogin(fullId, password);
+
+      if (!ok) {
+        showError((data && data.error) ? data.error : 'Wrong Full ID or password. Try again.');
+        pwInput.value = '';
+        loginBtn.innerHTML = 'Sign in';
+        updateSubmitState();
+        pwInput.focus();
+        return;
+      }
+
+      if (data.token) setAuthToken(data.token);
+      window.location.replace(data.redirect_url || '/');
+    } catch (err) {
+      const msg = (typeof formatFetchError === 'function')
+        ? formatFetchError(err)
+        : "Can't reach the server. Check your connection.";
+      showError(msg);
+      loginBtn.innerHTML = 'Sign in';
+      updateSubmitState();
+    }
+  });
+})();
+</script>
 </body>
 </html>

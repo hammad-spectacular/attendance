@@ -98,6 +98,16 @@
   --sidebar-w: 220px;
   --sidebar-collapsed-w: 76px;
   --header-h: 64px;
+
+  /* Dark Hero / Landing Tokens */
+  --page-dark: #0B0B0A;
+  --panel-dark: #121211;
+  --ink-on-dark: #F4F4F0;
+  --ink-2-on-dark: #9A9A94;
+  --line-on-dark: #2A2A28;
+  --sage: #B9C7B0;
+  --glass: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.12);
 }
 
 /* Global Reset & Accessibility */
