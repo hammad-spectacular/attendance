@@ -1,6 +1,6 @@
 /* ==========================================================================
-   Shared Navigation Styles: Tab highlights, Underline slide, and Dropdowns
-   Light theme matching existing system. Respects prefers-reduced-motion.
+   Shared Navigation Styles: Pill Tabs & Dropdowns
+   Soft Light Canvas + Black + Lime Design System
    ========================================================================== */
 
 .tab-nav {
@@ -16,8 +16,6 @@
   overflow: visible !important;
 }
 
-/* Base Tab item — scoped to new dropdown elements only.
-   admin.html's own .tab-btn styles are preserved and not overridden here. */
 .nav-tab-item > .tab-btn {
   position: relative;
   display: inline-flex;
@@ -26,9 +24,9 @@
   padding: 0.55rem 0.95rem;
   font-size: 0.85rem;
   font-weight: 500;
-  color: var(--text-secondary, #475569);
+  color: var(--ink-2, #5C5C57);
   text-decoration: none;
-  border-radius: 8px;
+  border-radius: 999px;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -37,57 +35,31 @@
   outline: none;
 }
 
-/* Sliding underline indicator — new dropdown elements only */
 .nav-tab-item > .tab-btn::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  width: 0;
-  height: 2px;
-  background-color: var(--primary, #4F46E5);
-  transition: width 180ms ease, left 180ms ease;
+  display: none;
 }
 
-/* Hover & Focus state — new dropdown elements only */
 .nav-tab-item.open > .tab-btn,
 .nav-tab-item:hover > .tab-btn {
-  background-color: rgba(148, 163, 184, 0.16);
-  color: var(--text, #0f172a);
+  background-color: var(--accent-soft, rgba(230, 242, 122, 0.35));
+  color: var(--ink, #111111);
 }
 
-.nav-tab-item.open > .tab-btn::after,
-.nav-tab-item:hover > .tab-btn::after {
-  width: 80%;
-  left: 10%;
-}
-
-/* Active tab state — new dropdown elements only */
 .nav-tab-item.active > .tab-btn {
-  color: var(--primary, #4F46E5);
+  color: #FFFFFF;
   font-weight: 600;
-  background-color: rgba(79, 70, 229, 0.08);
+  background-color: var(--ink, #111111);
 }
 
-.nav-tab-item.active > .tab-btn::after {
-  width: 100%;
-  left: 0;
-  height: 2.5px;
-}
-
-/* Tab item wrapper for dropdowns */
 .nav-tab-item {
   position: relative;
   display: inline-block;
 }
 
-/* A feature-gated tab hides its button. For a dropdown the wrapper would be left
-   behind as an empty gap in the nav, so hide the wrapper as well. */
 .nav-tab-item:has(> .tab-btn[data-feature-key][style*="display: none"]) {
   display: none;
 }
 
-/* Small arrow after label */
 .nav-arrow {
   display: inline-block;
   font-size: 0.7rem;
@@ -100,17 +72,16 @@
   transform: rotate(180deg);
 }
 
-/* Dropdown Menu Container */
 .nav-dropdown {
   position: fixed;
   top: 0;
   left: 0;
   margin-top: 0;
   min-width: 220px;
-  background: var(--bg-card, #ffffff);
-  border: 1px solid var(--border, #e2e8f0);
-  border-radius: 8px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.06);
+  background: var(--bg-surface-2, #FFFFFF);
+  border: 1px solid var(--line, #E2E2DC);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   padding: 6px;
   opacity: 0;
   visibility: hidden;
@@ -120,7 +91,6 @@
   pointer-events: none;
 }
 
-/* Show Dropdown on Open */
 .nav-tab-item.open .nav-dropdown {
   opacity: 1;
   visibility: visible;
@@ -128,13 +98,12 @@
   pointer-events: auto;
 }
 
-/* Dropdown Items */
 .nav-dropdown-item {
   display: block;
   padding: 8px 12px;
-  color: var(--text, #1e293b);
+  color: var(--ink, #111111);
   text-decoration: none;
-  border-radius: 6px;
+  border-radius: 999px;
   font-size: 0.85rem;
   white-space: nowrap;
   transition: background-color 150ms ease;
@@ -142,30 +111,29 @@
 
 .nav-dropdown-item:hover,
 .nav-dropdown-item:focus-visible {
-  background-color: var(--bg-card-hover, #f1f5f9);
+  background-color: var(--accent-soft, rgba(230, 242, 122, 0.35));
   outline: none;
 }
 
 .nav-dropdown-item.active {
-  font-weight: 700;
-  color: var(--primary, #4F46E5);
-  background-color: rgba(79, 70, 229, 0.06);
+  font-weight: 600;
+  color: var(--accent-ink, #111111);
+  background-color: var(--accent, #E6F27A);
 }
 
 .nav-dropdown-title {
   display: block;
   font-weight: 600;
-  color: var(--text, #0f172a);
+  color: var(--ink, #111111);
 }
 
 .nav-dropdown-desc {
   display: block;
   font-size: 0.75rem;
-  color: var(--text-muted, #64748b);
+  color: var(--ink-2, #5C5C57);
   margin-top: 2px;
 }
 
-/* Mobile responsive menu */
 @media (max-width: 768px) {
   .nav-tab-item {
     display: block;
@@ -174,7 +142,7 @@
 
   .nav-tab-item > .tab-btn {
     width: 100%;
-    min-height: 44px; /* Minimum 44px tap target */
+    min-height: 44px;
     justify-content: space-between;
   }
 
@@ -183,7 +151,7 @@
     transform: none !important;
     box-shadow: none;
     border: none;
-    border-left: 2px solid #e2e8f0;
+    border-left: 2px solid var(--line, #E2E2DC);
     border-radius: 0;
     margin-left: 14px;
     padding: 4px 0 6px 8px;
@@ -204,12 +172,9 @@
   }
 }
 
-/* Reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
   .tab-btn,
-  .tab-btn::after,
   .nav-tab-item > .tab-btn,
-  .nav-tab-item > .tab-btn::after,
   .nav-arrow,
   .nav-dropdown,
   .nav-dropdown-item {
@@ -218,4 +183,3 @@
     animation: none !important;
   }
 }
-

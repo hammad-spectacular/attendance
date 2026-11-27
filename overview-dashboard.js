@@ -149,6 +149,9 @@
     const avatarEl = document.getElementById('topbarAvatar');
     if (avatarEl) avatarEl.textContent = initials(data.adminName);
 
+    const railAvatarEl = document.getElementById('railAvatar');
+    if (railAvatarEl) railAvatarEl.textContent = initials(data.adminName);
+
     const nameEl = document.getElementById('topbarAdminName');
     if (nameEl) nameEl.textContent = lastAdminName;
 
@@ -223,7 +226,7 @@
         <div class="ov-kpi-value">${stuCount.toLocaleString()}</div>
         <div class="ov-kpi-sub">${stuSub}</div>
       </button>
-      <button type="button" class="ov-kpi-card" data-nav-tab="tab-attendance">
+      <button type="button" class="ov-kpi-card is-accent" data-nav-tab="tab-attendance">
         <div class="ov-kpi-top">
           <span class="ov-kpi-title">Today's attendance</span>
           <span class="ov-kpi-icon ${attTone}" aria-hidden="true"><i class="fas fa-clipboard-check"></i></span>
@@ -549,7 +552,7 @@
     const shell = document.getElementById('eyeShell');
     const toggleBtn = document.getElementById('eyeSidebarToggleBtn');
     if (toggleBtn && shell) {
-      if (window.innerWidth > 960 && localStorage.getItem('eye-sidebar-collapsed') === '1') {
+      if (window.innerWidth > 960 && localStorage.getItem('eye-sidebar-collapsed') !== '0') {
         shell.classList.add('sidebar-collapsed');
       }
       toggleBtn.addEventListener('click', (e) => {
