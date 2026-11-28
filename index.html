@@ -13,504 +13,41 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="./design-tokens.css">
+<link rel="stylesheet" href="./auth-hero.css">
 <style>
-*, *::before, *::after {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-html {
-  scroll-behavior: smooth;
-  background: var(--page-dark, #0B0B0A);
-}
-
-body {
-  font-family: var(--font-main, 'Inter', sans-serif);
-  background: var(--page-dark, #0B0B0A);
-  color: var(--ink-on-dark, #F4F4F0);
-  min-height: 100dvh;
-  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
-}
-
-/* Outer Rounded Hero Panel */
-.hero-panel {
-  position: relative;
-  width: 100%;
-  max-width: 1440px;
-  min-height: calc(100dvh - 24px);
-  background: var(--panel-dark, #121211);
-  border: 1px solid var(--line-on-dark, #2A2A28);
-  border-radius: 32px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  padding: 24px 24px 20px;
-  animation: heroFadeIn 0.4s ease-out both;
-}
-
-/* Background Texture, Luminous Light Plate Glows & Center Scrim */
-.hero-bg-texture {
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
-  background-size: 28px 28px;
-  opacity: 0.1;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.hero-glow-top {
-  position: absolute;
-  top: -12%;
-  right: -8%;
-  width: 45vw;
-  height: 45vw;
-  min-width: 340px;
-  min-height: 340px;
-  max-width: 680px;
-  max-height: 680px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(230, 242, 122, 0.36) 0%, rgba(185, 199, 176, 0.22) 48%, transparent 74%);
-  filter: blur(105px);
-  pointer-events: none;
-  z-index: 2;
-  animation: glowDrift 22s ease-in-out infinite alternate;
-}
-
-.hero-glow-bottom {
-  position: absolute;
-  bottom: -14%;
-  left: -8%;
-  width: 45vw;
-  height: 45vw;
-  min-width: 320px;
-  min-height: 320px;
-  max-width: 620px;
-  max-height: 620px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(185, 199, 176, 0.28) 0%, rgba(230, 242, 122, 0.12) 45%, transparent 74%);
-  filter: blur(100px);
-  pointer-events: none;
-  z-index: 2;
-  animation: glowDrift 26s ease-in-out infinite alternate-reverse;
-}
-
-.hero-scrim {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(closest-side, rgba(11, 11, 10, 0.85), transparent);
-  pointer-events: none;
-  z-index: 3;
-}
-
-/* 3 subtle vertical light streaks near bottom center */
-.hero-streaks {
-  position: absolute;
-  bottom: 52px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 36px;
-  pointer-events: none;
-  opacity: 0.35;
-  z-index: 4;
-}
-
-.hero-streak {
-  width: 1px;
-  height: 80px;
-  background: linear-gradient(to bottom, transparent, rgba(230, 242, 122, 0.55), transparent);
-  animation: streakPulse 10s ease-in-out infinite;
-}
-
-.hero-streak:nth-child(2) {
-  height: 104px;
-  animation-delay: -3.5s;
-}
-
-.hero-streak:nth-child(3) {
-  height: 70px;
-  animation-delay: -6.5s;
-}
-
-/* Floating Pill Navbar (48px high, z-index above everything) */
-.hero-nav-wrap {
-  position: relative;
-  z-index: 50;
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  min-height: 64px;
-  flex-shrink: 0;
-}
-
-.hero-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  height: 48px;
-  padding: 0 6px 0 8px;
-  background: #181817;
-  border: 1px solid var(--line-on-dark, #2A2A28);
-  border-radius: 999px;
-  backdrop-filter: blur(16px);
-  width: 100%;
-  max-width: 780px;
-}
-
-.nav-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  text-decoration: none;
-  color: var(--ink-on-dark, #F4F4F0);
-  font-size: 14px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.nav-logo-mark {
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  background: var(--accent, #E6F27A);
-  color: #111111;
-  font-size: 12px;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.nav-links {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.nav-link {
-  color: var(--ink-2-on-dark, #9A9A94);
-  text-decoration: none;
-  font-size: 13px;
-  font-weight: 500;
-  padding: 8px 14px;
-  border-radius: 999px;
-  transition: color 0.15s ease, background 0.15s ease;
-}
-
-.nav-link:hover {
-  color: var(--ink-on-dark, #F4F4F0);
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.nav-link:focus-visible {
-  outline: 2px solid var(--accent, #E6F27A);
-  outline-offset: 2px;
-}
-
-.nav-register-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 36px;
-  padding: 0 16px;
-  border-radius: 999px;
-  background: #FFFFFF;
-  color: #111111;
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
-  white-space: nowrap;
-  transition: background 0.15s ease;
-}
-
-.nav-register-btn:hover {
-  background: var(--accent, #E6F27A);
-}
-
-.nav-register-btn:focus-visible {
-  outline: 2px solid var(--accent, #E6F27A);
-  outline-offset: 2px;
-}
-
-.nav-mobile-toggle {
-  display: none;
-  width: 44px;
-  height: 44px;
-  border-radius: 999px;
-  border: none;
-  background: transparent;
-  color: var(--ink-on-dark, #F4F4F0);
-  font-size: 16px;
-  cursor: pointer;
-  align-items: center;
-  justify-content: center;
-}
-
-.nav-mobile-sheet {
-  display: none;
-  position: absolute;
-  top: 56px;
-  left: 0;
-  right: 0;
-  background: #181817;
-  border: 1px solid var(--line-on-dark, #2A2A28);
-  border-radius: 20px;
-  padding: 12px;
-  flex-direction: column;
-  gap: 6px;
-  z-index: 60;
-}
-
-.nav-mobile-sheet.open {
-  display: flex;
-}
-
-.nav-mobile-sheet a {
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  padding: 0 14px;
-  border-radius: 12px;
-  color: var(--ink-on-dark, #F4F4F0);
-  text-decoration: none;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.nav-mobile-sheet a.mobile-reg {
-  background: #FFFFFF;
-  color: #111111;
-  justify-content: center;
-  font-weight: 600;
-  margin-top: 4px;
-}
-
-/* Vertically Centered Hero Block */
-.hero-main {
-  position: relative;
-  z-index: 20;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 16px 0;
-}
-
-.hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(16px);
-  color: var(--ink-on-dark, #F4F4F0);
-  font-size: 12px;
-  font-weight: 500;
-  margin-bottom: 20px;
-}
-
-.hero-badge i {
-  color: var(--accent, #E6F27A);
-  font-size: 11px;
-}
-
 .hero-title {
   font-size: clamp(2rem, min(4.2vw, 6.5vh), 3.5rem);
   font-weight: 500;
   line-height: 1.1;
   letter-spacing: -0.02em;
-  max-width: 20ch;
+  max-width: 19ch;
   text-wrap: balance;
-  color: #F4F4F0;
-  margin-bottom: 16px;
+  color: #FFFFFF;
+  margin-bottom: 14px;
 }
 
 .hero-sub {
-  font-size: 1.0625rem;
+  font-size: 17px;
   line-height: 1.5;
-  color: #B8B8B0;
-  max-width: 46ch;
-  text-wrap: balance;
-  margin-bottom: 32px;
-}
-
-/* Orbit Nodes (Desktop >= 1100px only) */
-.orbit-node {
-  position: absolute;
-  display: none;
-  align-items: center;
-  gap: 10px;
-  pointer-events: none;
-}
-
-.orbit-circle {
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(12px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--accent, #E6F27A);
-  font-size: 14px;
-}
-
-.orbit-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ink-2-on-dark, #9A9A94);
-}
-
-.orbit-line {
-  width: 48px;
-  height: 1px;
-  background: linear-gradient(to right, rgba(255, 255, 255, 0.18), transparent);
-}
-
-.orbit-node.right .orbit-line {
-  background: linear-gradient(to left, rgba(255, 255, 255, 0.18), transparent);
-}
-
-@media (min-width: 1100px) {
-  .orbit-node {
-    display: flex;
-  }
-  .orbit-node.tl { top: 44px; left: 4%; }
-  .orbit-node.bl { bottom: 90px; left: 6%; }
-  .orbit-node.tr { top: 44px; right: 4%; flex-direction: row-reverse; }
-  .orbit-node.br { bottom: 90px; right: 6%; flex-direction: row-reverse; }
-}
-
-/* Elevated Sign-In Card */
-.login-card {
-  width: min(440px, 100%);
-  background: #1A1A19;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 24px;
-  padding: 32px;
-  text-align: left;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  margin-bottom: 20px;
-}
-
-.login-title {
-  font-size: 22px;
-  font-weight: 600;
-  color: #F4F4F0;
-  margin-bottom: 20px;
-}
-
-.form-group {
-  margin-bottom: 18px;
-}
-
-.form-group label {
-  display: block;
-  font-size: 14px;
-  font-weight: 500;
-  color: #F4F4F0;
-  margin-bottom: 8px;
-}
-
-.input-wrap {
-  position: relative;
-}
-
-.input-wrap input {
-  width: 100%;
-  height: 48px;
-  padding: 0 48px 0 14px;
-  border-radius: 14px;
-  border: 1px solid #3A3A35;
-  background: #0F0F0E;
-  color: #F4F4F0;
-  font-family: inherit;
-  font-size: 16px;
-  outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.input-wrap input::placeholder {
-  color: #A0A09A;
-}
-
-.input-wrap input:hover {
-  border-color: #55554E;
-}
-
-.input-wrap input:focus,
-.input-wrap input:focus-visible {
-  border-color: var(--accent, #E6F27A);
-  box-shadow: 0 0 0 2px rgba(230, 242, 122, 0.45);
-  outline: none;
-}
-
-.toggle-pw {
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-  border: none;
-  background: transparent;
-  color: #C9C9C2;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  transition: color 0.15s ease, background 0.15s ease;
-}
-
-.toggle-pw:hover {
-  color: #F4F4F0;
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.toggle-pw:focus-visible {
-  outline: 2px solid var(--accent, #E6F27A);
-  outline-offset: 2px;
-}
-
-.field-helper {
-  font-size: 13px;
-  color: #A8A8A2;
-  margin-top: 8px;
-  line-height: 1.35;
+  color: var(--ink-2-on-dark, #C4C4BC);
+  max-width: 48ch;
+  margin-bottom: 28px;
 }
 
 .forgot-row {
   display: flex;
   justify-content: flex-end;
-  margin-top: 8px;
+  margin: -4px 0 16px;
 }
 
 .forgot-link {
   font-size: 13px;
-  color: #B8B8B0;
+  font-weight: 500;
+  color: var(--accent, #E6F27A);
   text-decoration: none;
 }
 
 .forgot-link:hover {
-  color: #F4F4F0;
   text-decoration: underline;
 }
 
@@ -520,210 +57,95 @@ body {
   border-radius: 4px;
 }
 
-.error-msg {
+/* Corner Symbolic Nodes */
+.corner-node {
+  position: absolute;
   display: none;
-  align-items: flex-start;
-  gap: 10px;
-  background: rgba(214, 69, 69, 0.16);
-  border: 1px solid rgba(214, 69, 69, 0.4);
-  color: #FCA5A5;
-  padding: 12px 14px;
-  border-radius: 14px;
-  font-size: 13px;
-  line-height: 1.4;
-  margin-bottom: 14px;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 15;
 }
 
-.error-msg.show {
-  display: flex;
-}
-
-.signin-btn {
-  width: 100%;
-  height: 48px;
-  border: none;
+.corner-circle {
+  width: 56px;
+  height: 56px;
   border-radius: 999px;
-  background: var(--accent, #E6F27A);
-  color: #111111;
-  font-family: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 4px;
-  transition: background 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
-}
-
-.signin-btn:hover:not(:disabled) {
-  background: #F0FA8E;
-}
-
-.signin-btn:active:not(:disabled) {
-  transform: scale(0.99);
-}
-
-.signin-btn:focus-visible {
-  outline: 2px solid #FFFFFF;
-  outline-offset: 2px;
-}
-
-.signin-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.spinner {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(17, 17, 17, 0.25);
-  border-top-color: #111111;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
-
-.register-note {
-  font-size: 13px;
-  color: #B8B8B0;
-  text-align: center;
-}
-
-.register-note a {
-  color: #F4F4F0;
-  text-decoration: underline;
-  text-decoration-color: var(--accent, #E6F27A);
-  text-underline-offset: 3px;
-  font-weight: 500;
-}
-
-.register-note a:focus-visible {
-  outline: 2px solid var(--accent, #E6F27A);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-
-/* Bottom Module Strip */
-.modules-strip {
-  position: relative;
-  z-index: 20;
+  background: #161615;
+  border: 1px solid rgba(255, 255, 255, 0.16);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 28px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  overflow-x: auto;
-  scrollbar-width: none;
-  flex-shrink: 0;
+  color: #E6F27A;
+  font-size: 24px;
+  position: relative;
 }
 
-.modules-strip::-webkit-scrollbar {
-  display: none;
-}
-
-.module-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--ink-2-on-dark, #9A9A94);
+.corner-label {
   font-size: 13px;
   font-weight: 500;
-  white-space: nowrap;
-  flex-shrink: 0;
+  color: #D6D6CF;
 }
 
-.module-chip i {
-  font-size: 13px;
-  color: var(--sage, #B9C7B0);
+.corner-connector {
+  position: absolute;
+  top: 50%;
+  width: 64px;
+  height: 1px;
+  pointer-events: none;
 }
 
-@keyframes heroFadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+.corner-node.left .corner-connector {
+  left: calc(100% + 10px);
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.2), transparent);
 }
 
-@keyframes glowDrift {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(-24px, 18px) scale(1.06); }
+.corner-node.right .corner-connector {
+  right: calc(100% + 10px);
+  background: linear-gradient(to left, rgba(255, 255, 255, 0.2), transparent);
 }
 
-@keyframes streakPulse {
-  0%, 100% { opacity: 0.2; }
-  50% { opacity: 0.6; }
+@media (min-width: 1200px) {
+  .corner-node {
+    display: flex;
+  }
+  .corner-node.tl { top: 96px; left: 32px; }
+  .corner-node.tr { top: 96px; right: 32px; }
+  .corner-node.bl { bottom: 32px; left: 32px; }
+  .corner-node.br { bottom: 32px; right: 32px; }
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero-panel, .hero-glow-top, .hero-glow-bottom, .hero-streak, .spinner {
-    animation: none !important;
-  }
-}
-
-/* Short viewports (1366x768 etc.): fit cleanly without scrolling */
-@media (max-height: 800px) {
-  .hero-panel {
-    padding: 16px 24px 14px;
-  }
-  .hero-nav-wrap {
-    min-height: 54px;
-  }
-  .hero-main {
-    padding: 8px 0;
-  }
-  .hero-badge {
-    margin-bottom: 14px;
-  }
-  .hero-title {
-    margin-bottom: 12px;
-  }
-  .hero-sub {
-    margin-bottom: 22px;
-  }
-  .login-card {
-    padding: 24px;
-    margin-bottom: 14px;
-  }
-  .login-title {
-    margin-bottom: 14px;
-  }
-  .form-group {
-    margin-bottom: 14px;
-  }
-}
-
-/* Tablet & Mobile Responsive */
 @media (max-width: 767px) {
-  body {
-    padding: 8px;
+  .corner-node.tl,
+  .corner-node.tr {
+    display: flex;
+    top: auto;
+    bottom: 16px;
   }
-  .hero-panel {
-    border-radius: 24px;
-    padding: 14px 16px 18px;
-    min-height: calc(100dvh - 16px);
+  .corner-node.tl { left: 16px; }
+  .corner-node.tr { right: 16px; }
+  .corner-circle {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
   }
-  .nav-links,
-  .nav-register-btn {
+  .corner-label {
+    font-size: 11px;
+  }
+  .corner-connector {
     display: none;
   }
-  .nav-mobile-toggle {
-    display: inline-flex;
-  }
-  .modules-strip {
-    justify-content: flex-start;
-    gap: 20px;
-    padding-bottom: 4px;
+  .hero-main {
+    padding-bottom: 76px;
   }
 }
 
-@media (max-width: 480px) {
-  .login-card {
-    padding: 24px;
+@media (max-height: 780px) and (min-width: 768px) {
+  .hero-main {
+    padding: 16px 0;
+  }
+  .hero-sub {
+    margin-bottom: 20px;
   }
 }
 </style>
@@ -731,123 +153,97 @@ body {
 <body>
 
 <div class="hero-panel">
-  <div class="hero-bg-texture" aria-hidden="true"></div>
-  <div class="hero-glow-top" aria-hidden="true"></div>
-  <div class="hero-glow-bottom" aria-hidden="true"></div>
-  <div class="hero-scrim" aria-hidden="true"></div>
-  <div class="hero-streaks" aria-hidden="true">
-    <div class="hero-streak"></div>
-    <div class="hero-streak"></div>
-    <div class="hero-streak"></div>
+  <!-- Clipped Sage-Mint + Lime Glow Layer -->
+  <div class="hero-glow-layer" aria-hidden="true">
+    <div class="hero-glow-top"></div>
+    <div class="hero-glow-bottom"></div>
+    <div class="hero-glow-lime"></div>
+    <div class="hero-scrim"></div>
   </div>
 
-  <!-- Floating Pill Navbar -->
+  <!-- Sticky Floating Pill Navbar -->
   <header class="hero-nav-wrap">
     <nav class="hero-nav" aria-label="Primary navigation">
       <a href="/" class="nav-brand">
         <span class="nav-logo-mark" aria-hidden="true">KA</span>
-        <span>Khattack Academy</span>
+        <span class="nav-brand-name">Khattack Academy</span>
       </a>
-
-      <div class="nav-links">
-        <a href="#modulesStrip" class="nav-link">Features</a>
-        <a href="mailto:support@theeye.edu.pk" class="nav-link">Contact</a>
-      </div>
-
-      <a href="./register.html" class="nav-register-btn">Register your school</a>
-
-      <button type="button" class="nav-mobile-toggle" id="mobileMenuBtn" aria-expanded="false" aria-controls="mobileNavSheet" aria-label="Open menu">
-        <i class="fas fa-bars" aria-hidden="true"></i>
-      </button>
+      <a href="./register.html" class="nav-register-btn">
+        <span class="label-full">Register your school</span>
+        <span class="label-short">Register</span>
+      </a>
     </nav>
-
-    <div class="nav-mobile-sheet" id="mobileNavSheet">
-      <a href="#modulesStrip" onclick="closeMobileMenu()">Features</a>
-      <a href="mailto:support@theeye.edu.pk" onclick="closeMobileMenu()">Contact</a>
-      <a href="./register.html" class="mobile-reg">Register your school</a>
-    </div>
   </header>
+
+  <!-- Corner Symbolic Nodes -->
+  <div class="corner-node left tl" aria-hidden="true">
+    <div class="corner-circle">
+      <i class="fas fa-eye"></i>
+      <span class="corner-connector"></span>
+    </div>
+    <span class="corner-label">Insight</span>
+  </div>
+  <div class="corner-node right tr" title="Secure sign-in" aria-label="Secure sign-in">
+    <div class="corner-circle">
+      <i class="fas fa-lock" aria-hidden="true"></i>
+      <span class="corner-connector" aria-hidden="true"></span>
+    </div>
+    <span class="corner-label">Secure</span>
+  </div>
+  <div class="corner-node left bl" aria-hidden="true">
+    <div class="corner-circle">
+      <i class="fas fa-wallet"></i>
+      <span class="corner-connector"></span>
+    </div>
+    <span class="corner-label">Fees</span>
+  </div>
+  <div class="corner-node right br" aria-hidden="true">
+    <div class="corner-circle">
+      <i class="fas fa-users"></i>
+      <span class="corner-connector"></span>
+    </div>
+    <span class="corner-label">Staff</span>
+  </div>
 
   <!-- Vertically Centered Hero Block -->
   <main class="hero-main">
-    <div class="orbit-node tl" aria-hidden="true">
-      <span class="orbit-circle"><i class="fas fa-clipboard-check"></i></span>
-      <span class="orbit-label">Attendance</span>
-      <span class="orbit-line"></span>
-    </div>
-    <div class="orbit-node bl" aria-hidden="true">
-      <span class="orbit-circle"><i class="fas fa-wallet"></i></span>
-      <span class="orbit-label">Fees</span>
-      <span class="orbit-line"></span>
-    </div>
-    <div class="orbit-node tr right" aria-hidden="true">
-      <span class="orbit-circle"><i class="fas fa-calendar-check"></i></span>
-      <span class="orbit-label">Exams</span>
-      <span class="orbit-line"></span>
-    </div>
-    <div class="orbit-node br right" aria-hidden="true">
-      <span class="orbit-circle"><i class="fas fa-users"></i></span>
-      <span class="orbit-label">Staff</span>
-      <span class="orbit-line"></span>
-    </div>
-
-    <div class="hero-badge">
-      <i class="fas fa-sparkles" aria-hidden="true"></i>
-      <span>Built for schools</span>
-    </div>
-
     <h1 class="hero-title">Run your whole school from one place</h1>
-    <p class="hero-sub">Attendance, fees, exams and staff in one simple dashboard.</p>
+    <p class="hero-sub">Attendance, fees, exams and staff in one place.</p>
 
-    <section class="login-card" aria-label="Sign in">
-      <h2 class="login-title">Sign in</h2>
-
+    <section class="auth-card" aria-label="Sign in">
       <form id="loginForm" novalidate>
         <div class="form-group">
-          <label for="fullId">Full ID</label>
+          <label for="fullId" class="sr-only">Full ID</label>
           <div class="input-wrap">
-            <input type="text" id="fullId" placeholder="e.g. HARV-T001" autocomplete="username" inputmode="text" required>
+            <input type="text" id="fullId" class="auth-input" placeholder="Full ID" autocomplete="username" inputmode="text" required>
           </div>
-          <p class="field-helper">Your Full ID was given by your school admin.</p>
         </div>
 
         <div class="form-group">
-          <label for="password">Password</label>
+          <label for="password" class="sr-only">Password</label>
           <div class="input-wrap">
-            <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password" required>
+            <input type="password" id="password" class="auth-input" placeholder="Password" autocomplete="current-password" required>
             <button type="button" class="toggle-pw" id="togglePw" aria-label="Show password">
               <i class="fas fa-eye" aria-hidden="true"></i>
             </button>
           </div>
-          <div class="forgot-row">
-            <a href="/forgot-password.html" class="forgot-link">Forgot password?</a>
-          </div>
         </div>
 
-        <div class="error-msg" id="loginError" role="alert">
+        <div class="forgot-row">
+          <a href="/forgot-password.html" class="forgot-link">Forgot password?</a>
+        </div>
+
+        <div class="auth-msg error" id="loginError" role="alert">
           <i class="fas fa-circle-exclamation" style="margin-top:2px;flex-shrink:0;" aria-hidden="true"></i>
           <span id="loginErrorText"></span>
         </div>
 
-        <button type="submit" class="signin-btn" id="loginBtn" disabled>
+        <button type="submit" class="lime-pill-btn" id="loginBtn">
           Sign in
         </button>
       </form>
     </section>
-
-    <p class="register-note">
-      Are you a school? <a href="./register.html">Register here</a>
-    </p>
   </main>
-
-  <!-- Quiet Bottom Module Strip -->
-  <footer class="modules-strip" id="modulesStrip" aria-label="Included modules">
-    <span class="module-chip"><i class="fas fa-clipboard-check" aria-hidden="true"></i> Attendance</span>
-    <span class="module-chip"><i class="fas fa-wallet" aria-hidden="true"></i> Fees</span>
-    <span class="module-chip"><i class="fas fa-calendar-check" aria-hidden="true"></i> Exams</span>
-    <span class="module-chip"><i class="fas fa-money-check-dollar" aria-hidden="true"></i> Payroll</span>
-    <span class="module-chip"><i class="fas fa-circle-exclamation" aria-hidden="true"></i> Complaints</span>
-  </footer>
 </div>
 
 <script src="/api-config.js"></script>
@@ -860,39 +256,10 @@ body {
   const toggleBtn = document.getElementById('togglePw');
   const errorEl = document.getElementById('loginError');
   const errorTextEl = document.getElementById('loginErrorText');
-  const mobileMenuBtn = document.getElementById('mobileMenuBtn');
-  const mobileNavSheet = document.getElementById('mobileNavSheet');
 
   if (window.innerWidth >= 1024) {
     fullIdInput.focus();
   }
-
-  function closeMobileMenu() {
-    if (!mobileNavSheet) return;
-    mobileNavSheet.classList.remove('open');
-    mobileMenuBtn.setAttribute('aria-expanded', 'false');
-  }
-  window.closeMobileMenu = closeMobileMenu;
-
-  if (mobileMenuBtn && mobileNavSheet) {
-    mobileMenuBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const open = mobileNavSheet.classList.toggle('open');
-      mobileMenuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    });
-    document.addEventListener('click', (e) => {
-      if (mobileNavSheet.classList.contains('open') && !mobileNavSheet.contains(e.target) && e.target !== mobileMenuBtn) {
-        closeMobileMenu();
-      }
-    });
-  }
-
-  function updateSubmitState() {
-    const ready = fullIdInput.value.trim().length > 0 && pwInput.value.length > 0;
-    loginBtn.disabled = !ready;
-  }
-  fullIdInput.addEventListener('input', updateSubmitState);
-  pwInput.addEventListener('input', updateSubmitState);
 
   toggleBtn.addEventListener('click', function () {
     const isPassword = pwInput.type === 'password';
@@ -915,7 +282,7 @@ body {
     errorTextEl.textContent = '';
 
     if (!fullId) {
-      showError('Please enter your Full ID.');
+      showError('Enter your Full ID.');
       fullIdInput.focus();
       return;
     }
@@ -925,7 +292,7 @@ body {
       return;
     }
     if (!password) {
-      showError('Please enter your password.');
+      showError('Enter your password.');
       pwInput.focus();
       return;
     }
@@ -939,8 +306,8 @@ body {
       if (!ok) {
         showError((data && data.error) ? data.error : 'Wrong Full ID or password. Try again.');
         pwInput.value = '';
-        loginBtn.innerHTML = 'Sign in';
-        updateSubmitState();
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Sign in';
         pwInput.focus();
         return;
       }
@@ -952,8 +319,8 @@ body {
         ? formatFetchError(err)
         : "Can't reach the server. Check your connection.";
       showError(msg);
-      loginBtn.innerHTML = 'Sign in';
-      updateSubmitState();
+      loginBtn.disabled = false;
+      loginBtn.textContent = 'Sign in';
     }
   });
 })();

@@ -99,15 +99,21 @@
   --sidebar-collapsed-w: 76px;
   --header-h: 64px;
 
-  /* Dark Hero / Landing Tokens */
-  --page-dark: #0B0B0A;
-  --panel-dark: #121211;
+  /* Dark Hero / Auth Shared Tokens */
+  --page-dark: #0A0A0A;
+  --panel-dark: #101010;
+  --card-dark: #161615;
+  --input-dark: #0C0C0B;
   --ink-on-dark: #F4F4F0;
-  --ink-2-on-dark: #9A9A94;
-  --line-on-dark: #2A2A28;
+  --ink-2-on-dark: #C4C4BC;
+  --placeholder-dark: #A8A8A2;
+  --line-on-dark: #3A3A35;
   --sage: #B9C7B0;
+  --glow-mint: rgba(207, 224, 200, 0.6);
+  --glow-sage: rgba(169, 191, 176, 0.45);
+  --glow-lime: rgba(230, 242, 122, 0.2);
   --glass: rgba(255, 255, 255, 0.06);
-  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-border: rgba(255, 255, 255, 0.14);
 }
 
 /* Global Reset & Accessibility */
